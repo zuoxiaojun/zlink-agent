@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>今日销售订单明细 &middot; {{DATE}}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Microsoft YaHei',Arial,sans-serif;background:#F5F5F7;color:#3B3838;padding-bottom:60px}
+.hero{background:linear-gradient(135deg,#fff5f5 0%,#ffe8e8 50%,#fff0f0 100%);padding:28px 36px 20px;border-bottom:1px solid rgba(230,0,18,.08)}
+.hero-inner{display:flex;align-items:flex-start;justify-content:space-between}
+.hero-left{flex:1}
+.hero-left h1{font-size:22px;color:#8B0000;font-weight:700;margin-bottom:6px}
+.hero-left .subtitle{font-size:13px;color:#888;margin-bottom:16px}
+.hero-badge{display:inline-block;background:#E60012;color:#FFF;font-size:12px;padding:3px 10px;border-radius:20px;font-weight:600}
+.hero-right img{width:90px;height:auto;opacity:.9}
+.kpi-row{display:flex;gap:14px;padding:20px 36px;flex-wrap:wrap}
+.kpi-card{flex:1;min-width:140px;background:#FFF;border-radius:10px;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:4px solid #E60012}
+.kpi-card.orange{border-left-color:#FF6A00}
+.kpi-card.blue{border-left-color:#1783FF}
+.kpi-card.green{border-left-color:#2EBB59}
+.kpi-label{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.kpi-value{font-size:26px;font-weight:700;color:#8B0000}
+.kpi-sub{font-size:11px;color:#999;margin-top:3px}
+.section{padding:0 36px 20px}
+.section-title{font-size:15px;font-weight:700;color:#3B3838;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-title::before{content:'';display:inline-block;width:4px;height:16px;background:#E60012;border-radius:2px}
+.table-wrap{background:#FFF;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);max-height:420px;overflow-y:auto}
+.table-wrap::-webkit-scrollbar{width:5px;height:5px}
+.table-wrap::-webkit-scrollbar-thumb{background:rgba(230,0,18,.25);border-radius:3px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:700px}
+thead{position:sticky;top:0;z-index:1}
+thead th{background:#FFF5F5;color:#8B0000;font-weight:600;padding:10px 12px;text-align:left;white-space:nowrap;border-bottom:2px solid rgba(230,0,18,.15)}
+tbody tr:hover{background:#FFF9F9}
+tbody td{padding:9px 12px;border-bottom:1px solid #F5F5F5;vertical-top:top}
+.amount{text-align:right;color:#1a4db8;font-weight:600}
+.status-tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.s-DELIVERGOODS{background:#FFF0E0;color:#FF6A00}
+.s-TAKEDELIVERY{background:#E8F0FF;color:#0071E3}
+.s-CONFIRMORDER{background:#F0F0FF;color:#6B5BFF}
+.s-ENDORDER{background:#E8F8EF;color:#2EBB59}
+.customer{font-weight:600;color:#E60012}
+.subtotal td{background:#FFF5F5!important;border-top:2px solid rgba(230,0,18,.15);font-weight:700;color:#E60012!important;font-size:12px}
+.subtotal .amount{color:#E60012!important}
+.footer{text-align:center;padding:24px;font-size:11px;color:#AAA;border-top:1px solid #EEE;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-left">
+      <h1>&#128202; 今日销售订单明细</h1>
+      <div class="subtitle">{{DATE}}（{{WEEKDAY}}） &middot; 用友 YonSuite</div>
+      <span class="hero-badge">Hot</span>
+    </div>
+    <div class="hero-right">
+      <img src="https://gitee.com/leftxiaojun/yonyou-html-presentation/raw/main/assets/logo/current-logo.png">
+    </div>
+  </div>
+</div>
+
+<div class="kpi-row">
+  <div class="kpi-card">
+    <div class="kpi-label">含税总额（元）</div>
+    <div class="kpi-value">{{TOTAL_FMT}}</div>
+    <div class="kpi-sub">{{ORDER_COUNT}} 个订单</div>
+  </div>
+  <div class="kpi-card orange">
+    <div class="kpi-label">待发货</div>
+    <div class="kpi-value">{{DELIVER_COUNT}} 单</div>
+    <div class="kpi-sub">金额 {{DELIVER_AMT_FMT}}</div>
+  </div>
+  <div class="kpi-card blue">
+    <div class="kpi-label">待收货</div>
+    <div class="kpi-value">{{TAKEN_COUNT}} 单</div>
+    <div class="kpi-sub">金额 {{TAKEN_AMT_FMT}}</div>
+  </div>
+  <div class="kpi-card green">
+    <div class="kpi-label">HHI 集中度</div>
+    <div class="kpi-value">{{HHI}}</div>
+    <div class="kpi-sub">{{HHI_RISK}}</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">订单明细（共 {{ORDER_COUNT}} 个订单）</div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>单据编号</th>
+          <th>客户</th>
+          <th>物料</th>
+          <th>数量</th>
+          <th>含税金额</th>
+          <th>状态</th>
+          <th>业务员</th>
+        </tr>
+      </thead>
+      <tbody>
+{{ORDER_ROWS}}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer">YonSuite &middot; 用友网络科技股份有限公司 &middot; 数据截至 {{DATE}}</div>
+</body>
+</html>

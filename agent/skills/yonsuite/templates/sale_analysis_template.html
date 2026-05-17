@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{TITLE}} &middot; {{MONTH}}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Microsoft YaHei',Arial,sans-serif;background:#F5F5F7;color:#3B3838;padding-bottom:60px}
+a{color:#1783FF;text-decoration:none}
+
+/* Hero */
+.hero{background:linear-gradient(135deg,#fff5f5 0%,#ffe8e8 50%,#fff0f0 100%);padding:28px 36px 20px;border-bottom:1px solid rgba(230,0,18,.08)}
+.hero-inner{display:flex;align-items:flex-start;justify-content:space-between}
+.hero-left{flex:1}
+.hero-left h1{font-size:22px;color:#8B0000;font-weight:700;margin-bottom:6px}
+.hero-left .subtitle{font-size:13px;color:#888;margin-bottom:16px}
+.hero-badge{display:inline-block;background:#E60012;color:#FFF;font-size:12px;padding:3px 10px;border-radius:20px;font-weight:600;margin-right:8px}
+.hero-badge.orange{background:#FF6A00}
+.hero-badge.blue{background:#1783FF}
+.hero-right img{width:90px;height:auto;opacity:.9}
+
+/* KPI */
+.kpi-row{display:flex;gap:14px;padding:20px 36px;flex-wrap:wrap}
+.kpi-card{flex:1;min-width:160px;background:#FFF;border-radius:10px;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-left:4px solid #E60012}
+.kpi-card.orange{border-left-color:#FF6A00}
+.kpi-card.blue{border-left-color:#1783FF}
+.kpi-card.green{border-left-color:#2EBB59}
+.kpi-card.purple{border-left-color:#6B5BFF}
+.kpi-label{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.kpi-value{font-size:24px;font-weight:700;color:#8B0000}
+.kpi-sub{font-size:11px;color:#999;margin-top:3px}
+
+/* Section title */
+.section{padding:0 36px 20px}
+.section-title{font-size:15px;font-weight:700;color:#3B3838;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-title::before{content:'';display:inline-block;width:4px;height:16px;background:#E60012;border-radius:2px}
+
+/* Charts - 2×2 flex grid, logo top-right of hero */
+.chart-grid{display:flex;gap:14px;flex-wrap:wrap;padding:0 36px 20px}
+.chart-grid img{width:calc(50% - 7px);height:260px;object-fit:contain;border-radius:8px;background:#FFF;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+
+/* Decision Brief */
+.brief{background:#FFF;border-radius:10px;padding:20px 24px;margin:0 36px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06);border-top:3px solid #E60012}
+.brief-header{font-size:14px;font-weight:700;color:#8B0000;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+.brief h4{font-size:13px;color:#333;margin:12px 0 6px;font-weight:600}
+.brief p{font-size:13px;color:#555;line-height:1.8}
+.brief table{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0}
+.brief th{background:#FFF5F5;color:#8B0000;padding:6px 10px;text-align:left;font-weight:600;border-bottom:1px solid #FFE8E8}
+.brief td{padding:5px 10px;border-bottom:1px solid #F5F5F5;color:#555}
+.brief ul{margin:6px 0 6px 18px;font-size:12px;color:#666;line-height:1.9}
+.brief li{margin-bottom:3px}
+.highlight-red{color:#E60012;font-weight:700}
+.highlight-blue{color:#1783FF;font-weight:700}
+
+/* Detail Table */
+.table-wrap{background:#FFF;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);margin:0 36px;max-height:420px;overflow-y:auto}
+.table-wrap::-webkit-scrollbar{width:5px;height:5px}
+.table-wrap::-webkit-scrollbar-thumb{background:rgba(230,0,18,.25);border-radius:3px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:600px}
+thead{position:sticky;top:0;z-index:1}
+thead th{background:#FFF5F5;color:#8B0000;font-weight:600;padding:10px 12px;text-align:left;white-space:nowrap;border-bottom:2px solid rgba(230,0,18,.15)}
+tbody tr:hover{background:#FFF9F9}
+tbody td{padding:9px 12px;border-bottom:1px solid #F5F5F5;vertical-top:top}
+.amount{text-align:right;color:#1a4db8;font-weight:600}
+.status-tag{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.s-DELIVERGOODS{background:#FFF0E0;color:#FF6A00}
+.s-TAKEDELIVERY{background:#E8F0FF;color:#0071E3}
+.s-ENDORDER{background:#E8F8EF;color:#2EBB59}
+.s-CONFIRMORDER{background:#F0F0FF;color:#6B5BFF}
+.s-APPROVING{background:#FFF5E0;color:#FF6A00}
+.s-DELIVERY_TAKE_PART{background:#F0E8FF;color:#6B5BFF}
+.s-OPPOSE{background:#F0F0F0;color:#999}
+.customer{font-weight:600;color:#E60012}
+
+/* Footer */
+.footer{text-align:center;padding:24px;font-size:11px;color:#AAA;border-top:1px solid #EEE;margin-top:20px}
+.footer-inner{display:flex;justify-content:space-between;align-items:center;padding:0 36px}
+</style>
+</head>
+<body>
+
+<!-- Hero: logo 在右上角 -->
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-left">
+      <h1>📊 {{TITLE}}</h1>
+      <div class="subtitle">{{MONTH}}（{{DATE_RANGE}}） &middot; 用友 YonSuite</div>
+      {{BADGES}}
+    </div>
+    <div class="hero-right">
+      <img src="https://gitee.com/leftxiaojun/yonyou-html-presentation/raw/main/assets/logo/current-logo.png">
+    </div>
+  </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-row">
+{{KPI_CARDS}}
+</div>
+
+<!-- Charts: 2×2 flex grid -->
+{{#CHARTS}}
+<div class="section">
+  <div class="section-title">{{CHART_SECTION_TITLE}}</div>
+</div>
+<div class="chart-grid">
+{{#CHART_URLS}}
+  <img src="{{URL}}" loading="lazy">
+{{/CHART_URLS}}
+</div>
+{{/CHARTS}}
+
+<!-- Decision Brief -->
+<div class="brief">
+  <div class="brief-header">📋 决策简报 · Decision Brief</div>
+  <div class="brief-body">
+    <p>{{BRIEF_CORE}}</p>
+
+    <h4>{{BRIEF_SECTION_1_TITLE}}</h4>
+    <table>
+      <thead><tr>{{BRIEF_SECTION_1_HEADERS}}</tr></thead>
+      <tbody>{{BRIEF_SECTION_1_ROWS}}</tbody>
+    </table>
+    {{BRIEF_SECTION_1_NOTE}}
+
+    <h4>{{BRIEF_SECTION_2_TITLE}}</h4>
+    <table>
+      <thead><tr>{{BRIEF_SECTION_2_HEADERS}}</tr></thead>
+      <tbody>{{BRIEF_SECTION_2_ROWS}}</tbody>
+    </table>
+
+    <h4>{{BRIEF_SECTION_3_TITLE}}</h4>
+    <ul>{{BRIEF_SECTION_3_ITEMS}}</ul>
+  </div>
+</div>
+
+<!-- Detail Table -->
+<div class="section">
+  <div class="section-title">{{DETAIL_TABLE_TITLE}}</div>
+</div>
+<div class="table-wrap">
+<table>
+  <thead><tr>{{DETAIL_TABLE_HEADERS}}</tr></thead>
+  <tbody>{{DETAIL_TABLE_ROWS}}</tbody>
+</table>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <div class="footer-inner">
+    <span>YonSuite · 用友网络科技股份有限公司</span>
+    <span>数据截至 {{DATA_CUTOFF}} · 本报告由 Hermes 自动生成</span>
+  </div>
+</div>
+</body>
+</html>

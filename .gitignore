@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+data/
+.env
+.yonsuite_token_cache
+web/node_modules/
+web/dist/
+.DS_Store
+.vite/
+AGENTS.md
