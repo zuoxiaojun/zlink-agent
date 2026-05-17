@@ -9,3 +9,6 @@ web/dist/
 .DS_Store
 .vite/
 AGENTS.md
+
+# 缓存文件
+**/cache/
