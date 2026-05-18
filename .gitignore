@@ -5,13 +5,15 @@ data/
 .env
 .yonsuite_token_cache
 node_modules/
-.web/node_modules/
+web/node_modules/
 web/dist/
 .DS_Store
 .vite/
 AGENTS.md
 
 .playwright-mcp/
+package.json
+package-lock.json
 
 # 缓存文件
 **/cache/
