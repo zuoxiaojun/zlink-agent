@@ -386,6 +386,9 @@ class AIAgent:
                 messages.append(assistant_msg)
 
                 for tc_dict in tc_list:
+                    if stop_event and stop_event.is_set():
+                        break
+
                     tc_id = tc_dict["id"]
                     func_name = tc_dict["function"]["name"]
                     func_args = tc_dict["function"]["arguments"]
@@ -422,6 +425,10 @@ class AIAgent:
                         "tool_call_id": tc_id,
                         "content": result,
                     })
+
+                if stop_event and stop_event.is_set():
+                    error = "用户已手动停止"
+                    break
 
                 self._report(f"✅ 工具执行完成 (第 {budget.used} 轮)")
                 if stream_callback:

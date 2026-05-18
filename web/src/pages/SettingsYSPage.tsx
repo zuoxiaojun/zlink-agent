@@ -31,12 +31,16 @@ export default function SettingsYSPage() {
     setTimeout(() => setSaved(false), 3000);
   };
 
+  const SECRET_KEYS = new Set(["app_key", "app_secret"]);
+
   const fields = [
-    { key: "app_key" as const, label: "App Key", type: "text" },
+    { key: "app_key" as const, label: "App Key", type: "password" },
     { key: "app_secret" as const, label: "App Secret", type: "password" },
     { key: "tenant_id" as const, label: "Tenant ID", type: "text" },
     { key: "gateway_url" as const, label: "Gateway URL", type: "text" },
   ];
+
+  const maskSecret = (value: string) => value ? "••••••••" : "";
 
   return (
     <div className="page-container">
@@ -52,7 +56,7 @@ export default function SettingsYSPage() {
           {fields.map(({ key, label }) => (
             <div key={key} className="form-group">
               <span className="form-label">{label}</span>
-              <div className="card-body">{state.config?.yonsuite[key] || "（未设置）"}</div>
+              <div className="card-body">{SECRET_KEYS.has(key) ? maskSecret(state.config?.yonsuite[key]) || "（未设置）" : state.config?.yonsuite[key] || "（未设置）"}</div>
             </div>
           ))}
           <div className="card-actions">
@@ -68,6 +72,7 @@ export default function SettingsYSPage() {
                 className="form-input"
                 type={type}
                 value={form[key]}
+                placeholder={SECRET_KEYS.has(key) ? "••••••••" : undefined}
                 onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
               />
             </div>

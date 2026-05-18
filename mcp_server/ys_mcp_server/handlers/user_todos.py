@@ -14,7 +14,7 @@ schema = {
     "inputSchema": {
         "type": "object",
         "properties": {
-            "page_no": {"type": "integer", "description": "页码。不传则自动翻页获取全部数据"},
+            "page_index": {"type": "integer", "description": "页码。不传则自动翻页获取全部数据"},
             "page_size": {"type": "integer", "description": "每页条数，默认 50"},
         },
     },

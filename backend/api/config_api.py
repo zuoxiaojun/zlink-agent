@@ -60,9 +60,12 @@ def save_llm_config(body: LLMConfig):
 @router.put("/yonsuite")
 def save_yonsuite_config(body: YonSuiteConfig):
     cfg = config_manager.load()
-    cfg["ys_app_key"] = body.app_key
-    cfg["ys_app_secret"] = body.app_secret
-    cfg["ys_tenant_id"] = body.tenant_id
+    if body.app_key:
+        cfg["ys_app_key"] = body.app_key
+    if body.app_secret:
+        cfg["ys_app_secret"] = body.app_secret
+    if body.tenant_id:
+        cfg["ys_tenant_id"] = body.tenant_id
     cfg["ys_gateway_url"] = body.gateway_url
     config_manager.save(cfg)
     return {"ok": True}
