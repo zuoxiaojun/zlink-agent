@@ -63,11 +63,10 @@ async def on_startup():
     # Ensure built-in YonSuite MCP server is configured
     if "yonsuite" not in servers_cfg:
         venv_python = str(_PROJECT_ROOT / ".venv" / "bin" / "python")
-        ys_server = str(_PROJECT_ROOT / "mcp_server" / "ys_mcp_server.py")
         servers_cfg["yonsuite"] = {
             "transport": "stdio",
             "command": venv_python,
-            "args": [ys_server],
+            "args": ["-m", "mcp_server.ys_mcp_server"],
             "enabled": True,
             "timeout": 120,
         }
