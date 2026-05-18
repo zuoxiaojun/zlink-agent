@@ -1,7 +1,7 @@
 """Generic YonSuite API tool.
 
-Loads the YonSuiteClient dynamically from the installed skill directory
-(agent/skills/yonsuite/), providing a single generic interface.
+Loads the YonSuiteClient from agent/yonsuite_client/, providing a single
+generic interface for direct YonSuite API calls.
 """
 
 import json

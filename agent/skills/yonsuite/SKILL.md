@@ -182,8 +182,8 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 
 ```python
 import sys
-sys.path.insert(0, 'agent/skills/yonsuite')
-from ys_client import YonSuiteClient
+sys.path.insert(0, '.')
+from agent.yonsuite_client.ys_client import YonSuiteClient
 client = YonSuiteClient()
 token = client.get_access_token()
 body = {
