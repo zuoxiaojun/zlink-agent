@@ -89,7 +89,20 @@ def _cmd_model(args: str, ctx: dict) -> str:
     if not args.strip():
         cfg = ctx.get("config", {})
         current = cfg.get("llm_model", "未知")
-        return f"当前模型: **{current}**\n\n用法: `/model <模型名>`\n\n可在 LLM 配置页面查看可用模型列表。"
+        manual_override = cfg.get("max_context_tokens", 0)
+        from agent.context_compactor import resolve_context_window
+        if manual_override > 0:
+            window = manual_override
+            source = "（手动设置）"
+        else:
+            window = resolve_context_window(current)
+            source = "（自动检测）"
+        return (
+            f"当前模型: **{current}**\n"
+            f"上下文窗口: **{window:,} tokens** {source}\n\n"
+            f"用法: `/model <模型名>`\n\n"
+            f"可在 LLM 配置页面查看可用模型列表。"
+        )
 
     from agent import config_manager
     cfg = config_manager.load()

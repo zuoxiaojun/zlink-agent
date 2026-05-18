@@ -41,6 +41,7 @@ _MODEL_CONTEXT_WINDOWS: list[tuple[str, int]] = [
     ("claude-3-haiku", 200_000),
     ("claude-", 200_000),  # catch-all for newer Claude models
     # DeepSeek
+    ("deepseek-v4", 1_000_000),
     ("deepseek-reasoner", 128_000),
     ("deepseek-chat", 128_000),
     ("deepseek-v3", 128_000),
