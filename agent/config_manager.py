@@ -25,6 +25,7 @@ _DEFAULT_CONFIG = {
     "max_context_tokens": 0,  # 0 = auto-detect from model
     "reserve_tokens": 4000,
     "keep_recent_tokens": 8000,
+    "mcp_servers": {},
 }
 
 

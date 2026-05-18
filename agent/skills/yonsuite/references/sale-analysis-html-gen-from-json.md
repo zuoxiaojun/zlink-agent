@@ -8,7 +8,7 @@
 ```python
 import json, math
 
-with open('~/.hermes/skills/yonsuite-skill/output/sale_order_result.json') as f:
+with open('data/sale_order_result.json') as f:
     d = json.load(f)
 
 headers = d['headers']

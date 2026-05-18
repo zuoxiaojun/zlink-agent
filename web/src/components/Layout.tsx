@@ -10,6 +10,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/settings/llm": "LLM 配置",
   "/settings/yonsuite": "YonSuite 配置",
   "/settings/agent": "Agent 设置",
+  "/mcp": "MCP 服务器",
 };
 
 export default function Layout() {

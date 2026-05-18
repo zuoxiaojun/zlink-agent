@@ -1,13 +1,14 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAppState, WELCOME_MESSAGE } from "../context/AppContext";
 import { api } from "../api/http";
-import { Bot, Plus, MessageSquare, Brain, Wrench, Puzzle, Cpu, Database, Settings } from "lucide-react";
+import { Bot, Plus, MessageSquare, Brain, Wrench, Puzzle, Cpu, Database, Settings, Plug } from "lucide-react";
 
 const NAV = [
   { label: "历史对话", Icon: MessageSquare, path: "/history", section: 1 },
   { label: "记忆管理", Icon: Brain, path: "/memory", section: 1 },
   { label: "技能管理", Icon: Wrench, path: "/skills", section: 1 },
   { label: "内置工具", Icon: Puzzle, path: "/tools", section: 1 },
+  { label: "MCP 服务器", Icon: Plug, path: "/mcp", section: 1 },
   { label: "LLM 配置", Icon: Cpu, path: "/settings/llm", section: 2 },
   { label: "YonSuite 配置", Icon: Database, path: "/settings/yonsuite", section: 2 },
   { label: "Agent 设置", Icon: Settings, path: "/settings/agent", section: 2 },

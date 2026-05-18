@@ -120,6 +120,35 @@ export type WsClientMessage =
   | { type: "send_message"; content: string | ContentPart[] }
   | { type: "stop" };
 
+// MCP types
+export interface MCPServerConfig {
+  name: string;
+  transport: "stdio" | "http";
+  command?: string;
+  args?: string[];
+  url?: string;
+  headers?: Record<string, string>;
+  env?: Record<string, string>;
+  enabled?: boolean;
+  timeout?: number;
+}
+
+export interface MCPServerStatus {
+  name: string;
+  transport: string;
+  enabled: boolean;
+  status: "connected" | "disconnected" | "error";
+  tool_count: number;
+  error_message: string | null;
+}
+
+export interface MCPTestResult {
+  success: boolean;
+  tools_discovered: number;
+  tool_names: string[];
+  error_message: string | null;
+}
+
 export type WsServerMessage =
   | { type: "token"; content: string }
   | { type: "tool_call"; tool_name: string; arguments_preview: string }

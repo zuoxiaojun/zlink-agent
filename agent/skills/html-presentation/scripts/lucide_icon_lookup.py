@@ -8,13 +8,10 @@ Lucide 图标 SVG 查询工具
     python3 lucide_icon_lookup.py random              # 随机返回一个适合PPT的图标
 """
 
-import csv
 import sys
 import random
 import urllib.request
 import re
-
-ICONS_CSV = "/Users/zuoxiaojun/.hermes/skills/ui-ux-pro-max/data/icons.csv"
 LUCIDE_CDN = "https://unpkg.com/lucide@latest"
 
 # Lucide 图标 SVG path 数据（常见图标，直接内置避免重复请求）
@@ -161,13 +158,11 @@ def get_svg(name: str, size: int = 24, stroke: str = "currentColor",
 
 
 def list_icons():
-    """从 CSV 读取并显示所有图标"""
-    icons = []
-    with open(ICONS_CSV, newline='', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            icons.append(row)
-    return icons
+    """从内置图标库读取所有图标"""
+    return [
+        {'Icon Name': name, 'Category': cat, 'Keywords': '', 'Usage': ''}
+        for name, (cat, _) in LUCIDE_PATHS.items()
+    ]
 
 
 def search(query: str):

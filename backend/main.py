@@ -42,9 +42,11 @@ app.add_middleware(
 
 
 @app.on_event("startup")
-def on_startup():
+async def on_startup():
     from agent.utils import DATA_DIR
     from agent import search_index
+    from agent import config_manager
+    from agent.tools.mcp_manager import connect_all_servers
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     search_index.init_db()
@@ -54,6 +56,34 @@ def on_startup():
             import logging
             logging.getLogger(__name__).info("搜索索引迁移完成: %d 个会话", n)
 
+    # Connect to enabled MCP servers in background
+    cfg = config_manager.load()
+    servers_cfg = cfg.get("mcp_servers", {})
+
+    # Ensure built-in YonSuite MCP server is configured
+    if "yonsuite" not in servers_cfg:
+        venv_python = str(_PROJECT_ROOT / ".venv" / "bin" / "python")
+        ys_server = str(_PROJECT_ROOT / "mcp_server" / "ys_mcp_server.py")
+        servers_cfg["yonsuite"] = {
+            "transport": "stdio",
+            "command": venv_python,
+            "args": [ys_server],
+            "enabled": True,
+            "timeout": 120,
+        }
+        cfg["mcp_servers"] = servers_cfg
+        config_manager.save(cfg)
+
+    if servers_cfg:
+        import asyncio
+        asyncio.ensure_future(connect_all_servers(servers_cfg))
+
+
+@app.on_event("shutdown")
+async def on_shutdown():
+    from agent.tools.mcp_manager import disconnect_all_servers
+    await disconnect_all_servers()
+
 
 # Register routers
 from backend.api.sessions import router as sessions_router
@@ -62,6 +92,7 @@ from backend.api.memory_api import router as memory_router
 from backend.api.skills_api import router as skills_router
 from backend.api.tools_api import router as tools_router
 from backend.api.chat import router as chat_router
+from backend.api.mcp_api import router as mcp_router
 
 app.include_router(sessions_router)
 app.include_router(config_router)
@@ -69,6 +100,7 @@ app.include_router(memory_router)
 app.include_router(skills_router)
 app.include_router(tools_router)
 app.include_router(chat_router)
+app.include_router(mcp_router)
 
 
 @app.get("/api/health")

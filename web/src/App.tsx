@@ -11,6 +11,7 @@ import ToolsPage from "./pages/ToolsPage";
 import SettingsLLMPage from "./pages/SettingsLLMPage";
 import SettingsYSPage from "./pages/SettingsYSPage";
 import SettingsAgentPage from "./pages/SettingsAgentPage";
+import McpPage from "./pages/McpPage";
 import type { ConfigResponse } from "./types";
 
 function AppInit({ children }: { children: React.ReactNode }) {
@@ -40,6 +41,7 @@ export default function App() {
               <Route path="/settings/llm" element={<SettingsLLMPage />} />
               <Route path="/settings/yonsuite" element={<SettingsYSPage />} />
               <Route path="/settings/agent" element={<SettingsAgentPage />} />
+              <Route path="/mcp" element={<McpPage />} />
             </Route>
           </Routes>
         </AppInit>

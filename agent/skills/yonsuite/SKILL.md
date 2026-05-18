@@ -8,7 +8,7 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 
 **定位：** YS 系统业务数据查询 + 分析报表生成，支持销售/采购/生产订单、库存、商机、待办等核心模块。
 
-**版本：** v7.0（2026-05-17 精简：6 个高级查询工具已内置，无需手写 Python 调用 API）
+**版本：** v8.0（2026-05-18 MCP 化：YonSuite 工具独立为 MCP Server，通过 `mcp_yonsuite_*` 工具调用）
 
 ---
 
@@ -21,24 +21,31 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 
 ---
 
-## 🔧 内置查询工具（优先使用）
+## 🔧 MCP 查询工具（直接调用，无需手写代码）
 
-以下 6 个工具已内置到 Agent，**直接通过工具调用使用，不需要手写 Python 代码**：
+以下工具通过 YonSuite MCP Server 提供，工具名以 `mcp_yonsuite_` 为前缀，**直接通过 MCP 协议调用，不需要手写 Python 代码**。不传 `page_index` 时自动翻页获取全部数据。
 
 | 工具名 | 用途 | 关键参数 |
 |--------|------|---------|
-| `query_sale_orders` | 销售订单查询 | `date_from`, `date_to`, `is_sum`, `page_index`, `page_size` |
-| `query_purchase_orders` | 采购订单查询 | `date_from`, `date_to`, `page_index`, `page_size` |
-| `query_production_orders` | 生产工单查询 | `date_from`, `date_to`, `page_index`, `page_size` |
-| `query_stock` | 库存现存量查询 | `warehouse_name`, `sku_code`, `page_index`, `page_size` |
-| `query_user_todos` | 用户待办查询 | `page_index`, `page_size` |
-| `query_opportunities` | CRM 商机查询 | `oppt_state`, `win_lose_state`, `date_from`, `date_to`, `page_index`, `page_size` |
+| `mcp_yonsuite_query_sale_orders` | 销售订单查询 | `date_from`, `date_to`, `is_sum`, `page_index`, `page_size` |
+| `mcp_yonsuite_query_purchase_orders` | 采购订单查询 | `date_from`, `date_to`, `page_index`, `page_size` |
+| `mcp_yonsuite_query_production_orders` | 生产工单查询 | `date_from`, `date_to`, `page_index`, `page_size` |
+| `mcp_yonsuite_query_stock` | 库存现存量查询 | `warehouse`, `sku`, `product_id`, `page_size` |
+| `mcp_yonsuite_query_user_todos` | 用户待办查询 | `page_no`, `page_size` |
+| `mcp_yonsuite_query_opportunities` | CRM 商机查询 | `oppt_state`, `win_lose_state`, `date_from`, `date_to`, `page_index`, `page_size` |
+| `mcp_yonsuite_query_products` | 物料档案查询 | `product_code`, `product_name`, `page_index`, `page_size` |
+| `mcp_yonsuite_query_customers` | 客户档案查询 | `customer_name`, `page_index`, `page_size` |
+| `mcp_yonsuite_query_vendors` | 供应商档案查询 | `vendor_name`, `page_index`, `page_size` |
+| `mcp_yonsuite_query_vouchers` | 财务凭证查询 | `date_from`, `date_to`, `accbook_code`, `period_start`, `period_end`, `page_index`, `page_size` |
+| `mcp_yonsuite_ys_api` | 通用 YonSuite API 调用 | `method`, `params` |
 
 每个工具返回的 JSON 已包含**解析后的中文字段名、状态文本、计算好的税额**，无需再做字段映射或公式计算。
 
 **`is_sum` 参数说明（销售订单）：**
 - `is_sum=True`：按订单汇总（一单一行），用于客户/商品统计和整体分析
 - `is_sum=False`：按商品明细分列，用于逐单明细查看
+
+**自动翻页：** 所有支持分页的工具，不传 `page_index` 时自动循环翻页直到获取全部数据，传了 `page_index` 则返回指定单页。
 
 ---
 
@@ -49,8 +56,8 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 | 类型 | 查询方式 | 说明 |
 |------|---------|------|
 | **飞书任务中心** | `lark-cli task +get-my-tasks --complete=false` | 飞书原生待办/任务 |
-| **YS业务单据状态** | `query_*_orders` 工具 + 状态过滤 | YS 里的生产/采购/销售订单状态 |
-| **YS待办中心** | `query_user_todos` 工具 | YS 系统内的审批/待办任务 |
+| **YS业务单据状态** | `mcp_yonsuite_query_*_orders` 工具 + 状态过滤 | YS 里的生产/采购/销售订单状态 |
+| **YS待办中心** | `mcp_yonsuite_query_user_todos` 工具 | YS 系统内的审批/待办任务 |
 
 ---
 
@@ -74,7 +81,7 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 ### 标准流程
 
 ```
-1. 调用内置查询工具获取数据（query_sale_orders / query_purchase_orders / query_production_orders）
+1. 调用 MCP 查询工具获取数据（mcp_yonsuite_query_sale_orders / mcp_yonsuite_query_purchase_orders / mcp_yonsuite_query_production_orders）
 2. Python 聚合分析 → 按客户/商品/日期分组统计
 3. 调用 mcp-server-chart 生成图表（theme=academy）
 4. 必须调用 data-analysis 技能执行统计分析（HHI/IQR/漏斗）
@@ -220,7 +227,7 @@ result = client._http_post_raw(url, body)
 | HTML Logo 位置错误 | 分析报表 Logo 放 Hero 区**右上角**，待办类放左上角 |
 | `is_sum=True` 查订单明细 | 必须用 `is_sum=False`，否则订单去重丢失数据 |
 | 只发文字不生成 HTML | **双轨输出**：聊天框展示 + HTML 文件 |
-| `query_products` 物料模糊匹配 | `product_name` 参数是精确/前缀匹配，需全量拉取后代码过滤 |
+| `mcp_yonsuite_query_products` 物料模糊匹配 | `product_name` 参数是精确/前缀匹配，MCP 工具自动全量拉取后过滤 |
 
 ---
 

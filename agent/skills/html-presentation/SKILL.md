@@ -148,8 +148,8 @@ description: |
 1. 替换本地 `assets/logo/current-logo.png` 或 `assets/yonsuite-logo.png`
 2. 同步上传到 Gitee：
    ```bash
-   # 当前目录：~/.hermes/skills/yonyou-html-presentation/
-   TOKEN=$(grep GITEE_TOKEN ~/.hermes/.env | cut -d= -f2)
+   # 当前目录：agent/skills/html-presentation/
+   TOKEN=$(grep GITEE_TOKEN .env | cut -d= -f2)
    OWNER=leftxiaojun
    REPO=yonyou-html-presentation
    BRANCH=main
