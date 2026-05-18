@@ -7,9 +7,12 @@ Supports OpenAI-compatible APIs with synchronous tool-calling loop.
 import json
 import logging
 import threading
+import time
+import random
 from typing import Any, Callable
 
 from agent.tools.registry import registry, discover_tools
+from agent.context_compactor import CompactionSettings, compact_messages, estimate_message_tokens
 
 from agent import fact_memory
 
@@ -92,6 +95,9 @@ class AIAgent:
         disabled_tools: set[str] | None = None,
         temperature: float = 0.7,
         progress_callback: Callable | None = None,
+        compaction_settings: CompactionSettings | None = None,
+        max_retries: int = 3,
+        max_retry_delay: float = 30.0,
     ):
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
@@ -104,6 +110,9 @@ class AIAgent:
         self.enabled_tools = enabled_tools
         self.disabled_tools = disabled_tools or set()
         self.progress_callback = progress_callback
+        self.compaction_settings = compaction_settings or CompactionSettings()
+        self.max_retries = max_retries
+        self.max_retry_delay = max_retry_delay
 
         self._openai = None
         self._tools_discovered = False
@@ -257,6 +266,21 @@ class AIAgent:
                 "error": error,
             }
 
+        # Context compaction: summarise old messages when approaching token limit
+        if self.compaction_settings.enabled:
+            total_est = estimate_message_tokens(messages)
+            threshold = self.compaction_settings.max_context_tokens - self.compaction_settings.reserve_tokens
+            if total_est > threshold:
+                client = self._get_openai()
+                messages, _, saved = compact_messages(
+                    messages,
+                    self.compaction_settings,
+                    client,
+                    self.model,
+                )
+                if saved > 0:
+                    self._report(f"📦 上下文已压缩 —— 节省约 {saved} tokens")
+
         tool_defs = self._get_tool_definitions()
 
         while budget.consume():
@@ -265,61 +289,82 @@ class AIAgent:
                 break
 
             self._report(f"🤔 思考中...（第 {budget.used}/{self.max_iterations} 轮）")
-            try:
-                client = self._get_openai()
-                api_kwargs = {
-                    "model": self.model,
-                    "messages": [{"role": "system", "content": system_prompt}] + messages,
-                    "temperature": self.temperature,
-                }
-                if self.max_tokens:
-                    api_kwargs["max_tokens"] = self.max_tokens
-                if tool_defs:
-                    api_kwargs["tools"] = tool_defs
-                    api_kwargs["tool_choice"] = "auto"
 
-                if stream_callback is not None:
-                    response = client.chat.completions.create(
-                        **api_kwargs, stream=True,
-                        stream_options={"include_usage": True},
+            # --- LLM API call with exponential-backoff retry ---
+            llm_error = None
+            for retry_attempt in range(self.max_retries + 1):
+                try:
+                    client = self._get_openai()
+                    api_kwargs = {
+                        "model": self.model,
+                        "messages": [{"role": "system", "content": system_prompt}] + messages,
+                        "temperature": self.temperature,
+                    }
+                    if self.max_tokens:
+                        api_kwargs["max_tokens"] = self.max_tokens
+                    if tool_defs:
+                        api_kwargs["tools"] = tool_defs
+                        api_kwargs["tool_choice"] = "auto"
+
+                    if stream_callback is not None:
+                        response = client.chat.completions.create(
+                            **api_kwargs, stream=True,
+                            stream_options={"include_usage": True},
+                        )
+                        api_calls += 1
+                        content, tc_list, reasoning, usage = self._consume_stream(response, stream_callback, stop_event)
+                    else:
+                        response = client.chat.completions.create(**api_kwargs)
+                        api_calls += 1
+                        usage = None
+                        try:
+                            if response.usage:
+                                usage = {
+                                    "prompt_tokens": response.usage.prompt_tokens or 0,
+                                    "completion_tokens": response.usage.completion_tokens or 0,
+                                    "total_tokens": response.usage.total_tokens or 0,
+                                }
+                        except Exception:
+                            pass
+                        choice = response.choices[0]
+                        msg = choice.message
+                        content = msg.content or ""
+                        reasoning = self._extract_reasoning(msg)
+                        tc_list = None
+                        if msg.tool_calls:
+                            tc_list = [
+                                {
+                                    "id": tc.id,
+                                    "type": "function",
+                                    "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+                                }
+                                for tc in msg.tool_calls
+                            ]
+
+                    if usage:
+                        for k in total_usage:
+                            total_usage[k] += usage.get(k, 0)
+                    llm_error = None
+                    break  # success — exit retry loop
+
+                except Exception as e:
+                    llm_error = e
+                    if not self._is_transient_error(e) or retry_attempt >= self.max_retries:
+                        break
+                    delay = min(2 ** retry_attempt + random.uniform(0, 1), self.max_retry_delay)
+                    logger.warning(
+                        "LLM call failed (attempt %d/%d), retrying in %.1fs: %s",
+                        retry_attempt + 1, self.max_retries, delay, e,
                     )
-                    api_calls += 1
-                    content, tc_list, reasoning, usage = self._consume_stream(response, stream_callback, stop_event)
-                else:
-                    response = client.chat.completions.create(**api_kwargs)
-                    api_calls += 1
-                    usage = None
-                    try:
-                        if response.usage:
-                            usage = {
-                                "prompt_tokens": response.usage.prompt_tokens or 0,
-                                "completion_tokens": response.usage.completion_tokens or 0,
-                                "total_tokens": response.usage.total_tokens or 0,
-                            }
-                    except Exception:
-                        pass
-                    choice = response.choices[0]
-                    msg = choice.message
-                    content = msg.content or ""
-                    reasoning = self._extract_reasoning(msg)
-                    # Normalise tool calls to dicts
-                    tc_list = None
-                    if msg.tool_calls:
-                        tc_list = [
-                            {
-                                "id": tc.id,
-                                "type": "function",
-                                "function": {"name": tc.function.name, "arguments": tc.function.arguments},
-                            }
-                            for tc in msg.tool_calls
-                        ]
+                    self._report(f"🔄 重试中…（第 {retry_attempt+1}/{self.max_retries} 次）")
+                    if stop_event:
+                        stop_event.wait(delay)
+                    else:
+                        time.sleep(delay)
 
-                if usage:
-                    for k in total_usage:
-                        total_usage[k] += usage.get(k, 0)
-            except Exception as e:
-                error = f"API call failed: {e}"
-                logger.exception("API call failed")
+            if llm_error:
+                error = f"API call failed: {llm_error}"
+                logger.exception("API call failed after retries")
                 break
 
             if tc_list:
@@ -392,6 +437,19 @@ class AIAgent:
             "completed": bool(final_response) and error is None,
             "error": error,
         }
+
+    @staticmethod
+    def _is_transient_error(error: Exception) -> bool:
+        """Return True for errors worth retrying (rate-limit, server, timeout)."""
+        msg = str(error).lower()
+        transient_markers = [
+            "rate limit", "rate_limit", "429",
+            "server error", "500", "502", "503", "504",
+            "timeout", "timed out", "connection",
+            "too many requests", "overloaded",
+            "internal server error", "service unavailable",
+        ]
+        return any(m in msg for m in transient_markers)
 
     @staticmethod
     def _extract_reasoning(msg) -> str | None:

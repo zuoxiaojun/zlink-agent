@@ -35,12 +35,17 @@ export function useChat() {
           case "done":
             dispatch({
               type: "SET_RESULT",
-              messages: msg.messages,
+              messages: msg.messages.length > 0
+                ? msg.messages
+                : msg.final_response
+                  ? [{ role: "assistant" as const, content: msg.final_response }]
+                  : [],
               tokenUsage: msg.token_usage,
               apiCalls: msg.api_calls,
               error: msg.error,
             });
             if (msg.session_id && msg.session_id !== "_new") {
+              sessionStorage.setItem("ys_agent_last_session", msg.session_id);
               dispatch({
                 type: "SET_SESSION",
                 sessionId: msg.session_id,

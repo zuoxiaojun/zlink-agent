@@ -3,6 +3,15 @@
 Each tool file calls ``registry.register()`` at module level to declare its
 schema, handler, and toolset membership.  ``agent.py`` queries the registry
 to build OpenAI-format tool definitions and dispatch tool calls.
+
+Hooks
+-----
+Before-hooks run before a tool executes.  They receive ``(tool_name, args)``
+and return modified args.  To block execution, return a dict with
+``__block__: True`` and ``__reason__``.
+
+After-hooks run after a tool executes.  They receive
+``(tool_name, args, result)`` and return a (possibly modified) result string.
 """
 
 import ast
@@ -13,6 +22,10 @@ from pathlib import Path
 from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
+
+# Hook type aliases
+BeforeHook = Callable[[str, dict], dict]
+AfterHook = Callable[[str, dict, str], str]
 
 
 def discover_tools(tools_dir: Path | None = None) -> list[str]:
@@ -80,6 +93,8 @@ class ToolRegistry:
 
     def __init__(self):
         self._entries: dict[str, ToolEntry] = {}
+        self._before_hooks: list[BeforeHook] = []
+        self._after_hooks: list[AfterHook] = []
 
     def register(
         self,
@@ -105,6 +120,28 @@ class ToolRegistry:
     def deregister(self, name: str) -> None:
         """Remove a tool from the registry."""
         self._entries.pop(name, None)
+
+    def add_before_hook(self, hook: BeforeHook) -> None:
+        """Register a before-tool-call hook.  Hooks run in registration order."""
+        self._before_hooks.append(hook)
+
+    def add_after_hook(self, hook: AfterHook) -> None:
+        """Register an after-tool-call hook.  Hooks run in registration order."""
+        self._after_hooks.append(hook)
+
+    def remove_before_hook(self, hook: BeforeHook) -> None:
+        """Remove a previously registered before-hook."""
+        try:
+            self._before_hooks.remove(hook)
+        except ValueError:
+            pass
+
+    def remove_after_hook(self, hook: AfterHook) -> None:
+        """Remove a previously registered after-hook."""
+        try:
+            self._after_hooks.remove(hook)
+        except ValueError:
+            pass
 
     def get_entry(self, name: str) -> ToolEntry | None:
         """Get a tool entry by name."""
@@ -144,18 +181,42 @@ class ToolRegistry:
         return definitions
 
     def dispatch(self, name: str, args: dict) -> str:
-        """Execute a tool by name with the given args. Returns JSON string."""
+        """Execute a tool by name with the given args. Returns JSON string.
+
+        Before-hooks run first and may modify args or block execution.
+        After-hooks run after the tool and may modify the result.
+        """
         entry = self._entries.get(name)
         if entry is None:
             return tool_error(f"Unknown tool: {name}")
+
+        # --- before hooks ---
+        for hook in self._before_hooks:
+            try:
+                args = hook(name, args)
+                if args.get("__block__"):
+                    return tool_error(args.get("__reason__", "Blocked by hook"))
+            except Exception as e:
+                logger.warning("Before-hook failed for tool %s: %s", name, e)
+                return tool_error(f"Hook blocked execution: {e}")
+
+        # --- execute ---
         try:
             result = entry.handler(args)
-            if isinstance(result, str):
-                return result
-            return json.dumps(result, ensure_ascii=False)
+            if not isinstance(result, str):
+                result = json.dumps(result, ensure_ascii=False)
         except Exception as e:
             logger.exception("Tool %s failed", name)
             return tool_error(str(e))
+
+        # --- after hooks ---
+        for hook in self._after_hooks:
+            try:
+                result = hook(name, args, result)
+            except Exception as e:
+                logger.warning("After-hook failed for tool %s: %s", name, e)
+
+        return result
 
     @property
     def entries(self) -> dict[str, ToolEntry]:

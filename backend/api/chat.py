@@ -17,6 +17,8 @@ from datetime import datetime
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from agent.agent import AIAgent
+from agent.context_compactor import CompactionSettings
+from agent.slash_commands import parse_command, execute, list_commands
 from agent import session_manager
 from agent import memory_manager
 from agent import skill_manager
@@ -29,6 +31,9 @@ router = APIRouter()
 
 # Ensure tools are discovered at import time
 discover_tools()
+
+# Per-session token usage tracking (for /cost command)
+_session_usage: dict[str, dict] = {}
 
 
 def _generate_summary(messages: list[dict], api_key: str, base_url: str, model: str) -> str | None:
@@ -72,6 +77,12 @@ async def ws_chat(websocket: WebSocket, session_id: str):
     base_url = cfg.get("llm_base_url", "https://api.openai.com/v1")
     model = cfg.get("llm_model", "gpt-4o")
     max_iterations = cfg.get("max_iterations", 30)
+    compaction_settings = CompactionSettings(
+        enabled=cfg.get("compaction_enabled", True),
+        max_context_tokens=cfg.get("max_context_tokens", 0),
+        reserve_tokens=cfg.get("reserve_tokens", 4000),
+        keep_recent_tokens=cfg.get("keep_recent_tokens", 8000),
+    )
 
     if not api_key:
         await websocket.send_json({"type": "error", "message": "请先在设置中配置 LLM API Key"})
@@ -116,10 +127,66 @@ async def ws_chat(websocket: WebSocket, session_id: str):
                 if not content:
                     continue
 
+                # --- slash command interception ---
+                parsed = parse_command(content)
+                if parsed:
+                    cmd_name, cmd_args = parsed
+                    ctx = {
+                        "config": cfg,
+                        "session_id": session_id,
+                        "token_usage": _session_usage.get(session_id),
+                    }
+                    result = execute(cmd_name, cmd_args, ctx)
+                    if result is None:
+                        await websocket.send_json({
+                            "type": "done",
+                            "final_response": f"未知命令: /{cmd_name}\n\n输入 **/help** 查看所有可用命令。",
+                            "messages": [],
+                            "api_calls": 0,
+                            "token_usage": None,
+                            "completed": True,
+                            "error": None,
+                            "session_id": session_id,
+                            "session_title": "",
+                        })
+                    elif result == "__YS_CLEAR_SESSION__":
+                        # Start a new session
+                        sid = session_manager.create_session()
+                        old_id = session_id
+                        session_id = sid
+                        history = []
+                        existing_msgs = []
+                        _session_usage.pop(old_id, None)
+                        await websocket.send_json({
+                            "type": "done",
+                            "final_response": "会话已清空，开始新对话。",
+                            "messages": [],
+                            "api_calls": 0,
+                            "token_usage": None,
+                            "completed": True,
+                            "error": None,
+                            "session_id": session_id,
+                            "session_title": "",
+                        })
+                    else:
+                        await websocket.send_json({
+                            "type": "done",
+                            "final_response": result,
+                            "messages": [],
+                            "api_calls": 0,
+                            "token_usage": None,
+                            "completed": True,
+                            "error": None,
+                            "session_id": session_id,
+                            "session_title": "",
+                        })
+                    continue
+                # --- end slash command ---
+
                 await _run_agent(
                     websocket, session_id, content, history,
                     api_key, base_url, model, max_iterations,
-                    existing_msgs,
+                    existing_msgs, compaction_settings,
                 )
                 # After agent finishes, update history with new messages
                 updated = session_manager.load_session(session_id) or []
@@ -158,6 +225,7 @@ async def _run_agent(
     model: str,
     max_iterations: int,
     existing_msgs: list[dict],
+    compaction_settings: CompactionSettings | None = None,
 ):
     """Run the agent in a thread pool and stream results via WebSocket."""
 
@@ -187,6 +255,7 @@ async def _run_agent(
                 model=model,
                 max_iterations=max_iterations,
                 progress_callback=progress_callback,
+                compaction_settings=compaction_settings,
             )
 
             memory_context = memory_manager.get_context()

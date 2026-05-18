@@ -1,17 +1,51 @@
 import { useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Bot, Zap, BarChart3 } from "lucide-react";
 import { useAppState } from "../context/AppContext";
 import { useChat } from "../hooks/useChat";
+import { api } from "../api/http";
 import ChatMessage from "../components/ChatMessage";
 import ChatInput from "../components/ChatInput";
 import StreamingText from "../components/StreamingText";
 import StopButton from "../components/StopButton";
 
 export default function ChatPage() {
-  const { state } = useAppState();
+  const { state, dispatch } = useAppState();
   const { sendMessage, stopAgent } = useChat();
   const scrollRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Restore session from URL param ?s=
+  useEffect(() => {
+    const sid = searchParams.get("s");
+    if (!sid) return;
+    if (state.currentSessionId === sid) return; // already loaded
+    api.get<any>(`/sessions/${sid}`)
+      .then((s) => {
+        const msgs = (s.messages || []).filter(
+          (m: any) => m.role !== "tool"
+        );
+        dispatch({
+          type: "SET_SESSION",
+          sessionId: s.id,
+          title: s.title || "",
+          messages: msgs.length > 0 ? msgs : undefined,
+        });
+      })
+      .catch(() => {
+        setSearchParams({}, { replace: true });
+      });
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync URL when session changes (e.g. after first message creates session)
+  useEffect(() => {
+    if (!state.currentSessionId) return;
+    const current = searchParams.get("s");
+    if (current !== state.currentSessionId) {
+      setSearchParams({ s: state.currentSessionId }, { replace: true });
+    }
+  }, [state.currentSessionId, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!userScrolledUp.current && scrollRef.current) {

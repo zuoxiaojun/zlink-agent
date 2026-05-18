@@ -22,7 +22,7 @@ export default function Sidebar() {
     try {
       const s = await api.post<any>("/sessions", { title: "" });
       dispatch({ type: "SET_SESSION", sessionId: s.id, title: s.title, messages: WELCOME_MESSAGE });
-      navigate("/");
+      navigate(`/?s=${s.id}`);
     } catch {
       dispatch({ type: "NEW_SESSION" });
       navigate("/");

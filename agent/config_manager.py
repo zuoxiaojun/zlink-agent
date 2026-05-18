@@ -21,6 +21,10 @@ _DEFAULT_CONFIG = {
     "ys_tenant_id": "",
     "ys_gateway_url": "https://c2.yonyoucloud.com/iuap-api-gateway",
     "max_iterations": 30,
+    "compaction_enabled": True,
+    "max_context_tokens": 0,  # 0 = auto-detect from model
+    "reserve_tokens": 4000,
+    "keep_recent_tokens": 8000,
 }
 
 

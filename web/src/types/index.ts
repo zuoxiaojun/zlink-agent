@@ -62,6 +62,11 @@ export interface YonSuiteConfigPayload {
 
 export interface AgentConfigPayload {
   max_iterations: number;
+  compaction_enabled: boolean;
+  max_context_tokens: number;
+  max_context_tokens_auto: boolean;
+  reserve_tokens: number;
+  keep_recent_tokens: number;
 }
 
 export interface ConfigResponse {
