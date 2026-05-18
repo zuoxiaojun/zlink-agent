@@ -4,11 +4,14 @@ __pycache__/
 data/
 .env
 .yonsuite_token_cache
-web/node_modules/
+node_modules/
+.web/node_modules/
 web/dist/
 .DS_Store
 .vite/
 AGENTS.md
+
+.playwright-mcp/
 
 # 缓存文件
 **/cache/
