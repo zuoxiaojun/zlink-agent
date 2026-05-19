@@ -17,6 +17,7 @@ interface Props {
 export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isComposingRef = useRef(false);
   const [text, setText] = useState("");
   const [files, setFiles] = useState<AttachedFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
@@ -46,7 +47,7 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey && !isComposingRef.current) {
       e.preventDefault();
       handleSubmit();
     }
@@ -133,6 +134,8 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
+            onCompositionStart={() => { isComposingRef.current = true; }}
+            onCompositionEnd={() => { isComposingRef.current = false; }}
             placeholder={placeholder || "输入你的问题，Enter 发送，Shift+Enter 换行..."}
             disabled={disabled}
             rows={1}

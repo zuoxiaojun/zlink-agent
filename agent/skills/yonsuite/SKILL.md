@@ -8,7 +8,7 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 
 **定位：** YS 系统业务数据查询 + 分析报表生成，支持销售/采购/生产订单、库存、商机、待办等核心模块。
 
-**版本：** v9.1（2026-05-18 修正：移除"自动翻页"描述，改为手动传 page_index 逐页获取）
+**版本：** v9.2（2026-05-19 移除：删除"销售订单创建"章节，跑不通；技能专注查询）
 
 ---
 
@@ -231,42 +231,6 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 ---
 
 <｜｜DSML｜｜parameter name="new_string" string="true">---
-
-## 📦 销售订单创建（走 MCP 通用 API）
-
-**工具：** `mcp_yonsuite_ys_api`（通用 API 调用工具，统一走 MCP 通道）
-
-**接口：** `yonbip/sd/voucherorder/save`
-
-**实测必需字段：**
-
-| 字段 | 说明 |
-|------|------|
-| `salesOrgId` | 销售组织 ID |
-| `transactionTypeId` | 交易类型 ID |
-| `agentId` | 客户档案编码 |
-| `orderDetails` | 明细行数组 |
-
-**明细行结构：** `skuCode`, `qty`, `oriTaxUnitPrice`（含税单价）, `taxRate`（税率%）
-
-**调用方式（AI 自动执行，无需手写 Python）：**
-```
-mcp_yonsuite_ys_api(
-  method="yonbip/sd/voucherorder/save",
-  params={
-    "salesOrgId": "2480092598538076164",
-    "transactionTypeId": "2479226458234423496",
-    "agentId": "01-0001",
-    "orderDetails": [
-      {"skuCode": "A010100001", "qty": 100, "oriTaxUnitPrice": 12.5, "taxRate": 13}
-    ]
-  }
-)
-```
-
-> ⚠️ **写操作安全规则：** 调用前必须向用户确认订单内容，用户同意后再执行。
-
----
 
 ## 📌 命名规范
 
