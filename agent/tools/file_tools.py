@@ -22,10 +22,16 @@ _MAX_READ_CHARS = 100_000
 _MAX_LS_ENTRIES = 500
 
 
+def _expand_path(path: str) -> str:
+    """Expand ~ and ~user in path before passing to Path."""
+    # Path.resolve() does NOT expand ~, only os.path.expanduser does
+    return os.path.expanduser(path)
+
+
 def _is_safe_path(path: str) -> bool:
     """Check that the resolved path is not a sensitive system path."""
     try:
-        resolved = Path(path).resolve()
+        resolved = Path(_expand_path(path)).resolve()
         for denied in _DENY_PATHS:
             if str(resolved).startswith(denied):
                 return False
@@ -35,7 +41,7 @@ def _is_safe_path(path: str) -> bool:
 
 
 def _handle_read_file(args: dict) -> str:
-    path = args.get("path", "")
+    path = _expand_path(args.get("path", ""))
     offset = int(args.get("offset", 1))
     limit = int(args.get("limit", 500))
 
@@ -90,10 +96,10 @@ def _handle_write_file(args: dict) -> str:
         return tool_error(f"Cannot write to protected system path: {path}")
 
     try:
-        p = Path(path)
+        p = Path(_expand_path(path))
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content, encoding="utf-8")
-        return tool_result(data=f"Written {len(content)} chars to {path}")
+        return tool_result(data=f"Written {len(content)} chars to {p}")
     except (OSError, ValueError) as e:
         return tool_error(f"Cannot write file: {e}")
 
@@ -112,7 +118,7 @@ def _handle_patch(args: dict) -> str:
         return tool_error(f"Cannot modify protected system path: {path}")
 
     try:
-        p = Path(path)
+        p = Path(_expand_path(path))
         if not p.exists():
             return tool_error(f"File not found: {path}")
         content = p.read_text(encoding="utf-8")
@@ -191,7 +197,7 @@ def _handle_search_files(args: dict) -> str:
         return tool_error(f"Invalid regex pattern: {e}")
 
     matches = []
-    root = Path(search_path).resolve()
+    root = Path(_expand_path(search_path)).resolve()
 
     try:
         for fpath in root.rglob("*"):
@@ -231,7 +237,7 @@ def _handle_search_files(args: dict) -> str:
 
 
 def _handle_ls(args: dict) -> str:
-    path = args.get("path", ".")
+    path = _expand_path(args.get("path", "."))
     limit = int(args.get("limit", 200))
 
     try:

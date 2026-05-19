@@ -18,3 +18,6 @@ package-lock.json
 # 缓存文件
 **/cache/
 CLAUDE.md
+
+# 防止字面 ~ 目录被误创建（Python os.path 不会自动展开 ~，需用 expanduser）
+~
