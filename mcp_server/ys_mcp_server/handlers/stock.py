@@ -1,5 +1,6 @@
-"""Query YonSuite stock levels — returns raw detail records (single page, API does not paginate)."""
+"""Query YonSuite stock levels — returns raw detail records with auto-pagination."""
 
+from ..paginate import paginate
 from ..utils import r2, tool_result
 
 
@@ -12,6 +13,8 @@ schema = {
             "product_id": {"type": "string", "description": "物料ID精确查询（从 query_products 结果中获取 id 字段），支持逗号分隔多个ID"},
             "warehouse": {"type": "string", "description": "仓库名称模糊匹配（可选）"},
             "sku": {"type": "string", "description": "SKU 编码或物料编码模糊匹配（可选）"},
+            "page_index": {"type": "integer", "description": "页码。不传则自动翻页获取全部数据"},
+            "page_size": {"type": "integer", "description": "每页条数，默认 500"},
         },
     },
 }
@@ -27,9 +30,12 @@ def handle(client, arguments: dict) -> dict:
         ids = [pid.strip() for pid in product_id_raw.split(",") if pid.strip()]
         product_param = ids if len(ids) > 1 else ids[0]
 
-    result = client.query_current_stock(page_size=500, product=product_param)
-    raw_data = result.get("data", [])
-    records = raw_data if isinstance(raw_data, list) else []
+    def fetch(pi, ps):
+        result = client.query_current_stock(page_index=pi, page_size=ps, product=product_param)
+        raw_data = result.get("data", [])
+        return raw_data if isinstance(raw_data, list) else []
+
+    records = paginate(arguments, 500, fetch)
 
     if warehouse:
         records = [r for r in records if warehouse in str(r.get("warehouse_name", ""))]

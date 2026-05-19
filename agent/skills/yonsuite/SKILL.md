@@ -8,7 +8,7 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 
 **定位：** YS 系统业务数据查询 + 分析报表生成，支持销售/采购/生产订单、库存、商机、待办等核心模块。
 
-**版本：** v8.0（2026-05-18 MCP 化：YonSuite 工具独立为 MCP Server，通过 `mcp_yonsuite_*` 工具调用）
+**版本：** v9.1（2026-05-18 修正：移除"自动翻页"描述，改为手动传 page_index 逐页获取）
 
 ---
 
@@ -23,7 +23,7 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 
 ## 🔧 MCP 查询工具（直接调用，无需手写代码）
 
-以下工具通过 YonSuite MCP Server 提供，工具名以 `mcp_yonsuite_` 为前缀，**直接通过 MCP 协议调用，不需要手写 Python 代码**。不传 `page_index` 时自动翻页获取全部数据。
+以下工具通过 YonSuite MCP Server 提供，工具名以 `mcp_yonsuite_` 为前缀，**直接通过 MCP 协议调用，不需要手写 Python 代码**。需手动传 `page_index` 逐页获取数据。
 
 | 工具名 | 用途 | 关键参数 |
 |--------|------|---------|
@@ -45,21 +45,10 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 - `is_sum=True`：按订单汇总（一单一行），用于客户/商品统计和整体分析
 - `is_sum=False`：按商品明细分列，用于逐单明细查看
 
-**自动翻页：** 所有支持分页的工具，不传 `page_index` 时自动循环翻页直到获取全部数据，传了 `page_index` 则返回指定单页。
+**分页翻页：** 所有支持分页的工具都需手动传 `page_index` 逐页获取。不传 `page_index` 默认返回第 1 页，传指定页码返回对应页。
 
 ---
 
-## ⚠️ 重要澄清："YS待办"与飞书任务的区别
-
-用户问"YS待办"时，必须先确认是指什么：
-
-| 类型 | 查询方式 | 说明 |
-|------|---------|------|
-| **飞书任务中心** | `lark-cli task +get-my-tasks --complete=false` | 飞书原生待办/任务 |
-| **YS业务单据状态** | `mcp_yonsuite_query_*_orders` 工具 + 状态过滤 | YS 里的生产/采购/销售订单状态 |
-| **YS待办中心** | `mcp_yonsuite_query_user_todos` 工具 | YS 系统内的审批/待办任务 |
-
----
 
 ## ⚠️ 核心概念：主子表结构
 
@@ -70,6 +59,62 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 | **主表**（每订单一条） | 订单头信息（编号、日期、客户、状态等） |
 | **明细表**（每行一个物料） | 商品行信息（物料编码、数量、金额等） |
 
+---
+
+## 🔄 库存查询标准流程（两步查询法）
+
+**核心原则：先查物料档案拿到 ID，再查库存。两步不能跳步。**
+
+### 流程
+
+```
+用户问"XXX的库存是多少"
+  ↓
+① query_products(product_name="XXX")
+  → 获取物料编码 + 物料 ID（id 字段）
+  ↓
+② query_stock(product_id="物料ID")
+  → 获取该物料在所有仓库的逐批次库存明细
+  ↓
+③ 汇总展示：总现存量、总可用量，按仓库/组织分组表格
+```
+
+### 为什么分两步？
+
+- `query_products` 的 `product_name` 参数是**精确/前缀匹配**，不是模糊匹配，需拉全量自行过滤
+- `query_stock` 的 `product_id` 参数是**服务端精确过滤**，比客户端按 sku 过滤更高效
+- 支持单个 ID（如 `"2038946642929280"`）或逗号分隔批量
+
+### 回答格式规范
+
+查询结果展示格式：
+```
+物料名称 | 总现存量 | 总可用量
+多仓库按仓库分行列出明细
+```
+- 多批次分布在多个仓库/组织时，按仓库+组织分行展示
+- 末尾汇总合计行
+- 锁定数量为零时注明"全部可用"
+
+---
+
+## 📂 输出与交付规范（跑通确认）
+
+### 文件保存位置
+- **默认保存到桌面**：`~/Desktop/YS_YYYY-MM-DD_类型.html`
+- 不保存到 `~/Documents/` 或 `~/Documents/PPT/`
+- 覆盖之前的命名规范中的路径
+
+### 自动打开展示
+- 生成 HTML 报告后，**直接调用浏览器打开**展示给用户
+- 不需要询问用户"是否要打开"
+
+### 自动生成（不询问）
+- 用户要求分析业务数据后，**自动生成 HTML 报告**
+- 不需要询问"是否需要生成报告"
+
+### 文件发送方式
+- 直接告知用户完整文件路径即可
 ---
 
 ## 📊 分析报表流水线
@@ -88,13 +133,28 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 5. 拼装 HTML 报告 → 写入文件 → 发送/打开
 ```
 
-### 图表生成（mcp-server-chart）
+### 图表生成（必须使用 @antv/mcp-server-chart）
 
-- `generate_line_chart` — 每日趋势
-- `generate_pie_chart` — 分布占比（innerRadius=0.4 环形图）
-- `generate_column_chart` — 柱状对比
-- `generate_bar_chart` — 水平条形
-- `generate_dual_axes_chart` — 金额/税额双轴对比
+⚠️ **画分析图必须使用 `@antv/mcp-server-chart` MCP 工具**，禁止用 Python matplotlib、echarts 等其他方式生成图表。
+
+支持以下图表类型（theme=academy 用友品牌风格）：
+
+| 图表工具 | 适用场景 |
+|---------|---------|
+| `generate_column_chart` | 柱状对比（客户排行、产品排行） |
+| `generate_bar_chart` | 水平条形（适合长标签） |
+| `generate_pie_chart` | 分布占比（`innerRadius=0.4` 环形图） |
+| `generate_line_chart` | 每日趋势 |
+| `generate_dual_axes_chart` | 金额/税额双轴对比 |
+| `generate_scatter_chart` | 相关性散点图 |
+| `generate_funnel_chart` | 漏斗转化分析 |
+
+**标准用法：**
+```python
+# 4张图表按 2×2 网格布局生成
+# 图表 height=260, theme='academy'
+# 将生成的图片URL嵌入 HTML 的 <img src="..."> 中
+```
 
 ### HTML 报告标准布局（强制）
 
@@ -135,12 +195,12 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 
 ### 订单明细表格规范
 
-- **列出全部订单**，不截断，`max-height: 420px; overflow-y: auto`
+- **列出全部订单明细**，不截断，`max-height: 420px; overflow-y: auto`
 - 表头 sticky 固定 + 内容区独立滚动
 - 必须用 `<colgroup>` 指定列宽，`table-layout: fixed`
 - 拖拽列宽功能（JS 监听 mousedown/mousemove/mouseup）
-- 同单据多行时，后续行单据信息列显示"—"并加灰色样式
-- 每单第一行蓝色高亮（`background:#EEF2FF`）
+- **平铺展示**：每行独立显示完整信息，订单编号/客户等表头字段**每行都重复**
+- **不做合并样式**：不加"—"灰色标识，不做首行蓝色高亮
 - **禁止手动录入数据** → 必须程序化从工具返回的 JSON 生成
 
 ---
@@ -172,9 +232,11 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 
 <｜｜DSML｜｜parameter name="new_string" string="true">---
 
-## 📦 销售订单创建 API
+## 📦 销售订单创建（走 MCP 通用 API）
 
-**接口：** `POST /yonbip/sd/voucherorder/save`
+**工具：** `mcp_yonsuite_ys_api`（通用 API 调用工具，统一走 MCP 通道）
+
+**接口：** `yonbip/sd/voucherorder/save`
 
 **实测必需字段：**
 
@@ -187,30 +249,31 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 
 **明细行结构：** `skuCode`, `qty`, `oriTaxUnitPrice`（含税单价）, `taxRate`（税率%）
 
-```python
-import sys
-sys.path.insert(0, '.')
-from agent.yonsuite_client.ys_client import YonSuiteClient
-client = YonSuiteClient()
-token = client.get_access_token()
-body = {
+**调用方式（AI 自动执行，无需手写 Python）：**
+```
+mcp_yonsuite_ys_api(
+  method="yonbip/sd/voucherorder/save",
+  params={
     "salesOrgId": "2480092598538076164",
     "transactionTypeId": "2479226458234423496",
     "agentId": "01-0001",
-    "orderDetails": [{"skuCode": "A010100001", "qty": 100, "oriTaxUnitPrice": 12.5, "taxRate": 13}]
-}
-url = f"{client.gateway_url}/yonbip/sd/voucherorder/save?access_token={token}"
-result = client._http_post_raw(url, body)
+    "orderDetails": [
+      {"skuCode": "A010100001", "qty": 100, "oriTaxUnitPrice": 12.5, "taxRate": 13}
+    ]
+  }
+)
 ```
+
+> ⚠️ **写操作安全规则：** 调用前必须向用户确认订单内容，用户同意后再执行。
 
 ---
 
 ## 📌 命名规范
 
-- 输出文件：`~/Documents/YS_YYYY-MM-DD_类型.html`
+- 输出文件：`~/Desktop/YS_YYYY-MM-DD_类型.html`
 - 销售合计行过滤：`vouchdate == "合计"` 的汇总行
 - 采购/生产合计行过滤：`单据编号 == "合计"` 的汇总行
-- 分析报表文件：`~/Documents/PPT/YS_YYYY-MM-DD_本月销售分析报表.html`
+- 分析报表文件：`~/Desktop/YS_YYYY-MM-DD_本月销售分析报表.html`
 
 ---
 
@@ -231,11 +294,17 @@ result = client._http_post_raw(url, body)
 
 ---
 
-## 📌 API 参考
+## 📌 API 参考（MCP 工具底层接口，AI 无需直接调用）
 
-- 销售订单列表：`POST /yonbip/sd/voucherorder/list`
-- 采购订单列表：`POST /yonbip/scm/purchaseorder/list`
-- 生产订单列表：`POST /yonbip/mfg/productionorder/list`
-- 库存现存量：`POST /yonbip/scm/stock/QueryCurrentStocksByCondition`
-- 商机列表：`POST /yonbip/crm/oppt/bill/list`
-- 官方文档：https://open.yonyoucloud.com/#/doc-center/docDes/api
+> 以下 API 均由对应的 `mcp_yonsuite_*` 工具封装调用，**AI 不要直接手写 HTTP 请求**，统一走 MCP 工具。
+
+| 业务 | MCP 工具 | 底层 API |
+|------|---------|---------|
+| 销售订单 | `mcp_yonsuite_query_sale_orders` | `POST /yonbip/sd/voucherorder/list` |
+| 采购订单 | `mcp_yonsuite_query_purchase_orders` | `POST /yonbip/scm/purchaseorder/list` |
+| 生产订单 | `mcp_yonsuite_query_production_orders` | `POST /yonbip/mfg/productionorder/list` |
+| 库存现存量 | `mcp_yonsuite_query_stock` | `POST /yonbip/scm/stock/QueryCurrentStocksByCondition` |
+| 商机 | `mcp_yonsuite_query_opportunities` | `POST /yonbip/crm/oppt/bill/list` |
+| 创建销售订单 | `mcp_yonsuite_ys_api(method="yonbip/sd/voucherorder/save")` | `POST /yonbip/sd/voucherorder/save` |
+
+- 官方文档：https://open.yonyoudcloud.com/#/doc-center/docDes/api
