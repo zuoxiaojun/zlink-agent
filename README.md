@@ -4,7 +4,7 @@
 
 ## 功能
 
-- **AI 对话** — WebSocket 流式聊天，36 个内置工具自动调用
+- **AI 对话** — WebSocket 流式聊天，26+ 个内置工具自动调用
 - **YonSuite 集成** — 销售/采购/生产订单、库存、待办、商机等 11 个查询工具
 - **技能系统** — 可扩展技能包（安装/激活/停用）
 - **记忆系统** — Agent 自主笔记 + 用户画像 + 对话摘要
@@ -12,7 +12,7 @@
 
 ## 环境要求
 
-- Python 3.10+
+- Python 3.11+
 - Node.js 18+
 - npm 9+
 
@@ -111,8 +111,10 @@ server {
 ```
 ys-agent/
 ├── agent/                  # AI Agent 核心
-│   ├── agent.py            # Agent 循环 + LLM 调用
-│   ├── tools/              # 36 个内置工具
+│   ├── agent.py            # re-export 入口（旧循环已拆分为 core/）
+│   ├── core/               # 分层引擎（agent/message_builder/llm_client/迭代预算）
+│   ├── events/             # 事件总线 + 8 事件类 + Extension 系统
+│   ├── tools/              # 26+ 个内置工具 + MCP 管理器
 │   ├── yonsuite_client/    # YonSuite API 核心库
 │   ├── skills/             # 技能包
 │   ├── session_manager.py  # 会话管理
