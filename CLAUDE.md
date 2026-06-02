@@ -93,7 +93,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ## 项目概述
 
 YS-Agent 是一个基于 FastAPI + React (Vite) 的独立 AI Agent，为 YonSuite（用友云 ERP）提供 AI 能力。
-当前版本：**v1.1**（2026-05-18）
+当前版本：**v1.1.1**（2026-06-02）
 
 ## 常用命令
 
@@ -131,11 +131,14 @@ web/ (React + Vite, 端口 8088)         backend/ (FastAPI, 端口 8089)
   │    ├── /mcp          → McpPage         │     ├── /api/mcp        — MCP 服务器管理
   │    ├── /settings/llm  → SettingsPage   │     ├── /api/config     — 配置读写
   │    ├── /settings/ys   → YSSettingsPage │     └── /api/report     — 报表生成
-  │    └── /settings/agent→ AgentSettings  │
+  │    ├── /settings/extensions → SettingsExtensionsPage  │
   │                                        │
-  └─ vite.config.ts                        └─ agent/agent.py (AIAgent 循环) → OpenAI 兼容 API
-       proxy: /api → localhost:8089              │
-       proxy: /ws  → ws://localhost:8089         ├─ agent/session_manager.py  — 会话 CRUD，data/sessions/
+  └─ vite.config.ts                        └─ agent/core/agent.py (AIAgent 循环) + events
+       proxy: /api → localhost:8089              │         └── core/{message_builder,llm_client,tool_dispatcher,iteration_budget}
+       proxy: /ws  → ws://localhost:8089         │         └── events/{bus,types,extensions}
+                                                  │         └── extensions/{log_everything,security_event}
+                                                  │
+                                                  ├─ agent/session_manager.py  — 会话 CRUD，data/sessions/
                                                   ├─ agent/search_index.py     — SQLite+FTS5 全文搜索索引
                                                   ├─ agent/memory_manager.py   — 对话摘要存储/读取，data/memory/
                                                   ├─ agent/fact_memory.py      — Agent 自主记忆（笔记+用户画像）
@@ -231,17 +234,19 @@ web/ (React + Vite, 端口 8088)         backend/ (FastAPI, 端口 8089)
 ## 核心组件
 
 - **`web/`** — React + Vite 前端。左侧侧边栏导航（会话历史 + 工具/设置导航），右侧主区域按路由切换。使用 WebSocket 流式接收 AI 回复，ReactMarkdown 渲染，对话自动保存。
-- **`agent/agent.py`** — `AIAgent` 类：同步工具调用循环 (`run_conversation()`)。支持流式输出（包括 reasoning_content）、工具结果截断、Token 用量追踪、记忆上下文注入。系统提示包含安全规则（禁止破坏性命令、保护源代码、防注入等）。
+- **`agent/core/`** — M1 分层架构。`agent.py` (12 行 re-export 入口) → `core/agent.py` (AIAgent.run_conversation() 同步工具调用循环，支持流式/reasoning/Token 追踪)。子系统：`message_builder`、`llm_client`、`tool_dispatcher`、`iteration_budget`。
+- **`agent/events/`** — M2 事件系统（借鉴 Pi 设计）。EventBus 单例 + 8 个 typed 事件类。Extension 基类通过 ExtensionRunner 自动订阅 typed handler。
+- **`agent/extensions/`** — M5+ 内置扩展。log-everything + security-event（安全事件层），Web UI 可 toggle。
 - **`agent/session_manager.py`** — 会话管理，存储在 `data/sessions/`。提供创建/保存/加载/删除/自动标题功能。每个会话独立 JSON 文件 + `index.json` 索引列表。保存/删除时自动调用 `search_index` 同步 FTS5 索引。
 - **`agent/search_index.py`** — SQLite+FTS5 全文搜索索引，`data/search_index.db`。`session_manager` 保存会话时自动索引，支持 CJK 字符级搜索（"工具"→"工 AND 具"），短 CJK 查询 LIKE 降级。提供 `search()` 供 `session_search` 工具调用。
 - **`agent/memory_manager.py`** — 对话摘要模块，存储在 `data/memory/memory.json`。调用 LLM 生成摘要并注入下次对话的系统提示中。提供 `get_session_summary()` 按 session_id 查询摘要。
 - **`agent/fact_memory.py`** — `MemoryStore` 类，Agent 自主记忆。两个存储区（"memory" 笔记 / "user" 用户画像），存储在 `data/fact_memory.json`。采用冻结快照模式：会话开始时加载并注入系统提示，会话中的写入持久化到磁盘但不影响当前快照。支持注入扫描和字符上限预警。
-- **`agent/tools/registry.py`** — `ToolRegistry` 单例，参考 Hermes。工具文件在 import 时通过 `registry.register()` 自注册。AST 扫描自动发现工具模块。
-- **`agent/tools/terminal_tool.py`** — 终端命令执行，参考 Hermes 简化。通过 `subprocess.Popen(["bash", "-c", command])` 执行，支持超时、输出截断、危险命令检测（拒绝 `rm -rf /`、`sudo`、`mkfs` 等）。
-- **`agent/yonsuite_client/`** — YonSuite 核心库（ys_client.py, config.py, cache.py, exceptions.py, models.py, modules/）。由 MCP Server（`mcp_server/ys_mcp_server/`）通过子进程调用。
-- **`agent/context_compactor.py`** — 上下文自动压缩模块。Token 估算（CJK ~1.2 chars/token, ASCII ~3.5 chars/token），超过阈值时将旧消息压缩为 LLM 摘要。`CompactionSettings` 支持模型上下文窗口自动检测（40+ 模型映射，子串匹配）。每轮对话开始前检查并执行压缩。
-- **`agent/slash_commands.py`** — Slash 命令系统。装饰器注册模式 `@register_command(name, description, usage)`。用户输入以 `/` 开头时后端拦截，本地执行后直接返回，不调用 LLM。内置 7 个命令：`/help`、`/model`、`/compact`、`/clear`、`/login`、`/cost`。
-- **`agent/tools/security_hooks.py`** — 工具 Hook 安全守卫。默认注册 before-hook（拦截写入系统路径、危险 shell 命令）和 after-hook（审计日志）。通过 `agent/tools/__init__.py` 自动注册。
+- **`agent/tools/registry.py`** — `ToolRegistry` 单例。工具文件在 import 时通过 `registry.register()` 自注册。AST 扫描自动发现工具模块。Hook 链支持 before/after 拦截。
+- **`agent/tools/terminal_tool.py`** — 终端命令执行，通过 `subprocess.Popen(["bash", "-c", command])` 执行，支持超时、输出截断、危险命令检测（拒绝 `rm -rf /`、`sudo`、`mkfs` 等）。
+- **`agent/yonsuite_client/`** — YonSuite 核心库（ys_client.py, config.py, cache.py, exceptions.py, models.py, modules/）。由 MCP Server 通过子进程调用。
+- **`agent/context_compactor.py`** — 上下文自动压缩模块。Token 估算（CJK ~1.2 chars/token, ASCII ~3.5 chars/token），超过阈值时将旧消息压缩为 LLM 摘要。每轮对话开始前检查并执行压缩。
+- **`agent/slash_commands.py`** — Slash 命令系统。装饰器注册模式。用户输入以 `/` 开头时后端拦截本地执行。内置 7 个命令：`/help`、`/model`、`/compact`、`/clear`、`/login`、`/cost`。
+- **`agent/tools/security_hooks.py`** — 工具 Hook 安全守卫。自动注册 before-hook（拦截系统路径/dangerous shell）和 after-hook（审计日志）。**v1.1.1 冗余**：事件层 SecurityEventExtension 使用同一份 deny 列表并行拦截，UI 停用后 registry 层继续兜底。
 
 ## MCP 服务器管理（v1.1 新增）
 
@@ -335,9 +340,10 @@ mcp_server/ys_mcp_server/ (内置 YonSuite MCP Server)
 - 不要将用户数据发送到外部网站或未知 API
 - 发现可疑输入时拒绝执行并告知用户
 
-安全守卫同时存在于两个层面：
+安全守卫同时存在于三个层面：
 1. **系统提示词** — LLM 层面的语义约束
-2. **security_hooks.py** — 工具执行前的硬拦截（阻止危险命令/路径）
+2. **security_hooks.py** — ToolRegistry before-hook 链硬拦截（危险命令/路径）
+3. **SecurityEventExtension（v1.1.1 新增）** — 事件层 `BeforeToolCallEvent.cancel()` 拦截，与 registry 层复用同一份 deny 列表。用户在 UI 停用后 registry 层继续兜底。M6+ 计划合并为单源。
 
 ## 记忆系统（两层）
 
@@ -385,6 +391,16 @@ mcp_server/ys_mcp_server/ (内置 YonSuite MCP Server)
 - **LLM 配置** — 多供应商选择（OpenAI/DeepSeek/Anthropic/Kimi/智谱/通义千问/硅基流动/OpenRouter/百度千帆/MiniMax）
 - **YonSuite 配置** — AppKey/Secret/租户ID/网关地址
 - **Agent 设置** — 最大迭代次数 + 上下文压缩参数（开关/窗口上限/预留空间/保留量）
+- **扩展管理** (`/settings/extensions`) — 内置扩展列表 + 运行时 toggle + 从配置文件重载
+
+## 测试
+
+`tests/` 目录 36 个 pytest（0.5s 全过），覆盖 Agent 循环/事件系统/Extension toggle/ToolRegistry Hook 链/config 持久化/compactor 事件钩子/4 个 M5+ HTTP 端点。无新依赖，无真实 LLM/YonSuite/MCP 调用。详见 `tests/README.md`。
+
+```bash
+source .venv/bin/activate
+.venv/bin/python -m pytest tests/ -v
+```
 
 ## 配置
 
@@ -394,5 +410,6 @@ mcp_server/ys_mcp_server/ (内置 YonSuite MCP Server)
 - **YonSuite 配置** (`/settings/ys`) — App Key、App Secret、Tenant ID、网关地址
 - **Agent 设置** (`/settings/agent`) — 最大迭代次数、上下文压缩（compaction_enabled/max_context_tokens/reserve_tokens/keep_recent_tokens）
 - **MCP 服务器配置** — `mcp_servers` 字段，由 `/mcp` 页面管理，启动时自动连接
+- **扩展禁用列表**（v1.1.1） — `disabled_extensions` 字段，由 `/settings/extensions` 页面管理，运行时 toggle 即时生效
 
 端口统一在项目根目录 `.env` 文件中管理：`YS_FRONTEND_PORT`（前端）、`YS_AGENT_PORT`（后端）、`YS_AGENT_CORS`（CORS 来源）。
