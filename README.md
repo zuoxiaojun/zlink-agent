@@ -133,9 +133,7 @@ ys-agent/
 
 ## 版本
 
-当前版本：**v1.0**
-
-详见 [CHANGELOG.md](./CHANGELOG.md)
+当前版本：**v1.1.1**（2026-06-02）。v1.0 → v1.1 → v1.1.1 增量见下方「v1.1+ 新增」段与 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## v1.1+ 新增（已推送，详见 commit `d18369c`）
 
