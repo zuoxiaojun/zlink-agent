@@ -149,6 +149,19 @@ export interface MCPTestResult {
   error_message: string | null;
 }
 
+// Extension types (M5+)
+export interface ExtensionInfo {
+  name: string;
+  enabled: boolean;
+  description: string;
+  kind: "log" | "policy" | "transform" | "other";
+}
+
+export interface ExtensionReloadResult {
+  now_active: string[];
+  now_disabled: string[];
+}
+
 export type WsServerMessage =
   | { type: "token"; content: string }
   | { type: "tool_call"; tool_name: string; arguments_preview: string }

@@ -11,6 +11,7 @@ import ToolsPage from "./pages/ToolsPage";
 import SettingsLLMPage from "./pages/SettingsLLMPage";
 import SettingsYSPage from "./pages/SettingsYSPage";
 import SettingsAgentPage from "./pages/SettingsAgentPage";
+import SettingsExtensionsPage from "./pages/SettingsExtensionsPage";
 import McpPage from "./pages/McpPage";
 import type { ConfigResponse } from "./types";
 
@@ -41,6 +42,7 @@ export default function App() {
               <Route path="/settings/llm" element={<SettingsLLMPage />} />
               <Route path="/settings/yonsuite" element={<SettingsYSPage />} />
               <Route path="/settings/agent" element={<SettingsAgentPage />} />
+              <Route path="/settings/extensions" element={<SettingsExtensionsPage />} />
               <Route path="/mcp" element={<McpPage />} />
             </Route>
           </Routes>

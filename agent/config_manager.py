@@ -26,6 +26,7 @@ _DEFAULT_CONFIG = {
     "reserve_tokens": 4000,
     "keep_recent_tokens": 8000,
     "mcp_servers": {},
+    "disabled_extensions": [],  # M5+: names of extensions the user turned off
 }
 
 

@@ -92,6 +92,7 @@ from backend.api.skills_api import router as skills_router
 from backend.api.tools_api import router as tools_router
 from backend.api.chat import router as chat_router
 from backend.api.mcp_api import router as mcp_router
+from backend.api.extensions_api import router as extensions_router
 
 app.include_router(sessions_router)
 app.include_router(config_router)
@@ -100,6 +101,7 @@ app.include_router(skills_router)
 app.include_router(tools_router)
 app.include_router(chat_router)
 app.include_router(mcp_router)
+app.include_router(extensions_router)
 
 
 @app.get("/api/health")

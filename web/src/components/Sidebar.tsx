@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAppState, WELCOME_MESSAGE } from "../context/AppContext";
 import { api } from "../api/http";
-import { Bot, Plus, MessageSquare, Brain, Wrench, Puzzle, Cpu, Database, Settings, Plug } from "lucide-react";
+import { Bot, Plus, MessageSquare, Brain, Wrench, Puzzle, Cpu, Database, Settings, Plug, Boxes } from "lucide-react";
 
 const NAV = [
   { label: "历史对话", Icon: MessageSquare, path: "/history", section: 1 },
@@ -12,6 +12,7 @@ const NAV = [
   { label: "LLM 配置", Icon: Cpu, path: "/settings/llm", section: 2 },
   { label: "YonSuite 配置", Icon: Database, path: "/settings/yonsuite", section: 2 },
   { label: "Agent 设置", Icon: Settings, path: "/settings/agent", section: 2 },
+  { label: "扩展管理", Icon: Boxes, path: "/settings/extensions", section: 2 },
 ];
 
 export default function Sidebar() {

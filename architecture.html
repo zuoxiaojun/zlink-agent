@@ -133,7 +133,7 @@
 <!-- ═══════════ Sidebar ═══════════ -->
 <aside class="sidebar">
   <div class="sidebar-header">
-    <div class="logo">YS-Agent <span>v1.1</span></div>
+    <div class="logo">YS-Agent <span>v1.1.1</span></div>
     <div class="ver">架构与业务流转详解</div>
   </div>
   <nav class="sidebar-nav" id="sidebarNav">
@@ -149,6 +149,7 @@
     <a href="#tools" class="l2">→ 5.5 工具注册 & Hook 链</a>
     <a href="#security" class="l2">→ 5.6 安全守卫</a>
     <a href="#mcp-external" class="l2">→ 5.7 外部 MCP 管理</a>
+    <a href="#extensions" class="l2">→ 5.8 Extension 事件系统</a>
     <a href="#pages" class="l1">6. 页面 & API 路由</a>
     <a href="#tech-stack" class="l1">7. 技术栈</a>
     <a href="#config" class="l1">8. 配置 & 启动</a>
@@ -162,7 +163,7 @@
 
 <!-- ====== HERO ====== -->
 <div class="hero" id="hero">
-  <h1>YS-Agent <span class="sub">v1.1</span></h1>
+  <h1>YS-Agent <span class="sub">v1.1.1</span></h1>
   <p>基于 FastAPI + React (Vite) 的独立 AI Agent，为 <strong>YonSuite（用友云 ERP）</strong>提供 AI 能力。支持自然语言查询库存、订单、客户等 11 大业务域，内置工具调用循环、记忆系统、技能插件和可扩展的 MCP Server 生态。</p>
   <div class="stat-bar">
     <div class="stat"><div class="num">26+</div><div class="lbl">内置工具</div></div>
@@ -171,6 +172,8 @@
     <div class="stat"><div class="num">7</div><div class="lbl">Slash 命令</div></div>
     <div class="stat"><div class="num">40+</div><div class="lbl">支持模型</div></div>
     <div class="stat"><div class="num">8089</div><div class="lbl">后端端口</div></div>
+    <div class="stat"><div class="num">8</div><div class="lbl">事件类型</div></div>
+    <div class="stat"><div class="num">2</div><div class="lbl">内置扩展</div></div>
   </div>
 </div>
 
@@ -547,7 +550,7 @@ dispatch(tool_name, args):
 </pre>
 
 <!-- 安全 -->
-<h3 id="security">5.6 安全守卫（双防线）</h3>
+<h3 id="security">5.6 安全守卫</h3>
 
 <div class="two-col">
   <div class="card red-left">
@@ -562,7 +565,7 @@ dispatch(tool_name, args):
     </ul>
   </div>
   <div class="card red-left">
-    <h4>第 2 层：security_hooks.py</h4>
+    <h4>第 2 层：security_hooks.py（registry before-hook）</h4>
     <p>工具执行前的硬拦截（无法被 LLM 绕过）：</p>
     <ul>
       <li>拦截写入 <code>/etc</code>、<code>~/.ssh</code>、<code>/boot</code>、<code>/System</code> 等路径</li>
@@ -570,6 +573,16 @@ dispatch(tool_name, args):
       <li>After-hook 审计日志记录</li>
     </ul>
   </div>
+</div>
+
+<div class="card red-left" style="margin-top:0;">
+  <h4>第 2.5 层（v1.1.1 新增）：SecurityEventExtension（事件层） <span class="tag r" style="vertical-align:middle;">v1.1.1</span></h4>
+  <p>v1.1 引入 EventBus 后新增的冗余拦截，与 registry 层<strong>并行工作、复用同一份 deny 列表</strong>（<code>agent/extensions/security_event.py</code> 从 <code>agent.tools.security_hooks</code> import <code>_DENY_WRITE_PATHS</code> 和 <code>_DENY_SHELL_PATTERNS</code>，无重复声明）。</p>
+  <ul>
+    <li>同一份 deny 列表走两条独立 pipeline：<code>BeforeToolCallEvent</code> 上的 <code>event.cancel(reason=...)</code> + ToolRegistry 的 <code>before-hook</code> 链</li>
+    <li>用户在 <a href="#extensions">5.8 扩展管理</a>页面停用 <code>security-event</code> 时，只关闭事件层，registry 层继续拦截 → 安全永不裸奔</li>
+    <li>M6+ 计划合并：registry 层改为订阅同一个事件，把双拦截收成单源</li>
+  </ul>
 </div>
 
 <!-- MCP External -->
@@ -590,6 +603,81 @@ dispatch(tool_name, args):
 </table>
 
 <p style="color:var(--muted);font-size:0.88rem;">前端 <code>/mcp</code> 页面支持表单模式和 JSON 模式（自动解包 Claude Code <code>.mcp.json</code> 格式 <code>{"mcpServers": {...}}</code>）两种添加方式。</p>
+
+<!-- Extension 事件系统 (v1.1.1) -->
+<h3 id="extensions">5.8 Extension 事件系统 & 配置化 <span class="tag p" style="vertical-align:middle;">v1.1.1</span></h3>
+
+<div class="card accent-left">
+  <p>v1.1 引入的 <strong>EventBus + Extension</strong> 机制（借鉴 Pi 项目的扩展点设计）在 v1.1.1 完成配置化落地——用户可在 Web UI 上启用/停用每个 Extension，状态持久化到 <code>config.json</code>，运行时立即生效无需重启服务。</p>
+</div>
+
+<h4>事件流：8 个扩展点</h4>
+<div class="arch-diagram"><span class="co"># run_conversation() 调用一次发出 8 类事件</span>
+session_start   <span class="hl">──→</span> on_session_start
+user_message    <span class="hl">──→</span> on_user_message   <span class="co">(可改 event.content / cancel)</span>
+<span class="co">──── 循环开始 ────</span>
+before_llm_call <span class="hl">──→</span> on_before_llm_call <span class="co">(可改 event.messages / cancel)</span>
+    LLM 调用
+after_llm_call  <span class="hl">──→</span> on_after_llm_call  <span class="co">(只读)</span>
+<span class="co">──── 如果 LLM 要求调用工具 ────</span>
+before_tool_call <span class="hl">──→</span> on_before_tool_call <span class="co">(可改 event.args / cancel)</span>
+    工具执行（ToolRegistry dispatch + Hook 链）
+after_tool_call  <span class="hl">──→</span> on_after_tool_call  <span class="co">(可改 result / cancel)</span>
+<span class="co">──── 循环继续 / 结束 ────</span>
+session_before_compact <span class="hl">──→</span> on_session_before_compact <span class="co">(可追加 event.extra)</span></div>
+
+<h4>Extension 类 & Runner</h4>
+<pre style="background:var(--card);border-radius:8px;padding:16px;font-size:0.82rem;color:var(--muted);"><span class="kw">class</span> MyExtension(Extension):
+    name = <span class="str">"my-extension"</span>
+    enabled = <span class="kw">True</span>
+
+    <span class="kw">def</span> on_before_tool_call(self, event: BeforeToolCallEvent):
+        <span class="co"># 读 event.tool_name / event.args</span>
+        <span class="co"># 改 event.args</span>
+        <span class="co"># event.cancel(reason="...") 终止工具</span>
+        <span class="kw">pass</span>
+
+    <span class="kw">def</span> on_event(self, event: Event):
+        <span class="co"># catch-all：所有事件都会走到这（typed handler 之后）</span>
+        <span class="kw">pass</span>
+
+register_extensions([MyExtension()])  <span class="co"># 注册到全局 EventBus</span></pre>
+
+<h4>配置化 API（M5+ 新增）</h4>
+<table>
+  <tr><th>功能</th><th>API</th></tr>
+  <tr><td>列出所有扩展（含 disabled）</td><td><code>GET /api/extensions</code></td></tr>
+  <tr><td>仅列出 active 扩展</td><td><code>GET /api/extensions/active</code></td></tr>
+  <tr><td>启用/禁用单个扩展</td><td><code>PUT /api/extensions/{name}/toggle</code></td></tr>
+  <tr><td>从 config.json 重载（重 apply）</td><td><code>POST /api/extensions/reload</code></td></tr>
+</table>
+
+<p style="color:var(--muted);font-size:0.88rem;">状态持久化到 <code>config.json</code> 的 <code>disabled_extensions</code> 字段；启动时 <code>agent/agent.py</code> 自动 apply。toggle 是 <strong>runtime 生效</strong>——调 <code>apply_config_overrides()</code> 拆掉旧 runner + 重 wire 新 runner，无需重启服务。</p>
+
+<div class="two-col">
+  <div class="card green-left">
+    <h4>内置扩展（v1.1.1）</h4>
+    <table style="font-size:0.84rem;">
+      <tr><th>name</th><th>kind</th><th>作用</th></tr>
+      <tr><td><code>log-everything</code></td><td><span class="tag g">log</span></td><td>DEBUG 级别记录所有事件，便于追踪事件流</td></tr>
+      <tr><td><code>security-event</code></td><td><span class="tag r">policy</span></td><td>事件层阻断危险工具调用（写入受保护路径 / 危险 shell）</td></tr>
+    </table>
+    <p style="margin-top:10px;font-size:0.86rem;">新增内置扩展：<code>agent/extensions/&lt;name&gt;.py</code> 定义类，<code>agent/extensions/__init__.py</code> 的 <code>_built_in_classes()</code> 追加，<code>backend/api/extensions_api.py:_KIND_BY_NAME</code> 加描述 + kind，UI 自动出现。</p>
+  </div>
+  <div class="card yellow-left">
+    <h4>安全冗余双保险</h4>
+    <p>v1.1.1 阶段 <code>SecurityEventExtension</code>（事件层）和 <code>agent/tools/security_hooks.py</code>（registry 层）<strong>并行工作</strong>：</p>
+    <ul>
+      <li>事件层通过 <code>event.cancel()</code> 在工具执行前阻断</li>
+      <li>registry 层通过 <code>before-hook</code> 链在 ToolRegistry 调度前阻断</li>
+      <li>即使停用事件层（用户主动开关），registry 钩子继续工作 → 安全永不裸奔</li>
+    </ul>
+    <p style="margin-top:10px;font-size:0.86rem;">M6+ 计划合并到单一事件层（<a href="#security">5.6 安全守卫</a>将只描述事件层 + 兜底策略）。</p>
+  </div>
+</div>
+
+<h4>前端管理页</h4>
+<p style="color:var(--muted);font-size:0.88rem;">侧边栏 → 设置 → <strong>扩展管理</strong>（<code>/settings/extensions</code>，Boxes 图标）。卡片式布局：name + kind 标签 + 描述 + ToggleRight/Left 开关 + "从配置文件重载"按钮。空状态/搜索过滤/Toast 反馈齐全。</p>
 
 <!-- ====== 6. 前端页面 & 路由 ====== -->
 <h2 id="pages"><span class="dot" style="background:var(--red);"></span>6. 前端页面 & API 路由</h2>
