@@ -136,3 +136,28 @@ ys-agent/
 当前版本：**v1.0**
 
 详见 [CHANGELOG.md](./CHANGELOG.md)
+
+## v1.1+ 新增（已推送，详见 commit `d18369c`）
+
+v1.0 → v1.1.1 的重构增量（41 files / +5097 / -498）。CHANGELOG 里 v1.1.1 段记的概要：
+
+- **M1 分层**：`agent/agent.py` (481 行) 拆为 `agent/core/{agent,message_builder,llm_client,tool_dispatcher,iteration_budget}.py`；`agent/agent.py` 缩到 40 行 re-export
+- **M2 事件系统**：`agent/events/{bus,types,extensions}.py`；8 个事件类（session_start/end、user_message、before/after_llm_call、before/after_tool_call、session_before_compact）；Extension 基类 + typed handler 自动订阅
+- **M3 LLM Provider 抽象**：`agent/core/llm_providers/{base,openai_compat,anthropic,factory}.py`；9 个 OpenAI-compat provider + Anthropic 原生
+- **M4 压缩增强**：`compact_messages` 改吃 `summary_caller`；新增文件追踪（限 5 个/8KB）；`SessionBeforeCompactEvent` 钩子
+- **M5+ Extension 配置化**：4 个 HTTP API（`/api/extensions`、`/active`、`/{name}/toggle`、`/reload`）+ Web UI「扩展管理」页（侧边栏 → 设置 → 扩展管理），状态持久化到 `config.json` 的 `disabled_extensions` 字段，runtime toggle 生效无需重启
+- **pytest 套件**：`tests/` 36 个 test，0.5s 全过；事件总线 + config 双 fixture 隔离；0 新依赖
+
+### 架构与开发文档
+
+- 架构 HTML（含 5.6 安全守卫双防线 + 5.8 Extension 事件系统新章节）：[`architecture.html`](./architecture.html)（直接 `open` 在浏览器看）
+- Markdown 架构说明：[`docs/architecture.md`](./docs/architecture.md)
+- Extension 开发指南：[`docs/extending-ys-agent.md`](./docs/extending-ys-agent.md)
+- pytest 套件说明：[`tests/README.md`](./tests/README.md)
+
+### 跑 pytest
+
+```bash
+source .venv/bin/activate
+.venv/bin/python -m pytest tests/ -v   # 36 tests, ~0.5s
+```
