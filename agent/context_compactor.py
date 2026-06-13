@@ -19,13 +19,25 @@ M4 changes
   assembled.  Extensions can read the draft + tracked files and
   append ``event.extra`` strings to the final summary.
 
+M6 changes (token optimisation)
+--------------------------------
+* ``estimate_tokens()`` now uses **tiktoken** for models it recognises
+  (OpenAI, DeepSeek, GLM, Qwen), falling back to the character-based
+  heuristic for unrecognised models.
+* ``compact_messages()`` now uses a **3-level hierarchical** strategy:
+  Level 1 — compress tool results (most token-heavy, least value).
+  Level 2 — full summarisation of old messages (previous behaviour).
+  Level 3 — drop earliest tool calls if still over threshold.
+
 Inspired by Pi's Compaction system (CompactionSettings / CompactionPreparation).
 """
 
 from __future__ import annotations
 
 import logging
+import os
 import re
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,6 +48,102 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
+# ---- tiktoken integration (M6) ----
+# NOTE: tiktoken has compatibility issues with Python 3.14+.  The
+# ``_try_import_tiktoken()`` path is kept but disabled by default;
+# set ``YS_USE_TIKTOKEN=1`` to enable it.  Without tiktoken, we fall
+# back to the character-based heuristic (conservatively over-estimates).
+
+_TIKTOKEN_AVAILABLE: bool = False
+_TIKTOKEN_MODEL_MAP: dict[str, str] = {}
+_ENCODING_CACHE: dict[str, object] = {}
+_TIKTOKEN_IMPORT_TIMEOUT = 3.0
+
+
+def _try_import_tiktoken() -> bool:
+    """Try to import tiktoken with a timeout.
+
+    Only active when ``YS_USE_TIKTOKEN=1`` is set in the environment.
+    """
+    if not os.environ.get("YS_USE_TIKTOKEN"):
+        return False
+
+    result: list[object] = []
+    exc_info: list[Exception] = []
+
+    def _do_import():
+        try:
+            import tiktoken
+
+            result.append(tiktoken)
+        except Exception as e:
+            exc_info.append(e)
+
+    t = threading.Thread(target=_do_import, daemon=True)
+    t.start()
+    t.join(_TIKTOKEN_IMPORT_TIMEOUT)
+
+    if not result or exc_info or t.is_alive():
+        return False
+
+    tk = result[0]
+    try:
+        for k, v in tk.model.MODEL_TO_ENCODING.items():
+            _TIKTOKEN_MODEL_MAP[k.lower()] = v
+        return True
+    except Exception:
+        return False
+
+
+_TIKTOKEN_AVAILABLE = _try_import_tiktoken()
+
+
+def _get_encoding(model: str) -> object | None:
+    """Return a tiktoken encoding for *model*, or None if unavailable.
+
+    Only works when ``YS_USE_TIKTOKEN=1`` is set.  Uses
+    ``get_encoding()`` directly (no remote calls).
+    """
+    if not _TIKTOKEN_AVAILABLE:
+        return None
+    if model in _ENCODING_CACHE:
+        return _ENCODING_CACHE[model]
+
+    model_lower = model.lower()
+
+    # Exact match in built-in model→encoding map
+    enc_name = _TIKTOKEN_MODEL_MAP.get(model_lower)
+    if not enc_name:
+        # Substring match against known model families
+        for pattern, alias_enc in _TIKTOKEN_MODEL_ALIASES:
+            if pattern in model_lower:
+                enc_name = alias_enc
+                break
+
+    if enc_name:
+        try:
+            import tiktoken as _tk
+
+            enc = _tk.get_encoding(enc_name)
+            _ENCODING_CACHE[model] = enc
+            return enc
+        except Exception:
+            pass
+    return None
+
+
+# Known non-standard models and their closest tiktoken encoding.
+# (model_substring, tiktoken_encoding_name)
+_TIKTOKEN_MODEL_ALIASES: list[tuple[str, str]] = [
+    ("deepseek", "cl100k_base"),
+    ("qwen", "cl100k_base"),
+    ("glm", "cl100k_base"),
+    ("kimi", "cl100k_base"),
+    ("yi", "cl100k_base"),
+    ("minimax", "cl100k_base"),
+    ("gemini", "cl100k_base"),
+]
 
 # ---- model context window auto-detection ----
 
@@ -183,39 +291,50 @@ def _is_cjk(cp: int) -> bool:
     return any(lo <= cp <= hi for lo, hi in _CJK_RANGES)
 
 
-def estimate_tokens(text: str) -> int:
-    """Estimate token count for a string using a character-based heuristic.
+def estimate_tokens(text: str, model: str = "") -> int:
+    """Estimate token count for a string.
 
-    CJK characters compress to ~0.7–1.5 tokens per char in modern
-    tokenizers; ASCII / Latin averages ~0.25 tokens per char.  We use a
-    blended divisor that slightly over-estimates, so compaction triggers
+    Uses tiktoken when the model is recognised (M6), falling back to a
+    character-based heuristic for unknown models.  The heuristic is
+    designed to slightly over-estimate, so compaction triggers
     conservatively early rather than too late.
     """
     if not text:
         return 0
+
+    # M6: tiktoken path
+    if model:
+        enc = _get_encoding(model)
+        if enc is not None:
+            try:
+                return len(enc.encode(text, disallowed_special=()))
+            except Exception:
+                pass
+
+    # Fallback: character-based heuristic
     cjk = sum(1 for c in text if _is_cjk(ord(c)))
     non_cjk = len(text) - cjk
     return int(cjk / 1.2 + non_cjk / 3.5)
 
 
-def estimate_message_tokens(messages: list[dict]) -> int:
+def estimate_message_tokens(messages: list[dict], model: str = "") -> int:
     """Estimate total tokens for a list of chat messages."""
     total = 0
     for msg in messages:
         content = msg.get("content", "")
         if isinstance(content, str):
-            total += estimate_tokens(content)
+            total += estimate_tokens(content, model=model)
         elif isinstance(content, list):
             for block in content:
                 if isinstance(block, dict) and block.get("type") == "text":
-                    total += estimate_tokens(block.get("text", ""))
+                    total += estimate_tokens(block.get("text", ""), model=model)
         total += 4  # per-message overhead (role marker, etc.)
     return total
 
 
-def _total_tokens(messages: list[dict]) -> int:
+def _total_tokens(messages: list[dict], model: str = "") -> int:
     """Alias for readability inside this module."""
-    return estimate_message_tokens(messages)
+    return estimate_message_tokens(messages, model=model)
 
 
 # ---- compaction logic ----
@@ -275,7 +394,9 @@ _PATH_PATTERNS = [
     re.compile(r"(?:^|[\s\"'`=,(])(/root/[^\s\"'`,)]+)"),  # Linux /root
     re.compile(r"(?:^|[\s\"'`=,(])(/tmp/[^\s\"'`,)]+)"),  # /tmp
     re.compile(r"(?:^|[\s\"'`=,(])(/var/[^\s\"'`,)]+)"),  # /var
-    re.compile(r"(?:^|[\s\"'`=,(])(?:~/|/Users/zuoxiaojun/Desktop/ClaudeProject/)([A-Za-z0-9_./-]+\.[A-Za-z0-9]{1,8})"),
+    re.compile(
+        r"(?:^|[\s\"'`=,(])(?:~/|/Users/zuoxiaojun/claudeproject/YS-Agent/)([A-Za-z0-9_./-]+\.[A-Za-z0-9]{1,8})"
+    ),
     re.compile(r"(?:^|[\s\"'`=,(])(?:\./|\.\./)([A-Za-z0-9_./-]+\.[A-Za-z0-9]{1,8})"),
 ]
 
@@ -394,11 +515,68 @@ def track_files(messages: list[dict]) -> dict[str, str]:
     return out
 
 
-# ---- compaction logic (M4: provider-agnostic + event hook) ----
-
 # Type of the summary caller.  M3 path: ``agent`` passes a closure that
 # calls ``provider.chat(...)``.  Tests can pass any ``(str) -> str``.
 SummaryCaller = Callable[[str], str]
+
+
+# ---- M6: hierarchical compression helpers ----
+
+
+def _compress_tool_results(
+    messages: list[dict],
+    max_chars: int = 400,
+) -> list[dict]:
+    """Level 1: truncate tool result content to *max_chars* per message.
+
+    Tool results are typically the longest messages (API responses, file
+    contents) and the least valuable for the LLM after the tool has
+    finished.  Truncating them aggressively saves the most tokens with
+    the least semantic loss.
+    """
+    out: list[dict] = []
+    for msg in messages:
+        if msg.get("role") == "tool":
+            content = msg.get("content", "")
+            if isinstance(content, str) and len(content) > max_chars:
+                msg = dict(msg)
+                msg["content"] = content[:max_chars] + "\n… (compaction truncated)"
+        out.append(msg)
+    return out
+
+
+def _drop_early_tool_calls(
+    messages: list[dict],
+    keep_rounds: int = 4,
+) -> list[dict]:
+    """Level 3: keep only the last *keep_rounds* tool-call rounds.
+
+    When the conversation has many tool-call → tool-result pairs, keeping
+    only the most recent ones preserves the current state while saving
+    significant context.
+    """
+    # Find indices of assistant messages that contain tool_calls
+    tool_call_indices = [
+        i for i, msg in enumerate(messages) if msg.get("role") == "assistant" and msg.get("tool_calls")
+    ]
+
+    if len(tool_call_indices) <= keep_rounds:
+        return messages
+
+    # Keep the last `keep_rounds` tool-call rounds (assistant + tool results).
+    keep_from = tool_call_indices[-keep_rounds]
+
+    out: list[dict] = []
+    for i, msg in enumerate(messages):
+        if i < keep_from:
+            if msg.get("role") == "tool":
+                out.append({"role": "tool", "content": "[早期工具结果已压缩]"})
+                continue
+            if msg.get("role") == "assistant" and msg.get("tool_calls"):
+                msg = dict(msg)
+                del msg["tool_calls"]
+        out.append(msg)
+    return out
 
 
 def compact_messages(
@@ -411,29 +589,41 @@ def compact_messages(
 ) -> tuple[list[dict], str | None, int]:
     """Compact old messages into a summary, keeping recent messages intact.
 
-    M4 signature change: ``summary_caller`` replaces the old
-    ``openai_client`` argument.  Pass any callable ``(prompt) -> str``.
-    The M3 path constructs this from ``LLMProvider.chat()`` so
-    Anthropic / OpenAI / etc. all work.
+    M6 hierarchical strategy (3 levels):
+      Level 1 — truncate tool result content (cheapest, most tokens saved).
+      Level 2 — summarise old messages via LLM (previous behaviour).
+      Level 3 — drop earliest tool-call rounds (last resort).
 
-    Returns ``(new_messages, new_summary, tokens_saved)``.  If
-    compaction isn't needed, returns the input unchanged.
+    Each level runs only if the previous one didn't bring tokens under
+    the threshold.  Returns ``(new_messages, new_summary, tokens_saved)``.
+    If compaction isn't needed, returns the input unchanged.
     """
     if not settings.enabled:
         return messages, previous_summary, 0
 
-    total = _total_tokens(messages)
     max_ctx = settings.effective_max_context_tokens(model)
     threshold = max_ctx - settings.reserve_tokens
 
+    total = _total_tokens(messages, model=model)
     if total <= threshold:
         return messages, previous_summary, 0
 
+    # ── Level 1: truncate tool results ──
+    _before_l1 = total
+    logger.info("M6-L1: compressing tool results (total=%d threshold=%d)", total, threshold)
+    messages = _compress_tool_results(messages)
+    total = _total_tokens(messages, model=model)
+    _saved_l1 = _before_l1 - total
+    if total <= threshold:
+        logger.info("M6-L1: sufficient — saved %d tokens via tool-result truncation", _saved_l1)
+        return messages, previous_summary, _saved_l1
+
+    # ── Level 2: summarise old messages (existing behaviour) ──
     # Walk backwards to find the keep / summarise boundary.
     kept: list[dict] = []
     kept_tokens = 0
     for msg in reversed(messages):
-        t = _total_tokens([msg])
+        t = _total_tokens([msg], model=model)
         if kept_tokens + t <= settings.keep_recent_tokens:
             kept.insert(0, msg)
             kept_tokens += t
@@ -444,37 +634,32 @@ def compact_messages(
     if not old_messages:
         return messages, previous_summary, 0
 
-    old_tokens = _total_tokens(old_messages)
+    old_tokens = _total_tokens(old_messages, model=model)
     logger.info(
-        "Compaction triggered: total=%d threshold=%d old=%d keep=%d",
+        "M6-L2: summarising old messages (total=%d old=%d keep=%d)",
         total,
-        threshold,
         old_tokens,
         kept_tokens,
     )
 
     # M4: read files the conversation touched, before the LLM call.
-    # This way the snapshot reflects the state at compaction time, not
-    # at the moment the LLM first read the file.
     tracked_files = track_files(old_messages)
     if tracked_files:
         logger.info(
-            "Compaction: tracked %d file(s): %s",
+            "M6-L2: tracked %d file(s): %s",
             len(tracked_files),
             list(tracked_files.keys()),
         )
 
     prompt = _build_summary_prompt(old_messages, previous_summary, tracked_files)
 
-    # Call summary_caller.  Wrapped in try/except so a transient LLM
-    # error falls back to the same "key user requests" salvage the
-    # original code used — preserves M1 behaviour.
+    # Call summary_caller.
     try:
         new_summary = summary_caller(prompt).strip()
         if not new_summary:
             raise ValueError("empty summary")
     except Exception as e:
-        logger.warning("Compaction LLM call failed (%s), using fallback summary", e)
+        logger.warning("M6-L2: LLM call failed (%s), using fallback", e)
         parts = []
         for m in old_messages:
             c = m.get("content", "")
@@ -482,13 +667,8 @@ def compact_messages(
                 parts.append(c[:120])
         new_summary = "历史需求摘要：" + "；".join(parts[-8:]) if parts else "（无法生成摘要）"
 
-    # M4: publish SessionBeforeCompactEvent so extensions can read the
-    # draft summary + tracked files and append their own notes via
-    # ``event.extra``.
+    # M4: publish SessionBeforeCompactEvent so extensions can contribute.
     if event_bus is not None:
-        # Local import to avoid a cycle (events.types → no cycle today,
-        # but keeping the dependency one-way: compactor depends on
-        # events, not the other way around).
         from agent.events.types import SessionBeforeCompactEvent
 
         ev = SessionBeforeCompactEvent(
@@ -498,7 +678,6 @@ def compact_messages(
             extra=[],
         )
         event_bus.publish(ev)
-        # Append any extension contributions to the summary, in order.
         if ev.extra:
             extra_text = "\n\n".join(ev.extra)
             new_summary = f"{new_summary}\n\n{extra_text}".strip()
@@ -509,8 +688,18 @@ def compact_messages(
     }
 
     compacted = [summary_msg] + kept
-    after = _total_tokens(compacted)
+    after = _total_tokens(compacted, model=model)
     saved = total - after
+    logger.info("M6-L2: %d → %d tokens (%d saved)", total, after, saved)
 
-    logger.info("Compaction: %d → %d tokens (%d saved)", total, after, saved)
+    # ── Level 3: if still over threshold, drop earliest tool calls ──
+    if after > threshold and len(kept) > 0:
+        logger.info("M6-L3: dropping early tool calls (after-L2=%d threshold=%d)", after, threshold)
+        # Apply level 3 on the kept messages (the recent ones that survived level 2)
+        kept = _drop_early_tool_calls(kept)
+        compacted = [summary_msg] + kept
+        after = _total_tokens(compacted, model=model)
+        saved = total - after
+        logger.info("M6-L3: %d → %d tokens (%d saved)", total, after, saved)
+
     return compacted, new_summary, saved

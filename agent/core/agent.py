@@ -180,7 +180,7 @@ class AIAgent:
         """
         if not self.compaction_settings.enabled:
             return messages
-        total_est = estimate_message_tokens(messages)
+        total_est = estimate_message_tokens(messages, model=self.model)
         threshold = self.compaction_settings.max_context_tokens - self.compaction_settings.reserve_tokens
         if total_est <= threshold:
             return messages
