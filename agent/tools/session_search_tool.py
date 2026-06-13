@@ -9,9 +9,8 @@ import json
 import logging
 from datetime import datetime
 
-from agent.tools.registry import registry, tool_result, tool_error
-from agent import search_index
-from agent import memory_manager
+from agent import memory_manager, search_index
+from agent.tools.registry import registry
 
 logger = logging.getLogger(__name__)
 
@@ -41,52 +40,78 @@ def _handle_session_search(args: dict) -> str:
         # Mode 1: recent sessions via FTS5 sessions table
         results = search_index.search("", limit)
         if not results:
-            return json.dumps({
-                "success": True, "mode": "recent",
-                "results": [], "count": 0,
-                "message": "暂无历史对话。",
-            }, ensure_ascii=False)
+            return json.dumps(
+                {
+                    "success": True,
+                    "mode": "recent",
+                    "results": [],
+                    "count": 0,
+                    "message": "暂无历史对话。",
+                },
+                ensure_ascii=False,
+            )
         out = []
         for r in results:
-            out.append({
-                "session_id": r["session_id"],
-                "title": r.get("title", "新对话"),
-                "updated_at": _format_time(r.get("updated_at", "")),
-                "message_count": r.get("message_count", 0),
-            })
-        return json.dumps({
-            "success": True, "mode": "recent",
-            "results": out, "count": len(out),
-            "message": f"最近 {len(out)} 条对话。使用关键词搜索可查找具体内容。",
-        }, ensure_ascii=False)
+            out.append(
+                {
+                    "session_id": r["session_id"],
+                    "title": r.get("title", "新对话"),
+                    "updated_at": _format_time(r.get("updated_at", "")),
+                    "message_count": r.get("message_count", 0),
+                }
+            )
+        return json.dumps(
+            {
+                "success": True,
+                "mode": "recent",
+                "results": out,
+                "count": len(out),
+                "message": f"最近 {len(out)} 条对话。使用关键词搜索可查找具体内容。",
+            },
+            ensure_ascii=False,
+        )
 
     # Mode 2: keyword search via FTS5
     results = search_index.search(query, limit)
     if not results:
-        return json.dumps({
-            "success": True, "mode": "search",
-            "query": query, "results": [], "count": 0,
-            "message": "未找到匹配的对话。",
-        }, ensure_ascii=False)
+        return json.dumps(
+            {
+                "success": True,
+                "mode": "search",
+                "query": query,
+                "results": [],
+                "count": 0,
+                "message": "未找到匹配的对话。",
+            },
+            ensure_ascii=False,
+        )
 
     out = []
     for r in results:
         sid = r["session_id"]
         summary = memory_manager.get_session_summary(sid)
-        out.append({
-            "session_id": sid,
-            "title": r.get("title", "新对话"),
-            "updated_at": _format_time(r.get("updated_at", "")),
-            "message_count": r.get("message_count", 0),
-            "summary": summary or "",
-            "excerpt": r.get("excerpt", ""),
-        })
+        out.append(
+            {
+                "session_id": sid,
+                "title": r.get("title", "新对话"),
+                "updated_at": _format_time(r.get("updated_at", "")),
+                "message_count": r.get("message_count", 0),
+                "summary": summary or "",
+                "excerpt": r.get("excerpt", ""),
+            }
+        )
 
-    return json.dumps({
-        "success": True, "mode": "search",
-        "query": query, "results": out, "count": len(out),
-        "message": f"找到 {len(out)} 条相关对话。",
-    }, ensure_ascii=False)
+    return json.dumps(
+        {
+            "success": True,
+            "mode": "search",
+            "query": query,
+            "results": out,
+            "count": len(out),
+            "message": f"找到 {len(out)} 条相关对话。",
+        },
+        ensure_ascii=False,
+    )
 
 
 SESSION_SEARCH_SCHEMA = {

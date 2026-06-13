@@ -3,7 +3,6 @@
 from ..paginate import paginate
 from ..utils import parse_name, tool_result
 
-
 schema = {
     "name": "query_customers",
     "description": "查询 YonSuite 客户档案。支持按客户名称模糊搜索。",
@@ -31,15 +30,19 @@ def handle(client, arguments: dict) -> dict:
 
     parsed = []
     for r in records:
-        parsed.append({
-            "id": r.get("id", ""), "code": r.get("code", ""),
-            "name": parse_name(r.get("name")),
-            "customerClass": r.get("customerClassName", ""),
-            "contactPerson": r.get("personOfContact", ""),
-            "phone": r.get("mobilePhone", "") or r.get("telephone", ""),
-        })
+        parsed.append(
+            {
+                "id": r.get("id", ""),
+                "code": r.get("code", ""),
+                "name": parse_name(r.get("name")),
+                "customerClass": r.get("customerClassName", ""),
+                "contactPerson": r.get("personOfContact", ""),
+                "phone": r.get("mobilePhone", "") or r.get("telephone", ""),
+            }
+        )
 
     return tool_result(
-        data=f"客户查询结果（{len(parsed)} 条）", records=parsed,
+        data=f"客户查询结果（{len(parsed)} 条）",
+        records=parsed,
         summary={"recordCount": len(parsed)},
     )

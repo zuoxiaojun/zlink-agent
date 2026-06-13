@@ -7,7 +7,6 @@ from ..constants import TODO_TYPE_MAP
 from ..paginate import paginate
 from ..utils import tool_result
 
-
 schema = {
     "name": "query_user_todos",
     "description": "查询 YonSuite 用户待办事项。返回已解析的待办列表，含 richText 清洗、单据类型自动映射。",
@@ -49,17 +48,22 @@ def handle(client, arguments: dict) -> dict:
         rich_text = re.sub(r"<[^>]+>", "", item.get("richText", "") or "").strip()
         ts = item.get("commitTsLong", 0)
         commit_time = datetime.fromtimestamp(int(str(ts)[:10])).strftime("%Y-%m-%d %H:%M:%S") if ts else ""
-        parsed.append({
-            "title": item.get("title", ""),
-            "typeLabel": _classify_todo(item),
-            "content": (item.get("content", "") or "").strip(),
-            "richText": rich_text,
-            "commitUserName": item.get("commitUserName", ""),
-            "commitTime": commit_time,
-            "taskName": item.get("businessData", {}).get("taskName") if isinstance(item.get("businessData"), dict) else "",
-        })
+        parsed.append(
+            {
+                "title": item.get("title", ""),
+                "typeLabel": _classify_todo(item),
+                "content": (item.get("content", "") or "").strip(),
+                "richText": rich_text,
+                "commitUserName": item.get("commitUserName", ""),
+                "commitTime": commit_time,
+                "taskName": item.get("businessData", {}).get("taskName")
+                if isinstance(item.get("businessData"), dict)
+                else "",
+            }
+        )
 
     return tool_result(
-        data=f"待办查询结果（{len(parsed)} 条）", records=parsed,
+        data=f"待办查询结果（{len(parsed)} 条）",
+        records=parsed,
         summary={"recordCount": len(parsed)},
     )

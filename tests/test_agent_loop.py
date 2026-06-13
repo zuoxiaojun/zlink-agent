@@ -16,22 +16,19 @@ The 5 cases here cover the most expensive paths:
 5. Event-layer SecurityEventExtension cancels a dangerous tool call
    BEFORE ToolRegistry sees it
 """
+
 from __future__ import annotations
 
 import json
-from typing import Any
-
-import pytest
 
 from agent.core.agent import AIAgent
 from agent.core.llm_client import LLMClient
-
 from tests.conftest import MockLLMProvider, make_text_response, make_tool_call_response
-
 
 # ────────────────────────────────────────────────────────────────────
 # 1) API Key 校验 — 早期返回的契约
 # ────────────────────────────────────────────────────────────────────
+
 
 def test_run_conversation_returns_error_when_api_key_empty():
     """An agent with no API key must return the documented error
@@ -51,6 +48,7 @@ def test_run_conversation_returns_error_when_api_key_empty():
 # ────────────────────────────────────────────────────────────────────
 # 2) 单轮纯文本回复
 # ────────────────────────────────────────────────────────────────────
+
 
 def test_run_conversation_plain_text_reply():
     """No tool calls → loop exits after 1 LLM call."""
@@ -73,13 +71,16 @@ def test_run_conversation_plain_text_reply():
 # 3) 一次工具调用 + 最终文本
 # ────────────────────────────────────────────────────────────────────
 
+
 def test_run_conversation_with_one_tool_call():
     """Tool-call → tool result → text reply.  Message list should be
     [user, assistant(tool_call), tool(result), assistant(text)]."""
-    provider = MockLLMProvider(responses=[
-        make_tool_call_response("terminal", {"command": "echo hi"}),
-        make_text_response("echoed"),
-    ])
+    provider = MockLLMProvider(
+        responses=[
+            make_tool_call_response("terminal", {"command": "echo hi"}),
+            make_text_response("echoed"),
+        ]
+    )
     agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
     agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
 
@@ -100,24 +101,27 @@ def test_run_conversation_with_one_tool_call():
 # 4) 事件总线收到完整序列
 # ────────────────────────────────────────────────────────────────────
 
+
 def test_run_conversation_publishes_full_event_sequence():
     """The 8 M2 event types are all reachable from a normal turn."""
     from agent.events import (
-        Event, SessionStartEvent, UserMessageEvent, BeforeLLMCallEvent,
-        AfterLLMCallEvent, BeforeToolCallEvent, AfterToolCallEvent,
-        SessionEndEvent,
+        Event,
     )
     from agent.events.bus import event_bus
 
     seen: list[str] = []
+
     def _spy(event: Event) -> None:
         seen.append(event.type)
+
     event_bus.subscribe(_spy)
 
-    provider = MockLLMProvider(responses=[
-        make_tool_call_response("terminal", {"command": "echo ok"}),
-        make_text_response("done"),
-    ])
+    provider = MockLLMProvider(
+        responses=[
+            make_tool_call_response("terminal", {"command": "echo ok"}),
+            make_text_response("done"),
+        ]
+    )
     agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
     agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
 
@@ -145,6 +149,7 @@ def test_run_conversation_publishes_full_event_sequence():
 # 5) SecurityEventExtension 事件层拦截
 # ────────────────────────────────────────────────────────────────────
 
+
 def test_security_event_extension_blocks_dangerous_command():
     """The M5+ event-layer security extension must cancel a
     ``rm -rf /`` call BEFORE ToolRegistry runs it."""
@@ -157,9 +162,11 @@ def test_security_event_extension_blocks_dangerous_command():
     ext.enabled = True
     register_extensions([ext])
 
-    provider = MockLLMProvider(responses=[
-        make_tool_call_response("terminal", {"command": "rm -rf /etc/passwd"}),
-    ])
+    provider = MockLLMProvider(
+        responses=[
+            make_tool_call_response("terminal", {"command": "rm -rf /etc/passwd"}),
+        ]
+    )
     agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
     agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
 

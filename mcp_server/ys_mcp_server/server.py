@@ -21,11 +21,14 @@ def _send(msg: dict):
 
 
 def _handle_initialize(req_id: int, _params: dict):
-    return _rpc_result(req_id, {
-        "protocolVersion": "2024-11-05",
-        "serverInfo": {"name": "ys-mcp-server", "version": "1.0.0"},
-        "capabilities": {"tools": {}},
-    })
+    return _rpc_result(
+        req_id,
+        {
+            "protocolVersion": "2024-11-05",
+            "serverInfo": {"name": "ys-mcp-server", "version": "1.0.0"},
+            "capabilities": {"tools": {}},
+        },
+    )
 
 
 def _handle_tools_list(req_id: int):

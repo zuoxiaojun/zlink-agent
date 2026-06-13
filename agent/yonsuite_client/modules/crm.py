@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 CRM 商机管理模块
 
@@ -9,11 +8,10 @@ API: POST /yonbip/crm/oppt/bill/list
 
 import logging
 import urllib.parse
-from typing import Optional, List, Dict, Any
 
-from .base import BaseAPIClient, retry_on_failure
-from ..models import Opportunity
 from ..exceptions import YonSuiteAPIError
+from ..models import Opportunity
+from .base import BaseAPIClient, retry_on_failure
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +24,19 @@ class CrmModule(BaseAPIClient):
         self.base_path = "/yonbip/crm/oppt"
 
     @retry_on_failure()
-    def query_opportunities(self, access_token: str, page_index: int = 1, page_size: int = 500,
-                            code: str = None, name: str = None,
-                            oppt_state: str = None, win_lose_state: str = None,
-                            is_sum: bool = True, date_from: str = None, date_to: str = None) -> Dict:
+    def query_opportunities(
+        self,
+        access_token: str,
+        page_index: int = 1,
+        page_size: int = 500,
+        code: str = None,
+        name: str = None,
+        oppt_state: str = None,
+        win_lose_state: str = None,
+        is_sum: bool = True,
+        date_from: str = None,
+        date_to: str = None,
+    ) -> dict:
         """
         查询商机列表
 
@@ -80,10 +87,12 @@ class CrmModule(BaseAPIClient):
         else:
             body["simpleVOs"] = []
 
-        logger.info(f"查询商机列表，页码：{page_index}，每页：{page_size}，状态：{oppt_state}，赢丢单：{win_lose_state}")
+        logger.info(
+            f"查询商机列表，页码：{page_index}，每页：{page_size}，状态：{oppt_state}，赢丢单：{win_lose_state}"
+        )
         return self._http_post_raw(url, body)
 
-    def parse_opportunities(self, result: Dict) -> List[Opportunity]:
+    def parse_opportunities(self, result: dict) -> list[Opportunity]:
         """
         解析商机查询结果为 Opportunity 对象列表
 
@@ -93,9 +102,9 @@ class CrmModule(BaseAPIClient):
         Returns:
             Opportunity 对象列表
         """
-        if str(result.get('code', '')) not in ('200', '0', '成功', ''):
+        if str(result.get("code", "")) not in ("200", "0", "成功", ""):
             raise YonSuiteAPIError(f"API error: {result.get('message', 'Unknown error')}")
 
-        data = result.get('data', {})
-        records = data.get('recordList', [])
+        data = result.get("data", {})
+        records = data.get("recordList", [])
         return [Opportunity.from_api(r) for r in records]

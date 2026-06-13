@@ -4,44 +4,42 @@ Simplified from Hermes Agent's terminal_tool.py — local bash execution
 with timeout and basic dangerous-command detection.
 """
 
-import json
 import logging
 import os
 import re
 import shutil
 import signal
 import subprocess
-from pathlib import Path
 
-from agent.tools.registry import registry, tool_result, tool_error
+from agent.tools.registry import registry, tool_error, tool_result
 
 logger = logging.getLogger(__name__)
 
 # ── Dangerous command patterns (simplified from Hermes approval.py) ──────
 
 _HARDLINE_PATTERNS = [
-    (r'\brm\s+(-[^\s]*\s+)*(/|/\*)(\s|$)', "recursive delete of root"),
-    (r'\brm\s+(-[^\s]*\s+)*(~|\$HOME)(/?|/\*)?(\s|$)', "recursive delete of home"),
-    (r'\bmkfs(\.[a-z0-9]+)?\b', "format filesystem"),
-    (r'\bdd\b[^\n]*\bof=/dev/', "dd to block device"),
-    (r'\bkill\s+(-[^\s]+\s+)*-1\b', "kill all processes"),
-    (r'^(shutdown|reboot|halt|poweroff)\b', "system shutdown/reboot"),
-    (r'^init\s+[06]\b', "init 0/6"),
+    (r"\brm\s+(-[^\s]*\s+)*(/|/\*)(\s|$)", "recursive delete of root"),
+    (r"\brm\s+(-[^\s]*\s+)*(~|\$HOME)(/?|/\*)?(\s|$)", "recursive delete of home"),
+    (r"\bmkfs(\.[a-z0-9]+)?\b", "format filesystem"),
+    (r"\bdd\b[^\n]*\bof=/dev/", "dd to block device"),
+    (r"\bkill\s+(-[^\s]+\s+)*-1\b", "kill all processes"),
+    (r"^(shutdown|reboot|halt|poweroff)\b", "system shutdown/reboot"),
+    (r"^init\s+[06]\b", "init 0/6"),
 ]
 
 _RE_FLAGS = re.IGNORECASE | re.DOTALL
 _HARDLINE_RE = [(re.compile(p, _RE_FLAGS), d) for p, d in _HARDLINE_PATTERNS]
 
 _DANGEROUS_PATTERNS = [
-    (r'\brm\s+(-[^\s]+\s+)*-rf\b', "recursive force delete"),
-    (r'\bchmod\s+(-[^\s]*\s+)*777\b', "chmod 777"),
-    (r'\bchown\b', "change ownership"),
-    (r'\bsudo\b', "sudo command"),
-    (r'\bpasswd\b', "change password"),
-    (r'\bwget[^\n]*\|', "wget pipe to shell"),
-    (r'\bcurl[^\n]*\|', "curl pipe to shell"),
-    (r'>\s*/dev/', "write to block device"),
-    (r':\(\)\s*\{', "fork bomb"),
+    (r"\brm\s+(-[^\s]+\s+)*-rf\b", "recursive force delete"),
+    (r"\bchmod\s+(-[^\s]*\s+)*777\b", "chmod 777"),
+    (r"\bchown\b", "change ownership"),
+    (r"\bsudo\b", "sudo command"),
+    (r"\bpasswd\b", "change password"),
+    (r"\bwget[^\n]*\|", "wget pipe to shell"),
+    (r"\bcurl[^\n]*\|", "curl pipe to shell"),
+    (r">\s*/dev/", "write to block device"),
+    (r":\(\)\s*\{", "fork bomb"),
 ]
 
 _DANGEROUS_RE = [(re.compile(p, _RE_FLAGS), d) for p, d in _DANGEROUS_PATTERNS]
@@ -161,7 +159,7 @@ def _handle_terminal(args: dict) -> str:
         return tool_error("command（要执行的命令）是必需的")
 
     timeout = int(args.get("timeout", DEFAULT_TIMEOUT))
-    workdir = args.get("workdir", None)
+    workdir = args.get("workdir")
     description = args.get("description", "")
 
     # Log what we're doing

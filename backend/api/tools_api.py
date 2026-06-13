@@ -1,6 +1,7 @@
 from fastapi import APIRouter
+
+from agent.tools.registry import discover_tools, registry
 from backend.schemas.tool import ToolInfo
-from agent.tools.registry import registry, discover_tools
 
 router = APIRouter(prefix="/api/tools", tags=["tools"])
 

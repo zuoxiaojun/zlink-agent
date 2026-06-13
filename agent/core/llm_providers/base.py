@@ -15,16 +15,17 @@ Why not Pydantic
 * LLMResponse is internal — never serialised to a user-facing API.
 * Avoid pulling in a heavy dependency for one dataclass.
 """
+
 from __future__ import annotations
 
-import json
 import logging
 import random
 import threading
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ToolCallPayload:
     """Parsed tool call in OpenAI shape, regardless of provider."""
+
     id: str
     name: str
     arguments: str  # raw JSON string (kept as string for stream fidelity)
@@ -53,6 +55,7 @@ class LLMResponse:
     * ``usage``       — ``{prompt_tokens, completion_tokens, total_tokens}``
       or ``None`` if the provider didn't report usage.
     """
+
     content: str = ""
     reasoning: str | None = None
     tool_calls: list[ToolCallPayload] | None = None
@@ -82,11 +85,21 @@ def is_transient_error(error: BaseException) -> bool:
     """
     msg = str(error).lower()
     transient_markers = [
-        "rate limit", "rate_limit", "429",
-        "server error", "500", "502", "503", "504",
-        "timeout", "timed out", "connection",
-        "too many requests", "overloaded",
-        "internal server error", "service unavailable",
+        "rate limit",
+        "rate_limit",
+        "429",
+        "server error",
+        "500",
+        "502",
+        "503",
+        "504",
+        "timeout",
+        "timed out",
+        "connection",
+        "too many requests",
+        "overloaded",
+        "internal server error",
+        "service unavailable",
     ]
     return any(m in msg for m in transient_markers)
 
@@ -114,10 +127,13 @@ def chat_with_retry(
             transient = e.transient or is_transient_error(e)
             if not transient or attempt >= max_retries:
                 raise
-            delay = min(2 ** attempt + random.uniform(0, 1), max_retry_delay)
+            delay = min(2**attempt + random.uniform(0, 1), max_retry_delay)
             logger.warning(
                 "LLM call failed (attempt %d/%d), retrying in %.1fs: %s",
-                attempt + 1, max_retries, delay, e,
+                attempt + 1,
+                max_retries,
+                delay,
+                e,
             )
             if on_retry:
                 on_retry(attempt + 1, delay, e)
@@ -129,10 +145,13 @@ def chat_with_retry(
             last_error = e
             if not is_transient_error(e) or attempt >= max_retries:
                 raise
-            delay = min(2 ** attempt + random.uniform(0, 1), max_retry_delay)
+            delay = min(2**attempt + random.uniform(0, 1), max_retry_delay)
             logger.warning(
                 "LLM call failed (attempt %d/%d), retrying in %.1fs: %s",
-                attempt + 1, max_retries, delay, e,
+                attempt + 1,
+                max_retries,
+                delay,
+                e,
             )
             if on_retry:
                 on_retry(attempt + 1, delay, e)
@@ -200,6 +219,7 @@ class LLMProvider(ABC):
         own tokeniser (M4 will use tiktoken for OpenAI providers when
         available)."""
         from agent.context_compactor import estimate_tokens
+
         return estimate_tokens(text)
 
 

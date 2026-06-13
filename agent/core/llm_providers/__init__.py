@@ -22,20 +22,21 @@ The unified response shape is :class:`LLMResponse`, identical to what
 ``LLMClient`` already returned.  Provider implementations adapt their
 native response into this shape.
 """
+
 from __future__ import annotations
 
 from agent.core.llm_providers.base import (
     LLMProvider,
+    LLMProviderError,
     LLMResponse,
     ToolCallPayload,
-    LLMProviderError,
 )
-from agent.core.llm_providers.openai_compat import OpenAICompatProvider
 from agent.core.llm_providers.factory import (
     get_provider,
     get_provider_for_config,
     list_protocols,
 )
+from agent.core.llm_providers.openai_compat import OpenAICompatProvider
 
 __all__ = [
     "LLMProvider",

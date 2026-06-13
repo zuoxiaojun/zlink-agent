@@ -9,22 +9,23 @@ Hierarchy
 * :mod:`agent.events.extensions` — :class:`Extension` base + the
   :class:`ExtensionRunner` that wires typed methods to events.
 """
+
 from agent.events.bus import Event, EventBus, event_bus
-from agent.events.types import (
-    SessionStartEvent,
-    SessionEndEvent,
-    UserMessageEvent,
-    BeforeLLMCallEvent,
-    AfterLLMCallEvent,
-    BeforeToolCallEvent,
-    AfterToolCallEvent,
-    SessionBeforeCompactEvent,
-)
 from agent.events.extensions import (
     Extension,
     ExtensionRunner,
     register_extensions,
     shutdown_all_extensions,
+)
+from agent.events.types import (
+    AfterLLMCallEvent,
+    AfterToolCallEvent,
+    BeforeLLMCallEvent,
+    BeforeToolCallEvent,
+    SessionBeforeCompactEvent,
+    SessionEndEvent,
+    SessionStartEvent,
+    UserMessageEvent,
 )
 
 __all__ = [

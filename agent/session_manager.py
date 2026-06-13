@@ -6,10 +6,9 @@ Persists conversations to disk as JSON files and maintains a session index.
 import json
 import uuid
 from datetime import datetime
-from pathlib import Path
 
-from agent.utils import atomic_json_write, DATA_DIR
 from agent import search_index
+from agent.utils import DATA_DIR, atomic_json_write
 
 SESSIONS_DIR = DATA_DIR / "sessions"
 INDEX_FILE = SESSIONS_DIR / "index.json"
@@ -68,11 +67,14 @@ def save_session(session_id: str, messages: list[dict], title: str = ""):
         return
 
     session_file = SESSIONS_DIR / f"{session_id}.json"
-    atomic_json_write(session_file, {
-        "id": session_id,
-        "title": title,
-        "messages": messages,
-    })
+    atomic_json_write(
+        session_file,
+        {
+            "id": session_id,
+            "title": title,
+            "messages": messages,
+        },
+    )
 
     index = _load_index()
     for entry in index:
@@ -110,7 +112,6 @@ def delete_session(session_id: str):
         session_file.unlink()
 
     search_index.delete_session(session_id)
-
 
 
 def auto_title(messages: list[dict]) -> str:

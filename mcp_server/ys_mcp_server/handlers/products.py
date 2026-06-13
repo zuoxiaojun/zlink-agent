@@ -3,7 +3,6 @@
 from ..paginate import paginate
 from ..utils import tool_result
 
-
 schema = {
     "name": "query_products",
     "description": "查询 YonSuite 物料档案。支持按物料编码（精确）或物料名称（模糊）搜索。",
@@ -26,10 +25,15 @@ def handle(client, arguments: dict) -> dict:
     product_name = (arguments.get("product_name") or "").strip() or None
 
     def fetch(pi, ps):
-        return client.query_products(
-            page_index=pi, page_size=ps,
-            product_code=product_code if product_code else None,
-        ).get("data", {}).get("recordList", [])
+        return (
+            client.query_products(
+                page_index=pi,
+                page_size=ps,
+                product_code=product_code if product_code else None,
+            )
+            .get("data", {})
+            .get("recordList", [])
+        )
 
     if product_name:
         records = paginate({}, 500, fetch)
@@ -42,17 +46,22 @@ def handle(client, arguments: dict) -> dict:
 
     parsed = []
     for r in records:
-        parsed.append({
-            "id": r.get("id", ""), "code": r.get("code", ""), "name": r.get("name", ""),
-            "model": r.get("model", ""),
-            "productClass": r.get("manageClassName", "") or r.get("productClass", ""),
-            "unitName": r.get("unitName", "") or r.get("unit_name", ""),
-            "brand": r.get("brand", ""),
-            "productType": ATTR_MAP.get(r.get("realProductAttribute", ""), ""),
-            "status": "停用" if r.get("stopStatus") else "启用",
-        })
+        parsed.append(
+            {
+                "id": r.get("id", ""),
+                "code": r.get("code", ""),
+                "name": r.get("name", ""),
+                "model": r.get("model", ""),
+                "productClass": r.get("manageClassName", "") or r.get("productClass", ""),
+                "unitName": r.get("unitName", "") or r.get("unit_name", ""),
+                "brand": r.get("brand", ""),
+                "productType": ATTR_MAP.get(r.get("realProductAttribute", ""), ""),
+                "status": "停用" if r.get("stopStatus") else "启用",
+            }
+        )
 
     return tool_result(
-        data=f"物料查询结果（{len(parsed)} 条）", records=parsed,
+        data=f"物料查询结果（{len(parsed)} 条）",
+        records=parsed,
         summary={"recordCount": len(parsed)},
     )

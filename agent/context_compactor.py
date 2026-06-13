@@ -21,13 +21,15 @@ M4 changes
 
 Inspired by Pi's Compaction system (CompactionSettings / CompactionPreparation).
 """
+
 from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from agent.events.bus import EventBus
@@ -167,13 +169,13 @@ class CompactionSettings:
 # Tokens per character for different Unicode ranges (conservative estimate).
 # Based on observed behaviour of OpenAI / Anthropic tokenizers.
 _CJK_RANGES = [
-    (0x4E00, 0x9FFF),   # CJK Unified Ideographs
-    (0x3400, 0x4DBF),   # CJK Unified Ideographs Extension A
-    (0x3000, 0x303F),   # CJK Symbols and Punctuation
-    (0xFF00, 0xFFEF),   # Halfwidth and Fullwidth Forms
-    (0x3040, 0x309F),   # Hiragana
-    (0x30A0, 0x30FF),   # Katakana
-    (0xAC00, 0xD7AF),   # Hangul Syllables
+    (0x4E00, 0x9FFF),  # CJK Unified Ideographs
+    (0x3400, 0x4DBF),  # CJK Unified Ideographs Extension A
+    (0x3000, 0x303F),  # CJK Symbols and Punctuation
+    (0xFF00, 0xFFEF),  # Halfwidth and Fullwidth Forms
+    (0x3040, 0x309F),  # Hiragana
+    (0x30A0, 0x30FF),  # Katakana
+    (0xAC00, 0xD7AF),  # Hangul Syllables
 ]
 
 
@@ -268,11 +270,11 @@ def _build_summary_prompt(
 # positives would be visible to the user as "garbage" file content in
 # the summary, so we'd rather miss a path than read random strings.
 _PATH_PATTERNS = [
-    re.compile(r"(?:^|[\s\"'`=,(])(/Users/[^\s\"'`,)]+)"),               # macOS absolute
-    re.compile(r"(?:^|[\s\"'`=,(])(/home/[^\s\"'`,)]+)"),                # Linux /home
-    re.compile(r"(?:^|[\s\"'`=,(])(/root/[^\s\"'`,)]+)"),                # Linux /root
-    re.compile(r"(?:^|[\s\"'`=,(])(/tmp/[^\s\"'`,)]+)"),                 # /tmp
-    re.compile(r"(?:^|[\s\"'`=,(])(/var/[^\s\"'`,)]+)"),                 # /var
+    re.compile(r"(?:^|[\s\"'`=,(])(/Users/[^\s\"'`,)]+)"),  # macOS absolute
+    re.compile(r"(?:^|[\s\"'`=,(])(/home/[^\s\"'`,)]+)"),  # Linux /home
+    re.compile(r"(?:^|[\s\"'`=,(])(/root/[^\s\"'`,)]+)"),  # Linux /root
+    re.compile(r"(?:^|[\s\"'`=,(])(/tmp/[^\s\"'`,)]+)"),  # /tmp
+    re.compile(r"(?:^|[\s\"'`=,(])(/var/[^\s\"'`,)]+)"),  # /var
     re.compile(r"(?:^|[\s\"'`=,(])(?:~/|/Users/zuoxiaojun/Desktop/ClaudeProject/)([A-Za-z0-9_./-]+\.[A-Za-z0-9]{1,8})"),
     re.compile(r"(?:^|[\s\"'`=,(])(?:\./|\.\./)([A-Za-z0-9_./-]+\.[A-Za-z0-9]{1,8})"),
 ]
@@ -288,9 +290,17 @@ _MAX_FILE_BYTES = 2_000
 # may have sanitised their args, but the compactor doesn't need to
 # know what an LLM said about them).
 _DENY_PATH_PREFIXES = (
-    "/etc", "/sys", "/proc", "/dev", "/boot", "/System",
-    "/usr/lib", "/usr/bin", "/usr/sbin",
-    "/Library", "/var/run",
+    "/etc",
+    "/sys",
+    "/proc",
+    "/dev",
+    "/boot",
+    "/System",
+    "/usr/lib",
+    "/usr/bin",
+    "/usr/sbin",
+    "/Library",
+    "/var/run",
 )
 
 
@@ -397,7 +407,7 @@ def compact_messages(
     summary_caller: SummaryCaller,
     model: str,
     previous_summary: str | None = None,
-    event_bus: "EventBus | None" = None,
+    event_bus: EventBus | None = None,
 ) -> tuple[list[dict], str | None, int]:
     """Compact old messages into a summary, keeping recent messages intact.
 
@@ -437,7 +447,10 @@ def compact_messages(
     old_tokens = _total_tokens(old_messages)
     logger.info(
         "Compaction triggered: total=%d threshold=%d old=%d keep=%d",
-        total, threshold, old_tokens, kept_tokens,
+        total,
+        threshold,
+        old_tokens,
+        kept_tokens,
     )
 
     # M4: read files the conversation touched, before the LLM call.
@@ -447,7 +460,8 @@ def compact_messages(
     if tracked_files:
         logger.info(
             "Compaction: tracked %d file(s): %s",
-            len(tracked_files), list(tracked_files.keys()),
+            len(tracked_files),
+            list(tracked_files.keys()),
         )
 
     prompt = _build_summary_prompt(old_messages, previous_summary, tracked_files)
@@ -476,6 +490,7 @@ def compact_messages(
         # but keeping the dependency one-way: compactor depends on
         # events, not the other way around).
         from agent.events.types import SessionBeforeCompactEvent
+
         ev = SessionBeforeCompactEvent(
             old_messages=old_messages,
             summary=new_summary,
@@ -490,11 +505,7 @@ def compact_messages(
 
     summary_msg = {
         "role": "user",
-        "content": (
-            "[上下文压缩摘要]\n"
-            "以下是对之前对话内容的自动摘要。请结合这些背景信息继续对话：\n\n"
-            + new_summary
-        ),
+        "content": ("[上下文压缩摘要]\n以下是对之前对话内容的自动摘要。请结合这些背景信息继续对话：\n\n" + new_summary),
     }
 
     compacted = [summary_msg] + kept

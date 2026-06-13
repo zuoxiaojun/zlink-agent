@@ -5,11 +5,10 @@ schema.  These tests lock in the load / save round-trip and the
 defensive defaults that prevent old ``config.json`` files from
 breaking the agent on load.
 """
+
 from __future__ import annotations
 
 import json
-
-import pytest
 
 from agent import config_manager
 
@@ -28,8 +27,7 @@ def test_load_merges_user_data_over_defaults(tmp_path, monkeypatch):
     keys still get the default value (defensive: stale config files
     don't crash the agent)."""
     f = tmp_path / "config.json"
-    f.write_text(json.dumps({"llm_model": "claude-sonnet-4-5",
-                             "disabled_extensions": ["security-event"]}))
+    f.write_text(json.dumps({"llm_model": "claude-sonnet-4-5", "disabled_extensions": ["security-event"]}))
     monkeypatch.setattr(config_manager, "CONFIG_FILE", f)
 
     cfg = config_manager.load()
@@ -57,11 +55,13 @@ def test_save_filters_unknown_keys(tmp_path, monkeypatch):
     f = tmp_path / "config.json"
     monkeypatch.setattr(config_manager, "CONFIG_FILE", f)
 
-    config_manager.save({
-        "llm_model": "x",  # known
-        "totally_made_up_key": "y",  # unknown — should be dropped
-        "disabled_extensions": ["a"],  # known
-    })
+    config_manager.save(
+        {
+            "llm_model": "x",  # known
+            "totally_made_up_key": "y",  # unknown — should be dropped
+            "disabled_extensions": ["a"],  # known
+        }
+    )
     saved = json.loads(f.read_text())
     assert "totally_made_up_key" not in saved
     assert saved["llm_model"] == "x"

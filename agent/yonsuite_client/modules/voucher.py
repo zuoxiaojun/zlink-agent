@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 凭证管理模块
 
@@ -13,12 +12,10 @@ API: POST /yonbip/fi/ficloud/openapi/voucher/queryVouchers
 
 import json
 import logging
-import os
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 from .base import BaseAPIClient, retry_on_failure
-from ..exceptions import YonSuiteAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +40,7 @@ class VoucherModule(BaseAPIClient):
         self.base_path = "/yonbip/fi/ficloud/openapi/voucher"
         self.accbook_base = "/yonbip/fi/fipub/basedoc/querybd/accbook"
 
-    def query_accbooks(self, access_token: str) -> List[Dict]:
+    def query_accbooks(self, access_token: str) -> list[dict]:
         """
         查询账簿列表并缓存到本地
 
@@ -56,14 +53,11 @@ class VoucherModule(BaseAPIClient):
             账簿列表 [{id, code, name}, ...]
         """
         url = f"{self.gateway_url}{self.accbook_base}?access_token={access_token}"
-        body = {
-            "fields": ["id", "code", "name"],
-            "pageSize": 1000
-        }
+        body = {"fields": ["id", "code", "name"], "pageSize": 1000}
         result = self._http_post_raw(url, body)
         self.check_response(result, "查询账簿列表")
 
-        records = result.get('data', [])
+        records = result.get("data", [])
         accbooks = [{"id": r.get("id", ""), "code": r.get("code", ""), "name": r.get("name", "")} for r in records]
 
         # 缓存到本地
@@ -74,7 +68,7 @@ class VoucherModule(BaseAPIClient):
 
         return accbooks
 
-    def get_cached_accbooks(self, access_token: str) -> List[Dict]:
+    def get_cached_accbooks(self, access_token: str) -> list[dict]:
         """
         获取账簿（优先本地缓存，缓存不存在则查询并缓存）
         """
@@ -91,24 +85,24 @@ class VoucherModule(BaseAPIClient):
         access_token: str,
         page_index: int = 1,
         page_size: int = 20,
-        voucher_date_start: Optional[str] = None,
-        voucher_date_end: Optional[str] = None,
-        department_name_list: Optional[List[str]] = None,
-        person_name_list: Optional[List[str]] = None,
-        accountant_year: Optional[str] = None,
-        accountant_period: Optional[str] = None,
-        document_type_name: Optional[str] = None,
-        tallyman_name_list: Optional[List[str]] = None,
-        billcode_min: Optional[int] = None,
-        billcode_max: Optional[int] = None,
-        money_range_min: Optional[float] = None,
-        money_range_max: Optional[float] = None,
-        ts_start: Optional[str] = None,
-        ts_end: Optional[str] = None,
-        accbook_code: Optional[str] = None,
-        period_start: Optional[str] = None,
-        period_end: Optional[str] = None,
-    ) -> Dict:
+        voucher_date_start: str | None = None,
+        voucher_date_end: str | None = None,
+        department_name_list: list[str] | None = None,
+        person_name_list: list[str] | None = None,
+        accountant_year: str | None = None,
+        accountant_period: str | None = None,
+        document_type_name: str | None = None,
+        tallyman_name_list: list[str] | None = None,
+        billcode_min: int | None = None,
+        billcode_max: int | None = None,
+        money_range_min: float | None = None,
+        money_range_max: float | None = None,
+        ts_start: str | None = None,
+        ts_end: str | None = None,
+        accbook_code: str | None = None,
+        period_start: str | None = None,
+        period_end: str | None = None,
+    ) -> dict:
         """
         查询凭证列表
 
@@ -141,7 +135,7 @@ class VoucherModule(BaseAPIClient):
 
         url = f"{self.gateway_url}{self.base_path}/queryVouchers?access_token={urllib.parse.quote(access_token)}"
 
-        body: Dict[str, Any] = {
+        body: dict[str, Any] = {
             "pager": {
                 "pageIndex": page_index,
                 "pageSize": page_size,
@@ -188,7 +182,7 @@ class VoucherModule(BaseAPIClient):
         result = self._http_post_raw(url, body)
         return self.check_response(result, "查询凭证列表")
 
-    def query_vouchers_parsed(self, access_token: str, page_size: int = 500, **kwargs) -> Dict:
+    def query_vouchers_parsed(self, access_token: str, page_size: int = 500, **kwargs) -> dict:
         """
         查询凭证列表（解析响应，展平 header + body 结构）
 
@@ -196,61 +190,61 @@ class VoucherModule(BaseAPIClient):
             { pageIndex, pageSize, recordCount, records: [{凭证信息}, ...] }
         """
         result = self.query_vouchers(access_token, page_size=page_size, **kwargs)
-        data = result.get('data', {})
+        data = result.get("data", {})
 
-        raw_records = data.get('recordList', [])
+        raw_records = data.get("recordList", [])
         records = []
         for r in raw_records:
-            header = r.get('header', {})
-            body_entries = r.get('body', [])
+            header = r.get("header", {})
+            body_entries = r.get("body", [])
 
             # 借方总额、贷方总额
-            debit = round2(header.get('totaldebit_org', 0))
-            credit = round2(header.get('totalcredit_org', 0))
-            maker_info = header.get('maker', {}) or {}
-            voucher_type = header.get('vouchertype', {}) or {}
+            debit = round2(header.get("totaldebit_org", 0))
+            credit = round2(header.get("totalcredit_org", 0))
+            maker_info = header.get("maker", {}) or {}
+            voucher_type = header.get("vouchertype", {}) or {}
 
             flat = {
-                '凭证ID': header.get('id', ''),
-                '凭证号': header.get('billcode', ''),
-                '凭证字': voucher_type.get('voucherstr', ''),
-                '凭证类型': voucher_type.get('name', ''),
-                '凭证状态': header.get('voucherstatus', ''),
-                '凭证日期': header.get('maketime', '')[:10] if header.get('maketime') else '',
-                '会计期间': header.get('period', ''),
-                '制单人': maker_info.get('name', ''),
-                '制单人ID': maker_info.get('id', ''),
-                '来源系统': header.get('srcsystem', ''),
-                '借方总额': debit,
-                '贷方总额': credit,
-                '分录数': len(body_entries),
+                "凭证ID": header.get("id", ""),
+                "凭证号": header.get("billcode", ""),
+                "凭证字": voucher_type.get("voucherstr", ""),
+                "凭证类型": voucher_type.get("name", ""),
+                "凭证状态": header.get("voucherstatus", ""),
+                "凭证日期": header.get("maketime", "")[:10] if header.get("maketime") else "",
+                "会计期间": header.get("period", ""),
+                "制单人": maker_info.get("name", ""),
+                "制单人ID": maker_info.get("id", ""),
+                "来源系统": header.get("srcsystem", ""),
+                "借方总额": debit,
+                "贷方总额": credit,
+                "分录数": len(body_entries),
             }
             records.append(flat)
 
         return {
-            'pageIndex': data.get('pageIndex', 1),
-            'pageSize': data.get('pageSize', 20),
-            'recordCount': data.get('recordCount', 0),
-            'records': records,
+            "pageIndex": data.get("pageIndex", 1),
+            "pageSize": data.get("pageSize", 20),
+            "recordCount": data.get("recordCount", 0),
+            "records": records,
         }
 
-    def format_vouchers_list(self, records: List[Dict], max_rows: int = 30) -> str:
+    def format_vouchers_list(self, records: list[dict], max_rows: int = 30) -> str:
         """
         格式化凭证列表为可读文本
         """
         if not records:
             return "🧾 未找到凭证记录"
 
-        total_debit = sum(r.get('借方总额', 0) for r in records)
-        total_credit = sum(r.get('贷方总额', 0) for r in records)
+        total_debit = sum(r.get("借方总额", 0) for r in records)
+        total_credit = sum(r.get("贷方总额", 0) for r in records)
 
         lines = [f"🧾 凭证列表（共 {len(records)} 条）"]
         lines.append(f"   借方合计：¥{total_debit:,.2f}  |  贷方合计：¥{total_credit:,.2f}")
         lines.append("-" * 70)
 
         for i, r in enumerate(records[:max_rows], 1):
-            debit = r.get('借方总额', 0)
-            credit = r.get('贷方总额', 0)
+            debit = r.get("借方总额", 0)
+            credit = r.get("贷方总额", 0)
             lines.append(
                 f"  {i}. {r.get('凭证日期', '-')}  "
                 f"{r.get('凭证字', '')}-{r.get('凭证号', '')}  "

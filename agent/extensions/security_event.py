@@ -23,13 +23,13 @@ The lists of denied paths / shell patterns are imported from
 M6+ consolidation lands, this module will become the only
 implementation and ``security_hooks`` will delegate to it.
 """
+
 from __future__ import annotations
 
 import logging
 import os
-from pathlib import Path
 
-from agent.events import Extension, BeforeToolCallEvent
+from agent.events import BeforeToolCallEvent, Extension
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +37,8 @@ logger = logging.getLogger(__name__)
 # Re-use the deny lists from the registry hooks.  If you change them
 # there, this extension picks them up on next import.
 from agent.tools.security_hooks import (  # noqa: E402
-    _DENY_WRITE_PATHS,
     _DENY_SHELL_PATTERNS,
+    _DENY_WRITE_PATHS,
 )
 
 

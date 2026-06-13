@@ -26,31 +26,32 @@ Compatibility layer
 ``from agent.agent import AIAgent`` keeps working.  M2/M3 will keep this
 re-export in place; only M5 (cleanup) will consider removing it.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import threading
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
-from agent.tools.registry import registry, discover_tools
-from agent.context_compactor import CompactionSettings, compact_messages, estimate_message_tokens
 from agent import fact_memory
-
+from agent.context_compactor import CompactionSettings, compact_messages, estimate_message_tokens
 from agent.core.iteration_budget import IterationBudget
-from agent.core.message_builder import build_system_prompt, build_turn_messages
 from agent.core.llm_client import LLMClient, LLMResponse, ToolCallPayload
+from agent.core.message_builder import build_system_prompt, build_turn_messages
 from agent.core.tool_dispatcher import dispatch_tool
 from agent.events import (
-    event_bus,
-    SessionStartEvent,
-    SessionEndEvent,
-    UserMessageEvent,
-    BeforeLLMCallEvent,
     AfterLLMCallEvent,
-    BeforeToolCallEvent,
     AfterToolCallEvent,
+    BeforeLLMCallEvent,
+    BeforeToolCallEvent,
+    SessionEndEvent,
+    SessionStartEvent,
+    UserMessageEvent,
+    event_bus,
 )
+from agent.tools.registry import discover_tools, registry
 
 logger = logging.getLogger(__name__)
 
@@ -180,10 +181,7 @@ class AIAgent:
         if not self.compaction_settings.enabled:
             return messages
         total_est = estimate_message_tokens(messages)
-        threshold = (
-            self.compaction_settings.max_context_tokens
-            - self.compaction_settings.reserve_tokens
-        )
+        threshold = self.compaction_settings.max_context_tokens - self.compaction_settings.reserve_tokens
         if total_est <= threshold:
             return messages
 
@@ -281,14 +279,17 @@ class AIAgent:
                 pre_event = BeforeToolCallEvent(tool_name=tc.name, args=args)
                 event_bus.publish(pre_event)
                 if pre_event.cancelled:
-                    result = json.dumps({
-                        "success": False,
-                        "error": f"Blocked by extension: {pre_event.cancel_reason}",
-                    })
+                    result = json.dumps(
+                        {
+                            "success": False,
+                            "error": f"Blocked by extension: {pre_event.cancel_reason}",
+                        }
+                    )
                 else:
                     args = pre_event.args  # may have been rewritten
                     result, _ = dispatch_tool(
-                        tc.name, args,
+                        tc.name,
+                        args,
                         max_result_length=self.max_tool_result_length,
                     )
 
@@ -298,9 +299,7 @@ class AIAgent:
                     args_str = json.dumps(args, ensure_ascii=False)[:300]
                 except (TypeError, ValueError):
                     args_str = str(args)[:300]
-                stream_callback(
-                    f"\n\n---\n🔧 **调用工具:** `{tc.name}`\n```json\n{args_str}\n```\n"
-                )
+                stream_callback(f"\n\n---\n🔧 **调用工具:** `{tc.name}`\n```json\n{args_str}\n```\n")
 
             self._report(f"🔧 执行工具: {tc.name}")
 
@@ -311,16 +310,20 @@ class AIAgent:
 
             # Publish AfterToolCallEvent — extensions can rewrite the result.
             post_event = AfterToolCallEvent(
-                tool_name=tc.name, args=args, result=result,
+                tool_name=tc.name,
+                args=args,
+                result=result,
             )
             event_bus.publish(post_event)
             result = post_event.result
 
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tc.id,
-                "content": result,
-            })
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": result,
+                }
+            )
 
     def run_conversation(
         self,
@@ -355,11 +358,13 @@ class AIAgent:
         # before the first LLM call.  We pass conversation_history as
         # ``history`` so extensions can inject context (e.g. topic
         # summary) without touching messages.
-        event_bus.publish(SessionStartEvent(
-            session_id="",   # AIAgent doesn't track session_id itself;
-                              # chat.py owns that.  Kept for future.
-            history=conversation_history or [],
-        ))
+        event_bus.publish(
+            SessionStartEvent(
+                session_id="",  # AIAgent doesn't track session_id itself;
+                # chat.py owns that.  Kept for future.
+                history=conversation_history or [],
+            )
+        )
 
         # User message — extensions can rewrite user_message for
         # prompt-injection filtering, PII redaction, etc.
@@ -436,9 +441,12 @@ class AIAgent:
                 break
 
             # AfterLLMCallEvent — observation only (no cancel contract).
-            event_bus.publish(AfterLLMCallEvent(
-                model=self.model, response=response,
-            ))
+            event_bus.publish(
+                AfterLLMCallEvent(
+                    model=self.model,
+                    response=response,
+                )
+            )
 
             if response.usage:
                 for k in total_usage:
@@ -468,12 +476,14 @@ class AIAgent:
 
         has_usage = total_usage.get("total_tokens", 0) > 0
         # SessionEnd — observation only; extensions flush logs / metrics.
-        event_bus.publish(SessionEndEvent(
-            session_id="",
-            final_response=final_response,
-            error=error,
-            api_calls=api_calls,
-        ))
+        event_bus.publish(
+            SessionEndEvent(
+                session_id="",
+                final_response=final_response,
+                error=error,
+                api_calls=api_calls,
+            )
+        )
         return {
             "final_response": final_response,
             "messages": messages,

@@ -3,7 +3,6 @@
 Fetches URLs and returns page content as formatted text.
 """
 
-import json
 import logging
 import re
 from html.parser import HTMLParser
@@ -11,7 +10,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-from agent.tools.registry import registry, tool_result, tool_error
+from agent.tools.registry import registry, tool_error, tool_result
 
 logger = logging.getLogger(__name__)
 

@@ -3,9 +3,10 @@
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, UploadFile, File
-from backend.schemas.skill import SkillInfo, SkillToggle
+from fastapi import APIRouter, File, HTTPException, UploadFile
+
 from agent import skill_manager
+from backend.schemas.skill import SkillInfo, SkillToggle
 
 router = APIRouter(prefix="/api/skills", tags=["skills"])
 

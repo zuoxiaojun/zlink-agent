@@ -4,38 +4,33 @@ Priority: highest.  These tests guard the runtime-toggle path that
 M5+ shipped, plus the 8 typed event classes that the agent loop
 publishes at every interesting point.
 """
+
 from __future__ import annotations
 
-import json
-
-import pytest
-
 from agent.events import (
-    Extension,
-    Event,
-    SessionStartEvent,
-    SessionEndEvent,
-    UserMessageEvent,
-    BeforeLLMCallEvent,
     AfterLLMCallEvent,
-    BeforeToolCallEvent,
     AfterToolCallEvent,
+    BeforeLLMCallEvent,
+    BeforeToolCallEvent,
+    Event,
+    Extension,
     SessionBeforeCompactEvent,
+    SessionEndEvent,
+    SessionStartEvent,
+    UserMessageEvent,
 )
 from agent.events.bus import event_bus
 from agent.events.extensions import (
-    ExtensionRunner,
     apply_config_overrides,
     list_active_extensions,
     list_all_extensions,
     register_extensions,
-    shutdown_all_extensions,
 )
-
 
 # ────────────────────────────────────────────────────────────────────
 # 1) 8 事件类型字段签名（守住 M2 的事件契约）
 # ────────────────────────────────────────────────────────────────────
+
 
 def test_eight_event_classes_exist_with_documented_fields():
     """The 8 typed event classes must be importable and constructible.
@@ -65,6 +60,7 @@ def test_eight_event_classes_exist_with_documented_fields():
 
     # AfterLLMCallEvent — model + response (read-only contract)
     from agent.core.llm_providers import LLMResponse
+
     resp = LLMResponse(content="x", usage={"total_tokens": 1})
     e = AfterLLMCallEvent(model="gpt-4o", response=resp)
     assert e.type == "after_llm_call"
@@ -92,8 +88,10 @@ def test_eight_event_classes_exist_with_documented_fields():
 # 2) Extension 类 + ExtensionRunner 基础路径
 # ────────────────────────────────────────────────────────────────────
 
+
 class _CountExtension(Extension):
     """Test extension that counts how many of each event it sees."""
+
     name = "counter"
     enabled = True
 
@@ -145,6 +143,7 @@ def test_disabled_extension_is_not_subscribed():
 # ────────────────────────────────────────────────────────────────────
 # 3) M5+ 运行时 toggle（核心新功能）
 # ────────────────────────────────────────────────────────────────────
+
 
 def test_apply_config_overrides_disables_active_extension():
     """A running extension can be toggled off at runtime."""
@@ -215,6 +214,7 @@ def test_apply_config_overrides_is_idempotent():
 # ────────────────────────────────────────────────────────────────────
 # 4) 取消契约（BeforeToolCallEvent.cancel）
 # ────────────────────────────────────────────────────────────────────
+
 
 class _CancelExt(Extension):
     name = "canceller"

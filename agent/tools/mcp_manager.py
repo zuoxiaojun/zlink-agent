@@ -65,6 +65,7 @@ def _circuit_breaker_blocks(server_name: str) -> str | None:
 
 # --- JSON-RPC helpers ---
 
+
 def _jsonrpc_request(req_id: int, method: str, params: dict | None = None) -> dict:
     msg = {"jsonrpc": "2.0", "id": req_id, "method": method}
     if params is not None:
@@ -76,12 +77,11 @@ def _jsonrpc_result(resp: dict) -> dict:
     if "result" in resp:
         return resp["result"]
     err = resp.get("error", {})
-    raise RuntimeError(
-        f"JSON-RPC error {err.get('code', -1)}: {err.get('message', 'unknown')}"
-    )
+    raise RuntimeError(f"JSON-RPC error {err.get('code', -1)}: {err.get('message', 'unknown')}")
 
 
 # --- Schema conversion ---
+
 
 def _convert_mcp_tool_schema(server_name: str, tool: dict) -> dict:
     """Convert an MCP tool definition to OpenAI function-calling schema."""
@@ -109,6 +109,7 @@ def _convert_mcp_tool_schema(server_name: str, tool: dict) -> dict:
 
 
 # --- Tool handler factory ---
+
 
 def _make_mcp_tool_handler(server_name: str, tool_name: str):
     """Return a sync handler(args: dict) -> str for an MCP tool."""
@@ -144,18 +145,11 @@ def _make_mcp_tool_handler(server_name: str, tool_name: str):
                 if c.get("type") == "text":
                     text_parts.append(c.get("text", ""))
                 elif c.get("type") == "resource":
-                    text_parts.append(
-                        json.dumps(c.get("resource", {}), ensure_ascii=False)
-                    )
-            return (
-                "\n".join(text_parts) if text_parts
-                else json.dumps(result, ensure_ascii=False)
-            )
+                    text_parts.append(json.dumps(c.get("resource", {}), ensure_ascii=False))
+            return "\n".join(text_parts) if text_parts else json.dumps(result, ensure_ascii=False)
         except concurrent.futures.TimeoutError:
             _bump_server_error(server_name)
-            return json.dumps(
-                {"error": f"MCP tool '{tool_name}' timed out after {conn.timeout}s"}
-            )
+            return json.dumps({"error": f"MCP tool '{tool_name}' timed out after {conn.timeout}s"})
         except RuntimeError as e:
             _bump_server_error(server_name)
             msg = str(e)
@@ -174,6 +168,7 @@ def _make_mcp_tool_handler(server_name: str, tool_name: str):
 
 
 # --- MCPServerConnection ---
+
 
 class MCPServerConnection:
     """Manages a single MCP server through JSON-RPC over stdio or HTTP."""
@@ -296,7 +291,7 @@ class MCPServerConnection:
                 pass
             try:
                 await asyncio.wait_for(self._process.wait(), timeout=3)
-            except (asyncio.TimeoutError, Exception):
+            except (TimeoutError, Exception):
                 pass
             self._process = None
 
@@ -354,9 +349,7 @@ class MCPServerConnection:
 
         # Filter safe env vars + user-specified env
         safe_env = {
-            k: v
-            for k, v in os.environ.items()
-            if k in ("PATH", "HOME", "USER", "SHELL", "TMPDIR", "TEMP", "TMP")
+            k: v for k, v in os.environ.items() if k in ("PATH", "HOME", "USER", "SHELL", "TMPDIR", "TEMP", "TMP")
         }
         safe_env.update(self.config.get("env", {}))
 
@@ -442,11 +435,9 @@ class MCPServerConnection:
                 await self._process.stdin.drain()
                 result_msg = await asyncio.wait_for(fut, timeout=self.timeout)
                 return _jsonrpc_result(result_msg)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 self._pending.pop(rid, None)
-                raise RuntimeError(
-                    f"JSON-RPC request '{method}' timed out after {self.timeout}s"
-                )
+                raise RuntimeError(f"JSON-RPC request '{method}' timed out after {self.timeout}s")
         else:
             assert self._http_client and self._http_url
             async with self._rpc_lock:
@@ -478,12 +469,11 @@ class MCPServerConnection:
     async def call_tool(self, tool_name: str, arguments: dict) -> dict:
         """Call a tool on the MCP server. Returns the result dict."""
         async with self._rpc_lock:
-            return await self._send_request(
-                "tools/call", {"name": tool_name, "arguments": arguments}
-            )
+            return await self._send_request("tools/call", {"name": tool_name, "arguments": arguments})
 
 
 # --- Public API ---
+
 
 def _ensure_loop() -> asyncio.AbstractEventLoop:
     global _main_loop
@@ -584,32 +574,38 @@ def get_server_statuses() -> list[dict]:
         conn = _connections.get(name)
         enabled = scfg.get("enabled", True)
         if not enabled:
-            result.append({
-                "name": name,
-                "transport": scfg.get("transport", "stdio"),
-                "enabled": False,
-                "status": "disconnected",
-                "tool_count": 0,
-                "error_message": None,
-            })
+            result.append(
+                {
+                    "name": name,
+                    "transport": scfg.get("transport", "stdio"),
+                    "enabled": False,
+                    "status": "disconnected",
+                    "tool_count": 0,
+                    "error_message": None,
+                }
+            )
         elif conn:
-            result.append({
-                "name": name,
-                "transport": scfg.get("transport", "stdio"),
-                "enabled": True,
-                "status": conn.status,
-                "tool_count": conn.tool_count if conn.connected else 0,
-                "error_message": conn._error if conn.status == "error" else None,
-            })
+            result.append(
+                {
+                    "name": name,
+                    "transport": scfg.get("transport", "stdio"),
+                    "enabled": True,
+                    "status": conn.status,
+                    "tool_count": conn.tool_count if conn.connected else 0,
+                    "error_message": conn._error if conn.status == "error" else None,
+                }
+            )
         else:
-            result.append({
-                "name": name,
-                "transport": scfg.get("transport", "stdio"),
-                "enabled": True,
-                "status": "disconnected",
-                "tool_count": 0,
-                "error_message": None,
-            })
+            result.append(
+                {
+                    "name": name,
+                    "transport": scfg.get("transport", "stdio"),
+                    "enabled": True,
+                    "status": "disconnected",
+                    "tool_count": 0,
+                    "error_message": None,
+                }
+            )
     return result
 
 

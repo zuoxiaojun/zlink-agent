@@ -6,7 +6,7 @@ the user sees the question, and their next message serves as the answer.
 
 import logging
 
-from agent.tools.registry import registry, tool_result, tool_error
+from agent.tools.registry import registry, tool_error, tool_result
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +58,7 @@ CLARIFY_SCHEMA = {
                 "type": "array",
                 "items": {"type": "string"},
                 "maxItems": MAX_CHOICES,
-                "description": (
-                    "最多 4 个选项。省略此参数则为开放式问题。"
-                ),
+                "description": ("最多 4 个选项。省略此参数则为开放式问题。"),
             },
         },
         "required": ["question"],

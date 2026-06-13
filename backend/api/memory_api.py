@@ -1,9 +1,10 @@
 """Memory REST API — read-only views of fact_memory.json and memory.json."""
 
 import json
+
 from fastapi import APIRouter
+
 from agent.utils import DATA_DIR
-from agent import memory_manager
 
 router = APIRouter(prefix="/api/memory", tags=["memory"])
 

@@ -1,8 +1,9 @@
 """Session REST API — thin wrappers around session_manager."""
 
 from fastapi import APIRouter, HTTPException
-from backend.schemas.session import SessionSummary, SessionDetail, SessionCreate, SessionRename
+
 from agent import session_manager
+from backend.schemas.session import SessionCreate, SessionDetail, SessionRename, SessionSummary
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 

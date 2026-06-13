@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 yonsuite_search - 用友 YonSuite API 查询客户端 v2.0
 
@@ -42,54 +41,36 @@ yonsuite_search - 用友 YonSuite API 查询客户端 v2.0
 重构:2026-03-20 - v2.0 模块化重构
 """
 
-import os
+import base64
+import hashlib
+import hmac
+import logging
 import sys
 import time
-import hmac
-import hashlib
-import base64
-import urllib.parse
-import logging
-from pathlib import Path
-from typing import Optional, Dict, List, Any
-from datetime import datetime, timedelta
+from typing import Any
 
-from .config import config, Config
-from .exceptions import (
-    YonSuiteConfigError,
-    YonSuiteAuthError,
-    YonSuiteAPIError,
-    raise_api_error
-)
-from .cache import get_cache, TokenCache
-from .modules.sales import SalesModule
-from .modules.purchase import PurchaseModule
-from .modules.stock import StockModule
-from .modules.customer import CustomerModule
-from .modules.vendor import VendorModule
-from .modules.production import ProductionModule
-from .modules.voucher import VoucherModule
-from .modules.todo import TodoModule
-from .modules.product import ProductModule
-from .modules.org import OrgModule
-from .modules.crm import CrmModule
+from .cache import TokenCache, get_cache
+from .config import config
+from .exceptions import YonSuiteAuthError, YonSuiteConfigError
 
 # 导入数据模型
-from .models import (
-    SaleOrder, SaleOrderDetail,
-    PurchaseOrder,
-    Customer,
-    Vendor, VendorDetail,
-    StockItem,
-    ProductionOrder, ProductionOrderDetail,
-    ProductItem,
-    Opportunity
-)
+from .models import Opportunity, ProductionOrder, SaleOrder, StockItem
+from .modules.crm import CrmModule
+from .modules.customer import CustomerModule
+from .modules.org import OrgModule
+from .modules.product import ProductModule
+from .modules.production import ProductionModule
+from .modules.purchase import PurchaseModule
+from .modules.sales import SalesModule
+from .modules.stock import StockModule
+from .modules.todo import TodoModule
+from .modules.vendor import VendorModule
+from .modules.voucher import VoucherModule
 
 # 配置日志
 logging.basicConfig(
     level=getattr(logging, config.LOG_LEVEL.upper(), logging.INFO),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -109,12 +90,14 @@ class YonSuiteClient:
         production: 生产订单模块
     """
 
-    def __init__(self,
-                 app_key: Optional[str] = None,
-                 app_secret: Optional[str] = None,
-                 tenant_id: Optional[str] = None,
-                 gateway_url: Optional[str] = None,
-                 use_cache: bool = True):
+    def __init__(
+        self,
+        app_key: str | None = None,
+        app_secret: str | None = None,
+        tenant_id: str | None = None,
+        gateway_url: str | None = None,
+        use_cache: bool = True,
+    ):
         """
         初始化客户端
 
@@ -139,15 +122,18 @@ class YonSuiteClient:
         # 验证必需配置
         if not all([self.app_key, self.app_secret, self.tenant_id]):
             missing = []
-            if not self.app_key: missing.append('YONSUITE_APP_KEY')
-            if not self.app_secret: missing.append('YONSUITE_APP_SECRET')
-            if not self.tenant_id: missing.append('YONSUITE_TENANT_ID')
+            if not self.app_key:
+                missing.append("YONSUITE_APP_KEY")
+            if not self.app_secret:
+                missing.append("YONSUITE_APP_SECRET")
+            if not self.tenant_id:
+                missing.append("YONSUITE_TENANT_ID")
             raise YonSuiteConfigError(f"缺少必需配置:{', '.join(missing)}")
 
         # Token 缓存
         self.use_cache = use_cache
-        self._cache: Optional[TokenCache] = None
-        self._access_token: Optional[str] = None
+        self._cache: TokenCache | None = None
+        self._access_token: str | None = None
         self._token_expire_time: float = 0
 
         # 初始化功能模块
@@ -172,35 +158,35 @@ class YonSuiteClient:
             self._cache = get_cache(use_file_cache=self.use_cache)
         return self._cache
 
-    def _http_get(self, url: str, params: Optional[Dict] = None) -> Dict:
+    def _http_get(self, url: str, params: dict | None = None) -> dict:
         """HTTP GET 请求(兼容旧接口)"""
-        import urllib.request
-        import urllib.error
         import json
+        import urllib.error
+        import urllib.request
 
         if params:
             query = urllib.parse.urlencode(params)
-            url = f"{url}&{query}" if '?' in url else f"{url}?{query}"
+            url = f"{url}&{query}" if "?" in url else f"{url}?{query}"
 
         req = urllib.request.Request(url)
         with urllib.request.urlopen(req) as response:
-            return json.loads(response.read().decode('utf-8'))
+            return json.loads(response.read().decode("utf-8"))
 
-    def _http_post_raw(self, url: str, json_data: Dict) -> Dict:
+    def _http_post_raw(self, url: str, json_data: dict) -> dict:
         """HTTP POST 请求(兼容旧接口)"""
-        import urllib.request
-        import urllib.error
         import json
+        import urllib.error
+        import urllib.request
 
-        data = json.dumps(json_data, ensure_ascii=False).encode('utf-8')
+        data = json.dumps(json_data, ensure_ascii=False).encode("utf-8")
         req = urllib.request.Request(
             url,
             data=data,
-            method='POST',
-            headers={'Content-Type': 'application/json', 'Accept': 'application/json'}
+            method="POST",
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
         )
         with urllib.request.urlopen(req) as response:
-            return json.loads(response.read().decode('utf-8'))
+            return json.loads(response.read().decode("utf-8"))
 
     def get_data_center_domain(self, tenant_id: str) -> str:
         """
@@ -215,8 +201,8 @@ class YonSuiteClient:
         url = f"https://apigateway.yonyoucloud.com/open-auth/dataCenter/getGatewayAddress?tenantId={tenant_id}"
         result = self._http_get(url)
 
-        if result.get('code') == '00000':
-            return result['data']['tokenUrl']
+        if result.get("code") == "00000":
+            return result["data"]["tokenUrl"]
         else:
             raise YonSuiteAuthError(f"获取数据中心域名失败:{result.get('message')}")
 
@@ -256,38 +242,34 @@ class YonSuiteClient:
             token_url = self.default_token_url
 
         # 生成签名
-        import urllib.parse
         timestamp = int(time.time() * 1000)
         sign_str = f"appKey{self.app_key}timestamp{timestamp}"
 
-        signature_bytes = hmac.new(
-            self.app_secret.encode('utf-8'),
-            sign_str.encode('utf-8'),
-            hashlib.sha256
-        ).digest()
+        signature_bytes = hmac.new(self.app_secret.encode("utf-8"), sign_str.encode("utf-8"), hashlib.sha256).digest()
 
-        signature_base64 = base64.b64encode(signature_bytes).decode('utf-8')
-        signature = urllib.parse.quote(signature_base64, safe='')
+        import urllib.request
+
+        signature_base64 = base64.b64encode(signature_bytes).decode("utf-8")
+        signature = urllib.parse.quote(signature_base64, safe="")
 
         # 获取 Token
         url = f"{token_url}/open-auth/selfAppAuth/getAccessToken?appKey={self.app_key}&timestamp={timestamp}&signature={signature}"
 
-        import urllib.request
         req = urllib.request.Request(url)
-        req.add_header('Content-Type', 'application/json')
+        req.add_header("Content-Type", "application/json")
 
         with urllib.request.urlopen(req) as response:
-            result = __import__('json').loads(response.read().decode('utf-8'))
+            result = __import__("json").loads(response.read().decode("utf-8"))
 
-        if result.get('code') == '00000':
-            data = result['data']
-            self._access_token = data['access_token']
+        if result.get("code") == "00000":
+            data = result["data"]
+            self._access_token = data["access_token"]
             # 设置过期时间(提前 5 分钟过期)
-            self._token_expire_time = time.time() + data['expire'] - 300
+            self._token_expire_time = time.time() + data["expire"] - 300
 
             # 保存到缓存
             if self.use_cache:
-                self.cache.set(self.tenant_id, self._access_token, data['expire'])
+                self.cache.set(self.tenant_id, self._access_token, data["expire"])
 
             logger.info(f"Token 获取成功,过期时间:{data['expire']}秒")
             return self._access_token
@@ -296,8 +278,14 @@ class YonSuiteClient:
 
     # ============== 销售订单 ==============
 
-    def query_sale_orders(self, page_index: int = 1, page_size: int = 500, isSum: bool = False,
-                          date_from: str = None, date_to: str = None) -> Dict:
+    def query_sale_orders(
+        self,
+        page_index: int = 1,
+        page_size: int = 500,
+        isSum: bool = False,
+        date_from: str = None,
+        date_to: str = None,
+    ) -> dict:
         """
         查询销售订单列表
 
@@ -314,7 +302,7 @@ class YonSuiteClient:
         token = self.get_access_token()
         return self.sales.query_orders(token, page_index, page_size, isSum, date_from, date_to)
 
-    def get_order_detail(self, order_id: str) -> Dict:
+    def get_order_detail(self, order_id: str) -> dict:
         """
         查询销售订单详情
 
@@ -329,7 +317,7 @@ class YonSuiteClient:
 
     # ============== 采购订单 ==============
 
-    def query_purchase_orders(self, page_index: int = 1, page_size: int = 500) -> Dict:
+    def query_purchase_orders(self, page_index: int = 1, page_size: int = 500) -> dict:
         """
         查询采购订单列表
 
@@ -343,7 +331,7 @@ class YonSuiteClient:
         token = self.get_access_token()
         return self.purchase.query_orders(token, page_index, page_size)
 
-    def get_purchase_order_detail(self, order_id: str) -> Dict:
+    def get_purchase_order_detail(self, order_id: str) -> dict:
         """
         查询采购订单详情(完整信息)
 
@@ -360,8 +348,7 @@ class YonSuiteClient:
 
     # ============== 库存查询 ==============
 
-    def query_current_stock(self, page_index: int = 1, page_size: int = 500,
-                            product: Any = None) -> Dict:
+    def query_current_stock(self, page_index: int = 1, page_size: int = 500, product: Any = None) -> dict:
         """
         查询库存现存量
 
@@ -378,11 +365,13 @@ class YonSuiteClient:
 
     # ============== 物料档案 ==============
 
-    def query_products(self,
-                      product_code: str = "",
-                      product_name: str = "",
-                      page_index: int = 1,
-                      page_size: int = 10) -> Dict:
+    def query_products(
+        self,
+        product_code: str = "",
+        product_name: str = "",
+        page_index: int = 1,
+        page_size: int = 10,
+    ) -> dict:
         """
         分页查询物料档案
 
@@ -398,13 +387,11 @@ class YonSuiteClient:
             API 响应结果,含 recordList、recordCount、pageCount 等
         """
         token = self.get_access_token()
-        return self.product.query_products(
-            token, product_code, product_name, page_index, page_size
-        )
+        return self.product.query_products(token, product_code, product_name, page_index, page_size)
 
     # ============== 组织档案 ==============
 
-    def get_org_detail(self, org_id: str) -> Dict:
+    def get_org_detail(self, org_id: str) -> dict:
         """
         查询业务单元(组织)详情
 
@@ -431,12 +418,12 @@ class YonSuiteClient:
         pubts: str = "",
         source_type: str = "1",
         external_org: str = "0",
-        ids: Optional[list] = None,
-        codes: Optional[list] = None,
-        objids: Optional[list] = None,
+        ids: list | None = None,
+        codes: list | None = None,
+        objids: list | None = None,
         page_index: int = 1,
         page_size: int = 10,
-    ) -> Dict:
+    ) -> dict:
         """
         批量查询业务单元/部门(V2)
 
@@ -491,7 +478,7 @@ class YonSuiteClient:
             pageSize=page_size,
         )
 
-    def format_org_unit_info(self, org: Dict) -> str:
+    def format_org_unit_info(self, org: dict) -> str:
         """
         格式化单个组织信息为可读文本
 
@@ -501,22 +488,22 @@ class YonSuiteClient:
         Returns:
             格式化的文本
         """
-        name = org.get('name', '-')
+        name = org.get("name", "-")
         if isinstance(name, dict):
-            name = name.get('zh_CN', '-')
+            name = name.get("zh_CN", "-")
 
-        shortname = org.get('shortname', '-')
+        shortname = org.get("shortname", "-")
         if isinstance(shortname, dict):
-            shortname = shortname.get('zh_CN', '-')
+            shortname = shortname.get("zh_CN", "-")
 
         enable_map = {0: "未启用", 1: "启用", 2: "停用"}
-        enable = enable_map.get(org.get('enable', -1), '未知')
+        enable = enable_map.get(org.get("enable", -1), "未知")
 
-        org_type_map = {1: '业务单元', 2: '部门'}
-        org_type = org_type_map.get(org.get('orgtype', 0), '未知')
+        org_type_map = {1: "业务单元", 2: "部门"}
+        org_type = org_type_map.get(org.get("orgtype", 0), "未知")
 
-        dr_map = {0: '未删除', 1: '已删除'}
-        dr = dr_map.get(org.get('dr', 0), '未知')
+        dr_map = {0: "未删除", 1: "已删除"}
+        dr = dr_map.get(org.get("dr", 0), "未知")
 
         lines = [
             f"🏢 {name} ({org.get('code', '?')})",
@@ -533,7 +520,7 @@ class YonSuiteClient:
 
     # ============== 客户档案 ==============
 
-    def query_customers(self, page_index: int = 1, page_size: int = 500) -> Dict:
+    def query_customers(self, page_index: int = 1, page_size: int = 500) -> dict:
         """
         查询客户档案列表
 
@@ -547,11 +534,13 @@ class YonSuiteClient:
         token = self.get_access_token()
         return self.customer.query_customers(token, page_index, page_size)
 
-    def query_customer_detail(self,
-                              customer_id: Optional[str] = None,
-                              customer_code: Optional[str] = None,
-                              belong_org_id: Optional[str] = None,
-                              belong_org_code: Optional[str] = None) -> Dict:
+    def query_customer_detail(
+        self,
+        customer_id: str | None = None,
+        customer_code: str | None = None,
+        belong_org_id: str | None = None,
+        belong_org_code: str | None = None,
+    ) -> dict:
         """
         查询单个客户档案详情(完整信息)
 
@@ -571,10 +560,12 @@ class YonSuiteClient:
             token, customer_id, customer_code, belong_org_id, belong_org_code
         )
 
-    def query_customer_details_batch(self,
-                                     customer_list: List[Dict[str, Any]],
-                                     belong_org_id: Optional[str] = None,
-                                     belong_org_code: Optional[str] = None) -> Dict:
+    def query_customer_details_batch(
+        self,
+        customer_list: list[dict[str, Any]],
+        belong_org_id: str | None = None,
+        belong_org_code: str | None = None,
+    ) -> dict:
         """
         批量查询客户档案详情
 
@@ -590,13 +581,11 @@ class YonSuiteClient:
             API 响应结果,包含多个客户的完整档案信息
         """
         token = self.get_access_token()
-        return self.customer.query_customer_details_batch(
-            token, customer_list, belong_org_id, belong_org_code
-        )
+        return self.customer.query_customer_details_batch(token, customer_list, belong_org_id, belong_org_code)
 
     # ============== 供应商档案 ==============
 
-    def query_vendors(self, page_index: int = 1, page_size: int = 500) -> Dict:
+    def query_vendors(self, page_index: int = 1, page_size: int = 500) -> dict:
         """
         查询供应商档案列表
 
@@ -610,9 +599,7 @@ class YonSuiteClient:
         token = self.get_access_token()
         return self.vendor.query_vendors(token, page_index, page_size)
 
-    def get_vendor_detail(self,
-                         vendor_id: str,
-                         org_id: Optional[str] = None) -> Dict:
+    def get_vendor_detail(self, vendor_id: str, org_id: str | None = None) -> dict:
         """
         查询供应商档案详情
 
@@ -628,7 +615,7 @@ class YonSuiteClient:
 
     # ============== 生产订单 ==============
 
-    def query_production_orders(self, page_index: int = 1, page_size: int = 500) -> Dict:
+    def query_production_orders(self, page_index: int = 1, page_size: int = 500) -> dict:
         """
         查询生产订单列表
 
@@ -642,7 +629,7 @@ class YonSuiteClient:
         token = self.get_access_token()
         return self.production.query_orders(token, page_index, page_size)
 
-    def get_production_order_detail(self, order_id: str) -> Dict:
+    def get_production_order_detail(self, order_id: str) -> dict:
         """
         查询生产订单详情
 
@@ -655,10 +642,13 @@ class YonSuiteClient:
         token = self.get_access_token()
         return self.production.get_order_detail(token, order_id)
 
-    def query_production_orders_batch(self, order_ids: list,
-                                      show_process: bool = False,
-                                      show_material: bool = False,
-                                      show_by_product: bool = False) -> Dict:
+    def query_production_orders_batch(
+        self,
+        order_ids: list,
+        show_process: bool = False,
+        show_material: bool = False,
+        show_by_product: bool = False,
+    ) -> dict:
         """
         批量查询生产订单详情（通过 batchGet 接口）
 
@@ -675,40 +665,40 @@ class YonSuiteClient:
         """
         token = self.get_access_token()
         return self.production.query_production_orders_batch(
-            token, order_ids,
+            token,
+            order_ids,
             show_process=show_process,
             show_material=show_material,
-            show_by_product=show_by_product
+            show_by_product=show_by_product,
         )
 
     # ============== 账簿查询 ==============
 
-    def query_accbooks(self) -> List[Dict]:
+    def query_accbooks(self) -> list[dict]:
         """查询账簿列表（优先本地缓存）"""
         token = self.get_access_token()
         return self.voucher.get_cached_accbooks(token)
 
-    def query_accbooks_refresh(self) -> List[Dict]:
+    def query_accbooks_refresh(self) -> list[dict]:
         """强制刷新账簿缓存"""
         token = self.get_access_token()
         return self.voucher.query_accbooks(token)
 
+    # ============== 凭证查询 ==============
 
-# ============== 凭证查询 ==============
-
-    def query_vouchers(self, page_size: int = 20, **kwargs) -> Dict:
+    def query_vouchers(self, page_size: int = 20, **kwargs) -> dict:
         """查询凭证列表（凭证管理模块）"""
         token = self.get_access_token()
         return self.voucher.query_vouchers(token, page_size=page_size, **kwargs)
 
-    def query_vouchers_parsed(self, page_size: int = 500, **kwargs) -> Dict:
+    def query_vouchers_parsed(self, page_size: int = 500, **kwargs) -> dict:
         """查询凭证列表（解析后格式）"""
         token = self.get_access_token()
         return self.voucher.query_vouchers_parsed(token, page_size=page_size, **kwargs)
 
-# ============== 用户待办 ==============
+    # ============== 用户待办 ==============
 
-    def query_user_todos(self, page_no: int = 1, page_size: int = 10) -> Dict:
+    def query_user_todos(self, page_no: int = 1, page_size: int = 10) -> dict:
         """
         查询用户待办事项列表
 
@@ -722,7 +712,7 @@ class YonSuiteClient:
         token = self.get_access_token()
         return self.todo.query_todos(token, page_no, page_size)
 
-    def query_user_todos_parsed(self, page_no: int = 1, page_size: int = 10) -> List:
+    def query_user_todos_parsed(self, page_no: int = 1, page_size: int = 10) -> list:
         """
         查询用户待办数据(解析为模型对象)
 
@@ -733,11 +723,10 @@ class YonSuiteClient:
         Returns:
             TodoItem 对象列表
         """
-        from modules.todo import TodoItem
         token = self.get_access_token()
         return self.todo.query_todos_parsed(token, page_no, page_size)
 
-    def format_todo_info(self, todo_items: List) -> str:
+    def format_todo_info(self, todo_items: list) -> str:
         """
         格式化待办信息为可读文本
 
@@ -750,11 +739,18 @@ class YonSuiteClient:
 
     # ============== 商机查询 ==============
 
-    def query_opportunities(self, page_index: int = 1, page_size: int = 500,
-                            code: str = None, name: str = None,
-                            oppt_state: str = None, win_lose_state: str = None,
-                            is_sum: bool = True, date_from: str = None,
-                            date_to: str = None) -> Dict:
+    def query_opportunities(
+        self,
+        page_index: int = 1,
+        page_size: int = 500,
+        code: str = None,
+        name: str = None,
+        oppt_state: str = None,
+        win_lose_state: str = None,
+        is_sum: bool = True,
+        date_from: str = None,
+        date_to: str = None,
+    ) -> dict:
         """
         查询商机列表
 
@@ -774,17 +770,30 @@ class YonSuiteClient:
         """
         token = self.get_access_token()
         return self.crm.query_opportunities(
-            token, page_index, page_size,
-            code=code, name=name,
-            oppt_state=oppt_state, win_lose_state=win_lose_state,
-            is_sum=is_sum, date_from=date_from, date_to=date_to
+            token,
+            page_index,
+            page_size,
+            code=code,
+            name=name,
+            oppt_state=oppt_state,
+            win_lose_state=win_lose_state,
+            is_sum=is_sum,
+            date_from=date_from,
+            date_to=date_to,
         )
 
-    def query_opportunities_parsed(self, page_index: int = 1, page_size: int = 500,
-                                   code: str = None, name: str = None,
-                                   oppt_state: str = None, win_lose_state: str = None,
-                                   is_sum: bool = True, date_from: str = None,
-                                   date_to: str = None) -> List[Opportunity]:
+    def query_opportunities_parsed(
+        self,
+        page_index: int = 1,
+        page_size: int = 500,
+        code: str = None,
+        name: str = None,
+        oppt_state: str = None,
+        win_lose_state: str = None,
+        is_sum: bool = True,
+        date_from: str = None,
+        date_to: str = None,
+    ) -> list[Opportunity]:
         """
         查询商机列表（解析为 Opportunity 对象）
 
@@ -804,25 +813,31 @@ class YonSuiteClient:
         """
         token = self.get_access_token()
         result = self.crm.query_opportunities(
-            token, page_index, page_size,
-            code=code, name=name,
-            oppt_state=oppt_state, win_lose_state=win_lose_state,
-            is_sum=is_sum, date_from=date_from, date_to=date_to
+            token,
+            page_index,
+            page_size,
+            code=code,
+            name=name,
+            oppt_state=oppt_state,
+            win_lose_state=win_lose_state,
+            is_sum=is_sum,
+            date_from=date_from,
+            date_to=date_to,
         )
         return self.crm.parse_opportunities(result)
 
     # ============== 格式化方法(兼容旧接口) ==============
 
-    def format_order_info(self, order: Dict) -> str:
+    def format_order_info(self, order: dict) -> str:
         """格式化订单信息为可读文本"""
         return SaleOrder.from_api(order).format()
 
-    def format_stock_info(self, stock_list: List[Dict]) -> str:
+    def format_stock_info(self, stock_list: list[dict]) -> str:
         """格式化库存信息为可读文本"""
         items = [StockItem.from_api(item) for item in stock_list]
         return self.stock.format_stock_info(items)
 
-    def format_production_order_info(self, order: Dict) -> str:
+    def format_production_order_info(self, order: dict) -> str:
         """格式化生产订单信息为可读文本"""
         return ProductionOrder.from_api(order).format()
 
@@ -831,49 +846,65 @@ class YonSuiteClient:
 
 # ============== 命令行入口 ==============
 
+
 def main():
     """命令行入口"""
     import argparse
 
-    parser = argparse.ArgumentParser(description='yonsuite_search - 用友 YonSuite API 查询客户端 v2.0')
-    parser.add_argument('--action', type=str, required=True,
-                       choices=['token', 'query-orders', 'order-detail',
-                               'query-purchase-orders', 'purchase-order-detail',
-                               'query-stock',
-                               'query-customers', 'customer-detail', 'customer-details-batch',
-                               'vendor-detail', 'query-vendors',
-                               'query-production-orders', 'production-order-detail',
-                               'query-todos', 'query-vouchers', 'query-accbooks'],
-                       help='操作类型')
-    parser.add_argument('--accbook-code', type=str, help='账簿编码(如1001、1000)')
-    parser.add_argument('--customer', type=str, help='客户名称')
-    parser.add_argument('--customer-id', type=str, help='客户 ID(查询客户详情用)')
-    parser.add_argument('--customer-code', type=str, help='客户编码(查询客户详情用)')
-    parser.add_argument('--order-code', type=str, help='订单编号')
-    parser.add_argument('--order-id', type=str, help='订单 ID')
-    parser.add_argument('--purchase-order-id', type=str, help='采购订单 ID(查询采购订单详情用)')
-    parser.add_argument('--vendor-id', type=str, help='供应商 ID')
-    parser.add_argument('--product-code', type=str, help='物料编码')
-    parser.add_argument('--product-name', type=str, help='物料名称')
-    parser.add_argument('--start-date', type=str, help='开始日期(YYYY-MM-DD)')
-    parser.add_argument('--end-date', type=str, help='结束日期(YYYY-MM-DD)')
-    parser.add_argument('--vouchdate-start', type=str, help='单据日期开始(YYYY-MM-DD,销售订单用)')
-    parser.add_argument('--vouchdate-end', type=str, help='单据日期结束(YYYY-MM-DD,销售订单用)')
-    parser.add_argument('--is-sum', action='store_true', default=True, help='是否汇总(True=表头汇总,默认)')
-    parser.add_argument('--no-sum', action='store_true', help='是否汇总(False=明细行)')
-    parser.add_argument('--status', type=str, help='订单状态')
-    parser.add_argument('--page-size', type=int, default=500, help='每页数量(默认500)')
-    parser.add_argument('--page-no', type=int, default=1, help='页码(待办查询用)')
-    parser.add_argument('--todo-status', type=str, default='todo', help='待办状态:todo=待办,done=已办')
-    parser.add_argument('--voucher-date-start', type=str, help='凭证日期区间左端点(YYYY-MM-DD)')
-    parser.add_argument('--voucher-date-end', type=str, help='凭证日期区间右端点(YYYY-MM-DD)')
-    parser.add_argument('--accountant-year', type=str, help='会计年度(如2026)')
-    parser.add_argument('--accountant-period', type=str, help='会计期间(如01)')
-    parser.add_argument('--period-start', type=str, help='起始期间(yyyy-MM，默认当前月)')
-    parser.add_argument('--period-end', type=str, help='结束期间(yyyy-MM，默认当前月)')
-    parser.add_argument('--document-type-name', type=str, help='凭证字(如记)')
-    parser.add_argument('--page-index', type=int, default=1, help='页码(凭证查询用)')
-    parser.add_argument('--verbose', '-v', action='store_true', help='详细输出')
+    parser = argparse.ArgumentParser(description="yonsuite_search - 用友 YonSuite API 查询客户端 v2.0")
+    parser.add_argument(
+        "--action",
+        type=str,
+        required=True,
+        choices=[
+            "token",
+            "query-orders",
+            "order-detail",
+            "query-purchase-orders",
+            "purchase-order-detail",
+            "query-stock",
+            "query-customers",
+            "customer-detail",
+            "customer-details-batch",
+            "vendor-detail",
+            "query-vendors",
+            "query-production-orders",
+            "production-order-detail",
+            "query-todos",
+            "query-vouchers",
+            "query-accbooks",
+        ],
+        help="操作类型",
+    )
+    parser.add_argument("--accbook-code", type=str, help="账簿编码(如1001、1000)")
+    parser.add_argument("--customer", type=str, help="客户名称")
+    parser.add_argument("--customer-id", type=str, help="客户 ID(查询客户详情用)")
+    parser.add_argument("--customer-code", type=str, help="客户编码(查询客户详情用)")
+    parser.add_argument("--order-code", type=str, help="订单编号")
+    parser.add_argument("--order-id", type=str, help="订单 ID")
+    parser.add_argument("--purchase-order-id", type=str, help="采购订单 ID(查询采购订单详情用)")
+    parser.add_argument("--vendor-id", type=str, help="供应商 ID")
+    parser.add_argument("--product-code", type=str, help="物料编码")
+    parser.add_argument("--product-name", type=str, help="物料名称")
+    parser.add_argument("--start-date", type=str, help="开始日期(YYYY-MM-DD)")
+    parser.add_argument("--end-date", type=str, help="结束日期(YYYY-MM-DD)")
+    parser.add_argument("--vouchdate-start", type=str, help="单据日期开始(YYYY-MM-DD,销售订单用)")
+    parser.add_argument("--vouchdate-end", type=str, help="单据日期结束(YYYY-MM-DD,销售订单用)")
+    parser.add_argument("--is-sum", action="store_true", default=True, help="是否汇总(True=表头汇总,默认)")
+    parser.add_argument("--no-sum", action="store_true", help="是否汇总(False=明细行)")
+    parser.add_argument("--status", type=str, help="订单状态")
+    parser.add_argument("--page-size", type=int, default=500, help="每页数量(默认500)")
+    parser.add_argument("--page-no", type=int, default=1, help="页码(待办查询用)")
+    parser.add_argument("--todo-status", type=str, default="todo", help="待办状态:todo=待办,done=已办")
+    parser.add_argument("--voucher-date-start", type=str, help="凭证日期区间左端点(YYYY-MM-DD)")
+    parser.add_argument("--voucher-date-end", type=str, help="凭证日期区间右端点(YYYY-MM-DD)")
+    parser.add_argument("--accountant-year", type=str, help="会计年度(如2026)")
+    parser.add_argument("--accountant-period", type=str, help="会计期间(如01)")
+    parser.add_argument("--period-start", type=str, help="起始期间(yyyy-MM，默认当前月)")
+    parser.add_argument("--period-end", type=str, help="结束期间(yyyy-MM，默认当前月)")
+    parser.add_argument("--document-type-name", type=str, help="凭证字(如记)")
+    parser.add_argument("--page-index", type=int, default=1, help="页码(凭证查询用)")
+    parser.add_argument("--verbose", "-v", action="store_true", help="详细输出")
 
     args = parser.parse_args()
 
@@ -883,57 +914,54 @@ def main():
     try:
         client = YonSuiteClient()
 
-        if args.action == 'token':
+        if args.action == "token":
             token = client.get_access_token(force_refresh=True)
             print(f"✅ Token 获取成功:{token[:20]}...")
 
-        elif args.action == 'query-orders':
+        elif args.action == "query-orders":
             result = client.query_sale_orders(page_size=args.page_size)
-            print(__import__('json').dumps(result, indent=2, ensure_ascii=False))
+            print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
 
-        elif args.action == 'query-purchase-orders':
+        elif args.action == "query-purchase-orders":
             result = client.query_purchase_orders(page_size=args.page_size)
-            print(__import__('json').dumps(result, indent=2, ensure_ascii=False))
+            print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
 
-        elif args.action == 'purchase-order-detail':
+        elif args.action == "purchase-order-detail":
             if not args.purchase_order_id:
                 print("❌ 请提供采购订单 ID")
                 return
             result = client.get_purchase_order_detail(args.purchase_order_id)
             # 使用格式化输出
-            detail = result.get('data', {})
+            detail = result.get("data", {})
             if detail:
                 formatted = client.purchase.format_order_detail(detail)
                 print(formatted)
             else:
-                print(__import__('json').dumps(result, indent=2, ensure_ascii=False))
+                print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
 
-        elif args.action == 'order-detail':
+        elif args.action == "order-detail":
             if not args.order_id:
                 print("❌ 请提供订单 ID")
                 return
             result = client.get_order_detail(args.order_id)
-            print(__import__('json').dumps(result, indent=2, ensure_ascii=False))
+            print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
 
-        elif args.action == 'query-stock':
+        elif args.action == "query-stock":
             result = client.query_current_stock(page_size=args.page_size)
-            print(__import__('json').dumps(result, indent=2, ensure_ascii=False))
+            print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
 
-        elif args.action == 'query-customers':
+        elif args.action == "query-customers":
             result = client.query_customers(page_size=args.page_size)
-            print(__import__('json').dumps(result, indent=2, ensure_ascii=False))
+            print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
 
-        elif args.action == 'customer-detail':
+        elif args.action == "customer-detail":
             if not args.customer_id and not args.customer_code:
                 print("❌ 请提供客户 ID 或客户编码")
                 return
-            result = client.query_customer_detail(
-                customer_id=args.customer_id,
-                customer_code=args.customer_code
-            )
-            print(__import__('json').dumps(result, indent=2, ensure_ascii=False))
+            result = client.query_customer_detail(customer_id=args.customer_id, customer_code=args.customer_code)
+            print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
 
-        elif args.action == 'customer-details-batch':
+        elif args.action == "customer-details-batch":
             print("❌ 批量查询请使用 Python 代码调用,示例:")
             print("""
 from ys_client import YonSuiteClient
@@ -946,42 +974,43 @@ print(result)
             """)
             return
 
-        elif args.action == 'vendor-detail':
+        elif args.action == "vendor-detail":
             if not args.vendor_id:
                 print("❌ 请提供供应商 ID")
                 return
             result = client.get_vendor_detail(args.vendor_id)
-            print(__import__('json').dumps(result, indent=2, ensure_ascii=False))
+            print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
 
-        elif args.action == 'query-vendors':
+        elif args.action == "query-vendors":
             result = client.query_vendors(page_size=args.page_size)
-            print(__import__('json').dumps(result, indent=2, ensure_ascii=False))
+            print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
 
-        elif args.action == 'query-production-orders':
+        elif args.action == "query-production-orders":
             result = client.query_production_orders(page_size=args.page_size)
-            print(__import__('json').dumps(result, indent=2, ensure_ascii=False))
+            print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
 
-        elif args.action == 'production-order-detail':
+        elif args.action == "production-order-detail":
             if not args.order_id:
                 print("❌ 请提供生产订单 ID")
                 return
             result = client.get_production_order_detail(args.order_id)
-            print(__import__('json').dumps(result, indent=2, ensure_ascii=False))
+            print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
 
-        elif args.action == 'query-todos':
+        elif args.action == "query-todos":
             result = client.query_user_todos(page_no=args.page_no, page_size=args.page_size)
             # 格式化输出
-            data = result.get('data', [])
+            data = result.get("data", [])
             if data:
                 from modules.todo import TodoItem
+
                 todo_items = [TodoItem.from_api(item) for item in data]
                 formatted = client.format_todo_info(todo_items)
                 print(formatted)
             else:
                 print("📋 暂无待办事项")
-                print(__import__('json').dumps(result, indent=2, ensure_ascii=False))
+                print(__import__("json").dumps(result, indent=2, ensure_ascii=False))
 
-        elif args.action == 'query-vouchers':
+        elif args.action == "query-vouchers":
             if not args.accbook_code:
                 print("❌ 请指定账簿编码（--accbook-code）")
                 print("   可用 python3 ys_client.py --action query-accbooks 查看所有账簿")
@@ -998,14 +1027,14 @@ print(result)
                 document_type_name=args.document_type_name,
                 accbook_code=args.accbook_code,
             )
-            records = parsed.get('records', [])
+            records = parsed.get("records", [])
             if records:
                 formatted = client.voucher.format_vouchers_list(records)
                 print(formatted)
                 print(f"\n总记录数: {parsed.get('recordCount', 0)}")
             else:
                 print("🧾 暂无凭证记录")
-        elif args.action == 'query-accbooks':
+        elif args.action == "query-accbooks":
             accbooks = client.query_accbooks()
             print(f"📋 账簿列表（共 {len(accbooks)} 个）：")
             for a in accbooks:
@@ -1015,6 +1044,7 @@ print(result)
         logger.error(f"执行失败:{e}")
         if args.verbose:
             import traceback
+
             traceback.print_exc()
         else:
             print(f"❌ 错误:{e}")

@@ -15,6 +15,7 @@ config dict (with ``llm_provider`` / ``llm_api_key`` / ``llm_base_url``
 / ``llm_model`` fields) and returns a ready-to-use provider.  This is
 the entry point used by ``chat.py`` once M5 migration is done.
 """
+
 from __future__ import annotations
 
 import logging
@@ -46,8 +47,7 @@ def _load_providers_dict() -> dict:
 def list_protocols() -> dict[str, str]:
     """Return ``{display_name: protocol}`` for every provider in the
     registry.  Useful for debugging / status pages."""
-    return {name: info.get("protocol", "openai_compat")
-            for name, info in _load_providers_dict().items()}
+    return {name: info.get("protocol", "openai_compat") for name, info in _load_providers_dict().items()}
 
 
 def get_provider(
@@ -66,8 +66,7 @@ def get_provider(
     providers = _load_providers_dict()
     if display_name not in providers:
         raise LLMProviderError(
-            f"Unknown LLM provider: {display_name!r}. "
-            f"Available: {sorted(providers.keys())}",
+            f"Unknown LLM provider: {display_name!r}. Available: {sorted(providers.keys())}",
             transient=False,
         )
 
@@ -87,6 +86,7 @@ def get_provider(
     if protocol == "anthropic":
         # Lazy import: anthropic is an optional dependency.
         from agent.core.llm_providers.anthropic import AnthropicProvider
+
         return AnthropicProvider(
             api_key=api_key,
             base_url=url,

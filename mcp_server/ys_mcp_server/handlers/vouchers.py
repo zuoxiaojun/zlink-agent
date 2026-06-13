@@ -3,7 +3,6 @@
 from ..paginate import paginate
 from ..utils import tool_result
 
-
 schema = {
     "name": "query_vouchers",
     "description": "查询 YonSuite 财务凭证。支持按日期、会计期间、账簿过滤。",
@@ -25,8 +24,10 @@ schema = {
 def handle(client, arguments: dict) -> dict:
     kwargs = {}
     for key, kw in [
-        ("date_from", "voucher_date_start"), ("date_to", "voucher_date_end"),
-        ("period_start", "period_start"), ("period_end", "period_end"),
+        ("date_from", "voucher_date_start"),
+        ("date_to", "voucher_date_end"),
+        ("period_start", "period_start"),
+        ("period_end", "period_end"),
         ("accbook_code", "accbook_code"),
     ]:
         val = (arguments.get(key) or "").strip() or None
@@ -35,12 +36,16 @@ def handle(client, arguments: dict) -> dict:
 
     def fetch(pi, ps):
         result = client.voucher.query_vouchers_parsed(
-            client.get_access_token(), page_size=ps, page_index=pi, **kwargs,
+            client.get_access_token(),
+            page_size=ps,
+            page_index=pi,
+            **kwargs,
         )
         return result.get("records", [])
 
     records = paginate(arguments, 500, fetch)
     return tool_result(
-        data=f"凭证查询结果（{len(records)} 条）", records=records,
+        data=f"凭证查询结果（{len(records)} 条）",
+        records=records,
         summary={"recordCount": len(records)},
     )

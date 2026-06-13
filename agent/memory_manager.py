@@ -4,9 +4,7 @@ Stores conversation summaries and extracted key facts
 for context injection in future conversations.
 """
 
-from pathlib import Path
-
-from agent.utils import atomic_json_write, DATA_DIR
+from agent.utils import DATA_DIR, atomic_json_write
 
 MEMORY_FILE = DATA_DIR / "memory" / "memory.json"
 
@@ -21,6 +19,7 @@ def _load() -> dict:
         return {"version": 1, "conversations": [], "facts": []}
     try:
         import json
+
         return json.loads(MEMORY_FILE.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return {"version": 1, "conversations": [], "facts": []}

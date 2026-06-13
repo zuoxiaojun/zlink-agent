@@ -23,12 +23,10 @@ Why split this out
 * Readable: the original 481-line ``agent.py`` had this logic in the
   middle of the loop, making it hard to follow.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Iterable
-
-from agent import fact_memory
 
 
 def build_system_prompt(

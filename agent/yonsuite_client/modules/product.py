@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 物料档案查询模块
 
@@ -8,11 +7,10 @@ API: POST /yonbip/digitalModel/product/queryByPage
 """
 
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Any
 
-from .base import BaseAPIClient, retry_on_failure
 from ..models import ProductItem
-from ..exceptions import YonSuiteAPIError
+from .base import BaseAPIClient, retry_on_failure
 
 logger = logging.getLogger(__name__)
 
@@ -25,13 +23,16 @@ class ProductModule(BaseAPIClient):
         self.base_path = "/yonbip/digitalModel/product"
 
     @retry_on_failure()
-    def query_products(self, access_token: str,
-                      product_code: str = "",
-                      product_name: str = "",
-                      page_index: int = 1,
-                      page_size: int = 10,
-                      stop_status: bool = False,
-                      **kwargs) -> Dict:
+    def query_products(
+        self,
+        access_token: str,
+        product_code: str = "",
+        product_name: str = "",
+        page_index: int = 1,
+        page_size: int = 10,
+        stop_status: bool = False,
+        **kwargs,
+    ) -> dict:
         """
         分页查询物料档案
 
@@ -51,7 +52,9 @@ class ProductModule(BaseAPIClient):
         """
         import urllib.parse
 
-        url = f"{self.gateway_url}{self.base_path}/integration/querylist?access_token={urllib.parse.quote(access_token)}"
+        url = (
+            f"{self.gateway_url}{self.base_path}/integration/querylist?access_token={urllib.parse.quote(access_token)}"
+        )
 
         payload = {
             "pageIndex": page_index,
@@ -70,11 +73,17 @@ class ProductModule(BaseAPIClient):
         # 其他可选过滤参数
         for key, value in kwargs.items():
             if value and key in [
-                "managerClassIdList", "managerClassCodeList",
-                "productClassIdList", "productClassCodeList",
-                "purchaseClassIdList", "purchaseClassCodeList",
-                "productTemplate", "modelDescription", "model",
-                "beginTime", "endTime",
+                "managerClassIdList",
+                "managerClassCodeList",
+                "productClassIdList",
+                "productClassCodeList",
+                "purchaseClassIdList",
+                "purchaseClassCodeList",
+                "productTemplate",
+                "modelDescription",
+                "model",
+                "beginTime",
+                "endTime",
             ]:
                 payload[key] = value if isinstance(value, list) else [value]
 
@@ -82,13 +91,16 @@ class ProductModule(BaseAPIClient):
         result = self._http_post_raw(url, payload)
         return self.check_response(result, "查询物料档案")
 
-    def query_products_parsed(self, access_token: str,
-                              product_code: str = "",
-                              product_name: str = "",
-                              page_index: int = 1,
-                              page_size: int = 10,
-                              stop_status: bool = False,
-                              **kwargs) -> Dict[str, Any]:
+    def query_products_parsed(
+        self,
+        access_token: str,
+        product_code: str = "",
+        product_name: str = "",
+        page_index: int = 1,
+        page_size: int = 10,
+        stop_status: bool = False,
+        **kwargs,
+    ) -> dict[str, Any]:
         """
         查询物料档案（解析为模型对象 + 分页信息）
 
@@ -106,25 +118,25 @@ class ProductModule(BaseAPIClient):
             page_index=page_index,
             page_size=page_size,
             stop_status=stop_status,
-            **kwargs
+            **kwargs,
         )
 
-        data = result.get('data', {})
+        data = result.get("data", {})
 
         items = []
-        for item in data.get('recordList', []):
+        for item in data.get("recordList", []):
             items.append(ProductItem.from_api(item))
 
         return {
-            'items': items,
-            'total': int(data.get('recordCount', 0)),
-            'page_count': int(data.get('pageCount', 0)),
-            'page_index': int(data.get('pageIndex', page_index)),
-            'page_size': int(data.get('pageSize', page_size)),
-            'have_next_page': data.get('haveNextPage', False),
+            "items": items,
+            "total": int(data.get("recordCount", 0)),
+            "page_count": int(data.get("pageCount", 0)),
+            "page_index": int(data.get("pageIndex", page_index)),
+            "page_size": int(data.get("pageSize", page_size)),
+            "have_next_page": data.get("haveNextPage", False),
         }
 
-    def format_product_info(self, products: List[ProductItem]) -> str:
+    def format_product_info(self, products: list[ProductItem]) -> str:
         """
         格式化物料信息为可读文本
 

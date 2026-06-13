@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 class ExtensionInfo(BaseModel):
     """One extension as the M5+ settings page sees it."""
+
     name: str
     enabled: bool
     # What kind of work it does.  Surfaced in the UI for the user to
@@ -19,5 +20,6 @@ class ExtensionToggle(BaseModel):
 
 class ExtensionReloadResult(BaseModel):
     """Returned by ``POST /api/extensions/reload``."""
+
     now_active: list[str] = []
     now_disabled: list[str] = []

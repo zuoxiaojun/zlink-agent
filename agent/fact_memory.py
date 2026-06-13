@@ -17,7 +17,6 @@ import json
 import logging
 import os
 import re
-import tempfile
 from pathlib import Path
 
 from agent.utils import DATA_DIR, atomic_json_write
@@ -32,14 +31,23 @@ CHAR_LIMITS = {"memory": 2200, "user": 1375}
 _THREAT_PATTERNS = [
     # ── Prompt injection ──
     (r"ignore\s+(?:\w+\s+)*(previous|all|above|prior)\s+instructions", "ignore_instructions"),
-    (r"disregard\s+(?:\w+\s+)*(your|all|any)\s+(?:\w+\s+)*(instructions|rules|guidelines)", "disregard_rules"),
+    (
+        r"disregard\s+(?:\w+\s+)*(your|all|any)\s+(?:\w+\s+)*(instructions|rules|guidelines)",
+        "disregard_rules",
+    ),
     (r"system\s+prompt\s+override", "sys_prompt_override"),
     (r"you\s+are\s+(?:\w+\s+)*now\s+", "role_hijack"),
     (r"do\s+not\s+(?:\w+\s+)*tell\s+(?:\w+\s+)*the\s+user", "deception_hide"),
     (r"pretend\s+(?:\w+\s+)*(you\s+are|to\s+be)\s+", "role_pretend"),
     (r"output\s+(?:\w+\s+)*(system|initial)\s+prompt", "leak_system_prompt"),
-    (r"(respond|answer|reply)\s+without\s+(?:\w+\s+)*(restrictions|limitations|filters|safety)", "remove_filters"),
-    (r"act\s+as\s+(if|though)\s+(?:\w+\s+)*you\s+(?:\w+\s+)*(have\s+no|don['’]t\s+have)\s+(?:\w+\s+)*(restrictions|limits|rules)", "bypass_restrictions"),
+    (
+        r"(respond|answer|reply)\s+without\s+(?:\w+\s+)*(restrictions|limitations|filters|safety)",
+        "remove_filters",
+    ),
+    (
+        r"act\s+as\s+(if|though)\s+(?:\w+\s+)*you\s+(?:\w+\s+)*(have\s+no|don['’]t\s+have)\s+(?:\w+\s+)*(restrictions|limits|rules)",
+        "bypass_restrictions",
+    ),
     (r"you\s+have\s+been\s+(?:\w+\s+)*(updated|upgraded|patched)\s+to", "fake_update"),
     (r"new\s+policy|updated\s+guidelines|revised\s+instructions", "fake_policy"),
     (r"\bDAN\s+mode\b|Do\s+Anything\s+Now", "jailbreak_dan"),
@@ -47,7 +55,10 @@ _THREAT_PATTERNS = [
     (r"<!--[^>]*(?:ignore|override|system|secret|hidden)[^>]*-->", "html_comment_injection"),
     # ── Context exfiltration ──
     (r"(send|post|upload|transmit)\s+.*\s+(to|at)\s+https?://", "send_to_url"),
-    (r"(include|output|print|send|share)\s+(?:\w+\s+)*(conversation|chat\s+history|previous\s+messages|context)", "context_exfil"),
+    (
+        r"(include|output|print|send|share)\s+(?:\w+\s+)*(conversation|chat\s+history|previous\s+messages|context)",
+        "context_exfil",
+    ),
     # ── Credential exfiltration ──
     (r"cat\s+[^\n]*(\.env|credentials|\.netrc|\.pgpass|\.npmrc|\.pypirc)", "read_secrets"),
     (r"base64[^\n]*env", "encoded_exfil_env"),
@@ -86,6 +97,7 @@ def init_store() -> "MemoryStore":
 _fcntl = None
 try:
     import fcntl as _fcntl_mod
+
     _fcntl = _fcntl_mod
 except ImportError:
     pass
@@ -114,18 +126,17 @@ def _atomic_write(path: Path, content: str):
 
 # ── Scanner ────────────────────────────────────────────────────────────
 
+
 def _scan_content(content: str) -> str | None:
     """Scan content for injection/exfil patterns. Returns error message or None."""
     for pattern, pid in _THREAT_PATTERNS:
         if re.search(pattern, content, re.IGNORECASE):
-            return (
-                f"内容包含可疑模式「{pid}」。"
-                "记忆内容会注入到系统提示中，禁止包含注入或泄露载荷。"
-            )
+            return f"内容包含可疑模式「{pid}」。记忆内容会注入到系统提示中，禁止包含注入或泄露载荷。"
     return None
 
 
 # ── MemoryStore ────────────────────────────────────────────────────────
+
 
 class MemoryStore:
     """Bounded curated memory with file persistence.
@@ -188,10 +199,7 @@ class MemoryStore:
                 current = self._char_count(target)
                 return {
                     "success": False,
-                    "error": (
-                        f"已达字符上限 ({current:,}/{limit:,})。"
-                        "请先移除不需要的条目。"
-                    ),
+                    "error": (f"已达字符上限 ({current:,}/{limit:,})。请先移除不需要的条目。"),
                     "usage": f"{current:,}/{limit:,}",
                 }
 

@@ -6,8 +6,8 @@ frozen-snapshot injection via the agent loop.
 
 import logging
 
-from agent.tools.registry import registry, tool_result, tool_error
 from agent import fact_memory
+from agent.tools.registry import registry, tool_error, tool_result
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +44,8 @@ def _handle_memory(args: dict) -> str:
 
     if result["success"]:
         return tool_result(
-            data=f"已{ {'add': '添加', 'replace': '替换', 'remove': '移除' }[action] }"
-                 f"到「{target}」（{result.get('usage', '')}）。",
+            data=f"已{ {'add': '添加', 'replace': '替换', 'remove': '移除'}[action] }"
+            f"到「{target}」（{result.get('usage', '')}）。",
         )
     return tool_error(result["error"])
 

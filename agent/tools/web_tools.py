@@ -4,14 +4,13 @@ Port of Hermes web_tools.py — simplified using httpx directly.
 Supports configurable search backend via env vars.
 """
 
-import json
 import logging
 import os
 import urllib.parse
 
 import httpx
 
-from agent.tools.registry import registry, tool_result, tool_error
+from agent.tools.registry import registry, tool_error, tool_result
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +76,7 @@ def _search_duckduckgo(query: str, limit: int) -> str:
 
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                          "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
         with httpx.Client(timeout=15.0, follow_redirects=True) as client:
@@ -92,32 +91,38 @@ def _search_duckduckgo(query: str, limit: int) -> str:
         blocks = re.findall(
             r'<a rel="nofollow" class="result__a" href="(.*?)".*?>(.*?)</a>.*?'
             r'<a class="result__snippet".*?>(.*?)</a>',
-            html, re.DOTALL
+            html,
+            re.DOTALL,
         )
 
         for href, title, snippet in blocks[:limit]:
             # Clean HTML tags from title and snippet
-            title = re.sub(r'<.*?>', '', title).strip()
-            snippet = re.sub(r'<.*?>', '', snippet).strip()
-            results.append({
-                "title": title,
-                "url": href,
-                "snippet": snippet,
-            })
+            title = re.sub(r"<.*?>", "", title).strip()
+            snippet = re.sub(r"<.*?>", "", snippet).strip()
+            results.append(
+                {
+                    "title": title,
+                    "url": href,
+                    "snippet": snippet,
+                }
+            )
 
         if not results:
             # Fallback: try extracting from different DOM structure
             blocks = re.findall(
                 r'<h[23][^>]*>.*?<a[^>]*href="(https?://[^"]+)"[^>]*>(.*?)</a>.*?</h[23]>',
-                html, re.DOTALL
+                html,
+                re.DOTALL,
             )
             for href, title in blocks[:limit]:
-                title = re.sub(r'<.*?>', '', title).strip()
-                results.append({
-                    "title": title,
-                    "url": href,
-                    "snippet": "",
-                })
+                title = re.sub(r"<.*?>", "", title).strip()
+                results.append(
+                    {
+                        "title": title,
+                        "url": href,
+                        "snippet": "",
+                    }
+                )
 
         return tool_result(data=_format_results(results, query))
     except Exception as e:

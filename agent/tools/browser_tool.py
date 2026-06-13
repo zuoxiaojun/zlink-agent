@@ -14,9 +14,10 @@ Inspired by Hermes Agent's browser tool but simplified:
 import atexit
 import logging
 
-from playwright.sync_api import sync_playwright, TimeoutError as PwTimeout
+from playwright.sync_api import TimeoutError as PwTimeout
+from playwright.sync_api import sync_playwright
 
-from agent.tools.registry import registry, tool_result, tool_error
+from agent.tools.registry import registry, tool_error, tool_result
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +86,7 @@ def _cleanup():
 
 
 # ── Page snapshot helpers ──────────────────────────────────────────
+
 
 def _collect_interactive_elements():
     """Return a list of (ref, desc) for all interactive elements."""
@@ -186,13 +188,13 @@ def _flatten_accessibility_tree(node, depth=0):
     elif role == "textbox":
         value = (node.get("valueString") or node.get("value") or "").strip()
         if value:
-            lines.append(f"{indent}[输入框] {name} = \"{value[:50]}\"")
+            lines.append(f'{indent}[输入框] {name} = "{value[:50]}"')
         else:
             lines.append(f"{indent}[输入框] {name}")
     elif role == "combobox":
         value = (node.get("valueString") or "").strip()
         if value:
-            lines.append(f"{indent}[下拉框] {name} = \"{value[:50]}\"")
+            lines.append(f'{indent}[下拉框] {name} = "{value[:50]}"')
         else:
             lines.append(f"{indent}[下拉框] {name}")
     elif role == "list":
@@ -281,6 +283,7 @@ def _type_ref(ref: str, text: str) -> str:
 
 
 # ── Tool handlers ──────────────────────────────────────────────────
+
 
 def _handle_browser_navigate(args: dict) -> str:
     url = args.get("url", "").strip()
@@ -404,8 +407,8 @@ def _handle_browser_get_images(args: dict) -> str:
 
     lines = [f"共 {len(images)} 张图片：", ""]
     for img in images:
-        alt = f" alt=\"{img['alt']}\"" if img["alt"] else ""
-        size = f" ({img['width']}x{img['height']})" if img['width'] else ""
+        alt = f' alt="{img["alt"]}"' if img["alt"] else ""
+        size = f" ({img['width']}x{img['height']})" if img["width"] else ""
         lines.append(f"  #{img['index']}{alt}: {img['src'][:100]}{size}")
 
     return tool_result(data="\n".join(lines))
@@ -423,6 +426,7 @@ def _handle_browser_console(args: dict) -> str:
             result = page.evaluate(expression)
             try:
                 import json as _json
+
                 output = _json.dumps(result, ensure_ascii=False, default=str)
             except Exception:
                 output = str(result)
@@ -532,7 +536,10 @@ BROWSER_PRESS_SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": {
-            "key": {"type": "string", "description": "按键名称（如 'Enter', 'Tab', 'Escape', 'ArrowDown'）"},
+            "key": {
+                "type": "string",
+                "description": "按键名称（如 'Enter', 'Tab', 'Escape', 'ArrowDown'）",
+            },
         },
         "required": ["key"],
     },
@@ -553,7 +560,10 @@ BROWSER_CONSOLE_SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": {
-            "expression": {"type": "string", "description": "在页面上下文执行的 JavaScript 表达式（如 'document.title'），非必填"},
+            "expression": {
+                "type": "string",
+                "description": "在页面上下文执行的 JavaScript 表达式（如 'document.title'），非必填",
+            },
             "clear": {"type": "boolean", "description": "是否清除控制台"},
         },
     },

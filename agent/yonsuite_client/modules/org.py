@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 组织档案查询模块
 
@@ -8,10 +7,8 @@ API: GET /yonbip/digitalModel/orgunit/detail
 """
 
 import logging
-from typing import Optional, Dict, Any
 
 from .base import BaseAPIClient, retry_on_failure
-from ..exceptions import YonSuiteAPIError
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +21,7 @@ class OrgModule(BaseAPIClient):
         self.base_path = "/yonbip/digitalModel/orgunit"
 
     @retry_on_failure()
-    def get_org_detail(self, access_token: str, org_id: str) -> Dict:
+    def get_org_detail(self, access_token: str, org_id: str) -> dict:
         """
         查询业务单元（组织）详情
 
@@ -45,7 +42,7 @@ class OrgModule(BaseAPIClient):
         return self.check_response(result, "查询组织详情")
 
     @retry_on_failure()
-    def query_org_units(self, access_token: str, **kwargs) -> Dict:
+    def query_org_units(self, access_token: str, **kwargs) -> dict:
         """
         批量查询业务单元/部门（V2）
 
@@ -84,43 +81,43 @@ class OrgModule(BaseAPIClient):
 
         # 构建请求体
         body = {}
-        if kwargs.get('ids'):
-            body['ids'] = kwargs['ids']
-        if kwargs.get('codes'):
-            body['codes'] = kwargs['codes']
-        if kwargs.get('objids'):
-            body['objids'] = kwargs['objids']
-        if kwargs.get('name'):
-            body['name'] = kwargs['name']
-        if kwargs.get('dr'):
-            body['dr'] = kwargs['dr']
-        if kwargs.get('enable'):
-            body['enable'] = kwargs['enable']
-        if kwargs.get('pubts'):
-            body['pubts'] = kwargs['pubts']
-        if kwargs.get('parentId'):
-            body['parentId'] = kwargs['parentId']
-        if kwargs.get('parentCode'):
-            body['parentCode'] = kwargs['parentCode']
-        if kwargs.get('orgDept'):
-            body['orgDept'] = kwargs['orgDept']
-        if kwargs.get('sourceType'):
-            body['sourceType'] = kwargs['sourceType']
-        if kwargs.get('externalOrg'):
-            body['externalOrg'] = kwargs['externalOrg']
-        if kwargs.get('pageSize'):
-            body['pageSize'] = str(kwargs['pageSize'])
-        if kwargs.get('pageIndex'):
-            body['pageIndex'] = str(kwargs['pageIndex'])
+        if kwargs.get("ids"):
+            body["ids"] = kwargs["ids"]
+        if kwargs.get("codes"):
+            body["codes"] = kwargs["codes"]
+        if kwargs.get("objids"):
+            body["objids"] = kwargs["objids"]
+        if kwargs.get("name"):
+            body["name"] = kwargs["name"]
+        if kwargs.get("dr"):
+            body["dr"] = kwargs["dr"]
+        if kwargs.get("enable"):
+            body["enable"] = kwargs["enable"]
+        if kwargs.get("pubts"):
+            body["pubts"] = kwargs["pubts"]
+        if kwargs.get("parentId"):
+            body["parentId"] = kwargs["parentId"]
+        if kwargs.get("parentCode"):
+            body["parentCode"] = kwargs["parentCode"]
+        if kwargs.get("orgDept"):
+            body["orgDept"] = kwargs["orgDept"]
+        if kwargs.get("sourceType"):
+            body["sourceType"] = kwargs["sourceType"]
+        if kwargs.get("externalOrg"):
+            body["externalOrg"] = kwargs["externalOrg"]
+        if kwargs.get("pageSize"):
+            body["pageSize"] = str(kwargs["pageSize"])
+        if kwargs.get("pageIndex"):
+            body["pageIndex"] = str(kwargs["pageIndex"])
 
         # 默认 funcTypeCode 为 orgunit
-        body.setdefault('funcTypeCode', kwargs.get('funcTypeCode', 'orgunit'))
+        body.setdefault("funcTypeCode", kwargs.get("funcTypeCode", "orgunit"))
 
         logger.info(f"批量查询组织：funcTypeCode={body.get('funcTypeCode')}, orgDept={kwargs.get('orgDept', '全部')}")
         result = self._http_post_raw(url, body)
         return self.check_response(result, "批量查询组织")
 
-    def format_org_info(self, data: Dict) -> str:
+    def format_org_info(self, data: dict) -> str:
         """
         格式化组织信息为可读文本
 
@@ -130,20 +127,20 @@ class OrgModule(BaseAPIClient):
         Returns:
             格式化的文本
         """
-        name_obj = data.get('name', {})
+        name_obj = data.get("name", {})
         if isinstance(name_obj, dict):
-            name = name_obj.get('zh_CN', '—')
+            name = name_obj.get("zh_CN", "—")
         else:
             name = str(name_obj)
 
-        shortname_obj = data.get('shortname', {})
+        shortname_obj = data.get("shortname", {})
         if isinstance(shortname_obj, dict):
-            shortname = shortname_obj.get('zh_CN', '—')
+            shortname = shortname_obj.get("zh_CN", "—")
         else:
-            shortname = str(shortname_obj) if shortname_obj else '—'
+            shortname = str(shortname_obj) if shortname_obj else "—"
 
         enable_map = {0: "未启用", 1: "启用", 2: "停用"}
-        enable = enable_map.get(data.get('enable', -1), '未知')
+        enable = enable_map.get(data.get("enable", -1), "未知")
 
         lines = [
             f"🏢 {name} ({data.get('code', '?')})",
@@ -158,7 +155,7 @@ class OrgModule(BaseAPIClient):
         ]
 
         # 组织类型信息
-        org_type = '部门' if data.get('orgtype') == 2 else ('组织' if data.get('orgtype') == 1 else '未知')
+        org_type = "部门" if data.get("orgtype") == 2 else ("组织" if data.get("orgtype") == 1 else "未知")
         lines.append(f"   组织类型：{org_type}")
 
         return "\n".join(lines)

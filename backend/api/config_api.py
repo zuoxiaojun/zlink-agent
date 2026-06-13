@@ -1,10 +1,17 @@
 """Config REST API — wraps config_manager and LLM_PROVIDERS."""
 
 from fastapi import APIRouter
-from backend.schemas.config import LLMConfig, YonSuiteConfig, AgentConfig, ConfigResponse, ProviderInfo
-from backend.llm_providers import LLM_PROVIDERS
+
 from agent import config_manager
 from agent.context_compactor import resolve_context_window
+from backend.llm_providers import LLM_PROVIDERS
+from backend.schemas.config import (
+    AgentConfig,
+    ConfigResponse,
+    LLMConfig,
+    ProviderInfo,
+    YonSuiteConfig,
+)
 
 router = APIRouter(prefix="/api/config", tags=["config"])
 

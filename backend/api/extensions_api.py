@@ -26,20 +26,21 @@ Design notes
   extensions.  New extensions are added by editing
   ``agent/extensions/__init__.py`` and restarting.
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from backend.schemas.extension import (
-    ExtensionInfo,
-    ExtensionToggle,
-    ExtensionReloadResult,
-)
 from agent import config_manager
 from agent.events.extensions import (
-    list_all_extensions,
-    list_active_extensions,
     apply_config_overrides,
+    list_active_extensions,
+    list_all_extensions,
+)
+from backend.schemas.extension import (
+    ExtensionInfo,
+    ExtensionReloadResult,
+    ExtensionToggle,
 )
 
 router = APIRouter(prefix="/api/extensions", tags=["extensions"])
@@ -97,8 +98,7 @@ def toggle_extension(name: str, body: ExtensionToggle) -> ExtensionInfo:
     if target is None:
         raise HTTPException(
             status_code=404,
-            detail=f"Extension {name!r} not found. Known: "
-                   f"{[e.name for e in list_all_extensions()]}",
+            detail=f"Extension {name!r} not found. Known: {[e.name for e in list_all_extensions()]}",
         )
 
     # Read current persisted list, update it, save, then apply.

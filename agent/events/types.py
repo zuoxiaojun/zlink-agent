@@ -22,17 +22,19 @@ Events that the agent loop checks for cancellation:
 
 Other events are pure observation; cancelling them has no effect.
 """
+
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from agent.events.bus import Event
 
 if TYPE_CHECKING:
-    from agent.core.llm_client import LLMResponse, ToolCallPayload
+    from agent.core.llm_client import LLMResponse
 
 
 # -- Session lifecycle --
+
 
 class SessionStartEvent(Event):
     """A new agent session is starting.
@@ -41,6 +43,7 @@ class SessionStartEvent(Event):
     endpoint after a session is created).  Carries the loaded history so
     extensions can inspect it (e.g. inject a topic header).
     """
+
     type = "session_start"
     session_id: str
     history: list[dict]
@@ -52,6 +55,7 @@ class SessionEndEvent(Event):
     Fired at the end of ``run_conversation`` regardless of outcome.
     Extensions can flush state, write logs, etc.
     """
+
     type = "session_end"
     session_id: str
     final_response: str
@@ -61,17 +65,20 @@ class SessionEndEvent(Event):
 
 # -- Per-turn events --
 
+
 class UserMessageEvent(Event):
     """A user message arrived.
 
     Extensions can modify ``content`` (e.g. add context, redact PII) or
     cancel to reject the message entirely (rare).
     """
+
     type = "user_message"
     content: str | list
 
 
 # -- LLM call events --
+
 
 class BeforeLLMCallEvent(Event):
     """Fired immediately before the LLM call.
@@ -81,9 +88,10 @@ class BeforeLLMCallEvent(Event):
     * modify ``api_kwargs`` (override temperature, model, etc.)
     * cancel to skip the call (e.g. to short-circuit with a cached answer)
     """
+
     type = "before_llm_call"
     model: str
-    messages: list[dict]    # full payload incl. system prompt
+    messages: list[dict]  # full payload incl. system prompt
     api_kwargs: dict
 
 
@@ -93,12 +101,14 @@ class AfterLLMCallEvent(Event):
     Read-only — extensions can inspect ``response`` but not modify it
     (M3's LLMProvider abstraction doesn't support re-injection yet).
     """
+
     type = "after_llm_call"
     model: str
-    response: "LLMResponse"
+    response: LLMResponse
 
 
 # -- Tool call events --
+
 
 class BeforeToolCallEvent(Event):
     """Fired immediately before a single tool executes.
@@ -108,6 +118,7 @@ class BeforeToolCallEvent(Event):
     * cancel to block execution; ``cancel_reason`` is returned as the
       tool result so the model sees a clean error.
     """
+
     type = "before_tool_call"
     tool_name: str
     args: dict
@@ -119,6 +130,7 @@ class AfterToolCallEvent(Event):
     Extensions may rewrite ``result`` (a JSON string).  Useful for
     log redaction, size caps, format conversion.
     """
+
     type = "after_tool_call"
     tool_name: str
     args: dict
@@ -126,6 +138,7 @@ class AfterToolCallEvent(Event):
 
 
 # -- Compaction events (M4) --
+
 
 class SessionBeforeCompactEvent(Event):
     """Fired inside ``compact_messages`` before the summary is finalised.
@@ -138,11 +151,12 @@ class SessionBeforeCompactEvent(Event):
     * write ``event.extra`` — a list of strings appended to the
       final summary.
     """
+
     type = "session_before_compact"
     old_messages: list[dict]
     summary: str
-    tracked_files: dict[str, str]   # path → contents (filled by core)
-    extra: list[str]                # extension contributions
+    tracked_files: dict[str, str]  # path → contents (filled by core)
+    extra: list[str]  # extension contributions
 
 
 __all__ = [

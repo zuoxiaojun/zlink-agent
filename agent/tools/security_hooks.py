@@ -12,10 +12,18 @@ logger = logging.getLogger(__name__)
 
 # Paths that no tool should write to under any circumstances
 _DENY_WRITE_PATHS = [
-    "/etc", "/sys", "/proc", "/dev", "/boot",
-    "/usr/lib", "/usr/bin", "/usr/sbin",
-    "/System", "/Library",
-    "~/.ssh", "~/.gnupg",
+    "/etc",
+    "/sys",
+    "/proc",
+    "/dev",
+    "/boot",
+    "/usr/lib",
+    "/usr/bin",
+    "/usr/sbin",
+    "/System",
+    "/Library",
+    "~/.ssh",
+    "~/.gnupg",
 ]
 
 # Dangerous shell patterns (defence-in-depth; terminal_tool has its own list)
@@ -36,6 +44,7 @@ def _security_before_hook(tool_name: str, args: dict) -> dict:
     path = args.get("path", "")
     if path and tool_name in ("write_file", "patch"):
         import os
+
         resolved = os.path.abspath(os.path.expanduser(path))
         for denied in _DENY_WRITE_PATHS:
             denied_expanded = os.path.abspath(os.path.expanduser(denied))

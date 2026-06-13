@@ -1,17 +1,35 @@
 """YonSuite generic API gateway."""
 
-from ..utils import get_client, tool_result, tool_error
+import json
 
-ALLOWED_METHODS = frozenset({
-    "query_sale_orders", "get_order_detail", "query_purchase_orders",
-    "get_purchase_order_detail", "query_current_stock", "query_products",
-    "query_customers", "query_vendors", "get_vendor_detail",
-    "query_production_orders", "get_production_order_detail",
-    "query_accbooks", "query_vouchers", "query_user_todos",
-    "query_opportunities", "get_org_detail", "query_org_units",
-    "format_order_info", "format_stock_info", "format_todo_info",
-    "format_production_order_info", "format_org_unit_info",
-})
+from ..utils import tool_error, tool_result
+
+ALLOWED_METHODS = frozenset(
+    {
+        "query_sale_orders",
+        "get_order_detail",
+        "query_purchase_orders",
+        "get_purchase_order_detail",
+        "query_current_stock",
+        "query_products",
+        "query_customers",
+        "query_vendors",
+        "get_vendor_detail",
+        "query_production_orders",
+        "get_production_order_detail",
+        "query_accbooks",
+        "query_vouchers",
+        "query_user_todos",
+        "query_opportunities",
+        "get_org_detail",
+        "query_org_units",
+        "format_order_info",
+        "format_stock_info",
+        "format_todo_info",
+        "format_production_order_info",
+        "format_org_unit_info",
+    }
+)
 
 schema = {
     "name": "ys_api",
@@ -62,6 +80,3 @@ def handle(client, arguments: dict) -> dict:
         return tool_result(data=result)
     except Exception as e:
         return tool_error(f"API 调用失败: {e}")
-
-
-import json

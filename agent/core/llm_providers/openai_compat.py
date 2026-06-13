@@ -10,19 +10,21 @@ This module is a 1:1 port of the M1 ``LLMClient`` — same retry logic,
 same streaming consumption, same reasoning_content extraction.  The
 behaviour is identical; only the class hierarchy changes.
 """
+
 from __future__ import annotations
 
 import logging
 import threading
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from openai import OpenAI
 
 from agent.core.llm_providers.base import (
     LLMProvider,
+    LLMProviderError,
     LLMResponse,
     ToolCallPayload,
-    LLMProviderError,
     chat_with_retry,
 )
 
@@ -122,7 +124,9 @@ class OpenAICompatProvider(LLMProvider):
             except Exception as e:
                 # Wrap so the retry loop can inspect.
                 raise LLMProviderError(
-                    str(e), transient=False, cause=e,
+                    str(e),
+                    transient=False,
+                    cause=e,
                 ) from e
 
         return chat_with_retry(
@@ -173,7 +177,8 @@ class OpenAICompatProvider(LLMProvider):
         stop_event: threading.Event | None,
     ) -> LLMResponse:
         response = self.client.chat.completions.create(
-            **api_kwargs, stream=True,
+            **api_kwargs,
+            stream=True,
             stream_options={"include_usage": True},
         )
         content = ""

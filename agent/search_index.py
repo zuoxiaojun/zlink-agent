@@ -5,12 +5,10 @@ The JSON files remain the source of truth for session loading; this index
 is write-only on save and read-only for search queries.
 """
 
-import json
 import logging
 import sqlite3
 import threading
 from datetime import datetime
-from pathlib import Path
 
 from agent.utils import DATA_DIR
 
@@ -57,7 +55,7 @@ def init_db():
 def _has_cjk(text: str) -> bool:
     """Check if text contains CJK characters."""
     for ch in text:
-        if '一' <= ch <= '鿿' or '　' <= ch <= '〿' or '＀' <= ch <= '￯':
+        if "一" <= ch <= "鿿" or "　" <= ch <= "〿" or "＀" <= ch <= "￯":
             return True
     return False
 
@@ -74,11 +72,11 @@ def _prepare_fts5_query(query: str) -> str:
         return ""
 
     # Escape FTS5 special characters
-    special = r'^' + '*' + '?' + '-' + '!' + '(' + ')' + '+' + '&' + '|' + '<' + '>' + '~' + '@'
+    special = r"^" + "*" + "?" + "-" + "!" + "(" + ")" + "+" + "&" + "|" + "<" + ">" + "~" + "@"
     for ch in special:
-        query = query.replace(ch, ' ')
+        query = query.replace(ch, " ")
 
-    query = ' '.join(query.split())  # collapse whitespace
+    query = " ".join(query.split())  # collapse whitespace
 
     if _has_cjk(query):
         # For CJK: join individual non-space characters with AND
@@ -93,7 +91,7 @@ def _prepare_fts5_query(query: str) -> str:
         # For non-CJK: wrap space-separated terms with AND
         terms = query.split()
         if len(terms) > 1:
-            return f'{" AND ".join(terms)}'
+            return f"{' AND '.join(terms)}"
         return query
 
 
@@ -208,14 +206,16 @@ def search(query: str, limit: int = 10) -> list[dict]:
             if sid in seen:
                 continue
             seen.add(sid)
-            results.append({
-                "session_id": sid,
-                "title": r[1] or "",
-                "updated_at": r[2] or "",
-                "message_count": r[3] or 0,
-                "role": r[4] or "",
-                "excerpt": r[5] or "",
-            })
+            results.append(
+                {
+                    "session_id": sid,
+                    "title": r[1] or "",
+                    "updated_at": r[2] or "",
+                    "message_count": r[3] or 0,
+                    "role": r[4] or "",
+                    "excerpt": r[5] or "",
+                }
+            )
             if len(results) >= limit:
                 break
 
@@ -254,14 +254,16 @@ def _like_fallback(query: str, limit: int = 10) -> list[dict]:
             if sid in seen:
                 continue
             seen.add(sid)
-            results.append({
-                "session_id": sid,
-                "title": r[1] or "",
-                "updated_at": r[2] or "",
-                "message_count": r[3] or 0,
-                "role": r[4] or "",
-                "excerpt": r[5] or "",
-            })
+            results.append(
+                {
+                    "session_id": sid,
+                    "title": r[1] or "",
+                    "updated_at": r[2] or "",
+                    "message_count": r[3] or 0,
+                    "role": r[4] or "",
+                    "excerpt": r[5] or "",
+                }
+            )
             if len(results) >= limit:
                 break
         return results

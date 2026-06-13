@@ -8,18 +8,19 @@ We test the three most likely things to break in a future refactor:
   sure ``SessionBeforeCompactEvent`` is published and extensions can
   augment the summary
 """
+
 from __future__ import annotations
 
 import json
-import pytest
+from pathlib import Path
 
 from agent.context_compactor import (
     CompactionSettings,
+    _extract_paths_from_text,
     compact_messages,
     estimate_message_tokens,
     estimate_tokens,
     track_files,
-    _extract_paths_from_text,
 )
 from agent.events import Extension, SessionBeforeCompactEvent
 from agent.events.bus import event_bus
@@ -39,16 +40,21 @@ def test_estimate_message_tokens_handles_strings_and_lists():
     """``estimate_message_tokens`` should accept both string and
     list content shapes — ChatPage sends list, AIAgent sends str."""
     msgs_str = [{"role": "user", "content": "hello there"}]
-    msgs_list = [{"role": "user", "content": [
-        {"type": "text", "text": "hello there"},
-    ]}]
+    msgs_list = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "hello there"},
+            ],
+        }
+    ]
     # Both should be > 0 and within an order of magnitude of each other
     s = estimate_message_tokens(msgs_str)
-    l = estimate_message_tokens(msgs_list)
+    lst = estimate_message_tokens(msgs_list)
     assert s > 0
-    assert l > 0
+    assert lst > 0
     # ratio should be reasonable — same text just wrapped differently
-    assert 0.5 < s / l < 2.0
+    assert 0.5 < s / lst < 2.0
 
 
 def test_track_files_extracts_paths_from_tool_calls(tmp_path):
@@ -66,10 +72,17 @@ def test_track_files_extracts_paths_from_tool_calls(tmp_path):
     try:
         msgs = [
             {"role": "user", "content": f"read {f1} and {f2}"},
-            {"role": "assistant", "content": "", "tool_calls": [{
-                "id": "c1", "type": "function",
-                "function": {"name": "read_file", "arguments": json.dumps({"path": f1})},
-            }]},
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {
+                        "id": "c1",
+                        "type": "function",
+                        "function": {"name": "read_file", "arguments": json.dumps({"path": f1})},
+                    }
+                ],
+            },
             {"role": "tool", "content": "# alpha\n# beta"},
         ]
         tracked = track_files(msgs)
@@ -113,9 +126,11 @@ def test_compact_messages_publishes_session_before_compact_event():
     ]
 
     captured: list[SessionBeforeCompactEvent] = []
+
     def _spy(evt):
         if isinstance(evt, SessionBeforeCompactEvent):
             captured.append(evt)
+
     event_bus.subscribe(_spy)
 
     def fake_summary(prompt: str) -> str:
@@ -129,8 +144,7 @@ def test_compact_messages_publishes_session_before_compact_event():
         event_bus=event_bus,
     )
     assert len(captured) == 1, (
-        f"compact_messages should publish exactly 1 event when forced; "
-        f"got {len(captured)}. new_summary={new_summary!r}"
+        f"compact_messages should publish exactly 1 event when forced; got {len(captured)}. new_summary={new_summary!r}"
     )
     evt = captured[0]
     # SessionBeforeCompactEvent has these fields per M4:
@@ -165,6 +179,7 @@ def test_compact_messages_extension_can_augment_summary():
             evt.extra.append("[AUGMENTED by extension]")
 
     from agent.events.extensions import register_extensions
+
     register_extensions([AugmentExt()])
 
     def fake_summary(prompt: str) -> str:
@@ -179,10 +194,4 @@ def test_compact_messages_extension_can_augment_summary():
     )
     assert new_summary is not None
     assert "BASE" in new_summary
-    assert "AUGMENTED by extension" in new_summary, (
-        f"extension append not folded in: {new_summary!r}"
-    )
-
-
-# Path import alias used by test_track_files_extracts_paths_from_tool_calls
-from pathlib import Path
+    assert "AUGMENTED by extension" in new_summary, f"extension append not folded in: {new_summary!r}"

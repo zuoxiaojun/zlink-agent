@@ -18,18 +18,20 @@ The ``anthropic`` package is NOT a hard dependency.  Importing this
 module works even when the package isn't installed; only calling
 :meth:`AnthropicProvider.chat` raises a clear error.
 """
+
 from __future__ import annotations
 
 import json
 import logging
 import threading
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from agent.core.llm_providers.base import (
     LLMProvider,
+    LLMProviderError,
     LLMResponse,
     ToolCallPayload,
-    LLMProviderError,
     chat_with_retry,
 )
 
@@ -45,11 +47,13 @@ def _anthropic_tools_to_openai(tools: list[dict]) -> list[dict]:
     out = []
     for t in tools:
         fn = t.get("function", {})
-        out.append({
-            "name": fn.get("name", ""),
-            "description": fn.get("description", ""),
-            "input_schema": fn.get("parameters", {"type": "object", "properties": {}}),
-        })
+        out.append(
+            {
+                "name": fn.get("name", ""),
+                "description": fn.get("description", ""),
+                "input_schema": fn.get("parameters", {"type": "object", "properties": {}}),
+            }
+        )
     return out
 
 
@@ -69,11 +73,13 @@ def _anthropic_response_to_llm(response: Any) -> LLMResponse:
         if btype == "text":
             text_parts.append(block.text)
         elif btype == "tool_use":
-            tool_calls.append(ToolCallPayload(
-                id=block.id,
-                name=block.name,
-                arguments=json.dumps(block.input or {}, ensure_ascii=False),
-            ))
+            tool_calls.append(
+                ToolCallPayload(
+                    id=block.id,
+                    name=block.name,
+                    arguments=json.dumps(block.input or {}, ensure_ascii=False),
+                )
+            )
         elif btype == "thinking":
             # Extended thinking block (Claude 4)
             thinking_text = getattr(block, "thinking", None) or getattr(block, "text", None)
@@ -131,11 +137,13 @@ def _messages_to_anthropic(messages: list[dict]) -> list[dict]:
         content = m.get("content", "")
         if role == "tool":
             # Batch consecutive tool results into one user message
-            pending_tool_results.append({
-                "type": "tool_result",
-                "tool_use_id": m.get("tool_call_id", ""),
-                "content": content if isinstance(content, str) else str(content),
-            })
+            pending_tool_results.append(
+                {
+                    "type": "tool_result",
+                    "tool_use_id": m.get("tool_call_id", ""),
+                    "content": content if isinstance(content, str) else str(content),
+                }
+            )
             continue
         if pending_tool_results:
             out.append({"role": "user", "content": pending_tool_results})
@@ -150,12 +158,14 @@ def _messages_to_anthropic(messages: list[dict]) -> list[dict]:
                     inp = json.loads(fn.get("arguments") or "{}")
                 except (json.JSONDecodeError, TypeError):
                     inp = {}
-                blocks.append({
-                    "type": "tool_use",
-                    "id": tc.get("id", ""),
-                    "name": fn.get("name", ""),
-                    "input": inp,
-                })
+                blocks.append(
+                    {
+                        "type": "tool_use",
+                        "id": tc.get("id", ""),
+                        "name": fn.get("name", ""),
+                        "input": inp,
+                    }
+                )
             if blocks:
                 out.append({"role": "assistant", "content": blocks})
         elif role == "user":
@@ -196,8 +206,7 @@ class AnthropicProvider(LLMProvider):
                 import anthropic  # type: ignore[import-not-found]
             except ImportError as e:
                 raise LLMProviderError(
-                    "Anthropic provider requires the 'anthropic' package. "
-                    "Install it with: pip install anthropic",
+                    "Anthropic provider requires the 'anthropic' package. Install it with: pip install anthropic",
                     transient=False,
                 ) from e
             self._client = anthropic.Anthropic(
@@ -241,10 +250,15 @@ class AnthropicProvider(LLMProvider):
                 client = self._get_client()
                 if stream and stream_callback is not None:
                     return self._chat_stream(
-                        client=client, model=model, system=system_text,
-                        messages=anth_messages, temperature=temperature,
-                        max_tokens=anth_max, tools=anth_tools,
-                        stream_callback=stream_callback, stop_event=stop_event,
+                        client=client,
+                        model=model,
+                        system=system_text,
+                        messages=anth_messages,
+                        temperature=temperature,
+                        max_tokens=anth_max,
+                        tools=anth_tools,
+                        stream_callback=stream_callback,
+                        stop_event=stop_event,
                     )
                 resp = client.messages.create(
                     model=model,
@@ -320,7 +334,7 @@ class AnthropicProvider(LLMProvider):
                         }
                     elif btype == "thinking":
                         # No-op; we'll get the text via deltas
-                        current_block_idx = event.index
+                        pass
                 elif etype == "content_block_delta":
                     delta = event.delta
                     dtype = getattr(delta, "type", None)

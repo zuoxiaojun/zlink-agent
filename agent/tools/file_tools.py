@@ -6,16 +6,22 @@ Port of Hermes file_tools.py — simplified to direct filesystem operations.
 import fnmatch
 import os
 import re
-import json
 from pathlib import Path
 
-from agent.tools.registry import registry, tool_result, tool_error
+from agent.tools.registry import registry, tool_error, tool_result
 
 # Sensitive paths that tools should never write to
 _DENY_PATHS = [
-    "/etc", "/sys", "/proc", "/dev", "/boot",
-    "/usr/lib", "/usr/bin", "/usr/sbin",
-    "/System", "/Library",
+    "/etc",
+    "/sys",
+    "/proc",
+    "/dev",
+    "/boot",
+    "/usr/lib",
+    "/usr/bin",
+    "/usr/sbin",
+    "/System",
+    "/Library",
 ]
 
 _MAX_READ_CHARS = 100_000
@@ -109,7 +115,7 @@ def _handle_patch(args: dict) -> str:
     old_string = args.get("old_string", "")
     new_string = args.get("new_string", "")
     replace_all = args.get("replace_all", False)
-    edits = args.get("edits", None)
+    edits = args.get("edits")
 
     if not path:
         return tool_error("path is required")
@@ -182,7 +188,7 @@ def _handle_patch(args: dict) -> str:
 def _handle_search_files(args: dict) -> str:
     pattern = args.get("pattern", "")
     search_path = args.get("path", ".")
-    file_glob = args.get("file_glob", None)
+    file_glob = args.get("file_glob")
     limit = int(args.get("limit", 50))
     context_lines = int(args.get("context_lines", 0))
     ignore_case = args.get("ignore_case", False)
@@ -210,15 +216,17 @@ def _handle_search_files(args: dict) -> str:
                 all_lines = fpath.read_text(encoding="utf-8").splitlines()
                 for i, line in enumerate(all_lines):
                     if compiled.search(line):
-                        ctx_before = all_lines[max(0, i - context_lines):i]
-                        ctx_after = all_lines[i + 1:i + 1 + context_lines]
-                        matches.append({
-                            "path": str(fpath.relative_to(root)),
-                            "line": i + 1,
-                            "content": line.strip(),
-                            "context_before": ctx_before if context_lines else None,
-                            "context_after": ctx_after if context_lines else None,
-                        })
+                        ctx_before = all_lines[max(0, i - context_lines) : i]
+                        ctx_after = all_lines[i + 1 : i + 1 + context_lines]
+                        matches.append(
+                            {
+                                "path": str(fpath.relative_to(root)),
+                                "line": i + 1,
+                                "content": line.strip(),
+                                "context_before": ctx_before if context_lines else None,
+                                "context_after": ctx_after if context_lines else None,
+                            }
+                        )
                         if len(matches) >= limit:
                             break
             except (UnicodeDecodeError, OSError):
@@ -255,7 +263,7 @@ def _handle_ls(args: dict) -> str:
         return tool_error(f"Cannot list directory: {e}")
 
     result = []
-    for entry in entries[:min(limit, _MAX_LS_ENTRIES)]:
+    for entry in entries[: min(limit, _MAX_LS_ENTRIES)]:
         try:
             info = {
                 "name": entry.name,
@@ -281,7 +289,11 @@ READ_FILE_SCHEMA = {
         "type": "object",
         "properties": {
             "path": {"type": "string", "description": "Path to the file to read"},
-            "offset": {"type": "integer", "description": "Starting line number (1-based)", "default": 1},
+            "offset": {
+                "type": "integer",
+                "description": "Starting line number (1-based)",
+                "default": 1,
+            },
             "limit": {"type": "integer", "description": "Number of lines to read", "default": 500},
         },
         "required": ["path"],
@@ -315,7 +327,11 @@ PATCH_SCHEMA = {
             "path": {"type": "string", "description": "Path to the file to edit"},
             "old_string": {"type": "string", "description": "Text to replace (single-edit mode)"},
             "new_string": {"type": "string", "description": "Replacement text (single-edit mode)"},
-            "replace_all": {"type": "boolean", "description": "Replace all occurrences", "default": False},
+            "replace_all": {
+                "type": "boolean",
+                "description": "Replace all occurrences",
+                "default": False,
+            },
             "edits": {
                 "type": "array",
                 "description": "Batch: array of {old_string, new_string} objects applied in order",
@@ -341,9 +357,20 @@ SEARCH_FILES_SCHEMA = {
         "properties": {
             "pattern": {"type": "string", "description": "Regex pattern to search for"},
             "path": {"type": "string", "description": "Directory to search in", "default": "."},
-            "file_glob": {"type": "string", "description": "Optional file glob filter (e.g. '*.py')"},
-            "context_lines": {"type": "integer", "description": "Lines of context around matches", "default": 0},
-            "ignore_case": {"type": "boolean", "description": "Case-insensitive matching", "default": False},
+            "file_glob": {
+                "type": "string",
+                "description": "Optional file glob filter (e.g. '*.py')",
+            },
+            "context_lines": {
+                "type": "integer",
+                "description": "Lines of context around matches",
+                "default": 0,
+            },
+            "ignore_case": {
+                "type": "boolean",
+                "description": "Case-insensitive matching",
+                "default": False,
+            },
             "limit": {"type": "integer", "description": "Max results", "default": 50},
         },
         "required": ["pattern"],
@@ -364,7 +391,19 @@ LS_SCHEMA = {
 }
 
 registry.register(name="read_file", toolset="file", schema=READ_FILE_SCHEMA, handler=_handle_read_file, emoji="📖")
-registry.register(name="write_file", toolset="file", schema=WRITE_FILE_SCHEMA, handler=_handle_write_file, emoji="✏️")
+registry.register(
+    name="write_file",
+    toolset="file",
+    schema=WRITE_FILE_SCHEMA,
+    handler=_handle_write_file,
+    emoji="✏️",
+)
 registry.register(name="patch", toolset="file", schema=PATCH_SCHEMA, handler=_handle_patch, emoji="🔧")
-registry.register(name="search_files", toolset="file", schema=SEARCH_FILES_SCHEMA, handler=_handle_search_files, emoji="🔍")
+registry.register(
+    name="search_files",
+    toolset="file",
+    schema=SEARCH_FILES_SCHEMA,
+    handler=_handle_search_files,
+    emoji="🔍",
+)
 registry.register(name="ls", toolset="file", schema=LS_SCHEMA, handler=_handle_ls, emoji="📂")

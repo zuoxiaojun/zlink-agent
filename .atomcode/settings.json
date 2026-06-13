@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "PreToolUse": {
+      "envGuard": {
+        "match": "Bash",
+        "paths": [".env"],
+        "command": "! [[ \"$ATOMCODE_TOOL_INPUT\" =~ \\.env ]] || echo '[Hook] BLOCKED: .env files contain secrets — use .env.example instead'"
+      }
+    },
+    "PostToolUse": {
+      "eslintFix": {
+        "match": "Edit|Write",
+        "paths": ["web/src/"],
+        "command": "cd web && npx eslint --fix src/ 2>/dev/null || true"
+      },
+      "pytestRun": {
+        "match": "Edit|Write",
+        "paths": ["agent/", "backend/", "tests/"],
+        "command": "cd /Users/zuoxiaojun/claudeproject/YS-Agent && python -m pytest tests/ -x --no-header -q 2>&1 | tail -5"
+      }
+    }
+  }
+}

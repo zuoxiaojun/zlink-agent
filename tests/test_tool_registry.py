@@ -6,12 +6,14 @@ filesystem / shell / network, so we want to know immediately if a
 refactor breaks the ``__block__`` protocol or the after-hook
 result-rewriting contract.
 """
+
 from __future__ import annotations
 
 import json
+
 import pytest
 
-from agent.tools.registry import registry, ToolRegistry
+from agent.tools.registry import registry
 
 
 @pytest.fixture(autouse=True)
@@ -81,6 +83,7 @@ def test_dispatch_unknown_tool_returns_error():
 def test_before_hook_can_block_dispatch():
     """A before-hook returning ``__block__: True`` must short-circuit
     dispatch and return a structured error."""
+
     def block_hook(tool_name, args):
         if tool_name == "test_block":
             return {**args, "__block__": True, "__reason__": "test blocked"}
@@ -100,6 +103,7 @@ def test_before_hook_can_block_dispatch():
 def test_before_hook_can_modify_args():
     """A before-hook can rewrite the args dict before the handler
     sees them.  This is how audit / redaction hooks work."""
+
     def rewrite_hook(tool_name, args):
         if tool_name == "test_rewrite":
             return {**args, "msg": args.get("msg", "") + " [rewritten]"}
@@ -118,6 +122,7 @@ def test_before_hook_can_modify_args():
 def test_after_hook_can_modify_result():
     """An after-hook can rewrite the result string the handler
     returned.  Used by sanitisation / log redaction."""
+
     def strip_after(tool_name, args, result):
         if tool_name == "test_strip":
             data = json.loads(result)

@@ -32,17 +32,19 @@ The new way (recommended for new code)::
     provider = get_provider("OpenAI", api_key="sk-...")
     response = provider.chat(model="gpt-4o", messages=[...])
 """
+
 from __future__ import annotations
 
 import logging
 import threading
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from agent.core.llm_providers.base import (
     LLMProvider,
+    LLMProviderError,
     LLMResponse,
     ToolCallPayload,
-    LLMProviderError,
 )
 from agent.core.llm_providers.openai_compat import OpenAICompatProvider
 
@@ -55,6 +57,7 @@ __all__ = ["LLMClient", "LLMResponse", "ToolCallPayload"]
 def _is_transient_error(error: BaseException) -> bool:
     """Heuristic: which exceptions are worth retrying?"""
     from agent.core.llm_providers.base import is_transient_error
+
     return is_transient_error(error)
 
 
@@ -63,6 +66,7 @@ def _extract_reasoning(msg: Any) -> str | None:
     models, etc.).  Kept here for backward compatibility — M3 native
     path uses :func:`agent.core.llm_providers.openai_compat._extract_reasoning`."""
     from agent.core.llm_providers.openai_compat import _extract_reasoning
+
     return _extract_reasoning(msg)
 
 

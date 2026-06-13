@@ -9,9 +9,8 @@ The ``client`` fixture redirects ``agent.config_manager`` to a
 temp file so the tests don't pollute the real ``data/config.json``
 on the developer's machine.
 """
-from __future__ import annotations
 
-import json
+from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
@@ -28,14 +27,16 @@ def client(isolated_config, monkeypatch):
     # Re-register the built-in extensions that
     # ``agent.agent`` registered at import time — the autouse
     # ``clean_extensions`` fixture cleared them.
-    from agent.extensions import register_built_in_extensions
     from agent.events.extensions import apply_config_overrides
+    from agent.extensions import register_built_in_extensions
+
     register_built_in_extensions()
     # Apply the (empty) disabled list from the isolated config so
     # the runtime state matches what config says.
     apply_config_overrides([])
 
     from backend.main import app
+
     with TestClient(app) as c:
         yield c
 
@@ -43,6 +44,7 @@ def client(isolated_config, monkeypatch):
 # ────────────────────────────────────────────────────────────────────
 # 1) GET /api/extensions — 列出全部
 # ────────────────────────────────────────────────────────────────────
+
 
 def test_list_extensions_returns_built_ins(client):
     """GET /api/extensions must return at least log-everything +
@@ -80,6 +82,7 @@ def test_list_active_only_returns_enabled(client):
 # ────────────────────────────────────────────────────────────────────
 # 2) PUT /api/extensions/{name}/toggle — runtime toggle
 # ────────────────────────────────────────────────────────────────────
+
 
 def test_toggle_extension_disables_it(client):
     """PUT /api/extensions/{name}/toggle with enabled=False must
@@ -133,6 +136,7 @@ def test_toggle_unknown_extension_returns_404(client):
 # 3) POST /api/extensions/reload
 # ────────────────────────────────────────────────────────────────────
 
+
 def test_reload_extensions_returns_now_active_and_disabled(client):
     """POST /api/extensions/reload should return a body with
     now_active and now_disabled lists (possibly empty)."""
@@ -148,6 +152,7 @@ def test_reload_extensions_returns_now_active_and_disabled(client):
 # ────────────────────────────────────────────────────────────────────
 # 4) Health check — fast smoke that the whole FastAPI app boots
 # ────────────────────────────────────────────────────────────────────
+
 
 def test_health_check(client):
     """GET /api/health is a 1-line smoke test for the whole app."""

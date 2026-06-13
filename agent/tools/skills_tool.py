@@ -9,7 +9,7 @@ from pathlib import Path
 
 import yaml
 
-from agent.tools.registry import registry, tool_result, tool_error
+from agent.tools.registry import registry, tool_error, tool_result
 from agent.utils import DATA_DIR, atomic_json_write
 
 logger = logging.getLogger(__name__)
@@ -32,13 +32,15 @@ def _load_skill_index() -> list[dict]:
         try:
             content = skill_file.read_text(encoding="utf-8")
             meta = _parse_frontmatter(content)
-            skills.append({
-                "name": meta.get("name", entry.name),
-                "description": meta.get("description", ""),
-                "version": meta.get("version", "1.0.0"),
-                "tags": meta.get("metadata", {}).get("hermes", {}).get("tags", []),
-                "path": str(skill_file),
-            })
+            skills.append(
+                {
+                    "name": meta.get("name", entry.name),
+                    "description": meta.get("description", ""),
+                    "version": meta.get("version", "1.0.0"),
+                    "tags": meta.get("metadata", {}).get("hermes", {}).get("tags", []),
+                    "path": str(skill_file),
+                }
+            )
         except Exception as e:
             logger.warning("Failed to load skill %s: %s", entry.name, e)
     return skills
@@ -117,6 +119,7 @@ def _load_active_skills() -> list[str]:
         return []
     try:
         import json
+
         return json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return []
@@ -281,6 +284,7 @@ def _handle_skill_install(args: dict) -> str:
     # Security scan on SKILL.md body (strip frontmatter)
     body = content.split("---", 2)[2].strip() if content.count("---") >= 2 else content
     from agent.fact_memory import _scan_content as _scan_threats
+
     scan_err = _scan_threats(body)
     if scan_err:
         return tool_error(f"安全扫描未通过: {scan_err}")
@@ -344,7 +348,7 @@ SKILL_INSTALL_SCHEMA = {
             },
             "files": {
                 "type": "object",
-                "description": "可选附属文件字典 {文件名: 文件内容}，如 {\"techniques.md\": \"...\"}",
+                "description": '可选附属文件字典 {文件名: 文件内容}，如 {"techniques.md": "..."}',
                 "additionalProperties": {"type": "string"},
             },
         },

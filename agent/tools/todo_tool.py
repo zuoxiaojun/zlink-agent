@@ -7,7 +7,7 @@ Persistence to DATA_DIR / "todos.json".
 import json
 import logging
 
-from agent.tools.registry import registry, tool_result, tool_error
+from agent.tools.registry import registry, tool_error, tool_result
 from agent.utils import DATA_DIR, atomic_json_write
 
 logger = logging.getLogger(__name__)

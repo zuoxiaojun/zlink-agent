@@ -32,11 +32,11 @@ What extensions cannot do
 * Persist state across sessions without going through
   ``fact_memory`` / ``memory_manager`` — extensions are not given a DB.
 """
+
 from __future__ import annotations
 
-import inspect
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
 
 from agent.events.bus import Event, EventBus, event_bus
 
@@ -78,13 +78,13 @@ class Extension:
 
 # Map event type → handler name suffix (after "on_")
 _EVENT_TYPE_TO_HANDLER = {
-    "session_start":          "on_session_start",
-    "session_end":            "on_session_end",
-    "user_message":           "on_user_message",
-    "before_llm_call":        "on_before_llm_call",
-    "after_llm_call":         "on_after_llm_call",
-    "before_tool_call":       "on_before_tool_call",
-    "after_tool_call":        "on_after_tool_call",
+    "session_start": "on_session_start",
+    "session_end": "on_session_end",
+    "user_message": "on_user_message",
+    "before_llm_call": "on_before_llm_call",
+    "after_llm_call": "on_after_llm_call",
+    "before_tool_call": "on_before_tool_call",
+    "after_tool_call": "on_after_tool_call",
     "session_before_compact": "on_session_before_compact",
 }
 
@@ -141,8 +141,10 @@ class ExtensionRunner:
             except Exception:
                 logger.exception(
                     "Extension %r handler for %s failed",
-                    self.extension.name, event_type,
+                    self.extension.name,
+                    event_type,
                 )
+
         return dispatch
 
     def shutdown(self) -> None:

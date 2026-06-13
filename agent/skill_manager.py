@@ -8,8 +8,8 @@ import json
 import logging
 from pathlib import Path
 
+from agent.tools.skills_tool import SKILLS_DIR, _get_skill_content, _load_skill_index
 from agent.utils import DATA_DIR, atomic_json_write
-from agent.tools.skills_tool import SKILLS_DIR, _load_skill_index, _get_skill_content
 
 logger = logging.getLogger(__name__)
 
@@ -98,8 +98,7 @@ def get_active_instructions() -> str:
     return (
         "\n\n## 已启用的技能\n\n"
         "你已启用以下技能。当用户的问题涉及某个技能领域时，"
-        "使用 `skill_view` 加载该技能的完整指令并严格遵循：\n\n"
-        + "\n".join(lines)
+        "使用 `skill_view` 加载该技能的完整指令并严格遵循：\n\n" + "\n".join(lines)
     )
 
 
@@ -115,8 +114,8 @@ def _chinese_keywords(text: str) -> set[str]:
         results.add(cleaned)
     # Add overlapping 2-char n-grams (covers Chinese without word segmentation)
     for i in range(len(cleaned) - 1):
-        chunk = cleaned[i:i+2]
-        if chunk.isalnum() or any('一' <= c <= '鿿' for c in chunk):
+        chunk = cleaned[i : i + 2]
+        if chunk.isalnum() or any("一" <= c <= "鿿" for c in chunk):
             results.add(chunk)
     return results
 
@@ -168,6 +167,7 @@ def uninstall_skill(name: str) -> bool:
     if not target.exists():
         return False
     import shutil
+
     shutil.rmtree(target)
     # Remove from active list
     active = _load_active()
@@ -182,8 +182,9 @@ def install_skill_from_zip(zip_path: Path) -> str | None:
     """Extract & install a skill from a zip archive. Returns skill name or None."""
     import shutil
     import tempfile
-    import yaml
     import zipfile
+
+    import yaml
 
     try:
         with tempfile.TemporaryDirectory() as tmp:
@@ -205,6 +206,6 @@ def install_skill_from_zip(zip_path: Path) -> str | None:
                     logger.info("Skill installed: %s", meta_name)
                     return meta_name
             return None
-    except Exception as e:
+    except Exception:
         logger.exception("Skill install failed")
         raise

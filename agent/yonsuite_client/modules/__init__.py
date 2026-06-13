@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 YonSuite 功能模块包
 
@@ -17,26 +16,26 @@ YonSuite 功能模块包
 """
 
 from .base import BaseAPIClient
-from .sales import SalesModule
-from .purchase import PurchaseModule
-from .stock import StockModule
-from .customer import CustomerModule
-from .vendor import VendorModule
-from .production import ProductionModule
-from .todo import TodoModule, TodoItem
-from .voucher import VoucherModule
 from .crm import CrmModule
+from .customer import CustomerModule
+from .production import ProductionModule
+from .purchase import PurchaseModule
+from .sales import SalesModule
+from .stock import StockModule
+from .todo import TodoItem, TodoModule
+from .vendor import VendorModule
+from .voucher import VoucherModule
 
 __all__ = [
-    'BaseAPIClient',
-    'SalesModule',
-    'PurchaseModule',
-    'StockModule',
-    'CustomerModule',
-    'VendorModule',
-    'ProductionModule',
-    'TodoModule',
-    'TodoItem',
-    'VoucherModule',
-    'CrmModule',
+    "BaseAPIClient",
+    "SalesModule",
+    "PurchaseModule",
+    "StockModule",
+    "CustomerModule",
+    "VendorModule",
+    "ProductionModule",
+    "TodoModule",
+    "TodoItem",
+    "VoucherModule",
+    "CrmModule",
 ]

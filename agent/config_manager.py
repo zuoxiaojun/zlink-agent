@@ -5,9 +5,8 @@ so they survive browser refreshes and server restarts.
 """
 
 import json
-from pathlib import Path
 
-from agent.utils import atomic_json_write, DATA_DIR
+from agent.utils import DATA_DIR, atomic_json_write
 
 CONFIG_FILE = DATA_DIR / "config.json"
 

@@ -16,13 +16,11 @@ from datetime import datetime
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from agent import memory_manager, session_manager, skill_manager
 from agent.agent import AIAgent
 from agent.context_compactor import CompactionSettings
-from agent.slash_commands import parse_command, execute, list_commands
-from agent import session_manager
-from agent import memory_manager
-from agent import skill_manager
-from agent.tools.registry import registry, discover_tools
+from agent.slash_commands import execute, parse_command
+from agent.tools.registry import discover_tools
 from agent.utils import DATA_DIR
 
 logger = logging.getLogger(__name__)
@@ -52,12 +50,17 @@ def _generate_summary(messages: list[dict], api_key: str, base_url: str, model: 
 
     try:
         from openai import OpenAI
+
         client = OpenAI(api_key=api_key, base_url=base_url.rstrip("/"), timeout=15.0)
         resp = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "生成一段中文对话摘要，概括用户的核心需求和助手提供的关键信息。控制在100字以内。"},
-            ] + sample,
+                {
+                    "role": "system",
+                    "content": "生成一段中文对话摘要，概括用户的核心需求和助手提供的关键信息。控制在100字以内。",
+                },
+            ]
+            + sample,
             max_tokens=150,
             temperature=0.3,
         )
@@ -72,6 +75,7 @@ async def ws_chat(websocket: WebSocket, session_id: str):
 
     # Load config
     from agent import config_manager
+
     cfg = config_manager.load()
     api_key = cfg.get("llm_api_key", "")
     base_url = cfg.get("llm_base_url", "https://api.openai.com/v1")
@@ -138,17 +142,19 @@ async def ws_chat(websocket: WebSocket, session_id: str):
                     }
                     result = execute(cmd_name, cmd_args, ctx)
                     if result is None:
-                        await websocket.send_json({
-                            "type": "done",
-                            "final_response": f"未知命令: /{cmd_name}\n\n输入 **/help** 查看所有可用命令。",
-                            "messages": [],
-                            "api_calls": 0,
-                            "token_usage": None,
-                            "completed": True,
-                            "error": None,
-                            "session_id": session_id,
-                            "session_title": "",
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "done",
+                                "final_response": f"未知命令: /{cmd_name}\n\n输入 **/help** 查看所有可用命令。",
+                                "messages": [],
+                                "api_calls": 0,
+                                "token_usage": None,
+                                "completed": True,
+                                "error": None,
+                                "session_id": session_id,
+                                "session_title": "",
+                            }
+                        )
                     elif result == "__YS_CLEAR_SESSION__":
                         # Start a new session
                         sid = session_manager.create_session()
@@ -157,36 +163,47 @@ async def ws_chat(websocket: WebSocket, session_id: str):
                         history = []
                         existing_msgs = []
                         _session_usage.pop(old_id, None)
-                        await websocket.send_json({
-                            "type": "done",
-                            "final_response": "会话已清空，开始新对话。",
-                            "messages": [],
-                            "api_calls": 0,
-                            "token_usage": None,
-                            "completed": True,
-                            "error": None,
-                            "session_id": session_id,
-                            "session_title": "",
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "done",
+                                "final_response": "会话已清空，开始新对话。",
+                                "messages": [],
+                                "api_calls": 0,
+                                "token_usage": None,
+                                "completed": True,
+                                "error": None,
+                                "session_id": session_id,
+                                "session_title": "",
+                            }
+                        )
                     else:
-                        await websocket.send_json({
-                            "type": "done",
-                            "final_response": result,
-                            "messages": [],
-                            "api_calls": 0,
-                            "token_usage": None,
-                            "completed": True,
-                            "error": None,
-                            "session_id": session_id,
-                            "session_title": "",
-                        })
+                        await websocket.send_json(
+                            {
+                                "type": "done",
+                                "final_response": result,
+                                "messages": [],
+                                "api_calls": 0,
+                                "token_usage": None,
+                                "completed": True,
+                                "error": None,
+                                "session_id": session_id,
+                                "session_title": "",
+                            }
+                        )
                     continue
                 # --- end slash command ---
 
                 await _run_agent(
-                    websocket, session_id, content, history,
-                    api_key, base_url, model, max_iterations,
-                    existing_msgs, compaction_settings,
+                    websocket,
+                    session_id,
+                    content,
+                    history,
+                    api_key,
+                    base_url,
+                    model,
+                    max_iterations,
+                    existing_msgs,
+                    compaction_settings,
                 )
                 # After agent finishes, update history with new messages
                 updated = session_manager.load_session(session_id) or []
@@ -291,8 +308,7 @@ async def _run_agent(
                 if role in ("assistant", "tool"):
                     all_msgs.append(msg)
             if result.get("final_response") and not any(
-                m.get("role") == "assistant" and m.get("content") == result["final_response"]
-                for m in all_msgs
+                m.get("role") == "assistant" and m.get("content") == result["final_response"] for m in all_msgs
             ):
                 all_msgs.append({"role": "assistant", "content": result["final_response"]})
 
@@ -300,29 +316,41 @@ async def _run_agent(
             session_manager.save_session(session_id, all_msgs, title)
 
             # Generate summary if enough assistant messages
-            asst_count = len([m for m in all_msgs if m.get("role") == "assistant" and isinstance(m.get("content"), str) and m["content"]])
+            asst_count = len(
+                [
+                    m
+                    for m in all_msgs
+                    if m.get("role") == "assistant" and isinstance(m.get("content"), str) and m["content"]
+                ]
+            )
             if asst_count >= 2:
                 summary = _generate_summary(all_msgs, api_key, base_url, model)
                 memory_manager.store_conversation_summary(session_id, title, all_msgs, summary=summary)
 
-            loop.call_soon_threadsafe(queue.put_nowait, {
-                "type": "done",
-                "final_response": result.get("final_response", ""),
-                "messages": result.get("messages", []),
-                "api_calls": result.get("api_calls", 0),
-                "token_usage": result.get("token_usage"),
-                "completed": result.get("completed", False),
-                "error": result.get("error"),
-                "session_id": session_id,
-                "session_title": title,
-            })
+            loop.call_soon_threadsafe(
+                queue.put_nowait,
+                {
+                    "type": "done",
+                    "final_response": result.get("final_response", ""),
+                    "messages": result.get("messages", []),
+                    "api_calls": result.get("api_calls", 0),
+                    "token_usage": result.get("token_usage"),
+                    "completed": result.get("completed", False),
+                    "error": result.get("error"),
+                    "session_id": session_id,
+                    "session_title": title,
+                },
+            )
         except Exception as e:
             logger.exception("Agent execution failed")
-            loop.call_soon_threadsafe(queue.put_nowait, {
-                "type": "error",
-                "message": str(e),
-                "session_id": session_id,
-            })
+            loop.call_soon_threadsafe(
+                queue.put_nowait,
+                {
+                    "type": "error",
+                    "message": str(e),
+                    "session_id": session_id,
+                },
+            )
 
     # Start agent in thread pool
     future = loop.run_in_executor(None, run_sync)
@@ -338,7 +366,7 @@ async def _run_agent(
                     if data.get("type") == "stop":
                         stop_received = True
                         stop_event.set()
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     pass
                 except Exception:
                     break

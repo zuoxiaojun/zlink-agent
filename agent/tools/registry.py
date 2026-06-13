@@ -18,8 +18,9 @@ import ast
 import importlib
 import json
 import logging
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,13 @@ class ToolEntry:
     """Metadata for a single registered tool."""
 
     __slots__ = (
-        "name", "toolset", "schema", "handler", "check_fn", "description", "emoji",
+        "name",
+        "toolset",
+        "schema",
+        "handler",
+        "check_fn",
+        "description",
+        "emoji",
     )
 
     def __init__(
@@ -174,10 +181,12 @@ class ToolRegistry:
                         continue
                 except Exception:
                     continue
-            definitions.append({
-                "type": "function",
-                "function": entry.schema,
-            })
+            definitions.append(
+                {
+                    "type": "function",
+                    "function": entry.schema,
+                }
+            )
         return definitions
 
     def dispatch(self, name: str, args: dict) -> str:

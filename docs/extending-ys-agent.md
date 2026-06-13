@@ -29,7 +29,7 @@ register_extensions([HelloExtension()])
 class Extension:
     name: str = "unnamed"          # 给 log 用的标识
     enabled: bool = True            # False 时 runner 跳过
-    
+
     def on_event(self, event: Event) -> None:
         """通吃所有事件。typed handler 之后才跑。"""
         ...
@@ -105,13 +105,13 @@ audit_log = logging.getLogger("ys-agent.audit")
 class AuditExtension(Extension):
     name = "audit"
     enabled = True
-    
+
     def on_before_tool_call(self, event: BeforeToolCallEvent):
         audit_log.info("tool_call", extra={
             "tool": event.tool_name,
             "args": event.args,
         })
-    
+
     def on_after_tool_call(self, event: AfterToolCallEvent):
         audit_log.info("tool_result", extra={
             "tool": event.tool_name,
@@ -128,10 +128,10 @@ from agent.events import Extension, UserMessageEvent
 class PIIScrubber(Extension):
     name = "pii-scrubber"
     enabled = True
-    
+
     PHONE_RE = re.compile(r"1[3-9]\d{9}")
     ID_RE = re.compile(r"\d{17}[\dXx]")
-    
+
     def on_user_message(self, event: UserMessageEvent):
         if isinstance(event.content, str):
             text = event.content
@@ -148,7 +148,7 @@ from agent.events import Extension, BeforeToolCallEvent
 class DangerousOpBlocker(Extension):
     name = "dangerous-blocker"
     enabled = True
-    
+
     def on_before_tool_call(self, event: BeforeToolCallEvent):
         # write_file 不允许写 /etc /System /Library
         if event.tool_name in ("write_file", "patch"):
@@ -169,7 +169,7 @@ from agent.events import Extension, SessionBeforeCompactEvent
 class ProjectContextExtension(Extension):
     name = "project-context"
     enabled = True
-    
+
     def on_session_before_compact(self, event: SessionBeforeCompactEvent):
         # 从旧消息里抽 YonSuite 单据 ID
         import re

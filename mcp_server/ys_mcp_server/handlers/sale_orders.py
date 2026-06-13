@@ -4,7 +4,6 @@ from ..constants import SALE_STATUS_MAP
 from ..paginate import paginate
 from ..utils import r2, tool_result
 
-
 schema = {
     "name": "query_sale_orders",
     "description": "查询 YonSuite 销售订单。返回已解析的 29 字段记录，含税额自动计算、状态中文映射、币种嵌套解析。is_sum=False 返回逐行明细（含物料详情），is_sum=True 返回按订单汇总。",
@@ -28,8 +27,11 @@ def handle(client, arguments: dict) -> dict:
 
     def fetch(pi, ps):
         result = client.query_sale_orders(
-            page_index=pi, page_size=ps, isSum=is_sum,
-            date_from=date_from, date_to=date_to,
+            page_index=pi,
+            page_size=ps,
+            isSum=is_sum,
+            date_from=date_from,
+            date_to=date_to,
         )
         return result.get("data", {}).get("recordList", [])
 
@@ -46,19 +48,30 @@ def handle(client, arguments: dict) -> dict:
         grand_total += ori_sum
         grand_tax += calc_tax
         status_raw = r.get("nextStatus", "") or ""
-        parsed.append({
-            "code": r.get("code", ""), "vouchdate": str(r.get("vouchdate", ""))[:10],
-            "customer": r.get("agentId_name", ""),
-            "status": SALE_STATUS_MAP.get(status_raw, status_raw),
-            "skuCode": r.get("skuCode", ""), "skuName": r.get("skuName", ""),
-            "qty": r2(r.get("qty", 0)), "unitPrice": r2(r.get("oriTaxUnitPrice", 0)),
-            "oriSum": r2(ori_sum), "tax": r2(calc_tax),
-            "department": r.get("saleDepartmentId_name", ""),
-            "salesman": r.get("corpContactUserName", ""),
-            "warehouse": r.get("stockName", "") or None,
-        })
+        parsed.append(
+            {
+                "code": r.get("code", ""),
+                "vouchdate": str(r.get("vouchdate", ""))[:10],
+                "customer": r.get("agentId_name", ""),
+                "status": SALE_STATUS_MAP.get(status_raw, status_raw),
+                "skuCode": r.get("skuCode", ""),
+                "skuName": r.get("skuName", ""),
+                "qty": r2(r.get("qty", 0)),
+                "unitPrice": r2(r.get("oriTaxUnitPrice", 0)),
+                "oriSum": r2(ori_sum),
+                "tax": r2(calc_tax),
+                "department": r.get("saleDepartmentId_name", ""),
+                "salesman": r.get("corpContactUserName", ""),
+                "warehouse": r.get("stockName", "") or None,
+            }
+        )
 
     return tool_result(
-        data=f"销售订单查询结果（{len(parsed)} 条）", records=parsed,
-        summary={"recordCount": len(parsed), "grandTotal": r2(grand_total), "grandTax": r2(grand_tax)},
+        data=f"销售订单查询结果（{len(parsed)} 条）",
+        records=parsed,
+        summary={
+            "recordCount": len(parsed),
+            "grandTotal": r2(grand_total),
+            "grandTax": r2(grand_tax),
+        },
     )

@@ -9,8 +9,8 @@ Add new commands by decorating a handler with ``@register_command(...)``.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Callable
+from collections.abc import Callable
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,7 @@ def register_command(name: str, description: str, usage: str = ""):
     The handler receives ``(args_string: str, context: dict)`` where
     *context* carries ``config``, ``session_id``, ``token_usage``, etc.
     """
+
     def dec(fn: Callable[[str, dict], str]):
         _registry[name] = SlashCommand(
             name=name,
@@ -40,6 +41,7 @@ def register_command(name: str, description: str, usage: str = ""):
             handler=fn,
         )
         return fn
+
     return dec
 
 
@@ -76,6 +78,7 @@ def execute(command_name: str, args: str, context: dict) -> str | None:
 
 # ---- built-in commands -------------------------------------------------------
 
+
 @register_command("help", "显示所有可用命令", "/help")
 def _cmd_help(_args: str, _ctx: dict) -> str:
     lines = ["## 可用命令\n"]
@@ -91,6 +94,7 @@ def _cmd_model(args: str, ctx: dict) -> str:
         current = cfg.get("llm_model", "未知")
         manual_override = cfg.get("max_context_tokens", 0)
         from agent.context_compactor import resolve_context_window
+
         if manual_override > 0:
             window = manual_override
             source = "（手动设置）"
@@ -105,6 +109,7 @@ def _cmd_model(args: str, ctx: dict) -> str:
         )
 
     from agent import config_manager
+
     cfg = config_manager.load()
     new_model = args.strip()
     cfg["llm_model"] = new_model

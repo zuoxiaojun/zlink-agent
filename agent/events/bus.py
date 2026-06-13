@@ -25,11 +25,13 @@ loop is sync (single thread, called from a worker thread).  An async bus
 would require making the whole agent loop async — a 3-4 day rewrite for
 no current benefit.  Revisit if we ever move to async streaming.
 """
+
 from __future__ import annotations
 
 import logging
 import threading
-from typing import Any, Callable, Iterable
+from collections.abc import Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -105,8 +107,10 @@ class EventBus:
         """Register a handler.  Returns an unsubscribe function."""
         with self._lock:
             self._subscribers.append(handler)
+
         def _unsub() -> None:
             self.unsubscribe(handler)
+
         return _unsub
 
     def unsubscribe(self, handler: Subscriber) -> bool:
@@ -139,9 +143,7 @@ class EventBus:
             try:
                 handler(event)
             except Exception:
-                logger.exception(
-                    "Event handler %r failed for %s", handler, event.type
-                )
+                logger.exception("Event handler %r failed for %s", handler, event.type)
         return event
 
 

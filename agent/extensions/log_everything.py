@@ -9,11 +9,12 @@ This is the same pattern described in
 settings page has at least one always-on, observation-only extension
 that users can safely toggle to see the UI work.
 """
+
 from __future__ import annotations
 
 import logging
 
-from agent.events import Extension, Event
+from agent.events import Event, Extension
 
 logger = logging.getLogger("ys-agent.events")
 

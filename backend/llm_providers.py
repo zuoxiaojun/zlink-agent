@@ -15,7 +15,15 @@ adding an entry here — no Python code changes.
 LLM_PROVIDERS = {
     "OpenAI": {
         "base_url": "https://api.openai.com/v1",
-        "models": ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "o3", "o4-mini"],
+        "models": [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4.1",
+            "gpt-4.1-mini",
+            "gpt-4.1-nano",
+            "o3",
+            "o4-mini",
+        ],
         "api_key_label": "OpenAI API Key",
         "api_key_placeholder": "sk-...",
         "protocol": "openai_compat",
@@ -57,14 +65,24 @@ LLM_PROVIDERS = {
     },
     "硅基流动 (SiliconFlow)": {
         "base_url": "https://api.siliconflow.cn/v1",
-        "models": ["Qwen/Qwen2.5-72B-Instruct", "deepseek-ai/DeepSeek-V3", "deepseek-ai/DeepSeek-R1", "Pro/Qwen/Qwen2.5-7B-Instruct"],
+        "models": [
+            "Qwen/Qwen2.5-72B-Instruct",
+            "deepseek-ai/DeepSeek-V3",
+            "deepseek-ai/DeepSeek-R1",
+            "Pro/Qwen/Qwen2.5-7B-Instruct",
+        ],
         "api_key_label": "SiliconFlow API Key",
         "api_key_placeholder": "sk-...",
         "protocol": "openai_compat",
     },
     "OpenRouter": {
         "base_url": "https://openrouter.ai/api/v1",
-        "models": ["openai/gpt-4o", "anthropic/claude-sonnet-4", "deepseek/deepseek-chat", "qwen/qwen-coder-plus"],
+        "models": [
+            "openai/gpt-4o",
+            "anthropic/claude-sonnet-4",
+            "deepseek/deepseek-chat",
+            "qwen/qwen-coder-plus",
+        ],
         "api_key_label": "OpenRouter API Key",
         "api_key_placeholder": "sk-or-...",
         "protocol": "openai_compat",

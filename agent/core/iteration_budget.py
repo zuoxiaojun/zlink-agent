@@ -3,6 +3,7 @@
 Kept as a separate file so M3 can replace the simple counter with a
 token-budget version without touching the agent loop.
 """
+
 from __future__ import annotations
 
 

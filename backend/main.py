@@ -1,7 +1,6 @@
 """YS-Agent FastAPI backend — serves REST API + WebSocket for the React frontend."""
 
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -13,8 +12,8 @@ if str(_PROJECT_ROOT) not in sys.path:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.config import CORS_ORIGINS
 from agent.utils import DATA_DIR
+from backend.config import CORS_ORIGINS
 
 # Logging setup
 _LOG_DIR = DATA_DIR / "logs"
@@ -43,10 +42,9 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def on_startup():
-    from agent.utils import DATA_DIR
-    from agent import search_index
-    from agent import config_manager
+    from agent import config_manager, search_index
     from agent.tools.mcp_manager import connect_all_servers
+    from agent.utils import DATA_DIR
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     search_index.init_db()
@@ -54,6 +52,7 @@ async def on_startup():
         n = search_index.migrate_from_json()
         if n:
             import logging
+
             logging.getLogger(__name__).info("搜索索引迁移完成: %d 个会话", n)
 
     # Connect to enabled MCP servers in background
@@ -75,24 +74,26 @@ async def on_startup():
 
     if servers_cfg:
         import asyncio
+
         asyncio.ensure_future(connect_all_servers(servers_cfg))
 
 
 @app.on_event("shutdown")
 async def on_shutdown():
     from agent.tools.mcp_manager import disconnect_all_servers
+
     await disconnect_all_servers()
 
 
 # Register routers
-from backend.api.sessions import router as sessions_router
+from backend.api.chat import router as chat_router
 from backend.api.config_api import router as config_router
+from backend.api.extensions_api import router as extensions_router
+from backend.api.mcp_api import router as mcp_router
 from backend.api.memory_api import router as memory_router
+from backend.api.sessions import router as sessions_router
 from backend.api.skills_api import router as skills_router
 from backend.api.tools_api import router as tools_router
-from backend.api.chat import router as chat_router
-from backend.api.mcp_api import router as mcp_router
-from backend.api.extensions_api import router as extensions_router
 
 app.include_router(sessions_router)
 app.include_router(config_router)

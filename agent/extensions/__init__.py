@@ -22,12 +22,13 @@ state is persisted to ``config_manager.disabled_extensions`` and applied
 on the next call to
 :func:`agent.events.extensions.apply_config_overrides`.
 """
+
 from __future__ import annotations
 
 import logging
 
 from agent.events import Extension
-from agent.events.extensions import register_extensions, ExtensionRunner
+from agent.events.extensions import ExtensionRunner, register_extensions
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ logger = logging.getLogger(__name__)
 def _built_in_classes() -> list[type[Extension]]:
     from agent.extensions.log_everything import LogEverythingExtension
     from agent.extensions.security_event import SecurityEventExtension
+
     return [LogEverythingExtension, SecurityEventExtension]
 
 
@@ -63,8 +65,7 @@ def register_built_in_extensions() -> list[ExtensionRunner]:
     subscribed to the bus once.
     """
     runners = register_extensions(_ensure_instances())
-    logger.info("Built-in extensions registered: %d (%s)",
-                len(runners), [r.extension.name for r in runners])
+    logger.info("Built-in extensions registered: %d (%s)", len(runners), [r.extension.name for r in runners])
     return runners
 
 

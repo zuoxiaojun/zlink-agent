@@ -10,6 +10,7 @@ Doing it here means any entry point that imports ``AIAgent`` from
 ``agent.agent`` will end up with the extensions wired up — whether
 the entry point is ``backend/api/chat.py`` or a stand-alone script.
 """
+
 from agent.core.agent import AIAgent
 from agent.extensions import register_built_in_extensions
 
@@ -30,6 +31,7 @@ except Exception:  # pragma: no cover
 try:
     from agent import config_manager
     from agent.events.extensions import apply_config_overrides
+
     cfg = config_manager.load()
     disabled = cfg.get("disabled_extensions", [])
     if disabled:

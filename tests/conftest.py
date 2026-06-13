@@ -21,12 +21,11 @@ Design notes
   attribute (the AIAgent accepts any LLMClient; we replace it after
   construction).
 """
+
 from __future__ import annotations
 
 import json
-import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +42,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 # Event-bus isolation
 # ────────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture(autouse=True)
 def clean_extensions():
     """Wipe global extension state and event bus subscriptions.
@@ -53,10 +53,11 @@ def clean_extensions():
     """
     yield  # run the test first
     try:
+        from agent.events.bus import event_bus
         from agent.events.extensions import (
             shutdown_all_extensions,
         )
-        from agent.events.bus import event_bus
+
         # shutdown_all_extensions unsubscribes its own runners and
         # forgets instances.  We then explicitly clear any stragglers
         # that may have been subscribed via ``event_bus.subscribe``
@@ -76,6 +77,7 @@ def clean_extensions():
 # Config isolation
 # ────────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture
 def isolated_config(monkeypatch, tmp_path: Path):
     """Redirect ``agent.config_manager`` to a temp file.
@@ -85,6 +87,7 @@ def isolated_config(monkeypatch, tmp_path: Path):
     the persisted JSON directly.
     """
     from agent import config_manager
+
     fake_file = tmp_path / "config.json"
     fake_file.write_text(json.dumps({"disabled_extensions": []}))
 
@@ -102,10 +105,8 @@ def isolated_config(monkeypatch, tmp_path: Path):
     def _save(data: dict) -> None:
         fake_file.parent.mkdir(parents=True, exist_ok=True)
         from agent.utils import atomic_json_write
-        payload = {
-            k: data.get(k, v)
-            for k, v in config_manager._DEFAULT_CONFIG.items()
-        }
+
+        payload = {k: data.get(k, v) for k, v in config_manager._DEFAULT_CONFIG.items()}
         atomic_json_write(fake_file, payload)
 
     monkeypatch.setattr(config_manager, "CONFIG_FILE", fake_file)
@@ -117,6 +118,7 @@ def isolated_config(monkeypatch, tmp_path: Path):
 # ────────────────────────────────────────────────────────────────────
 # Mock LLM provider
 # ────────────────────────────────────────────────────────────────────
+
 
 class MockLLMProvider:
     """Drop-in stand-in for LLMProvider that returns scripted responses.
@@ -130,6 +132,7 @@ class MockLLMProvider:
 
     def __init__(self, responses: list | None = None):
         from agent.core.llm_providers import LLMResponse
+
         self._script = list(responses or [])
         self._fallback = LLMResponse(
             content="done",
@@ -138,7 +141,6 @@ class MockLLMProvider:
         self.call_count = 0
 
     def chat(self, **kwargs: Any):
-        from agent.core.llm_providers import LLMResponse
         self.call_count += 1
         if self._script:
             return self._script.pop(0)
@@ -148,19 +150,23 @@ class MockLLMProvider:
 def make_tool_call_response(tool_name: str, args: dict, call_id: str = "c1"):
     """Build a LLMResponse with a single tool call.  Test helper."""
     from agent.core.llm_providers import LLMResponse, ToolCallPayload
+
     return LLMResponse(
         content="",
-        tool_calls=[ToolCallPayload(
-            id=call_id,
-            name=tool_name,
-            arguments=json.dumps(args),
-        )],
+        tool_calls=[
+            ToolCallPayload(
+                id=call_id,
+                name=tool_name,
+                arguments=json.dumps(args),
+            )
+        ],
         usage={"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
     )
 
 
 def make_text_response(text: str = "done"):
     from agent.core.llm_providers import LLMResponse
+
     return LLMResponse(
         content=text,
         usage={"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},

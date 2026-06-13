@@ -525,14 +525,14 @@ body
 ```html
 <div class="slide slide-end">
   <div class="end-bg" style="background:url('assets/end-slide-ref.png') right center/60% auto no-repeat white;"></div>
-  
+
   <!-- 右上角圆点序列 -->
   <div class="step-dots">
     <div class="step-dot"></div>
     <div class="step-dot"></div>
     <div class="step-dot active"></div>
   </div>
-  
+
   <!-- 左侧文字区 -->
   <div class="end-text">
     <div class="end-slogan">
@@ -545,7 +545,7 @@ body
     <h2 class="end-title">谢谢观看</h2>
     <p class="end-subtitle">THANK YOU</p>
   </div>
-  
+
   <!-- 底部品牌位 -->
   <div class="brand-footer">
     <img src="data:image/png;base64,iVBORw0KGgoAAA..." class="brand-logo-img" alt="YonSuite">

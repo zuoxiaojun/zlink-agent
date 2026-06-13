@@ -1,16 +1,17 @@
 """MCP server management REST API."""
 
 from fastapi import APIRouter, HTTPException
-from backend.schemas.mcp import MCPServerConfig, MCPServerStatus, MCPTestResult
+
 from agent import config_manager
 from agent.tools.mcp_manager import (
+    _build_config_dict,
     connect_server,
     disconnect_server,
-    reload_all_servers,
     get_server_statuses,
+    reload_all_servers,
     test_server_connection,
-    _build_config_dict,
 )
+from backend.schemas.mcp import MCPServerConfig, MCPServerStatus, MCPTestResult
 
 router = APIRouter(prefix="/api/mcp", tags=["mcp"])
 
