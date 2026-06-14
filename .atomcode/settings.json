@@ -16,7 +16,7 @@
       "pytestRun": {
         "match": "Edit|Write",
         "paths": ["agent/", "backend/", "tests/"],
-        "command": "cd /Users/zuoxiaojun/claudeproject/YS-Agent && python -m pytest tests/ -x --no-header -q 2>&1 | tail -5"
+        "command": "cd /Users/zuoxiaojun/vibecoding/YS-Agent && python -m pytest tests/ -x --no-header -q 2>&1 | tail -5"
       }
     }
   }
