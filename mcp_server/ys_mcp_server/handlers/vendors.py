@@ -23,10 +23,12 @@ def handle(client, arguments: dict) -> dict:
     def fetch(pi, ps):
         return client.query_vendors(page_index=pi, page_size=ps).get("data", {}).get("recordList", [])
 
-    records = paginate(arguments, 500, fetch)
+    result = paginate(arguments, 500, fetch)
     if vendor_name:
         name_lower = vendor_name.lower()
-        records = [r for r in records if name_lower in parse_name(r.get("name")).lower()]
+        records = [r for r in result.records if name_lower in parse_name(r.get("name")).lower()]
+    else:
+        records = result.records
 
     parsed = []
     for r in records:
@@ -46,5 +48,6 @@ def handle(client, arguments: dict) -> dict:
     return tool_result(
         data=f"供应商查询结果（{len(parsed)} 条）",
         records=parsed,
+        note=result.note,
         summary={"recordCount": len(parsed)},
     )

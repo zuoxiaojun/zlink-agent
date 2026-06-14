@@ -36,13 +36,13 @@ def handle(client, arguments: dict) -> dict:
         )
 
     if product_name:
-        records = paginate({}, 500, fetch)
+        result = paginate({}, 500, fetch)
         name_lower = product_name.lower()
-        records = [r for r in records if name_lower in str(r.get("name", "")).lower()]
+        records = [r for r in result.records if name_lower in str(r.get("name", "")).lower()]
         if product_code:
-            records = [r for r in records if r.get("code") == product_code]
+            records = [r for r in result.records if r.get("code") == product_code]
     else:
-        records = paginate(arguments, 500, fetch)
+        result = paginate(arguments, 500, fetch)
 
     parsed = []
     for r in records:
@@ -63,5 +63,6 @@ def handle(client, arguments: dict) -> dict:
     return tool_result(
         data=f"物料查询结果（{len(parsed)} 条）",
         records=parsed,
+        note=result.note,
         summary={"recordCount": len(parsed)},
     )

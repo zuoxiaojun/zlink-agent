@@ -26,11 +26,11 @@ def handle(client, arguments: dict) -> dict:
     def fetch(pi, ps):
         return client.query_production_orders(page_index=pi, page_size=ps).get("data", {}).get("recordList", [])
 
-    records = paginate(arguments, 500, fetch)
+    result = paginate(arguments, 500, fetch)
     if date_from or date_to:
         records = [
             r
-            for r in records
+            for r in result.records
             if (
                 (not date_from or str(r.get("vouchdate", ""))[:10] >= date_from)
                 and (not date_to or str(r.get("vouchdate", ""))[:10] <= date_to)
@@ -60,5 +60,6 @@ def handle(client, arguments: dict) -> dict:
     return tool_result(
         data=f"生产订单查询结果（{len(parsed)} 条）",
         records=parsed,
+        note=result.note,
         summary={"recordCount": len(parsed)},
     )

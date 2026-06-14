@@ -35,11 +35,11 @@ def handle(client, arguments: dict) -> dict:
         )
         return result.get("data", {}).get("recordList", [])
 
-    records = paginate(arguments, 500, fetch)
+    result = paginate(arguments, 500, fetch)
     parsed = []
     grand_total = 0.0
     grand_tax = 0.0
-    for r in records:
+    for r in result.records:
         if r.get("code") == "合计":
             continue
         ori_sum = float(r.get("oriSum", 0) or 0)
@@ -69,6 +69,7 @@ def handle(client, arguments: dict) -> dict:
     return tool_result(
         data=f"销售订单查询结果（{len(parsed)} 条）",
         records=parsed,
+        note=result.note,
         summary={
             "recordCount": len(parsed),
             "grandTotal": r2(grand_total),

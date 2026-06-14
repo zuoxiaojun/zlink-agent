@@ -37,13 +37,15 @@ def handle(client, arguments: dict) -> dict:
         raw_data = result.get("data", [])
         return raw_data if isinstance(raw_data, list) else []
 
-    records = paginate(arguments, 500, fetch)
+    result = paginate(arguments, 500, fetch)
 
     if warehouse:
-        records = [r for r in records if warehouse in str(r.get("warehouse_name", ""))]
+        records = [r for r in result.records if warehouse in str(r.get("warehouse_name", ""))]
     if sku and not product_param:
         records = [
-            r for r in records if sku in str(r.get("productsku_code", "")) or sku in str(r.get("product_code", ""))
+            r
+            for r in result.records
+            if sku in str(r.get("productsku_code", "")) or sku in str(r.get("product_code", ""))
         ]
 
     parsed = []
@@ -70,6 +72,7 @@ def handle(client, arguments: dict) -> dict:
     return tool_result(
         data=f"库存查询结果（{len(parsed)} 条）",
         records=parsed,
+        note=result.note,
         summary={
             "recordCount": len(parsed),
             "grandCurrentQty": r2(grand_current),

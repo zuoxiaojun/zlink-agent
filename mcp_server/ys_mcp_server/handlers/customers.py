@@ -23,10 +23,12 @@ def handle(client, arguments: dict) -> dict:
     def fetch(pi, ps):
         return client.query_customers(page_index=pi, page_size=ps).get("data", {}).get("recordList", [])
 
-    records = paginate(arguments, 500, fetch)
+    result = paginate(arguments, 500, fetch)
     if customer_name:
         name_lower = customer_name.lower()
-        records = [r for r in records if name_lower in parse_name(r.get("name")).lower()]
+        records = [r for r in result.records if name_lower in parse_name(r.get("name")).lower()]
+    else:
+        records = result.records
 
     parsed = []
     for r in records:

@@ -42,9 +42,9 @@ def handle(client, arguments: dict) -> dict:
         result = client.query_user_todos(page_no=pi, page_size=ps)
         return result.get("data", [])
 
-    items = paginate(arguments, 50, fetch)
+    result = paginate(arguments, 50, fetch)
     parsed = []
-    for item in items:
+    for item in result.records:
         rich_text = re.sub(r"<[^>]+>", "", item.get("richText", "") or "").strip()
         ts = item.get("commitTsLong", 0)
         commit_time = datetime.fromtimestamp(int(str(ts)[:10])).strftime("%Y-%m-%d %H:%M:%S") if ts else ""
@@ -65,5 +65,6 @@ def handle(client, arguments: dict) -> dict:
     return tool_result(
         data=f"待办查询结果（{len(parsed)} 条）",
         records=parsed,
+        note=result.note,
         summary={"recordCount": len(parsed)},
     )

@@ -48,10 +48,10 @@ def handle(client, arguments: dict) -> dict:
         def fetch(pi, ps):
             return client.query_purchase_orders(page_index=pi, page_size=ps).get("data", {}).get("recordList", [])
 
-    records = paginate(arguments, 500, fetch)
+    result = paginate(arguments, 500, fetch)
     parsed = []
     grand_total = 0.0
-    for r in records:
+    for r in result.records:
         if r.get("code") == "合计":
             continue
         list_ori_sum = float(r.get("listOriSum", 0) or 0)
@@ -78,5 +78,6 @@ def handle(client, arguments: dict) -> dict:
     return tool_result(
         data=f"采购订单查询结果（{len(parsed)} 条）",
         records=parsed,
+        note=result.note,
         summary={"recordCount": len(parsed), "grandTotal": r2(grand_total)},
     )

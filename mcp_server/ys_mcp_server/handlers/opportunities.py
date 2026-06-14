@@ -45,9 +45,9 @@ def handle(client, arguments: dict) -> dict:
         )
         return result.get("data", {}).get("recordList", [])
 
-    records = paginate(arguments, 500, fetch)
+    result = paginate(arguments, 500, fetch)
     parsed = []
-    for r in records:
+    for r in result.records:
         oppt_state_val = r.get("opptState", 0)
         win_lose_val = r.get("winLoseOrderState", 0)
         expect_money = float(r.get("expectSignMoney", 0) or 0)
@@ -69,5 +69,6 @@ def handle(client, arguments: dict) -> dict:
     return tool_result(
         data=f"商机查询结果（{len(parsed)} 条）",
         records=parsed,
+        note=result.note,
         summary={"recordCount": len(parsed)},
     )

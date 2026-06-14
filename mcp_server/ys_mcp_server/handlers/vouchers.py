@@ -43,9 +43,10 @@ def handle(client, arguments: dict) -> dict:
         )
         return result.get("records", [])
 
-    records = paginate(arguments, 500, fetch)
+    result = paginate(arguments, 500, fetch)
     return tool_result(
-        data=f"凭证查询结果（{len(records)} 条）",
-        records=records,
-        summary={"recordCount": len(records)},
+        data=f"凭证查询结果（{len(result.records)} 条）",
+        records=result.records,
+        note=result.note,
+        summary={"recordCount": len(result.records)},
     )
