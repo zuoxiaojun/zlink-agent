@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# 仓库内置 pre-commit 钩子：相对路径定位项目 venv，便于跨机器使用。
+# 配置：git config core.hooksPath .githooks
+
+set -e
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+VENV_PY="$REPO_ROOT/.venv/bin/python3.14"
+
+if [ -x "$VENV_PY" ]; then
+    exec "$VENV_PY" -mpre_commit hook-impl \
+        --config=.pre-commit-config.yaml \
+        --hook-type=pre-commit \
+        --hook-dir "$REPO_ROOT/.githooks" -- "$@"
+elif command -v pre-commit > /dev/null; then
+    exec pre-commit hook-impl \
+        --config=.pre-commit-config.yaml \
+        --hook-type=pre-commit \
+        --hook-dir "$REPO_ROOT/.githooks" -- "$@"
+else
+    echo '`pre-commit` not found. 请安装：.venv/bin/python -m pip install pre-commit' 1>&2
+    exit 1
+fi
