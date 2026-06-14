@@ -1,10 +1,12 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.0
+    rev: v0.15.17
     hooks:
       - id: ruff
+        language: system
         args: [--fix]
       - id: ruff-format
+        language: system
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

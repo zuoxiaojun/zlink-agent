@@ -394,9 +394,7 @@ _PATH_PATTERNS = [
     re.compile(r"(?:^|[\s\"'`=,(])(/root/[^\s\"'`,)]+)"),  # Linux /root
     re.compile(r"(?:^|[\s\"'`=,(])(/tmp/[^\s\"'`,)]+)"),  # /tmp
     re.compile(r"(?:^|[\s\"'`=,(])(/var/[^\s\"'`,)]+)"),  # /var
-    re.compile(
-        r"(?:^|[\s\"'`=,(])(?:~/|/Users/zuoxiaojun/vibecoding/YS-Agent/)([A-Za-z0-9_./-]+\.[A-Za-z0-9]{1,8})"
-    ),
+    re.compile(r"(?:^|[\s\"'`=,(])(?:~/|/Users/zuoxiaojun/vibecoding/YS-Agent/)([A-Za-z0-9_./-]+\.[A-Za-z0-9]{1,8})"),
     re.compile(r"(?:^|[\s\"'`=,(])(?:\./|\.\./)([A-Za-z0-9_./-]+\.[A-Za-z0-9]{1,8})"),
 ]
 
