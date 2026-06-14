@@ -1,5 +1,24 @@
 # Changelog
+## v1.1.2 — 2026-06-15 (工程化：仓库内置 pre-commit 钩子)
 
+修复项目目录变更后 pre-commit 钩子失效的问题，并把钩子纳入仓库管理以便跨机器复用。
+
+- **修复钩子路径**：`.atomcode/settings.json` 的 `pytestRun.working_directory`、`agent/context_compactor.py` 的路径正则，从旧路径 `/Users/zuoxiaojun/claudeproject/YS-Agent` 更新到当前实际路径
+- **新增 `.githooks/pre-commit`**：仓库内置的钩子入口；使用 `git rev-parse --show-toplevel` 解析仓库根，**不硬编码绝对路径**，跨机器/重命名项目目录都能直接使用；优先调用项目 `.venv` 里的 pre-commit，回退到 PATH 中的 `pre-commit`
+- **pre-commit 离线可用**：`.pre-commit-config.yaml` 中 ruff / ruff-format 改用 `language: system`，复用项目 `.venv` 里的 ruff (`v0.15.17`，与 venv 一致)，无需联网即可工作；其他内置钩子（trailing-whitespace / end-of-file-fixer / check-yaml / check-toml / check-added-large-files / check-merge-conflict / detect-private-key）首次运行后缓存到 `~/.cache/pre-commit/`
+- **清理**：删除 `.git/hooks/pre-commit` 旧钩子（其硬编码了旧绝对路径，自 `core.hooksPath` 指向 `.githooks/` 后已不再触发）
+- **文档**：README 新增「开发工作流」小节，说明首次克隆后的初始化步骤与配置要点
+
+**未变：** 全部 30 个 FastAPI 路由、26 个内置工具、9 个 LLM provider、Extension 系统、pytest 套件 36 tests、MCP server、skill 系统、YonSuite 业务工具、前端无任何改动。
+
+**启用方法**（已在新克隆的机器上自动提示）：
+
+```bash
+pip install pre-commit
+git config core.hooksPath .githooks
+```
+
+## v1.1.1 — 2026-06-02 (M5+ Extension 配置化)
 ## v1.1.1 — 2026-06-02 (M5+ Extension 配置化)
 
 承接 v1.1 重构，让用户在 Web UI 上启用/停用 M2 事件系统的 extension（之前需要改 Python 源码）。
