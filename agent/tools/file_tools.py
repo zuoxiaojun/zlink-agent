@@ -1,6 +1,10 @@
 """File manipulation tools for YS-Agent.
 
 Port of Hermes file_tools.py — simplified to direct filesystem operations.
+
+M7: write/patch operations now flow through
+:class:`agent.tools.file_mutation_queue.FileMutationQueue` to prevent
+race conditions when multiple tool calls target the same file.
 """
 
 import fnmatch
@@ -8,6 +12,7 @@ import os
 import re
 from pathlib import Path
 
+from agent.tools.file_mutation_queue import file_mutation_queue
 from agent.tools.registry import registry, tool_error, tool_result
 
 # Sensitive paths that tools should never write to
@@ -110,6 +115,11 @@ def _handle_write_file(args: dict) -> str:
         return tool_error(f"Cannot write file: {e}")
 
 
+def _handle_write_file_queued(args: dict) -> str:
+    """Queued wrapper — goes through FileMutationQueue for sequential ordering."""
+    return file_mutation_queue.enqueue("write", args)
+
+
 def _handle_patch(args: dict) -> str:
     path = args.get("path", "")
     old_string = args.get("old_string", "")
@@ -183,6 +193,11 @@ def _handle_patch(args: dict) -> str:
         )
     except (OSError, ValueError) as e:
         return tool_error(f"Cannot write file: {e}")
+
+
+def _handle_patch_queued(args: dict) -> str:
+    """Queued wrapper — goes through FileMutationQueue for sequential ordering."""
+    return file_mutation_queue.enqueue("patch", args)
 
 
 def _handle_search_files(args: dict) -> str:
@@ -390,15 +405,31 @@ LS_SCHEMA = {
     },
 }
 
+
+def _init_queue() -> None:
+    """Wire the queue executor to the raw handlers."""
+
+    def _executor(kind: str, args: dict) -> str:
+        if kind == "write":
+            return _handle_write_file(args)
+        elif kind == "patch":
+            return _handle_patch(args)
+        return tool_error(f"Unknown mutation kind: {kind}")
+
+    file_mutation_queue.set_executor(_executor)
+
+
+_init_queue()
+
 registry.register(name="read_file", toolset="file", schema=READ_FILE_SCHEMA, handler=_handle_read_file, emoji="📖")
 registry.register(
     name="write_file",
     toolset="file",
     schema=WRITE_FILE_SCHEMA,
-    handler=_handle_write_file,
+    handler=_handle_write_file_queued,
     emoji="✏️",
 )
-registry.register(name="patch", toolset="file", schema=PATCH_SCHEMA, handler=_handle_patch, emoji="🔧")
+registry.register(name="patch", toolset="file", schema=PATCH_SCHEMA, handler=_handle_patch_queued, emoji="🔧")
 registry.register(
     name="search_files",
     toolset="file",

@@ -176,6 +176,10 @@ class MemoryStore:
 
     # ── CRUD ──────────────────────────────────────────────────
 
+    def list_entries(self, target: str) -> list[str]:
+        """Return a shallow copy of entries for the given target."""
+        return list(self._entries(target))
+
     def add(self, target: str, content: str) -> dict:
         content = content.strip()
         if not content:

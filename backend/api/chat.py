@@ -12,13 +12,13 @@ import json
 import logging
 import os
 import threading
-from datetime import datetime
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from agent import memory_manager, session_manager, skill_manager
+from agent import fact_memory, memory_manager, session_manager, skill_manager
 from agent.agent import AIAgent
 from agent.context_compactor import CompactionSettings
+from agent.core.message_builder import build_system_prompt
 from agent.slash_commands import execute, parse_command
 from agent.tools.registry import discover_tools
 from agent.utils import DATA_DIR
@@ -275,22 +275,18 @@ async def _run_agent(
                 compaction_settings=compaction_settings,
             )
 
+            memory_store = fact_memory.init_store()
             memory_context = memory_manager.get_context()
-            now = datetime.now()
-            weekdays = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
-            prompt_parts = [
-                agent.system_prompt,
-                f"## 当前信息\n当前时间：{now.strftime('%Y年%m月%d日 %H:%M')} {weekdays[now.weekday()]}",
-            ]
-            if memory_context:
-                prompt_parts.append("## 记忆信息\n" + memory_context)
             skill_idx = skill_manager.get_active_instructions()
-            if skill_idx:
-                prompt_parts.append(skill_idx)
             skill_detail = skill_manager.get_instructions_for_query(content)
-            if skill_detail:
-                prompt_parts.append(skill_detail)
-            system_with_memory = "\n\n".join(prompt_parts) if len(prompt_parts) > 1 else None
+
+            system_with_memory = build_system_prompt(
+                base=agent.system_prompt,
+                memory_store=memory_store,
+                memory_context=memory_context,
+                skill_index=skill_idx,
+                skill_detail=skill_detail,
+            )
 
             result = agent.run_conversation(
                 user_message=content,

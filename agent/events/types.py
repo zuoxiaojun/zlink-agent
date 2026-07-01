@@ -137,6 +137,22 @@ class AfterToolCallEvent(Event):
     result: str
 
 
+# -- Phase machine event (M7) --
+
+
+class PhaseChangeEvent(Event):
+    """The agent's lifecycle phase changed.
+
+    Extensions can track the agent's state (idle → turn → compaction → retry)
+    for monitoring, metrics, or guarding side effects.
+    """
+
+    type = "phase_change"
+    from_phase: str
+    to_phase: str
+    reason: str = ""
+
+
 # -- Compaction events (M4) --
 
 

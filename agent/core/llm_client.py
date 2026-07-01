@@ -45,6 +45,7 @@ from agent.core.llm_providers.base import (
     LLMProviderError,
     LLMResponse,
     ToolCallPayload,
+    chat_with_retry_or_error,
 )
 from agent.core.llm_providers.openai_compat import OpenAICompatProvider
 
@@ -144,14 +145,25 @@ class LLMClient:
         stream_callback: Callable[[str], None] | None = None,
         stop_event: threading.Event | None = None,
     ) -> LLMResponse:
-        return self._provider.chat(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            tools=tools,
-            tool_choice=tool_choice,
-            stream=stream,
-            stream_callback=stream_callback,
+        """Make a chat completion call.
+
+        Never-throws — errors are returned as ``LLMResponse`` with
+        ``error`` set and ``stop_reason="error"``.  The caller checks
+        ``response.failed`` instead of catching exceptions.
+        """
+        return chat_with_retry_or_error(
+            invoke=lambda: self._provider.chat(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                tools=tools,
+                tool_choice=tool_choice,
+                stream=stream,
+                stream_callback=stream_callback,
+                stop_event=stop_event,
+            ),
+            max_retries=self.max_retries,
+            max_retry_delay=self.max_retry_delay,
             stop_event=stop_event,
         )

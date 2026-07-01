@@ -21,11 +21,9 @@ export default function ChatPage() {
     const sid = searchParams.get("s");
     if (!sid) return;
     if (state.currentSessionId === sid) return; // already loaded
-    api.get<any>(`/sessions/${sid}`)
+      api.get<any>(`/sessions/${sid}`)
       .then((s) => {
-        const msgs = (s.messages || []).filter(
-          (m: any) => m.role !== "tool"
-        );
+        const msgs = (s.messages || []);
         dispatch({
           type: "SET_SESSION",
           sessionId: s.id,
@@ -62,9 +60,23 @@ export default function ChatPage() {
   return (
     <div className="chat-container">
       <div className="chat-messages" ref={scrollRef} onScroll={handleScroll}>
-        {state.messages.map((msg, i) => (
-          <ChatMessage key={i} msg={msg} />
-        ))}
+{(() => {
+          // Group consecutive assistant/tool messages under one avatar
+          const groups: typeof state.messages[] = [];
+          for (const msg of state.messages) {
+            if (msg.role === "user") {
+              groups.push([msg]);
+            } else {
+              // assistant or tool — append to last group if it's also non-user
+              if (groups.length > 0 && groups[groups.length - 1][0].role !== "user") {
+                groups[groups.length - 1].push(msg);
+              } else {
+                groups.push([msg]);
+              }
+            }
+          }
+          return groups.map((g, i) => <ChatMessage key={i} msgs={g} />);
+        })()}
 
         {state.agentRunning && (
           <div className="msg-row assistant">

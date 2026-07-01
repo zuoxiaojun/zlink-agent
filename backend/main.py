@@ -91,6 +91,7 @@ from backend.api.config_api import router as config_router
 from backend.api.extensions_api import router as extensions_router
 from backend.api.mcp_api import router as mcp_router
 from backend.api.memory_api import router as memory_router
+from backend.api.metrics_api import router as metrics_router
 from backend.api.sessions import router as sessions_router
 from backend.api.skills_api import router as skills_router
 from backend.api.tools_api import router as tools_router
@@ -98,13 +99,9 @@ from backend.api.tools_api import router as tools_router
 app.include_router(sessions_router)
 app.include_router(config_router)
 app.include_router(memory_router)
+app.include_router(metrics_router)
 app.include_router(skills_router)
 app.include_router(tools_router)
 app.include_router(chat_router)
 app.include_router(mcp_router)
 app.include_router(extensions_router)
-
-
-@app.get("/api/health")
-def health():
-    return {"status": "ok"}

@@ -92,8 +92,6 @@ LLM_PROVIDERS = {
         "models": ["ernie-4.0", "ernie-3.5"],
         "api_key_label": "百度 API Key",
         "api_key_placeholder": "",
-        # Baidu uses a custom protocol — kept as a separate type so
-        # adding a new Baidu-specific class doesn't touch the openai_compat path.
         "protocol": "baidu_qianfan",
     },
     "MiniMax": {
@@ -104,3 +102,50 @@ LLM_PROVIDERS = {
         "protocol": "openai_compat",
     },
 }
+
+# ── Vision capability registry ────────────────────────────────────
+# Model substring patterns that DO support image input.
+# Models not matching any pattern are treated as text-only.
+_VISION_MODELS: list[str] = [
+    # OpenAI
+    "gpt-4o",
+    "gpt-4.1",
+    "o3",
+    "o4-mini",
+    # Anthropic
+    "claude-sonnet-4",
+    "claude-opus-4",
+    "claude-3-5",
+    "claude-3-opus",
+    # Gemini
+    "gemini-2.5",
+    "gemini-2.0",
+    "gemini-1.5",
+    # Qwen (vision variants)
+    "qwen-vl",
+    "qwen2.5-vl",
+    "qvq",
+    # Kimi (k2.5 supports vision)
+    "kimi-k2",
+    "kimi-latest",
+    # GLM (4v = vision)
+    "glm-4v",
+    # Minimax
+    "minimax-m2",
+]
+
+
+def model_supports_vision(model_id: str) -> bool:
+    """Check if *model_id* supports image input (vision).
+
+    Matches case-insensitively against known vision-capable model
+    patterns.  Returns ``False`` for unrecognised models (safe default:
+    text-only).
+    """
+    if not model_id:
+        return False
+    lowered = model_id.lower()
+    for pattern in _VISION_MODELS:
+        if pattern.lower() in lowered:
+            return True
+    return False

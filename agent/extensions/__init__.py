@@ -39,9 +39,10 @@ logger = logging.getLogger(__name__)
 # (e.g. log capture without the security extension's regex module).
 def _built_in_classes() -> list[type[Extension]]:
     from agent.extensions.log_everything import LogEverythingExtension
+    from agent.extensions.monitoring import MonitoringExtension
     from agent.extensions.security_event import SecurityEventExtension
 
-    return [LogEverythingExtension, SecurityEventExtension]
+    return [LogEverythingExtension, MonitoringExtension, SecurityEventExtension]
 
 
 # Instantiate once at module import.  Each instance is then registered

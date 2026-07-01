@@ -93,4 +93,29 @@ def build_turn_messages(
     return messages
 
 
+def strip_images_from_messages(messages: list[dict]) -> list[dict]:
+    """Remove ``image_url`` content blocks from messages.
+
+    Used when the current model does not support vision (image input).
+    Keeps text-only content blocks intact; replaces image-only messages
+    with a placeholder text.
+    """
+    out: list[dict] = []
+    for msg in messages:
+        content = msg.get("content")
+        if isinstance(content, list):
+            # Multimodal content blocks: keep only text, drop image_url
+            text_parts = [b for b in content if isinstance(b, dict) and b.get("type") == "text"]
+            image_count = sum(1 for b in content if isinstance(b, dict) and b.get("type") == "image_url")
+            if image_count > 0 and not text_parts:
+                # Image-only message — replace with placeholder
+                msg = dict(msg)
+                msg["content"] = f"[用户发送了 {image_count} 张图片，但当前模型不支持图片输入，已自动过滤]"
+            elif text_parts:
+                msg = dict(msg)
+                msg["content"] = [{"type": "text", "text": b.get("text", "")} for b in text_parts]
+        out.append(msg)
+    return out
+
+
 __all__ = ["build_system_prompt", "build_turn_messages"]

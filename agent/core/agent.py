@@ -20,6 +20,17 @@ M2 changes
   operations — this duplicates the old security hooks but is the
   modern, M3-friendly path.  M5 will consolidate the two.
 
+M7 changes (Pi-inspired)
+-------------------------
+* **Phase Machine**: the agent now tracks its lifecycle phase
+  (``idle`` / ``turn`` / ``compaction`` / ``retry``) and publishes
+  ``PhaseChangeEvent`` on every transition.  Structural operations
+  reject when not in ``idle`` phase.
+* **Turn Snapshot**: before each LLM call, the agent snapshots
+  ``(model, tools, temperature, system_prompt)``.  All config changes
+  made during a turn only affect the *next* turn, preventing race
+  conditions when extensions or the steering queue mutate settings.
+
 Compatibility layer
 -------------------
 ``agent/agent.py`` re-exports ``AIAgent`` from here, so any existing
@@ -31,21 +42,24 @@ from __future__ import annotations
 
 import json
 import logging
+import sys
 import threading
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from agent import fact_memory
 from agent.context_compactor import CompactionSettings, compact_messages, estimate_message_tokens
 from agent.core.iteration_budget import IterationBudget
 from agent.core.llm_client import LLMClient, LLMResponse, ToolCallPayload
-from agent.core.message_builder import build_system_prompt, build_turn_messages
+from agent.core.message_builder import build_system_prompt, build_turn_messages, strip_images_from_messages
 from agent.core.tool_dispatcher import dispatch_tool
 from agent.events import (
     AfterLLMCallEvent,
     AfterToolCallEvent,
     BeforeLLMCallEvent,
     BeforeToolCallEvent,
+    PhaseChangeEvent,
     SessionEndEvent,
     SessionStartEvent,
     UserMessageEvent,
@@ -54,6 +68,66 @@ from agent.events import (
 from agent.tools.registry import discover_tools, registry
 
 logger = logging.getLogger(__name__)
+
+
+# ── Phase Machine ─────────────────────────────────────────────────
+
+
+class AgentPhase:
+    """Phase constants for the agent lifecycle state machine.
+
+    Transitions
+    -----------
+    idle ──→ turn ──→ idle            (normal round-trip)
+    idle ──→ compaction ──→ idle       (before-turn compaction)
+    idle ──→ turn ──→ retry ──→ turn  (LLM retry)
+    """
+
+    IDLE = "idle"
+    TURN = "turn"
+    COMPACTION = "compaction"
+    RETRY = "retry"
+
+
+_ALL_PHASES = {AgentPhase.IDLE, AgentPhase.TURN, AgentPhase.COMPACTION, AgentPhase.RETRY}
+_VALID_TRANSITIONS: dict[str, set[str]] = {
+    AgentPhase.IDLE: {AgentPhase.TURN, AgentPhase.COMPACTION},
+    AgentPhase.TURN: {AgentPhase.IDLE, AgentPhase.RETRY},
+    AgentPhase.COMPACTION: {AgentPhase.IDLE, AgentPhase.TURN},
+    AgentPhase.RETRY: {AgentPhase.TURN, AgentPhase.IDLE},
+}
+
+
+def _check_transition(from_phase: str, to_phase: str) -> None:
+    if from_phase not in _ALL_PHASES or to_phase not in _ALL_PHASES:
+        raise ValueError(f"Unknown phase: from={from_phase!r} to={to_phase!r}")
+    allowed = _VALID_TRANSITIONS.get(from_phase, set())
+    if to_phase not in allowed:
+        raise ValueError(
+            f"Invalid phase transition: {from_phase!r} → {to_phase!r} (allowed from {from_phase!r}: {allowed})"
+        )
+
+
+# ── Turn Snapshot ─────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class TurnSnapshot:
+    """Immutable snapshot of config at the start of a turn.
+
+    All LLM calls within the same turn use the same snapshot, even if
+    the ``AIAgent`` instance's attributes change (e.g. via an extension
+    or a steering message).
+    """
+
+    model: str
+    temperature: float
+    max_tokens: int | None
+    max_tool_result_length: int
+    system_prompt: str
+    tool_defs: list[dict]
+    compaction_settings: CompactionSettings
+    supports_vision: bool = False
 
 
 _DEFAULT_SYSTEM_PROMPT = """你是 YS-Agent，一个智能 AI 助手，专为 YonSuite 系统提供 AI 能力。
@@ -106,6 +180,15 @@ class AIAgent:
     constructor signature and ``run_conversation`` return value are
     frozen for M1 — only the internals changed.
 
+    M7 additions
+    ------------
+    * :attr:`phase` — the current lifecycle phase (``idle`` / ``turn`` /
+      ``compaction`` / ``retry``).  :meth:`run_conversation` rejects if
+      not in ``idle`` phase.
+    * :attr:`_snapshot` — the :class:`TurnSnapshot` for the current
+      turn.  Frozen at the start of each turn; all LLM calls within
+      the turn use it.  ``None`` between turns.
+
     Usage::
 
         agent = AIAgent(api_key="sk-...", model="gpt-4o")
@@ -120,7 +203,7 @@ class AIAgent:
         model: str = "gpt-4o",
         max_iterations: int = 30,
         max_tokens: int | None = None,
-        max_tool_result_length: int = 5000,
+        max_tool_result_length: int = sys.maxsize,
         system_prompt: str | None = None,
         enabled_tools: list[str] | None = None,
         disabled_tools: set[str] | None = None,
@@ -154,6 +237,64 @@ class AIAgent:
         self._tools_discovered = False
         self._memory_store = fact_memory.init_store()
 
+        # ── M7: Phase Machine ──
+        self.phase: str = AgentPhase.IDLE
+        self._snapshot: TurnSnapshot | None = None
+
+    # ── Phase Machine helpers ──
+
+    def _set_phase(self, to_phase: str, reason: str = "") -> None:
+        """Transition the phase and publish a ``PhaseChangeEvent``."""
+        if self.phase == to_phase:
+            return
+        _check_transition(self.phase, to_phase)
+        from_phase = self.phase
+        self.phase = to_phase
+        event_bus.publish(PhaseChangeEvent(from_phase=from_phase, to_phase=to_phase, reason=reason))
+
+    def _assert_idle(self, operation: str) -> None:
+        """Raise if not in idle phase — prevents re-entrant calls."""
+        if self.phase != AgentPhase.IDLE:
+            raise RuntimeError(
+                f"Cannot {operation} while agent is in phase {self.phase!r}. Wait for the current run to finish."
+            )
+
+    # ── Turn Snapshot ──
+
+    def _take_snapshot(self) -> TurnSnapshot:
+        """Freeze current config into an immutable snapshot.
+
+        Called once at the beginning of each turn.  All LLM calls
+        within this turn use this snapshot — mutations to
+        ``self.model`` / ``self.temperature`` / etc. during the turn
+        only affect the *next* turn.
+
+        Also checks if the model supports vision (image input).
+        """
+        try:
+            from backend.llm_providers import model_supports_vision
+
+            has_vision = model_supports_vision(self.model)
+        except ImportError:
+            has_vision = True  # safe default: don't block images
+
+        snap = TurnSnapshot(
+            model=self.model,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            max_tool_result_length=self.max_tool_result_length,
+            system_prompt=self._build_system_prompt(),
+            tool_defs=self._get_tool_definitions(),
+            compaction_settings=self.compaction_settings,
+            supports_vision=has_vision,
+        )
+        self._snapshot = snap
+        return snap
+
+    def _drop_snapshot(self) -> None:
+        """Clear the snapshot at the end of a turn."""
+        self._snapshot = None
+
     def _ensure_discovered(self):
         if not self._tools_discovered:
             discover_tools()
@@ -164,6 +305,12 @@ class AIAgent:
         return registry.get_definitions(
             tool_names=self.enabled_tools,
             disabled_tools=self.disabled_tools,
+        )
+
+    def _build_system_prompt(self) -> str:
+        return build_system_prompt(
+            base=self.system_prompt,
+            memory_store=self._memory_store,
         )
 
     def _report(self, msg: str):
@@ -177,21 +324,28 @@ class AIAgent:
         provider's chat method, instead of leaking the raw OpenAI SDK
         client.  This lets Anthropic / future providers run compaction
         uniformly.
+
+        M7: transitions to ``compaction`` phase during the LLM call.
         """
         if not self.compaction_settings.enabled:
             return messages
-        total_est = estimate_message_tokens(messages, model=self.model)
-        threshold = self.compaction_settings.max_context_tokens - self.compaction_settings.reserve_tokens
+
+        snap = self._snapshot
+        if snap is None:
+            return messages
+
+        total_est = estimate_message_tokens(messages, model=snap.model)
+        threshold = (
+            snap.compaction_settings.effective_max_context_tokens(snap.model) - snap.compaction_settings.reserve_tokens
+        )
         if total_est <= threshold:
             return messages
 
+        self._set_phase(AgentPhase.COMPACTION, f"context over threshold ({total_est} > {threshold})")
+
         def summary_caller(prompt: str) -> str:
-            """Adapt the M3 LLMProvider into the (str) -> str shape
-            compact_messages wants.  Uses the same provider as the
-            main loop, but with temperature=0.3 and no tools (we just
-            want raw summarisation)."""
             resp = self._llm.chat(
-                model=self.model,
+                model=snap.model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
                 max_tokens=600,
@@ -200,13 +354,15 @@ class AIAgent:
 
         compacted, _, saved = compact_messages(
             messages,
-            self.compaction_settings,
+            snap.compaction_settings,
             summary_caller,
-            self.model,
+            snap.model,
             event_bus=event_bus,
         )
         if saved > 0:
             self._report(f"📦 上下文已压缩 —— 节省约 {saved} tokens")
+
+        self._set_phase(AgentPhase.IDLE, f"compaction saved {saved} tokens")
         return compacted
 
     def _call_llm(
@@ -225,11 +381,12 @@ class AIAgent:
         if system_prompt:
             full_messages.append({"role": "system", "content": system_prompt})
         full_messages.extend(messages)
+        snap = self._snapshot
         return self._llm.chat(
-            model=self.model,
+            model=snap.model if snap else self.model,
             messages=full_messages,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
+            temperature=snap.temperature if snap else self.temperature,
+            max_tokens=snap.max_tokens if snap else self.max_tokens,
             tools=tool_defs or None,
             tool_choice="auto" if tool_defs else None,
             stream=stream_callback is not None,
@@ -261,12 +418,13 @@ class AIAgent:
         stop_event: threading.Event | None,
     ) -> None:
         """Execute each tool call, append results to ``messages`` in place."""
+        snap = self._snapshot
+        max_result_length = snap.max_tool_result_length if snap else self.max_tool_result_length
+
         for tc in tool_calls:
             if stop_event and stop_event.is_set():
                 break
 
-            # Parse JSON args (the registry expects a dict).  Default to {}
-            # so the display path below always has a value to stringify.
             args: dict = {}
             try:
                 if tc.arguments:
@@ -274,8 +432,6 @@ class AIAgent:
             except json.JSONDecodeError:
                 result = json.dumps({"success": False, "error": "Invalid JSON arguments"})
             else:
-                # Publish BeforeToolCallEvent — extensions can mutate args
-                # or cancel entirely.
                 pre_event = BeforeToolCallEvent(tool_name=tc.name, args=args)
                 event_bus.publish(pre_event)
                 if pre_event.cancelled:
@@ -286,14 +442,13 @@ class AIAgent:
                         }
                     )
                 else:
-                    args = pre_event.args  # may have been rewritten
+                    args = pre_event.args
                     result, _ = dispatch_tool(
                         tc.name,
                         args,
-                        max_result_length=self.max_tool_result_length,
+                        max_result_length=max_result_length,
                     )
 
-            # Stream the tool call announcement
             if stream_callback:
                 try:
                     args_str = json.dumps(args, ensure_ascii=False)[:300]
@@ -303,12 +458,10 @@ class AIAgent:
 
             self._report(f"🔧 执行工具: {tc.name}")
 
-            # Stream tool result preview
             if stream_callback:
-                preview = result[:200] + ("\n\n... (已截断)" if len(result) > 200 else "")
+                preview = result[:200] + ("\n\n..." if len(result) > 200 else "")
                 stream_callback(f"📤 **返回结果:**\n```\n{preview}\n```\n")
 
-            # Publish AfterToolCallEvent — extensions can rewrite the result.
             post_event = AfterToolCallEvent(
                 tool_name=tc.name,
                 args=args,
@@ -335,11 +488,19 @@ class AIAgent:
     ) -> dict[str, Any]:
         """Run a conversation with tool calling support.
 
+        M7: rejects if the agent is not in ``idle`` phase (prevents
+        re-entrant calls).  Snapshots config at the start of the turn,
+        so mutations during the turn only affect the next turn.
+
         Returns a dict with keys: final_response, messages, api_calls,
         token_usage, completed, error.  Identical contract to the
         pre-refactor version.
         """
+        self._assert_idle("run_conversation")
+        self._set_phase(AgentPhase.TURN, "conversation start")
+
         if not self.api_key:
+            self._set_phase(AgentPhase.IDLE, "no api key")
             return {
                 "final_response": "",
                 "messages": [],
@@ -349,28 +510,22 @@ class AIAgent:
             }
 
         messages = build_turn_messages(conversation_history, user_message)
-        system_prompt = system_message or build_system_prompt(
-            base=self.system_prompt,
-            memory_store=self._memory_store,
-        )
 
-        # Session start — extensions can rewrite messages / system_prompt
-        # before the first LLM call.  We pass conversation_history as
-        # ``history`` so extensions can inject context (e.g. topic
-        # summary) without touching messages.
+        # ── Take turn snapshot ──
+        snap = self._take_snapshot()
+
         event_bus.publish(
             SessionStartEvent(
-                session_id="",  # AIAgent doesn't track session_id itself;
-                # chat.py owns that.  Kept for future.
+                session_id="",
                 history=conversation_history or [],
             )
         )
 
-        # User message — extensions can rewrite user_message for
-        # prompt-injection filtering, PII redaction, etc.
         user_evt = UserMessageEvent(content=user_message)
         event_bus.publish(user_evt)
         if user_evt.cancelled:
+            self._drop_snapshot()
+            self._set_phase(AgentPhase.IDLE, "user message rejected")
             return {
                 "final_response": "",
                 "messages": messages,
@@ -378,15 +533,28 @@ class AIAgent:
                 "completed": False,
                 "error": f"User message rejected: {user_evt.cancel_reason}",
             }
-        # Reflect any content rewrite into messages
         if user_evt.content != user_message and isinstance(user_evt.content, str):
             messages[-1] = {"role": "user", "content": user_evt.content}
 
-        # Pre-turn compaction
+        # ── Pre-turn compaction ──
         messages = self._maybe_compact(messages)
+        # snapshot may have changed after compaction phase, re-read
+        snap = self._snapshot
+
+        # ── Strip images for non-vision models ──
+        if not snap.supports_vision:
+            total_image = sum(
+                sum(1 for b in m["content"] if isinstance(b, dict) and b.get("type") == "image_url")
+                for m in messages
+                if isinstance(m.get("content"), list)
+            )
+            if total_image > 0:
+                messages = strip_images_from_messages(messages)
+                self._report(f"🖼️ 当前模型不支持图片输入，已自动过滤 {total_image} 张图片")
+                if stream_callback:
+                    stream_callback(f"\n\n---\n🖼️ **当前模型不支持图片输入，已自动过滤 {total_image} 张图片**\n")
 
         budget = IterationBudget(self.max_iterations)
-        tool_defs = self._get_tool_definitions()
         api_calls = 0
         error: str | None = None
         final_response = ""
@@ -399,25 +567,23 @@ class AIAgent:
 
             self._report(f"🤔 思考中...（第 {budget.used}/{self.max_iterations} 轮）")
 
-            # Build the full payload for the LLM call, then publish
-            # BeforeLLMCallEvent so extensions can inspect / modify it.
             full_messages: list[dict] = []
-            if system_prompt:
-                full_messages.append({"role": "system", "content": system_prompt})
+            if snap.system_prompt:
+                full_messages.append({"role": "system", "content": snap.system_prompt})
             full_messages.extend(messages)
             api_kwargs: dict = {
-                "model": self.model,
+                "model": snap.model,
                 "messages": full_messages,
-                "temperature": self.temperature,
+                "temperature": snap.temperature,
             }
-            if self.max_tokens is not None:
-                api_kwargs["max_tokens"] = self.max_tokens
-            if tool_defs:
-                api_kwargs["tools"] = tool_defs
+            if snap.max_tokens is not None:
+                api_kwargs["max_tokens"] = snap.max_tokens
+            if snap.tool_defs:
+                api_kwargs["tools"] = snap.tool_defs
                 api_kwargs["tool_choice"] = "auto"
 
             pre_llm = BeforeLLMCallEvent(
-                model=self.model,
+                model=snap.model,
                 messages=full_messages,
                 api_kwargs=api_kwargs,
             )
@@ -428,22 +594,36 @@ class AIAgent:
 
             try:
                 response = self._call_llm(
-                    system_prompt=system_prompt,
+                    system_prompt=snap.system_prompt,
                     messages=messages,
-                    tool_defs=tool_defs,
+                    tool_defs=snap.tool_defs,
                     stream_callback=stream_callback,
                     stop_event=stop_event,
                 )
                 api_calls += 1
             except Exception as e:
                 logger.exception("LLM call failed")
+                if budget.remaining > 0:
+                    self._set_phase(AgentPhase.RETRY, f"LLM error: {e}")
+                    continue
                 error = f"API call failed: {e}"
                 break
 
-            # AfterLLMCallEvent — observation only (no cancel contract).
+            # M7: check never-throw contract — LLMClient now guarantees
+            # no exceptions; errors are in ``response.error``.
+            if response.failed:
+                logger.warning("LLM call returned error: %s", response.error)
+                if budget.remaining > 0:
+                    self._set_phase(AgentPhase.RETRY, f"LLM error: {response.error}")
+                    continue
+                error = f"API call failed: {response.error}"
+                break
+
+            self._set_phase(AgentPhase.TURN, "llm call completed")
+
             event_bus.publish(
                 AfterLLMCallEvent(
-                    model=self.model,
+                    model=snap.model,
                     response=response,
                 )
             )
@@ -475,7 +655,6 @@ class AIAgent:
                 error = error or "Max iterations reached without final response"
 
         has_usage = total_usage.get("total_tokens", 0) > 0
-        # SessionEnd — observation only; extensions flush logs / metrics.
         event_bus.publish(
             SessionEndEvent(
                 session_id="",
@@ -484,6 +663,10 @@ class AIAgent:
                 api_calls=api_calls,
             )
         )
+
+        self._drop_snapshot()
+        self._set_phase(AgentPhase.IDLE, "conversation end")
+
         return {
             "final_response": final_response,
             "messages": messages,

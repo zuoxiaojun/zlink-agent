@@ -62,7 +62,7 @@ def test_list_extensions_returns_built_ins(client):
         assert "enabled" in entry
         assert "description" in entry
         assert "kind" in entry
-        assert entry["kind"] in ("log", "policy", "transform", "other")
+        assert entry["kind"] in ("log", "policy", "monitoring", "transform", "other")
 
 
 def test_list_active_only_returns_enabled(client):
@@ -155,7 +155,11 @@ def test_reload_extensions_returns_now_active_and_disabled(client):
 
 
 def test_health_check(client):
-    """GET /api/health is a 1-line smoke test for the whole app."""
+    """GET /api/health returns enriched info."""
     resp = client.get("/api/health")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok"}
+    data = resp.json()
+    assert data["status"] == "ok"
+    assert isinstance(data["uptime_seconds"], float)
+    assert isinstance(data["version"], str)
+    assert isinstance(data["mcp_servers_connected"], int)

@@ -1,5 +1,23 @@
 # Changelog
-## v1.1.2 — 2026-06-15 (工程化：仓库内置 pre-commit 钩子)
+## v1.2.1 — 2026-07-01 (内存模块修复：事实记忆注入 + list 操作 + 并发锁 + 上限)
+
+- **修复事实记忆不注入的 bug**：`chat.py` 手动拼接 `system_message` 后传递给 `run_conversation`，覆盖了内部 `build_system_prompt` 对 `memory_store` 的调用；导致 `memory` 和 `user` 条目从未出现在系统提示中，LLM 在盲写记忆。现改用 `build_system_prompt(memory_store=fact_memory.init_store(), ...)` 统一构建
+- **新增 `list` 操作**：`memory_tool` 的 `action` 枚举新增 `list`，LLM 可以 `memory list target=memory` 列出当前条目，不再盲写
+- **新增 `MemoryStore.list_entries()`**：返回快照副本供 LLM 读取
+- **`memory_manager.py` 添加文件锁**：`store_conversation_summary` 和 `clear_all` 现在使用 `fcntl.flock` 互斥，防止并发会话覆盖彼此的摘要
+- **对话摘要上限**：`memory.json` 的 `conversations` 列表最多保留最近 **100 条**，超过时自动淘汰最旧的条目，避免无限增长
+- **memory_tool 描述更新**：文档中增加了 `list` 操作说明
+
+## v1.2 — 2026-07-01 (可观测性：Prometheus 指标 + 增强 Health)
+
+新增监控系统，覆盖 agent 运行全生命周期的可观测性数据。
+
+- **指标收集**：`agent/core/metrics.py` 新增，基于 `prometheus_client`；Counter/Gauge/Histogram 共 12 个指标（会话数、LLM 耗时/Tokens/重试、工具耗时、错误计数、MCP 连接数、内存操作、压缩节省 Tokens）
+- **监控 Extension**：`agent/extensions/monitoring.py` 新增，通过 M2 事件总线实时记录指标；自动启用以实现零配置可观测性
+- **Prometheus 端点**：`backend/api/metrics_api.py` 新增，`GET /api/metrics` 返回 Prometheus text exposition 格式
+- **增强 Health**：`GET /api/health` 从简单的 `{"status": "ok"}` 升级为包含 `uptime_seconds`、`version`、`mcp_servers_connected` 的详情
+- **新依赖**：`prometheus-client>=0.21.0` 添加到 requirements.txt
+- **优雅降级**：`prometheus_client` 未安装时 MetricsCollector 和监控 Extension 均为 no-op，不阻塞启动
 
 修复项目目录变更后 pre-commit 钩子失效的问题，并把钩子纳入仓库管理以便跨机器复用。
 

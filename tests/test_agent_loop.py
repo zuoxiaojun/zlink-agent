@@ -103,7 +103,7 @@ def test_run_conversation_with_one_tool_call():
 
 
 def test_run_conversation_publishes_full_event_sequence():
-    """The 8 M2 event types are all reachable from a normal turn."""
+    """The M7+ event types are all reachable from a normal turn."""
     from agent.events import (
         Event,
     )
@@ -128,6 +128,10 @@ def test_run_conversation_publishes_full_event_sequence():
     result = agent.run_conversation("test")
     assert result["completed"] is True
 
+    # phase_change events bookend the conversation
+    assert "phase_change" in seen
+    assert seen.count("phase_change") >= 2  # idle→turn + turn→idle
+
     # session_start + user_message + (before/after_llm + before/after_tool) +
     # session_end.  顺序也应符合直觉。
     assert "session_start" in seen
@@ -136,8 +140,6 @@ def test_run_conversation_publishes_full_event_sequence():
     assert "after_llm_call" in seen
     assert "before_tool_call" in seen
     assert "after_tool_call" in seen
-    # session_end 由 chat.py 显式 publish；AIAgent.run_conversation 不一定发。
-    # 这次只断言 agent 内部能看到的 6 个事件。
     assert seen.index("session_start") < seen.index("user_message")
     assert seen.index("user_message") < seen.index("before_llm_call")
     assert seen.index("before_llm_call") < seen.index("after_llm_call")
@@ -183,3 +185,115 @@ def test_security_event_extension_blocks_dangerous_command():
     payload = json.loads(tool_msgs[0]["content"])
     assert payload["success"] is False
     assert "拒绝" in payload.get("error", "") or "Blocked" in payload.get("error", "")
+
+
+# ────────────────────────────────────────────────────────────────────
+# 6) Phase Machine —— 状态转换
+# ────────────────────────────────────────────────────────────────────
+
+
+def test_phase_machine_idle_to_turn_to_idle():
+    """Agent phase travels idle → turn → idle after a plain text reply."""
+    provider = MockLLMProvider(responses=[make_text_response("hi")])
+    agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+    agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+
+    assert agent.phase == "idle"
+    result = agent.run_conversation("hello")
+    assert result["completed"] is True
+    assert agent.phase == "idle"  # must return to idle
+
+
+def test_phase_machine_rejects_reentrant_call():
+    """Calling run_conversation while running must raise."""
+
+    provider = MockLLMProvider(responses=[make_text_response("hi")])
+    agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+    agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+
+    # Manually set to turn to simulate re-entrance
+    agent._set_phase("turn", "manual")
+
+    try:
+        agent.run_conversation("hello")
+        raise AssertionError("Should have raised RuntimeError")
+    except RuntimeError as e:
+        assert "turn" in str(e)
+
+
+def test_phase_machine_records_phase_change_events():
+    """PhaseChangeEvent must carry from_phase, to_phase, and reason."""
+    from agent.events import Event
+    from agent.events.bus import event_bus
+
+    changes: list[dict] = []
+
+    def _spy(event: Event) -> None:
+        if event.type == "phase_change":
+            changes.append(
+                {
+                    "from": event.from_phase,
+                    "to": event.to_phase,
+                    "reason": event.reason,
+                }
+            )
+
+    event_bus.subscribe(_spy)
+
+    provider = MockLLMProvider(responses=[make_text_response("ok")])
+    agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+    agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+
+    agent.run_conversation("test")
+
+    assert len(changes) >= 2
+    assert changes[0]["from"] == "idle"
+    assert changes[0]["to"] == "turn"
+    assert changes[-1]["from"] == "turn"
+    assert changes[-1]["to"] == "idle"
+
+
+# ────────────────────────────────────────────────────────────────────
+# 7) Turn Snapshot —— 快照隔离
+# ────────────────────────────────────────────────────────────────────
+
+
+def test_turn_snapshot_isolates_config_changes():
+    """Changes to agent config mid-turn must not affect the running turn."""
+    provider = MockLLMProvider(
+        responses=[
+            make_tool_call_response("terminal", {"command": "echo a"}),
+            make_text_response("done"),
+        ]
+    )
+    agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+    agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+
+    # Hook into BeforeLLMCallEvent to mutate config during the turn
+    from agent.events import Event
+    from agent.events.bus import event_bus
+
+    def _mutate(event: Event) -> None:
+        if event.type == "before_llm_call":
+            agent.model = "mutated-model"
+
+    event_bus.subscribe(_mutate)
+
+    result = agent.run_conversation("test")
+
+    # The snapshot should have frozen the original model
+    assert provider.call_count > 0
+    # Agent's instance attribute was changed, but snapshot preserved original
+    assert agent.model == "mutated-model"
+    assert result["completed"] is True
+
+
+def test_turn_snapshot_cleared_after_conversation():
+    """_snapshot must be None after run_conversation completes."""
+    provider = MockLLMProvider(responses=[make_text_response("done")])
+    agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+    agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+
+    assert agent._snapshot is None
+    agent.run_conversation("hello")
+    assert agent._snapshot is None

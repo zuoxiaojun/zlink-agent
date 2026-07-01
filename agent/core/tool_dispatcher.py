@@ -10,6 +10,7 @@ extensions can cancel/modify the call.
 from __future__ import annotations
 
 import json
+import sys
 from typing import Any
 
 from agent.tools.registry import registry
@@ -17,7 +18,7 @@ from agent.tools.registry import registry
 
 def _truncate(content: Any, limit: int) -> str:
     if isinstance(content, str) and len(content) > limit:
-        return content[:limit] + f"\n\n... (已截断 {len(content) - limit} 字符)"
+        return content[:limit] + "\n\n..."
     return content if isinstance(content, str) else str(content)
 
 
@@ -25,18 +26,17 @@ def dispatch_tool(
     name: str,
     args: dict,
     *,
-    max_result_length: int = 5000,
+    max_result_length: int = sys.maxsize,
     preview_length: int = 200,
 ) -> tuple[str, str]:
     """Execute *name* through the global registry.
 
     Returns ``(full_result, preview)`` — the full result is appended to
-    the message list (possibly truncated), the preview is what we stream
-    back to the client for display.
+    the message list (possibly truncated at *max_result_length*), the
+    preview is what we stream back to the client for display.
 
-    Truncation is applied to the full result; the preview is then
-    derived from the already-truncated full result so the user sees what
-    the model actually sees.
+    Truncation is a safety net (preventing runaway data).  Use
+    ``sys.maxsize`` to effectively disable it.
     """
     result = registry.dispatch(name, args)
     if not isinstance(result, str):

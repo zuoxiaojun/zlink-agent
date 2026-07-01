@@ -469,7 +469,9 @@ body {
   font-size: 12px;
   line-height: 1.5;
   overflow: auto;
-  max-height: 200px;
+  max-height: min(60vh, 400px);
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 /* ── Tool result inline ──────────────────────────────── */
@@ -492,8 +494,10 @@ body {
 .tool-result-inline pre {
   margin-top: 8px;
   font-size: 12px;
-  max-height: 160px;
+  max-height: min(50vh, 300px);
   overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 /* ── Streaming indicator ─────────────────────────────── */

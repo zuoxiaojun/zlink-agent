@@ -54,12 +54,24 @@ class LLMResponse:
       response.
     * ``usage``       — ``{prompt_tokens, completion_tokens, total_tokens}``
       or ``None`` if the provider didn't report usage.
+    * ``error``       — non-empty when the call failed (never-throw
+      contract).  The agent loop checks this instead of catching
+      exceptions.  See :func:`chat_with_retry_or_error`.
+    * ``stop_reason`` — ``"error"`` when ``error`` is set, ``"end_turn"``
+      for normal completion, or ``None``.
     """
 
     content: str = ""
     reasoning: str | None = None
     tool_calls: list[ToolCallPayload] | None = None
     usage: dict | None = field(default_factory=dict)
+    error: str = ""
+    stop_reason: str | None = None
+
+    @property
+    def failed(self) -> bool:
+        """Convenience: was this response an error?"""
+        return bool(self.error)
 
 
 class LLMProviderError(RuntimeError):
@@ -162,6 +174,38 @@ def chat_with_retry(
     # Should never reach here — the loop either returns or raises.
     assert last_error is not None
     raise last_error
+
+
+def chat_with_retry_or_error(
+    *,
+    invoke: Callable[[], LLMResponse],
+    max_retries: int,
+    max_retry_delay: float,
+    stop_event: threading.Event | None = None,
+    on_retry: Callable[[int, float, BaseException], None] | None = None,
+) -> LLMResponse:
+    """Never-throw variant of :func:`chat_with_retry`.
+
+    Catches *all* exceptions and returns an ``LLMResponse`` with
+    ``error`` set and ``stop_reason="error"``.  The caller never
+    needs a try/except — it inspects ``response.failed`` instead.
+
+    This is the **recommended** entry point for LLM calls in production.
+    """
+    try:
+        return chat_with_retry(
+            invoke=invoke,
+            max_retries=max_retries,
+            max_retry_delay=max_retry_delay,
+            stop_event=stop_event,
+            on_retry=on_retry,
+        )
+    except Exception as e:
+        logger.error("LLM call failed after %d retries: %s", max_retries, e)
+        return LLMResponse(
+            error=str(e),
+            stop_reason="error",
+        )
 
 
 class LLMProvider(ABC):

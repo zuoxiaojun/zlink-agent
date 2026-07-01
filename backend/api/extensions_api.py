@@ -56,6 +56,10 @@ _KIND_BY_NAME: dict[str, tuple[str, str]] = {
         "把所有事件写到 ys-agent.events logger（DEBUG 级别）。用来追踪事件流，调试时打开。",
         "log",
     ),
+    "monitoring": (
+        "记录 Prometheus 指标（会话数、LLM 耗时/Tokens、工具耗时、错误计数等）。提供 /api/metrics 端点。",
+        "monitoring",
+    ),
     "security-event": (
         "在事件层阻断危险操作（写入受保护路径 / 危险 shell 命令）。和 tools/security_hooks 并行工作。",
         "policy",
