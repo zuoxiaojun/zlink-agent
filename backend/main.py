@@ -9,6 +9,11 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+if getattr(sys, "frozen", False):
+    import os
+
+    os.environ.setdefault("YS_DATA_DIR", str(Path.home() / ".ys-agent" / "data"))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -61,10 +66,10 @@ async def on_startup():
 
     # Ensure built-in YonSuite MCP server is configured
     if "yonsuite" not in servers_cfg:
-        venv_python = str(_PROJECT_ROOT / ".venv" / "bin" / "python")
+        py_path = sys.executable
         servers_cfg["yonsuite"] = {
             "transport": "stdio",
-            "command": venv_python,
+            "command": py_path,
             "args": ["-m", "mcp_server.ys_mcp_server"],
             "enabled": True,
             "timeout": 120,

@@ -6,8 +6,12 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-# Project-local data directory (ys-agent project root / .ys-agent)
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+# Data directory: YS_DATA_DIR env var > project-local data/ > ~/.ys-agent/data
+_DATA_DIR_ENV = os.environ.get("YS_DATA_DIR")
+if _DATA_DIR_ENV:
+    DATA_DIR = Path(_DATA_DIR_ENV)
+else:
+    DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
 
 def atomic_json_write(path: str | Path, data: Any, *, indent: int = 2) -> None:

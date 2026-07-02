@@ -9,6 +9,18 @@ NC='\033[0m'
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$PROJECT_DIR"
 
+# ── 系统环境检测 ──
+case "$(uname -s)" in
+  Darwin)  OS="macos" ;;
+  Linux)   OS="linux" ;;
+  MINGW*|MSYS*|CYGWIN*) OS="windows" ;;
+  *)       OS="unknown" ;;
+esac
+
+VENV_ACTIVATE="$PROJECT_DIR/.venv/bin/activate"
+VENV_PYTHON="$PROJECT_DIR/.venv/bin/python"
+[ "$OS" = "windows" ] && VENV_ACTIVATE="$PROJECT_DIR/.venv/Scripts/activate" && VENV_PYTHON="$PROJECT_DIR/.venv/Scripts/python"
+
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${CYAN}  YS-Agent 一键构建脚本${NC}"
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -35,7 +47,11 @@ if [ ! -d ".venv" ]; then
 fi
 
 echo -e "${GREEN}[2/5] 安装 Python 依赖...${NC}"
-source .venv/bin/activate
+if [ "$OS" = "windows" ]; then
+    source "$VENV_ACTIVATE"
+else
+    source "$VENV_ACTIVATE"
+fi
 if [ -n "$PIP_MIRROR" ]; then
     pip install -r requirements.txt -q -i "$PIP_MIRROR"
 else

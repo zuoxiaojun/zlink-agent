@@ -5,11 +5,14 @@ import os
 import sys
 from pathlib import Path
 
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if getattr(sys, "frozen", False):
+    _PROJECT_ROOT = Path(sys._MEIPASS)
+else:
+    _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 def _load_ys_config() -> dict:
-    config_path = _PROJECT_ROOT / "data" / "config.json"
+    config_path = Path(os.environ.get("YS_DATA_DIR", str(_PROJECT_ROOT / "data"))) / "config.json"
     if config_path.exists():
         try:
             cfg = json.loads(config_path.read_text("utf-8"))

@@ -3,7 +3,6 @@ import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 
 export default defineConfig(({ mode }) => {
-  // 从项目根目录 .env 加载环境变量
   const envDir = resolve(__dirname, '..')
   const env = loadEnv(mode, envDir, '')
 

@@ -2,6 +2,7 @@
 set -e
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
 if [ -f "$PROJECT_DIR/.env" ]; then
     source <(grep -E '^YS_FRONTEND_PORT=' "$PROJECT_DIR/.env")
 fi
