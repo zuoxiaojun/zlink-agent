@@ -9,6 +9,7 @@
 - **技能系统** — 可扩展技能包（安装/激活/停用）
 - **记忆系统** — Agent 自主笔记 + 用户画像 + 对话摘要
 - **全文搜索** — 历史对话 FTS5 索引
+- **配置加密** — `llm_api_key` 自动加密存储，密钥派生自本机
 
 ## 环境要求
 
@@ -19,16 +20,15 @@
 ## 一键构建
 
 ```bash
-git clone https://gitee.com/leftxiaojun/ys-agent.git
+git clone https://atomgit.com/gcw_cJbJuamU/ys-agent.git
 cd ys-agent
-chmod +x setup.sh
 ./setup.sh
 ```
 
 启动：
 
 ```bash
-# 前后端一起启动
+# 前后端一起启动（自动打开浏览器）
 ./start.sh
 
 # 或分别启动
@@ -36,16 +36,18 @@ chmod +x setup.sh
 ./run_frontend.sh  # 前端 http://localhost:8088
 ```
 
+> 支持 macOS / Linux / Windows (Git Bash)，脚本自动识别系统环境。
+
 ## 手动构建
 
 ```bash
 # 1. 克隆
-git clone https://gitee.com/leftxiaojun/ys-agent.git
+git clone https://atomgit.com/gcw_cJbJuamU/ys-agent.git
 cd ys-agent
 
 # 2. 后端
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 # 3. 配置端口
@@ -103,7 +105,7 @@ server {
 | 配置项 | 方式 |
 |--------|------|
 | 端口 | `.env` 文件（`YS_FRONTEND_PORT` / `YS_AGENT_PORT`） |
-| LLM API Key | 启动后访问 `http://localhost:8088` → 设置 → LLM 配置 |
+| LLM API Key | 启动后访问 `http://localhost:8088` → 设置 → LLM 配置（自动加密存储） |
 | YonSuite 密钥 | 启动后访问 `http://localhost:8088` → 设置 → YonSuite 配置 |
 
 ## 项目结构
@@ -119,6 +121,7 @@ ys-agent/
 │   ├── skills/             # 技能包
 │   ├── session_manager.py  # 会话管理
 │   ├── memory_manager.py   # 对话摘要
+│   ├── config_manager.py   # 持久化配置（含 AES 加密）
 │   └── search_index.py     # FTS5 搜索索引
 ├── backend/                # FastAPI 后端
 │   ├── main.py             # 应用入口
@@ -128,14 +131,14 @@ ys-agent/
 │   ├── src/pages/          # 页面组件
 │   └── vite.config.ts      # Vite 配置
 ├── .env.example            # 环境变量模板
-├── setup.sh                # 一键构建脚本
-├── start.sh                # 启动脚本
+├── setup.sh                # 一键构建脚本（全平台）
+├── start.sh                # 启动脚本（全平台，自动打开浏览器）
 └── VERSION                 # 版本号
 ```
 
 ## 版本
 
-当前版本：**v1.1.1**（2026-06-02）。v1.0 → v1.1 → v1.1.1 增量见下方「v1.1+ 新增」段与 [CHANGELOG.md](./CHANGELOG.md)。
+当前版本：**v1.1.2**（2026-06-02）。v1.0 → v1.1 → v1.1.2 增量见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## v1.1+ 新增（已推送，详见 commit `d18369c`）
 
@@ -146,6 +149,7 @@ v1.0 → v1.1.1 的重构增量（41 files / +5097 / -498）。CHANGELOG 里 v1.
 - **M3 LLM Provider 抽象**：`agent/core/llm_providers/{base,openai_compat,anthropic,factory}.py`；9 个 OpenAI-compat provider + Anthropic 原生
 - **M4 压缩增强**：`compact_messages` 改吃 `summary_caller`；新增文件追踪（限 5 个/8KB）；`SessionBeforeCompactEvent` 钩子
 - **M5+ Extension 配置化**：4 个 HTTP API（`/api/extensions`、`/active`、`/{name}/toggle`、`/reload`）+ Web UI「扩展管理」页（侧边栏 → 设置 → 扩展管理），状态持久化到 `config.json` 的 `disabled_extensions` 字段，runtime toggle 生效无需重启
+- **v1.1.2**：跨平台脚本适配（macOS / Linux / Windows Git Bash），`llm_api_key` Fernet 加密存储，自动打开浏览器
 - **pytest 套件**：`tests/` 36 个 test，0.5s 全过；事件总线 + config 双 fixture 隔离；0 新依赖
 
 ### 架构与开发文档
