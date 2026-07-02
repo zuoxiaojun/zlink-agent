@@ -19,8 +19,9 @@ package-lock.json
 **/cache/
 CLAUDE.md
 
-# CodeGraph MCP 本地索引（不是项目产物）
+# AI 编码工具本地索引（非项目产物）
 .codegraph/
+.atomcode/
 
 # 防止字面 ~ 目录被误创建（Python os.path 不会自动展开 ~，需用 expanduser）
 ~
