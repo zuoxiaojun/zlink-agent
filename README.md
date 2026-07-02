@@ -72,6 +72,8 @@ cd ..
 | LLM API Key | 启动后访问 `http://localhost:8088` → 设置 → LLM 配置（自动加密存储） |
 | YonSuite 密钥 | 启动后访问 `http://localhost:8088` → 设置 → YonSuite 配置 |
 
+> 需要 HTTPS 或域名部署时，用 nginx 反代 `web/dist/` 并转发 `/api` 和 `/ws` 到后端端口即可。
+
 ## 项目结构
 
 ```
