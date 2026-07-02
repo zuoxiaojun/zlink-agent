@@ -44,9 +44,13 @@ def _get_browser():
     """Lazy-init headless Chromium, return the Browser instance."""
     global _pw, _browser
     if _browser is None:
-        _pw = sync_playwright().start()
-        _pw.selectors.set_test_id_attribute("data-testid")
-        _browser = _pw.chromium.launch(headless=True)
+        try:
+            _pw = sync_playwright().start()
+            _pw.selectors.set_test_id_attribute("data-testid")
+            _browser = _pw.chromium.launch(headless=True)
+        except Exception:
+            logger.exception("Failed to launch Playwright browser")
+            raise
     return _browser
 
 

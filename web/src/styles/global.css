@@ -339,14 +339,21 @@ body {
 }
 
 .msg-bubble {
-  display: inline-block;
   padding: 10px 16px;
   border-radius: var(--radius-lg);
   line-height: 1.65;
   word-break: break-word;
+  overflow-x: auto;
+}
+
+.msg-row.assistant .msg-body {
+  max-width: 85%;
+  min-width: 0;
 }
 
 .msg-row.user .msg-bubble {
+  display: inline-block;
+  max-width: 100%;
   background: var(--primary);
   color: #fff;
   border-bottom-right-radius: 4px;
@@ -394,6 +401,7 @@ body {
 
 .msg-bubble table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
   margin: 8px 0;
   font-size: 0.9em;
@@ -406,11 +414,14 @@ body {
   text-align: left;
   font-weight: 600;
   border: 1px solid var(--border);
-  white-space: nowrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .msg-bubble td {
   padding: 6px 12px;
   border: 1px solid var(--border-light);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .msg-bubble tr:nth-child(even) td {
   background: var(--bg-card);

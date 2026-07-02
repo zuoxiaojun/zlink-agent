@@ -13,12 +13,13 @@ behaviour is identical; only the class hierarchy changes.
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 from collections.abc import Callable
 from typing import Any
 
-from openai import OpenAI
+import httpx
 
 from agent.core.llm_providers.base import (
     LLMProvider,
@@ -68,20 +69,22 @@ class OpenAICompatProvider(LLMProvider):
         self.timeout = timeout
         self.max_retries = max_retries
         self.max_retry_delay = max_retry_delay
-        self._client: OpenAI | None = None
 
     @property
-    def client(self) -> OpenAI:
-        """Lazy OpenAI client.  Exposed for M4 compaction which uses
-        it to call the summary LLM directly."""
-        if self._client is None:
-            self._client = OpenAI(
-                api_key=self.api_key,
-                base_url=self.base_url,
-                timeout=self.timeout,
-                max_retries=1,
-            )
-        return self._client
+    def client(self) -> httpx.Client:
+        """Lazy HTTP client.  Exposed for M4 compaction."""
+        import openai
+
+        return openai.OpenAI(api_key=self.api_key, base_url=self.base_url, timeout=self.timeout, max_retries=1)
+
+    def _build_url(self) -> str:
+        return f"{self.base_url}/chat/completions"
+
+    def _headers(self) -> dict:
+        return {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
 
     def chat(
         self,
@@ -98,16 +101,16 @@ class OpenAICompatProvider(LLMProvider):
         max_retries: int | None = None,
         max_retry_delay: float | None = None,
     ) -> LLMResponse:
-        api_kwargs: dict[str, Any] = {
+        body: dict[str, Any] = {
             "model": model,
             "messages": messages,
             "temperature": temperature,
         }
         if max_tokens is not None:
-            api_kwargs["max_tokens"] = max_tokens
+            body["max_tokens"] = max_tokens
         if tools:
-            api_kwargs["tools"] = tools
-            api_kwargs["tool_choice"] = tool_choice
+            body["tools"] = tools
+            body["tool_choice"] = tool_choice
 
         retries = self.max_retries if max_retries is None else max_retries
         retry_delay = self.max_retry_delay if max_retry_delay is None else max_retry_delay
@@ -116,13 +119,12 @@ class OpenAICompatProvider(LLMProvider):
             try:
                 if stream and stream_callback is not None:
                     return self._chat_stream(
-                        api_kwargs=api_kwargs,
+                        body=body,
                         stream_callback=stream_callback,
                         stop_event=stop_event,
                     )
-                return self._chat_blocking(api_kwargs)
+                return self._chat_blocking(body)
             except Exception as e:
-                # Wrap so the retry loop can inspect.
                 raise LLMProviderError(
                     str(e),
                     transient=False,
@@ -136,35 +138,57 @@ class OpenAICompatProvider(LLMProvider):
             stop_event=stop_event,
         )
 
-    # -- internals --
+    def _request(self, body: dict) -> httpx.Response:
+        url = self._build_url()
+        headers = self._headers()
+        resp = httpx.post(
+            url,
+            headers=headers,
+            json=body,
+            timeout=httpx.Timeout(self.timeout),
+        )
+        resp.raise_for_status()
+        return resp
 
-    def _chat_blocking(self, api_kwargs: dict) -> LLMResponse:
-        resp = self.client.chat.completions.create(**api_kwargs)
-        choice = resp.choices[0]
-        msg = choice.message
+    def _request_stream(self, body: dict):
+        """Generator yielding raw SSE lines."""
+        url = self._build_url()
+        headers = self._headers()
+        with httpx.Client(timeout=httpx.Timeout(self.timeout)) as client:
+            with client.stream("POST", url, headers=headers, json=body) as resp:
+                resp.raise_for_status()
+                yield from resp.iter_lines()
+
+    def _chat_blocking(self, body: dict) -> LLMResponse:
+        resp = self._request(body)
+        data = resp.json()
+        choice = data["choices"][0]
+        msg = choice.get("message", {})
+
         tool_calls: list[ToolCallPayload] | None = None
-        if msg.tool_calls:
+        tcs = msg.get("tool_calls")
+        if tcs:
             tool_calls = [
                 ToolCallPayload(
-                    id=tc.id,
-                    name=tc.function.name,
-                    arguments=tc.function.arguments or "{}",
+                    id=tc["id"],
+                    name=tc["function"]["name"],
+                    arguments=tc["function"]["arguments"] or "{}",
                 )
-                for tc in msg.tool_calls
+                for tc in tcs
             ]
+
         usage = None
-        try:
-            if resp.usage:
-                usage = {
-                    "prompt_tokens": resp.usage.prompt_tokens or 0,
-                    "completion_tokens": resp.usage.completion_tokens or 0,
-                    "total_tokens": resp.usage.total_tokens or 0,
-                }
-        except Exception:
-            pass
+        if data.get("usage"):
+            u = data["usage"]
+            usage = {
+                "prompt_tokens": u.get("prompt_tokens", 0) or 0,
+                "completion_tokens": u.get("completion_tokens", 0) or 0,
+                "total_tokens": u.get("total_tokens", 0) or 0,
+            }
+
         return LLMResponse(
-            content=msg.content or "",
-            reasoning=_extract_reasoning(msg),
+            content=msg.get("content", "") or "",
+            reasoning=msg.get("reasoning_content"),
             tool_calls=tool_calls,
             usage=usage,
         )
@@ -172,63 +196,71 @@ class OpenAICompatProvider(LLMProvider):
     def _chat_stream(
         self,
         *,
-        api_kwargs: dict,
+        body: dict,
         stream_callback: Callable[[str], None],
         stop_event: threading.Event | None,
     ) -> LLMResponse:
-        response = self.client.chat.completions.create(
-            **api_kwargs,
-            stream=True,
-            stream_options={"include_usage": True},
-        )
+        body = dict(body)
+        body["stream"] = True
+        body["stream_options"] = {"include_usage": True}
+
         content = ""
         reasoning = ""
         tool_calls_map: dict[int, dict] = {}
         usage: dict | None = None
 
-        for chunk in response:
+        for line in self._request_stream(body):
             if stop_event and stop_event.is_set():
                 break
-            try:
-                if chunk.usage:
-                    usage = {
-                        "prompt_tokens": chunk.usage.prompt_tokens or 0,
-                        "completion_tokens": chunk.usage.completion_tokens or 0,
-                        "total_tokens": chunk.usage.total_tokens or 0,
-                    }
-            except Exception:
-                pass
-            if not chunk.choices:
+            if not line:
                 continue
-            delta = chunk.choices[0].delta
-            if delta.content:
-                content += delta.content
-                # Caller passed stream_callback in the `if stream and stream_callback is not None`
-                # branch above, so it's non-None here.
-                assert stream_callback is not None
-                stream_callback(delta.content)
-            rc = getattr(delta, "reasoning_content", None)
-            if rc:
-                reasoning += rc
-                if stream_callback is not None:
+            if line.startswith("data:"):
+                data_str = line[5:]
+                if data_str.startswith(" "):
+                    data_str = data_str[1:]
+                if data_str.strip() == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(data_str)
+                except json.JSONDecodeError:
+                    continue
+                if chunk.get("usage"):
+                    u = chunk["usage"]
+                    usage = {
+                        "prompt_tokens": u.get("prompt_tokens", 0) or 0,
+                        "completion_tokens": u.get("completion_tokens", 0) or 0,
+                        "total_tokens": u.get("total_tokens", 0) or 0,
+                    }
+                choices = chunk.get("choices")
+                if not choices:
+                    continue
+                delta = choices[0].get("delta", {})
+                if delta.get("content"):
+                    content += delta["content"]
+                    stream_callback(delta["content"])
+                rc = delta.get("reasoning_content")
+                if rc:
+                    reasoning += rc
                     stream_callback(rc)
-            if delta.tool_calls:
-                for tc_delta in delta.tool_calls:
-                    idx = tc_delta.index
-                    if idx not in tool_calls_map:
-                        tool_calls_map[idx] = {
-                            "id": "",
-                            "type": "function",
-                            "function": {"name": "", "arguments": ""},
-                        }
-                    entry = tool_calls_map[idx]
-                    if tc_delta.id:
-                        entry["id"] = tc_delta.id
-                    if tc_delta.function:
-                        if tc_delta.function.name:
-                            entry["function"]["name"] += tc_delta.function.name
-                        if tc_delta.function.arguments:
-                            entry["function"]["arguments"] += tc_delta.function.arguments
+                tc_deltas = delta.get("tool_calls")
+                if tc_deltas:
+                    for tc_delta in tc_deltas:
+                        idx = tc_delta.get("index", 0)
+                        if idx not in tool_calls_map:
+                            tool_calls_map[idx] = {
+                                "id": "",
+                                "type": "function",
+                                "function": {"name": "", "arguments": ""},
+                            }
+                        entry = tool_calls_map[idx]
+                        if tc_delta.get("id"):
+                            entry["id"] = tc_delta["id"]
+                        fn = tc_delta.get("function")
+                        if fn:
+                            if fn.get("name"):
+                                entry["function"]["name"] += fn["name"]
+                            if fn.get("arguments"):
+                                entry["function"]["arguments"] += fn["arguments"]
 
         tool_calls = None
         if tool_calls_map:

@@ -375,7 +375,11 @@ async def _run_agent(
     done_received = False
     while not done_received:
         msg = await queue.get()
-        await websocket.send_json(msg)
+        try:
+            await websocket.send_json(msg)
+        except RuntimeError:
+            # WebSocket already closed — stop draining
+            break
         if msg["type"] in ("done", "error"):
             done_received = True
 
