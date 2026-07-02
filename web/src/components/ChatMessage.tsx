@@ -50,9 +50,17 @@ function AssistantGroupContent({ msgs }: { msgs: Message[] }) {
         if (msg.role === "assistant") {
           return (
             <div key={i}>
-              {typeof msg.content === "string" && msg.content.trim() && (
+              {typeof msg.content === "string" && msg.content.trim() ? (
                 <div className="msg-bubble">
                   <MessageContent content={msg.content} />
+                </div>
+              ) : (
+                <div className="msg-bubble">
+                  <div className="thinking-indicator">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
                 </div>
               )}
               {msg.tool_calls?.map((tc, j) => (

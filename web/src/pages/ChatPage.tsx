@@ -1,12 +1,12 @@
 import { useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Bot, Zap, BarChart3 } from "lucide-react";
+import { Zap, BarChart3 } from "lucide-react";
 import { useAppState } from "../context/AppContext";
 import { useChat } from "../hooks/useChat";
 import { api } from "../api/http";
 import ChatMessage from "../components/ChatMessage";
 import ChatInput from "../components/ChatInput";
-import StreamingText from "../components/StreamingText";
+import type { Message } from "../types";
 import StopButton from "../components/StopButton";
 
 export default function ChatPage() {
@@ -47,7 +47,11 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!userScrolledUp.current && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      });
     }
   }, [state.messages, state.streamingText]);
 
@@ -61,13 +65,11 @@ export default function ChatPage() {
     <div className="chat-container">
       <div className="chat-messages" ref={scrollRef} onScroll={handleScroll}>
 {(() => {
-          // Group consecutive assistant/tool messages under one avatar
           const groups: typeof state.messages[] = [];
           for (const msg of state.messages) {
             if (msg.role === "user") {
               groups.push([msg]);
             } else {
-              // assistant or tool — append to last group if it's also non-user
               if (groups.length > 0 && groups[groups.length - 1][0].role !== "user") {
                 groups[groups.length - 1].push(msg);
               } else {
@@ -75,17 +77,18 @@ export default function ChatPage() {
               }
             }
           }
+          if (state.agentRunning) {
+            const streamingMsg: Message = { role: "assistant", content: state.streamingText || "" };
+            if (groups.length > 0 && groups[groups.length - 1][0].role !== "user") {
+              groups[groups.length - 1].push(streamingMsg);
+            } else {
+              groups.push([streamingMsg]);
+            }
+          }
           return groups.map((g, i) => <ChatMessage key={i} msgs={g} />);
         })()}
 
-        {state.agentRunning && (
-          <div className="msg-row assistant">
-            <div className="msg-avatar"><Bot size={18} /></div>
-            <div className="msg-body" style={{ maxWidth: "85%" }}>
-              <StreamingText text={state.streamingText} />
-            </div>
-          </div>
-        )}
+
       </div>
 
       {state.agentRunning && (
