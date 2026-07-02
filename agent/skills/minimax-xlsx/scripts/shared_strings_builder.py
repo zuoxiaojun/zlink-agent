@@ -27,10 +27,9 @@ Notes:
     - Leading/trailing spaces are preserved with xml:space="preserve".
 """
 
-import sys
-import html
 import argparse
-
+import html
+import sys
 
 HEADER = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
 SST_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -56,10 +55,9 @@ def build_xml(strings: list[str]) -> str:
     for i, s in enumerate(strings):
         escaped, preserve = escape_text(s)
         if preserve:
-            lines.append(f'  <si><t xml:space="preserve">{escaped}</t></si>'
-                         f'  <!-- index {i} -->')
+            lines.append(f'  <si><t xml:space="preserve">{escaped}</t></si>  <!-- index {i} -->')
         else:
-            lines.append(f'  <si><t>{escaped}</t></si>  <!-- index {i} -->')
+            lines.append(f"  <si><t>{escaped}</t></si>  <!-- index {i} -->")
     lines.append("</sst>")
     return "\n".join(lines) + "\n"
 
@@ -73,10 +71,7 @@ def build_index_table(strings: list[str]) -> str:
     for i, s in enumerate(strings):
         lines.append(f"{i:<6}  {s!r}")
     lines.append("")
-    lines.append(
-        f"Total: {len(strings)} unique strings. "
-        "Use these indices in <c t=\"s\"><v>N</v></c> cells."
-    )
+    lines.append(f'Total: {len(strings)} unique strings. Use these indices in <c t="s"><v>N</v></c> cells.')
     return "\n".join(lines) + "\n"
 
 
@@ -137,7 +132,7 @@ def main() -> None:
     if not raw:
         print(
             "ERROR: No strings provided.\n"
-            "Usage: shared_strings_builder.py \"String1\" \"String2\" ...\n"
+            'Usage: shared_strings_builder.py "String1" "String2" ...\n'
             "   or: shared_strings_builder.py --file strings.txt",
             file=sys.stderr,
         )
@@ -148,8 +143,7 @@ def main() -> None:
     if len(strings) < len(raw):
         removed = len(raw) - len(strings)
         print(
-            f"Note: {removed} duplicate(s) removed. "
-            f"{len(strings)} unique strings in table.",
+            f"Note: {removed} duplicate(s) removed. {len(strings)} unique strings in table.",
             file=sys.stderr,
         )
 

@@ -22,31 +22,29 @@ Exit codes: 0 success, 1 bad args, 2 dep missing, 3 read/write error, 4 validati
 """
 
 import argparse
+import importlib.util
 import json
 import os
 import sys
-import importlib.util
-
-
 
 
 def ensure_deps():
     if importlib.util.find_spec("pypdf") is None:
         import subprocess
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "--break-system-packages", "-q", "pypdf"]
-        )
+
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--break-system-packages", "-q", "pypdf"])
 
 
 ensure_deps()
 from pypdf import PdfReader, PdfWriter
-from pypdf.generic import NameObject, TextStringObject, BooleanObject
+from pypdf.generic import BooleanObject, NameObject, TextStringObject
 
 
 # ── Field helpers ─────────────────────────────────────────────────────────────
 def _field_type(field) -> str:
     ft = str(field.get("/FT", ""))
-    if ft == "/Tx":  return "text"
+    if ft == "/Tx":
+        return "text"
     if ft == "/Btn":
         ff = int(field.get("/Ff", 0))
         return "radio" if ff & (1 << 15) else "checkbox"
@@ -74,6 +72,7 @@ def _get_dropdown_values(field) -> list[str]:
     for item in opt:
         try:
             from pypdf.generic import ArrayObject
+
             if isinstance(item, (list, ArrayObject)) and len(item) >= 1:
                 values.append(str(item[0]))
             else:
@@ -100,33 +99,34 @@ def _walk_and_fill(fields, data: dict, filled: list, errors: list, parent: str =
         if full not in data:
             continue
 
-        value   = data[full]
-        ftype   = _field_type(field)
+        value = data[full]
+        ftype = _field_type(field)
 
         if ftype == "text":
-            field.update({
-                NameObject("/V"):  TextStringObject(str(value)),
-                NameObject("/DV"): TextStringObject(str(value)),
-            })
+            field.update(
+                {
+                    NameObject("/V"): TextStringObject(str(value)),
+                    NameObject("/DV"): TextStringObject(str(value)),
+                }
+            )
             filled.append(full)
 
         elif ftype == "checkbox":
             truthy = str(value).lower() in ("true", "1", "yes", "on")
             on_val = _get_checkbox_on_value(field)
             pdf_val = on_val if truthy else "/Off"
-            field.update({
-                NameObject("/V"):  NameObject(pdf_val),
-                NameObject("/AS"): NameObject(pdf_val),
-            })
+            field.update(
+                {
+                    NameObject("/V"): NameObject(pdf_val),
+                    NameObject("/AS"): NameObject(pdf_val),
+                }
+            )
             filled.append(full)
 
         elif ftype in ("dropdown", "listbox"):
             allowed = _get_dropdown_values(field)
             if allowed and str(value) not in allowed:
-                errors.append({
-                    "field": full,
-                    "error": f"Value '{value}' not in allowed choices: {allowed}"
-                })
+                errors.append({"field": full, "error": f"Value '{value}' not in allowed choices: {allowed}"})
                 continue
             field.update({NameObject("/V"): TextStringObject(str(value))})
             filled.append(full)
@@ -134,10 +134,12 @@ def _walk_and_fill(fields, data: dict, filled: list, errors: list, parent: str =
         elif ftype == "radio":
             # Radio value must start with /
             pdf_val = str(value) if str(value).startswith("/") else f"/{value}"
-            field.update({
-                NameObject("/V"):  NameObject(pdf_val),
-                NameObject("/AS"): NameObject(pdf_val),
-            })
+            field.update(
+                {
+                    NameObject("/V"): NameObject(pdf_val),
+                    NameObject("/AS"): NameObject(pdf_val),
+                }
+            )
             filled.append(full)
 
         else:
@@ -157,8 +159,8 @@ def fill(pdf_path: str, out_path: str, data: dict) -> dict:
     if acroform is None or "/Fields" not in acroform:
         return {
             "status": "error",
-            "error":  "This PDF has no fillable form fields.",
-            "hint":   "Run fill_inspect.py first to confirm the PDF has fields.",
+            "error": "This PDF has no fillable form fields.",
+            "hint": "Run fill_inspect.py first to confirm the PDF has fields.",
         }
 
     # Enable appearance regeneration so viewers show the new values
@@ -179,11 +181,11 @@ def fill(pdf_path: str, out_path: str, data: dict) -> dict:
         return {"status": "error", "error": f"Write failed: {e}"}
 
     result = {
-        "status":        "ok",
-        "out":           out_path,
-        "filled_count":  len(filled),
+        "status": "ok",
+        "out": out_path,
+        "filled_count": len(filled),
         "filled_fields": filled,
-        "size_kb":       os.path.getsize(out_path) // 1024,
+        "size_kb": os.path.getsize(out_path) // 1024,
     }
     if errors:
         result["validation_errors"] = errors
@@ -195,16 +197,15 @@ def fill(pdf_path: str, out_path: str, data: dict) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Fill PDF form fields")
-    parser.add_argument("--input",  required=True, help="Input PDF with form fields")
-    parser.add_argument("--out",    required=True, help="Output PDF path")
+    parser.add_argument("--input", required=True, help="Input PDF with form fields")
+    parser.add_argument("--out", required=True, help="Output PDF path")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--data",   help="Path to JSON file with field values")
+    group.add_argument("--data", help="Path to JSON file with field values")
     group.add_argument("--values", help="Inline JSON string with field values")
     args = parser.parse_args()
 
     if not os.path.exists(args.input):
-        print(json.dumps({"status": "error", "error": f"File not found: {args.input}"}),
-              file=sys.stderr)
+        print(json.dumps({"status": "error", "error": f"File not found: {args.input}"}), file=sys.stderr)
         sys.exit(1)
 
     # Load data
@@ -215,20 +216,18 @@ def main():
         else:
             data = json.loads(args.values)
     except Exception as e:
-        print(json.dumps({"status": "error", "error": f"JSON parse error: {e}"}),
-              file=sys.stderr)
+        print(json.dumps({"status": "error", "error": f"JSON parse error: {e}"}), file=sys.stderr)
         sys.exit(1)
 
     result = fill(args.input, args.out, data)
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
     if result["status"] == "ok":
-        print(f"\n── Fill complete ───────────────────────────────────────",
-              file=sys.stderr)
+        print("\n── Fill complete ───────────────────────────────────────", file=sys.stderr)
         print(f"  Output : {result['out']}", file=sys.stderr)
         print(f"  Filled : {result['filled_count']} field(s)", file=sys.stderr)
         if result.get("validation_errors"):
-            print(f"  Errors :", file=sys.stderr)
+            print("  Errors :", file=sys.stderr)
             for e in result["validation_errors"]:
                 print(f"    • {e['field']}: {e['error']}", file=sys.stderr)
         if result.get("not_found"):

@@ -35,12 +35,12 @@ import xml.etree.ElementTree as ET
 NS_SS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 NS_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 
-ET.register_namespace('', NS_SS)
-ET.register_namespace('r', NS_REL)
-ET.register_namespace('xdr', 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing')
-ET.register_namespace('x14', 'http://schemas.microsoft.com/office/spreadsheetml/2009/9/main')
-ET.register_namespace('xr2', 'http://schemas.microsoft.com/office/spreadsheetml/2015/revision2')
-ET.register_namespace('mc', 'http://schemas.openxmlformats.org/markup-compatibility/2006')
+ET.register_namespace("", NS_SS)
+ET.register_namespace("r", NS_REL)
+ET.register_namespace("xdr", "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing")
+ET.register_namespace("x14", "http://schemas.microsoft.com/office/spreadsheetml/2009/9/main")
+ET.register_namespace("xr2", "http://schemas.microsoft.com/office/spreadsheetml/2015/revision2")
+ET.register_namespace("mc", "http://schemas.openxmlformats.org/markup-compatibility/2006")
 
 
 def _tag(local: str) -> str:
@@ -49,7 +49,7 @@ def _tag(local: str) -> str:
 
 def _write_tree(tree: ET.ElementTree, path: str) -> None:
     tree.write(path, encoding="unicode", xml_declaration=False)
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         raw = fh.read()
     try:
         dom = xml.dom.minidom.parseString(raw.encode("utf-8"))
@@ -169,10 +169,12 @@ def ensure_numfmt_style(work_dir: str, ref_style_idx: int, numfmt_code: str) -> 
     ref_xf = xf_list[min(ref_style_idx, len(xf_list) - 1)]
 
     for i, xf in enumerate(xf_list):
-        if (xf.get("numFmtId") == str(numfmt_id) and
-                xf.get("fontId") == ref_xf.get("fontId") and
-                xf.get("fillId") == ref_xf.get("fillId") and
-                xf.get("borderId") == ref_xf.get("borderId")):
+        if (
+            xf.get("numFmtId") == str(numfmt_id)
+            and xf.get("fontId") == ref_xf.get("fontId")
+            and xf.get("fillId") == ref_xf.get("fillId")
+            and xf.get("borderId") == ref_xf.get("borderId")
+        ):
             return i
 
     new_xf = copy.deepcopy(ref_xf)
@@ -185,9 +187,16 @@ def ensure_numfmt_style(work_dir: str, ref_style_idx: int, numfmt_code: str) -> 
     return len(list(cellxfs)) - 1
 
 
-def _apply_border_to_row(work_dir: str, ws_path: str, ws_tree: ET.ElementTree,
-                         ws_root: ET.Element, row_map: dict, border_row: int,
-                         border_style: str, new_col: str) -> None:
+def _apply_border_to_row(
+    work_dir: str,
+    ws_path: str,
+    ws_tree: ET.ElementTree,
+    ws_root: ET.Element,
+    row_map: dict,
+    border_row: int,
+    border_style: str,
+    new_col: str,
+) -> None:
     """Apply a top border to ALL cells in the specified row (A through new_col)."""
     styles_path = os.path.join(work_dir, "xl", "styles.xml")
     st_tree = ET.parse(styles_path)
@@ -234,31 +243,27 @@ def _apply_border_to_row(work_dir: str, ws_path: str, ws_tree: ET.ElementTree,
 
     _write_tree(st_tree, styles_path)
     last_col_num = col_number(new_col)
-    print(f"  Applied {border_style} top border to all cells in row {border_row} "
-          f"(A-{new_col}, {len(style_remap)} style(s) cloned)")
+    print(
+        f"  Applied {border_style} top border to all cells in row {border_row} "
+        f"(A-{new_col}, {len(style_remap)} style(s) cloned)"
+    )
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Add a column to a worksheet in an unpacked xlsx")
+    parser = argparse.ArgumentParser(description="Add a column to a worksheet in an unpacked xlsx")
     parser.add_argument("work_dir", help="Unpacked xlsx working directory")
     parser.add_argument("--col", required=True, help="Column letter (e.g., G)")
     parser.add_argument("--sheet", default=None, help="Sheet name (default: first)")
     parser.add_argument("--header", default=None, help="Header text for row 1")
-    parser.add_argument("--formula", default=None,
-                        help="Formula template with {row} placeholder")
-    parser.add_argument("--formula-rows", default=None,
-                        help="Row range for formulas (e.g., 2:9)")
-    parser.add_argument("--total-row", type=int, default=None,
-                        help="Row number for total formula")
-    parser.add_argument("--total-formula", default=None,
-                        help="Formula for total row")
-    parser.add_argument("--numfmt", default=None,
-                        help="Number format for data/total cells (e.g., 0.0%%)")
-    parser.add_argument("--border-row", type=int, default=None,
-                        help="Row to apply a top border to ALL cells (e.g., 10)")
-    parser.add_argument("--border-style", default="medium",
-                        help="Border style: thin, medium, thick (default: medium)")
+    parser.add_argument("--formula", default=None, help="Formula template with {row} placeholder")
+    parser.add_argument("--formula-rows", default=None, help="Row range for formulas (e.g., 2:9)")
+    parser.add_argument("--total-row", type=int, default=None, help="Row number for total formula")
+    parser.add_argument("--total-formula", default=None, help="Formula for total row")
+    parser.add_argument("--numfmt", default=None, help="Number format for data/total cells (e.g., 0.0%%)")
+    parser.add_argument(
+        "--border-row", type=int, default=None, help="Row to apply a top border to ALL cells (e.g., 10)"
+    )
+    parser.add_argument("--border-style", default="medium", help="Border style: thin, medium, thick (default: medium)")
     args = parser.parse_args()
 
     col = args.col.upper()
@@ -277,14 +282,12 @@ def main() -> None:
     if args.formula_rows:
         start_row = int(args.formula_rows.split(":")[0])
         ref = get_cell_style(ws_tree, prev_col, start_row)
-        data_style = (ensure_numfmt_style(args.work_dir, ref, args.numfmt)
-                      if args.numfmt else ref)
+        data_style = ensure_numfmt_style(args.work_dir, ref, args.numfmt) if args.numfmt else ref
 
     total_style = None
     if args.total_row:
         ref = get_cell_style(ws_tree, prev_col, args.total_row)
-        total_style = (ensure_numfmt_style(args.work_dir, ref, args.numfmt)
-                       if args.numfmt else ref)
+        total_style = ensure_numfmt_style(args.work_dir, ref, args.numfmt) if args.numfmt else ref
 
     # Add header to sharedStrings
     header_idx = add_shared_string(args.work_dir, args.header) if args.header else None
@@ -309,7 +312,7 @@ def main() -> None:
         v = ET.SubElement(cell, _tag("v"))
         v.text = str(header_idx)
         changes += 1
-        print(f"  {col}1 = \"{args.header}\" (header, style={header_style})")
+        print(f'  {col}1 = "{args.header}" (header, style={header_style})')
 
     # Add formula cells
     if args.formula and args.formula_rows:
@@ -365,10 +368,7 @@ def main() -> None:
     cols_el = root.find(_tag("cols"))
     if cols_el is not None:
         new_col_num = col_number(col)
-        covered = any(
-            int(c.get("min", "0")) <= new_col_num <= int(c.get("max", "0"))
-            for c in cols_el
-        )
+        covered = any(int(c.get("min", "0")) <= new_col_num <= int(c.get("max", "0")) for c in cols_el)
         if not covered:
             prev_num = col_number(prev_col)
             for c in cols_el:
@@ -382,9 +382,7 @@ def main() -> None:
 
     # Apply border to entire row if requested
     if args.border_row:
-        _apply_border_to_row(args.work_dir, ws_path, ws_tree, root,
-                             row_map, args.border_row, args.border_style,
-                             col)
+        _apply_border_to_row(args.work_dir, ws_path, ws_tree, root, row_map, args.border_row, args.border_style, col)
 
     _write_tree(ws_tree, ws_path)
     print(f"\nDone. {changes} cells added.")

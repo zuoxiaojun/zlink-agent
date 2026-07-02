@@ -27,11 +27,11 @@ Exit code:
     1 — errors detected (or file cannot be opened)
 """
 
-import sys
-import zipfile
-import xml.etree.ElementTree as ET
-import re
 import json
+import re
+import sys
+import xml.etree.ElementTree as ET
+import zipfile
 
 # OOXML SpreadsheetML namespace
 NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
@@ -43,17 +43,88 @@ EXCEL_ERRORS = {"#REF!", "#DIV/0!", "#VALUE!", "#NAME?", "#NULL!", "#NUM!", "#N/
 # Excel built-in function names (subset of common ones) — used for #NAME? heuristic
 # Full list: https://support.microsoft.com/en-us/office/excel-functions-alphabetical
 _BUILTIN_FUNCTIONS = {
-    "ABS", "AND", "AVERAGE", "AVERAGEIF", "AVERAGEIFS", "CEILING", "CHOOSE",
-    "COUNTA", "COUNTIF", "COUNTIFS", "COUNT", "DATE", "EDATE", "EOMONTH",
-    "FALSE", "FILTER", "FIND", "FLOOR", "IF", "IFERROR", "IFNA", "IFS",
-    "INDEX", "INDIRECT", "INT", "IRR", "ISBLANK", "ISERROR", "ISNA", "ISNUMBER",
-    "LARGE", "LEFT", "LEN", "LOOKUP", "LOWER", "MATCH", "MAX", "MID", "MIN",
-    "MOD", "MONTH", "NETWORKDAYS", "NOT", "NOW", "NPV", "OFFSET", "OR",
-    "PMT", "PV", "RAND", "RANK", "RIGHT", "ROUND", "ROUNDDOWN", "ROUNDUP",
-    "ROW", "ROWS", "SEARCH", "SMALL", "SORT", "SQRT", "SUBSTITUTE", "SUM",
-    "SUMIF", "SUMIFS", "SUMPRODUCT", "TEXT", "TODAY", "TRANSPOSE", "TRIM",
-    "TRUE", "UNIQUE", "UPPER", "VALUE", "VLOOKUP", "HLOOKUP", "XLOOKUP",
-    "XMATCH", "XNPV", "XIRR", "YEAR", "YEARFRAC",
+    "ABS",
+    "AND",
+    "AVERAGE",
+    "AVERAGEIF",
+    "AVERAGEIFS",
+    "CEILING",
+    "CHOOSE",
+    "COUNTA",
+    "COUNTIF",
+    "COUNTIFS",
+    "COUNT",
+    "DATE",
+    "EDATE",
+    "EOMONTH",
+    "FALSE",
+    "FILTER",
+    "FIND",
+    "FLOOR",
+    "IF",
+    "IFERROR",
+    "IFNA",
+    "IFS",
+    "INDEX",
+    "INDIRECT",
+    "INT",
+    "IRR",
+    "ISBLANK",
+    "ISERROR",
+    "ISNA",
+    "ISNUMBER",
+    "LARGE",
+    "LEFT",
+    "LEN",
+    "LOOKUP",
+    "LOWER",
+    "MATCH",
+    "MAX",
+    "MID",
+    "MIN",
+    "MOD",
+    "MONTH",
+    "NETWORKDAYS",
+    "NOT",
+    "NOW",
+    "NPV",
+    "OFFSET",
+    "OR",
+    "PMT",
+    "PV",
+    "RAND",
+    "RANK",
+    "RIGHT",
+    "ROUND",
+    "ROUNDDOWN",
+    "ROUNDUP",
+    "ROW",
+    "ROWS",
+    "SEARCH",
+    "SMALL",
+    "SORT",
+    "SQRT",
+    "SUBSTITUTE",
+    "SUM",
+    "SUMIF",
+    "SUMIFS",
+    "SUMPRODUCT",
+    "TEXT",
+    "TODAY",
+    "TRANSPOSE",
+    "TRIM",
+    "TRUE",
+    "UNIQUE",
+    "UPPER",
+    "VALUE",
+    "VLOOKUP",
+    "HLOOKUP",
+    "XLOOKUP",
+    "XMATCH",
+    "XNPV",
+    "XIRR",
+    "YEAR",
+    "YEARFRAC",
 }
 
 
@@ -238,7 +309,7 @@ def check(xlsx_path: str, sheet_filter: str | None = None) -> dict:
                     continue
 
                 f_type = f_elem.get("t", "")  # "shared", "array", or "" for normal
-                f_si = f_elem.get("si")       # shared formula group ID
+                f_si = f_elem.get("si")  # shared formula group ID
 
                 # Count formulas:
                 # - Normal formulas: always count
@@ -381,10 +452,7 @@ def main() -> None:
                 formula_hint = f" (formula: {e['formula']})" if e.get("formula") else ""
                 print(f"  [FAIL] [{e['sheet']}!{e['cell']}] contains {e['error']}{formula_hint}")
             elif e["type"] == "broken_sheet_ref":
-                print(
-                    f"  [FAIL] [{e['sheet']}!{e['cell']}] references missing sheet "
-                    f"'{e['missing_sheet']}'"
-                )
+                print(f"  [FAIL] [{e['sheet']}!{e['cell']}] references missing sheet '{e['missing_sheet']}'")
                 print(f"         Formula: {e['formula']}")
                 print(f"         Valid sheets: {e.get('valid_sheets', [])}")
             elif e["type"] == "unknown_name_ref":

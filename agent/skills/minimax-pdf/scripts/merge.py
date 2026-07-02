@@ -15,17 +15,17 @@ import json
 import os
 import sys
 
+
 def ensure_deps():
     if importlib.util.find_spec("pypdf") is None:
         import subprocess
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "--break-system-packages", "-q", "pypdf"]
-        )
+
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--break-system-packages", "-q", "pypdf"])
 
 
 ensure_deps()
 
-from pypdf import PdfWriter, PdfReader
+from pypdf import PdfReader, PdfWriter
 
 
 def merge(cover_path: str, body_path: str, out_path: str, title: str = "") -> dict:
@@ -54,7 +54,7 @@ def merge(cover_path: str, body_path: str, out_path: str, title: str = "") -> di
 
     # Page count sanity
     cover_pages = len(PdfReader(cover_path).pages)
-    body_pages  = len(PdfReader(body_path).pages)
+    body_pages = len(PdfReader(body_path).pages)
     if cover_pages != 1:
         warnings.append(f"Cover PDF has {cover_pages} pages (expected 1)")
 
@@ -65,12 +65,12 @@ def merge(cover_path: str, body_path: str, out_path: str, title: str = "") -> di
         warnings.append(f"Output is very large ({size_kb} KB) — consider compressing images")
 
     report = {
-        "status":       "ok",
-        "out":          out_path,
-        "total_pages":  total_pages,
-        "cover_pages":  cover_pages,
-        "body_pages":   body_pages,
-        "size_kb":      size_kb,
+        "status": "ok",
+        "out": out_path,
+        "total_pages": total_pages,
+        "cover_pages": cover_pages,
+        "body_pages": body_pages,
+        "size_kb": size_kb,
     }
     if warnings:
         report["warnings"] = warnings
@@ -81,8 +81,8 @@ def merge(cover_path: str, body_path: str, out_path: str, title: str = "") -> di
 def main():
     parser = argparse.ArgumentParser(description="Merge cover + body PDFs")
     parser.add_argument("--cover", required=True)
-    parser.add_argument("--body",  required=True)
-    parser.add_argument("--out",   required=True)
+    parser.add_argument("--body", required=True)
+    parser.add_argument("--out", required=True)
     parser.add_argument("--title", default="")
     args = parser.parse_args()
 
@@ -95,17 +95,17 @@ def main():
     print(json.dumps(result))
 
     # Human-readable QA summary
-    print(f"\n── Build complete ──────────────────────────────────────")
+    print("\n── Build complete ──────────────────────────────────────")
     print(f"  Output  : {result['out']}")
     print(f"  Pages   : {result['total_pages']} total (1 cover + {result['body_pages']} body)")
     print(f"  Size    : {result['size_kb']} KB")
     if result.get("warnings"):
-        print(f"  ⚠  Warnings:")
+        print("  ⚠  Warnings:")
         for w in result["warnings"]:
             print(f"     • {w}")
     else:
-        print(f"  ✓  No issues detected")
-    print(f"────────────────────────────────────────────────────────\n")
+        print("  ✓  No issues detected")
+    print("────────────────────────────────────────────────────────\n")
 
 
 if __name__ == "__main__":

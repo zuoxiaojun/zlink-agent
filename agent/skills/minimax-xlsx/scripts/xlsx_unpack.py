@@ -12,11 +12,11 @@ What it does:
 3. Prints a summary of key files to edit
 """
 
-import sys
-import zipfile
 import os
 import shutil
+import sys
 import xml.dom.minidom
+import zipfile
 
 
 def pretty_print_xml(content: bytes) -> str:
@@ -48,8 +48,13 @@ def unpack(xlsx_path: str, output_dir: str) -> None:
             # Validate member paths to prevent zip-slip (path traversal) attacks
             for member in z.namelist():
                 member_path = os.path.realpath(os.path.join(output_dir, member))
-                if not member_path.startswith(os.path.realpath(output_dir) + os.sep) and member_path != os.path.realpath(output_dir):
-                    print(f"ERROR: Zip entry '{member}' would escape target directory (path traversal blocked)", file=sys.stderr)
+                if not member_path.startswith(
+                    os.path.realpath(output_dir) + os.sep
+                ) and member_path != os.path.realpath(output_dir):
+                    print(
+                        f"ERROR: Zip entry '{member}' would escape target directory (path traversal blocked)",
+                        file=sys.stderr,
+                    )
                     shutil.rmtree(output_dir, ignore_errors=True)
                     sys.exit(1)
             z.extractall(output_dir)

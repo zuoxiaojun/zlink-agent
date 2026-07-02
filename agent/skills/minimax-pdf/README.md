@@ -1,6 +1,6 @@
 # minimax-pdf
 
-A Claude skill for creating and editing visually polished PDFs.  
+A Claude skill for creating and editing visually polished PDFs.
 Three routes. One design system. Tokens flow from content analysis through every renderer.
 
 ## Quick start
@@ -214,7 +214,7 @@ Design tokens (color, typography, spacing) are written once by `palette.py` and 
 | Node.js 18+ | Cover rendering | system |
 | `playwright` | Headless Chromium for cover | `npm install -g playwright && npx playwright install chromium` |
 
-Run `bash scripts/make.sh check` to verify everything at once.  
+Run `bash scripts/make.sh check` to verify everything at once.
 Run `bash scripts/make.sh fix` to auto-install what is missing.
 
 ## License

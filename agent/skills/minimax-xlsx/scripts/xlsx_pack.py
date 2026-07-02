@@ -13,10 +13,10 @@ Requirements:
 The resulting xlsx is a valid ZIP archive with correct OOXML structure.
 """
 
-import sys
 import os
-import zipfile
+import sys
 import xml.etree.ElementTree as ET
+import zipfile
 
 
 def validate_xml_files(source_dir: str) -> list[str]:
@@ -56,8 +56,7 @@ def pack(source_dir: str, xlsx_path: str) -> None:
         for b in bad_files:
             print(f"  {b}", file=sys.stderr)
         print(
-            "\nFix all XML errors before packing. "
-            "A malformed xlsx cannot be opened by Excel or LibreOffice.",
+            "\nFix all XML errors before packing. A malformed xlsx cannot be opened by Excel or LibreOffice.",
             file=sys.stderr,
         )
         sys.exit(1)

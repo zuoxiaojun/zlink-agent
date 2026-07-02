@@ -33,13 +33,13 @@ def _base_css(t: dict) -> str:
 html, body {{
     width: 794px; height: 1123px;
     overflow: hidden;
-    background: {t['cover_bg']};
-    font-family: '{t['font_body']}', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: {t["cover_bg"]};
+    font-family: '{t["font_body"]}', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }}
 .page {{
     position: relative;
     width: 794px; height: 1123px;
-    background: {t['cover_bg']};
+    background: {t["cover_bg"]};
     overflow: hidden;
 }}
 """
@@ -56,8 +56,7 @@ def _dot_grid(x0, y0, cols, rows, *, gap, r, color, opacity) -> str:
             dots.append(f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{color}"/>')
     return (
         f'<svg style="position:absolute;top:0;left:0;width:794px;height:1123px;'
-        f'pointer-events:none;opacity:{opacity}" xmlns="http://www.w3.org/2000/svg">'
-        + "".join(dots) + "</svg>"
+        f'pointer-events:none;opacity:{opacity}" xmlns="http://www.w3.org/2000/svg">' + "".join(dots) + "</svg>"
     )
 
 
@@ -70,22 +69,20 @@ def _cross_hatch(color, opacity, spacing=32, stroke_w=0.5) -> str:
     return (
         f'<svg style="position:absolute;top:0;left:0;width:794px;height:1123px;'
         f'pointer-events:none;opacity:{opacity};overflow:hidden" xmlns="http://www.w3.org/2000/svg">'
-        + "".join(lines) + "</svg>"
+        + "".join(lines)
+        + "</svg>"
     )
 
 
 # ── Pattern 1: Full-bleed block ────────────────────────────────────────────────
 def _pattern_fullbleed(t: dict) -> str:
-    dot_grid = _dot_grid(
-        x0=500, y0=40, cols=10, rows=20, gap=24, r=1.8,
-        color=t["accent"], opacity=0.12
-    )
+    dot_grid = _dot_grid(x0=500, y0=40, cols=10, rows=20, gap=24, r=1.8, color=t["accent"], opacity=0.12)
     subtitle_block = ""
     if t.get("subtitle"):
         subtitle_block = f"""
-        <div style="font-size:14px;color:{t['muted']};letter-spacing:0.01em;
+        <div style="font-size:14px;color:{t["muted"]};letter-spacing:0.01em;
                     max-width:480px;line-height:1.5;margin-bottom:40px;">
-            {t['subtitle']}
+            {t["subtitle"]}
         </div>"""
 
     return f"""<!DOCTYPE html>
@@ -95,18 +92,18 @@ def _pattern_fullbleed(t: dict) -> str:
 {_base_css(t)}
 .label {{
     font-size: 9px; font-weight: 500; letter-spacing: 0.22em;
-    color: {t['accent']}; text-transform: uppercase; margin-bottom: 28px;
+    color: {t["accent"]}; text-transform: uppercase; margin-bottom: 28px;
 }}
 .title {{
-    font-family: '{t['font_display']}', 'Times New Roman', Georgia, serif;
+    font-family: '{t["font_display"]}', 'Times New Roman', Georgia, serif;
     font-weight: 900; font-size: 60px; line-height: 1.0;
-    color: {t['text_light']}; letter-spacing: -0.015em;
+    color: {t["text_light"]}; letter-spacing: -0.015em;
     margin-bottom: 10px; max-width: 560px;
     word-wrap: break-word;
 }}
 .rule {{
     width: 52%; height: 1.5px;
-    background: linear-gradient(to right, {t['accent']}, transparent);
+    background: linear-gradient(to right, {t["accent"]}, transparent);
     margin: 24px 0 20px;
 }}
 .content {{
@@ -124,29 +121,29 @@ def _pattern_fullbleed(t: dict) -> str:
     padding: 0 68px;
 }}
 .footer-author {{ font-size: 11px; color: rgba(240,237,230,0.75); letter-spacing:0.04em; }}
-.footer-date   {{ font-size: 11px; color: {t['muted']}; letter-spacing: 0.04em; }}
+.footer-date   {{ font-size: 11px; color: {t["muted"]}; letter-spacing: 0.04em; }}
 </style>
 </head>
 <body>
 <div class="page">
     <!-- top-right accent strip -->
-    <div style="position:absolute;top:0;right:0;width:35%;height:4px;background:{t['accent']};"></div>
+    <div style="position:absolute;top:0;right:0;width:35%;height:4px;background:{t["accent"]};"></div>
     <!-- left vertical accent bar (gradient fade) -->
     <div style="position:absolute;left:48px;top:18%;width:3px;height:60%;
-                background:linear-gradient(to bottom,{t['accent']},transparent);"></div>
+                background:linear-gradient(to bottom,{t["accent"]},transparent);"></div>
     <!-- dot grid background texture -->
     {dot_grid}
 
     <div class="content">
-        <div class="label">{t.get('doc_type','Document').upper()} &nbsp;·&nbsp; {t.get('date','')}</div>
-        <div class="title">{t['title']}</div>
+        <div class="label">{t.get("doc_type", "Document").upper()} &nbsp;·&nbsp; {t.get("date", "")}</div>
+        <div class="title">{t["title"]}</div>
         <div class="rule"></div>
         {subtitle_block}
     </div>
 
     <div class="footer">
-        <div class="footer-author">{t.get('author','')}</div>
-        <div class="footer-date">{t.get('date','')}</div>
+        <div class="footer-author">{t.get("author", "")}</div>
+        <div class="footer-date">{t.get("date", "")}</div>
     </div>
 </div>
 </body></html>"""
@@ -154,10 +151,7 @@ def _pattern_fullbleed(t: dict) -> str:
 
 # ── Pattern 2: Split panel ─────────────────────────────────────────────────────
 def _pattern_split(t: dict) -> str:
-    dot_grid = _dot_grid(
-        x0=360, y0=120, cols=10, rows=18, gap=22, r=2,
-        color="#CCCCCC", opacity=0.25
-    )
+    dot_grid = _dot_grid(x0=360, y0=120, cols=10, rows=18, gap=22, r=2, color="#CCCCCC", opacity=0.25)
     return f"""<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8">
@@ -166,7 +160,7 @@ def _pattern_split(t: dict) -> str:
 .left-panel {{
     position: absolute; top: 0; left: 0;
     width: 330px; height: 1123px;
-    background: {t['cover_bg']};
+    background: {t["cover_bg"]};
     display: flex; flex-direction: column;
     justify-content: center;
     padding: 0 44px;
@@ -174,27 +168,27 @@ def _pattern_split(t: dict) -> str:
 .right-panel {{
     position: absolute; top: 0; left: 330px;
     width: 464px; height: 1123px;
-    background: {t['page_bg']};
+    background: {t["page_bg"]};
 }}
 .divider {{
     position: absolute; top: 0; left: 329px;
     width: 3px; height: 1123px;
-    background: {t['accent']};
+    background: {t["accent"]};
 }}
 .left-top-bar {{
     position: absolute; top: 0; left: 0;
     width: 330px; height: 4px;
-    background: {t['accent']};
+    background: {t["accent"]};
 }}
 .title {{
-    font-family: '{t['font_display']}', 'Times New Roman', serif;
+    font-family: '{t["font_display"]}', 'Times New Roman', serif;
     font-weight: 900; font-size: 34px; line-height: 1.2;
-    color: {t['text_light']}; margin-bottom: 18px;
+    color: {t["text_light"]}; margin-bottom: 18px;
     word-wrap: break-word;
 }}
 .rule {{
     width: 55%; height: 1.5px;
-    background: {t['accent']};
+    background: {t["accent"]};
     margin-bottom: 14px;
 }}
 .subtitle {{
@@ -202,13 +196,13 @@ def _pattern_split(t: dict) -> str:
     line-height: 1.5; margin-bottom: 32px;
 }}
 .author {{
-    font-size: 11px; color: {t['text_light']}; margin-bottom: 4px;
+    font-size: 11px; color: {t["text_light"]}; margin-bottom: 4px;
 }}
-.date {{ font-size: 10px; color: {t['muted']}; }}
+.date {{ font-size: 10px; color: {t["muted"]}; }}
 .right-label {{
     position: absolute; bottom: 60px; right: 44px;
     font-size: 9px; letter-spacing: 0.18em;
-    color: {t['muted']}; text-transform: uppercase;
+    color: {t["muted"]}; text-transform: uppercase;
 }}
 </style>
 </head>
@@ -216,72 +210,72 @@ def _pattern_split(t: dict) -> str:
 <div class="page">
     <div class="left-top-bar"></div>
     <div class="left-panel">
-        <div class="title">{t['title']}</div>
+        <div class="title">{t["title"]}</div>
         <div class="rule"></div>
-        {'<div class="subtitle">' + t['subtitle'] + '</div>' if t.get('subtitle') else ''}
-        <div class="author">{t.get('author','')}</div>
-        <div class="date">{t.get('date','')}</div>
+        {'<div class="subtitle">' + t["subtitle"] + "</div>" if t.get("subtitle") else ""}
+        <div class="author">{t.get("author", "")}</div>
+        <div class="date">{t.get("date", "")}</div>
     </div>
     <div class="right-panel">
         {dot_grid}
     </div>
     <div class="divider"></div>
-    <div class="right-label">{t.get('doc_type','').upper()}</div>
+    <div class="right-label">{t.get("doc_type", "").upper()}</div>
 </div>
 </body></html>"""
 
 
 # ── Pattern 3: Typographic ─────────────────────────────────────────────────────
 def _pattern_typographic(t: dict) -> str:
-    words = t['title'].split()
+    words = t["title"].split()
     first = words[0] if words else ""
-    rest  = " ".join(words[1:]) if len(words) > 1 else ""
+    rest = " ".join(words[1:]) if len(words) > 1 else ""
     return f"""<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8">
 <style>
 {_base_css(t)}
-html, body {{ background: {t['page_bg']}; }}
-.page {{ background: {t['page_bg']}; }}
+html, body {{ background: {t["page_bg"]}; }}
+.page {{ background: {t["page_bg"]}; }}
 .content {{
     position: absolute; left: 60px; top: 0; bottom: 0; right: 60px;
     display: flex; flex-direction: column; justify-content: center;
 }}
 .first-word {{
-    font-family: '{t['font_display']}', 'Times New Roman', serif;
+    font-family: '{t["font_display"]}', 'Times New Roman', serif;
     font-weight: 900; font-size: 72px; line-height: 1.0;
-    color: {t['accent']}; letter-spacing: -0.02em;
+    color: {t["accent"]}; letter-spacing: -0.02em;
 }}
 .rest-words {{
-    font-family: '{t['font_display']}', 'Times New Roman', serif;
+    font-family: '{t["font_display"]}', 'Times New Roman', serif;
     font-weight: 900; font-size: 72px; line-height: 1.0;
-    color: {t['dark']}; letter-spacing: -0.02em;
+    color: {t["dark"]}; letter-spacing: -0.02em;
     margin-bottom: 12px;
 }}
 .rule {{
     width: 100%; height: 1.5px;
-    background: linear-gradient(to right, {t['accent']}, {t['accent']}40);
+    background: linear-gradient(to right, {t["accent"]}, {t["accent"]}40);
     margin: 28px 0 20px;
 }}
 .meta-row {{
     display: flex; justify-content: space-between; align-items: baseline;
 }}
-.author  {{ font-size: 13px; color: {t['dark']}; letter-spacing: 0.02em; }}
-.date    {{ font-size: 12px; color: {t['muted']}; }}
-.subtitle {{ font-size: 13px; color: {t['muted']}; margin-top: 8px; max-width: 500px; }}
+.author  {{ font-size: 13px; color: {t["dark"]}; letter-spacing: 0.02em; }}
+.date    {{ font-size: 12px; color: {t["muted"]}; }}
+.subtitle {{ font-size: 13px; color: {t["muted"]}; margin-top: 8px; max-width: 500px; }}
 </style>
 </head>
 <body>
 <div class="page">
     <div class="content">
         <div class="first-word">{first}</div>
-        {'<div class="rest-words">' + rest + '</div>' if rest else ''}
+        {'<div class="rest-words">' + rest + "</div>" if rest else ""}
         <div class="rule"></div>
         <div class="meta-row">
-            <div class="author">{t.get('author','')}</div>
-            <div class="date">{t.get('date','')}</div>
+            <div class="author">{t.get("author", "")}</div>
+            <div class="date">{t.get("date", "")}</div>
         </div>
-        {'<div class="subtitle">' + t['subtitle'] + '</div>' if t.get('subtitle') else ''}
+        {'<div class="subtitle">' + t["subtitle"] + "</div>" if t.get("subtitle") else ""}
     </div>
 </div>
 </body></html>"""
@@ -289,10 +283,7 @@ html, body {{ background: {t['page_bg']}; }}
 
 # ── Pattern 4: Dark atmospheric ────────────────────────────────────────────────
 def _pattern_atmospheric(t: dict) -> str:
-    dot_grid = _dot_grid(
-        x0=60, y0=60, cols=16, rows=22, gap=20, r=1.5,
-        color=t["accent"], opacity=0.08
-    )
+    dot_grid = _dot_grid(x0=60, y0=60, cols=16, rows=22, gap=20, r=1.5, color=t["accent"], opacity=0.08)
     return f"""<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8">
@@ -302,14 +293,14 @@ def _pattern_atmospheric(t: dict) -> str:
     position: absolute;
     top: -100px; right: -80px;
     width: 500px; height: 500px;
-    background: radial-gradient(circle, {t['accent']}2E 0%, transparent 68%);
+    background: radial-gradient(circle, {t["accent"]}2E 0%, transparent 68%);
     border-radius: 50%;
 }}
 .glow2 {{
     position: absolute;
     bottom: -40px; left: 10%;
     width: 300px; height: 300px;
-    background: radial-gradient(circle, {t['accent']}14 0%, transparent 70%);
+    background: radial-gradient(circle, {t["accent"]}14 0%, transparent 70%);
     border-radius: 50%;
 }}
 .content {{
@@ -319,17 +310,17 @@ def _pattern_atmospheric(t: dict) -> str:
 }}
 .label {{
     font-size: 9px; letter-spacing: 0.22em;
-    color: {t['accent']}; text-transform: uppercase; margin-bottom: 32px;
+    color: {t["accent"]}; text-transform: uppercase; margin-bottom: 32px;
 }}
 .title {{
-    font-family: '{t['font_display']}', 'Times New Roman', serif;
+    font-family: '{t["font_display"]}', 'Times New Roman', serif;
     font-weight: 900; font-size: 50px; line-height: 1.05;
-    color: {t['text_light']}; max-width: 520px;
+    color: {t["text_light"]}; max-width: 520px;
     word-wrap: break-word; margin-bottom: 12px;
 }}
-.rule {{ width: 48px; height: 2px; background: {t['accent']}; margin: 24px 0 20px; }}
+.rule {{ width: 48px; height: 2px; background: {t["accent"]}; margin: 24px 0 20px; }}
 .subtitle {{
-    font-size: 13px; color: {t['muted']}; line-height: 1.6;
+    font-size: 13px; color: {t["muted"]}; line-height: 1.6;
     max-width: 400px; margin-bottom: 40px;
 }}
 .footer {{
@@ -339,7 +330,7 @@ def _pattern_atmospheric(t: dict) -> str:
     padding: 0 64px;
 }}
 .footer-l {{ font-size: 10.5px; color: rgba(240,237,230,0.6); }}
-.footer-r {{ font-size: 10.5px; color: {t['muted']}; }}
+.footer-r {{ font-size: 10.5px; color: {t["muted"]}; }}
 </style>
 </head>
 <body>
@@ -347,16 +338,16 @@ def _pattern_atmospheric(t: dict) -> str:
     <div class="glow"></div>
     <div class="glow2"></div>
     {dot_grid}
-    <div style="position:absolute;top:0;right:0;width:30%;height:3px;background:{t['accent']};"></div>
+    <div style="position:absolute;top:0;right:0;width:30%;height:3px;background:{t["accent"]};"></div>
     <div class="content">
-        <div class="label">{t.get('doc_type','').upper()} &nbsp;·&nbsp; {t.get('date','')}</div>
-        <div class="title">{t['title']}</div>
+        <div class="label">{t.get("doc_type", "").upper()} &nbsp;·&nbsp; {t.get("date", "")}</div>
+        <div class="title">{t["title"]}</div>
         <div class="rule"></div>
-        {'<div class="subtitle">' + t['subtitle'] + '</div>' if t.get('subtitle') else ''}
+        {'<div class="subtitle">' + t["subtitle"] + "</div>" if t.get("subtitle") else ""}
     </div>
     <div class="footer">
-        <div class="footer-l">{t.get('author','')}</div>
-        <div class="footer-r">{t.get('date','')}</div>
+        <div class="footer-l">{t.get("author", "")}</div>
+        <div class="footer-r">{t.get("date", "")}</div>
     </div>
 </div>
 </body></html>"""
@@ -371,8 +362,8 @@ def _pattern_minimal(t: dict) -> str:
     """
     # Pick text color for page (minimal uses page_bg which is near-white)
     text_dark = t.get("dark", "#111111")
-    muted     = t.get("muted", "#999999")
-    accent    = t["accent"]
+    muted = t.get("muted", "#999999")
+    accent = t["accent"]
 
     subtitle_block = ""
     if t.get("subtitle"):
@@ -383,8 +374,8 @@ def _pattern_minimal(t: dict) -> str:
 <head><meta charset="UTF-8">
 <style>
 {_base_css(t)}
-html, body {{ background: {t['page_bg']}; }}
-.page {{ background: {t['page_bg']}; }}
+html, body {{ background: {t["page_bg"]}; }}
+.page {{ background: {t["page_bg"]}; }}
 
 /* Left accent bar — the only color element */
 .bar {{
@@ -415,7 +406,7 @@ html, body {{ background: {t['page_bg']}; }}
 }}
 
 .title {{
-    font-family: '{t['font_display']}', Georgia, 'Times New Roman', serif;
+    font-family: '{t["font_display"]}', Georgia, 'Times New Roman', serif;
     font-weight: 300;
     font-size: 72px;
     line-height: 1.0;
@@ -455,11 +446,11 @@ html, body {{ background: {t['page_bg']}; }}
 <div class="page">
     <div class="bar"></div>
     <div class="content">
-        <div class="eyebrow">{t.get('doc_type','').upper()}</div>
-        <div class="title">{t['title']}</div>
+        <div class="eyebrow">{t.get("doc_type", "").upper()}</div>
+        <div class="title">{t["title"]}</div>
         <div class="rule"></div>
         {subtitle_block}
-        <div class="meta">{t.get('author','')}{('  ·  ' + t.get('date','')) if t.get('date') else ''}</div>
+        <div class="meta">{t.get("author", "")}{("  ·  " + t.get("date", "")) if t.get("date") else ""}</div>
     </div>
 </div>
 </body></html>"""
@@ -474,15 +465,15 @@ def _pattern_stripe(t: dict) -> str:
     - Bottom band (page bg, ~30%): author / date / subtitle
     Hard geometry, no gradients, no textures. Newspaper / brand poster aesthetic.
     """
-    top_h    = 200   # accent band
-    mid_h    = 580   # dark band
-    bot_y    = top_h + mid_h  # 780
+    top_h = 200  # accent band
+    mid_h = 580  # dark band
+    bot_y = top_h + mid_h  # 780
 
-    accent   = t["accent"]
-    dark     = t.get("cover_bg", "#1A1A2E")
-    light    = t.get("page_bg", "#FAFAF8")
-    text_l   = t.get("text_light", "#FFFFFF")
-    muted    = t.get("muted", "#888888")
+    accent = t["accent"]
+    dark = t.get("cover_bg", "#1A1A2E")
+    light = t.get("page_bg", "#FAFAF8")
+    text_l = t.get("text_light", "#FFFFFF")
+    muted = t.get("muted", "#888888")
 
     subtitle_block = ""
     if t.get("subtitle"):
@@ -521,7 +512,7 @@ html, body {{ background: {light}; }}
 
 /* Top band — doc type in large caps */
 .eyebrow {{
-    font-family: '{t['font_display']}', sans-serif;
+    font-family: '{t["font_display"]}', sans-serif;
     font-size: 11px; font-weight: 700;
     letter-spacing: 0.32em; text-transform: uppercase;
     color: {dark}; opacity: 0.85;
@@ -529,7 +520,7 @@ html, body {{ background: {light}; }}
 
 /* Mid band — title */
 .title {{
-    font-family: '{t['font_display']}', 'Times New Roman', Georgia, serif;
+    font-family: '{t["font_display"]}', 'Times New Roman', Georgia, serif;
     font-weight: 900;
     font-size: 62px;
     line-height: 0.97;
@@ -549,7 +540,7 @@ html, body {{ background: {light}; }}
 /* Bottom band */
 .author {{
     font-size: 13px; font-weight: 500;
-    color: {t.get('dark','#111')}; margin-bottom: 4px;
+    color: {t.get("dark", "#111")}; margin-bottom: 4px;
 }}
 .date   {{ font-size: 11px; color: {muted}; margin-bottom: 12px; }}
 .subtitle {{
@@ -561,15 +552,15 @@ html, body {{ background: {light}; }}
 <body>
 <div class="page">
     <div class="band-top">
-        <div class="eyebrow">{t.get('doc_type','').upper()}</div>
+        <div class="eyebrow">{t.get("doc_type", "").upper()}</div>
     </div>
     <div class="band-mid">
-        <div class="title">{t['title']}</div>
+        <div class="title">{t["title"]}</div>
     </div>
     <div class="sep"></div>
     <div class="band-bot">
-        <div class="author">{t.get('author','')}</div>
-        <div class="date">{t.get('date','')}</div>
+        <div class="author">{t.get("author", "")}</div>
+        <div class="date">{t.get("date", "")}</div>
         {subtitle_block}
     </div>
 </div>
@@ -583,12 +574,12 @@ def _pattern_diagonal(t: dict) -> str:
     lower-right in light page bg. Title sits on the dark area, metadata on light.
     One angled edge — no gradients, no curves.
     """
-    dark_bg  = t.get("cover_bg", "#1B2A4A")
+    dark_bg = t.get("cover_bg", "#1B2A4A")
     light_bg = t.get("page_bg", "#FAFCFF")
-    accent   = t["accent"]
-    text_l   = t.get("text_light", "#F8FAFF")
-    text_d   = t.get("dark", "#0F1A2E")
-    muted    = t.get("muted", "#7A8A99")
+    accent = t["accent"]
+    text_l = t.get("text_light", "#F8FAFF")
+    text_d = t.get("dark", "#0F1A2E")
+    muted = t.get("muted", "#7A8A99")
 
     # Polygon: full upper-left to ~60% down on right side
     # Points: top-left, top-right, (794, 620), (0, 820)
@@ -619,7 +610,7 @@ html, body {{ background: {light_bg}; }}
     color: {accent}; margin-bottom: 28px;
 }}
 .title {{
-    font-family: '{t['font_display']}', 'Helvetica Neue', sans-serif;
+    font-family: '{t["font_display"]}', 'Helvetica Neue', sans-serif;
     font-weight: 900;
     font-size: 58px;
     line-height: 1.0;
@@ -665,13 +656,13 @@ html, body {{ background: {light_bg}; }}
     </svg>
 
     <div class="content-dark">
-        <div class="eyebrow">{t.get('doc_type','').upper()}&nbsp; · &nbsp;{t.get('date','')}</div>
-        <div class="title">{t['title']}</div>
+        <div class="eyebrow">{t.get("doc_type", "").upper()}&nbsp; · &nbsp;{t.get("date", "")}</div>
+        <div class="title">{t["title"]}</div>
         <div class="rule-accent"></div>
     </div>
 
     <div class="content-light">
-        <div class="author">{t.get('author','')}</div>
+        <div class="author">{t.get("author", "")}</div>
         {subtitle_block}
     </div>
 </div>
@@ -686,12 +677,12 @@ def _pattern_frame(t: dict) -> str:
     Title centered in the frame space, classical serif typography.
     Used for: academic papers, formal reports, legal docs, annual reports.
     """
-    bg      = t.get("cover_bg", "#FAF8F3")
-    accent  = t["accent"]
-    dark    = t.get("dark", "#2A1A0A")
-    muted   = t.get("muted", "#9A8A78")
+    bg = t.get("cover_bg", "#FAF8F3")
+    accent = t["accent"]
+    dark = t.get("dark", "#2A1A0A")
+    muted = t.get("muted", "#9A8A78")
 
-    pad = 28   # frame inset from page edge
+    pad = 28  # frame inset from page edge
     inner_w = 794 - 2 * pad
     inner_h = 1123 - 2 * pad
 
@@ -771,7 +762,7 @@ html, body {{ background: {bg}; }}
 }}
 
 .title {{
-    font-family: '{t['font_display']}', Georgia, 'Times New Roman', serif;
+    font-family: '{t["font_display"]}', Georgia, 'Times New Roman', serif;
     font-weight: 400;
     font-size: 44px;
     line-height: 1.25;
@@ -817,12 +808,12 @@ html, body {{ background: {bg}; }}
     <div class="corner br"></div>
 
     <div class="content">
-        <div class="eyebrow">{t.get('doc_type','').upper()}</div>
+        <div class="eyebrow">{t.get("doc_type", "").upper()}</div>
         <div class="rule-top"></div>
-        <div class="title">{t['title']}</div>
+        <div class="title">{t["title"]}</div>
         <div class="rule-mid"></div>
         {subtitle_block}
-        <div class="meta">{t.get('author','')}{('  ·  ' + t.get('date','')) if t.get('date') else ''}</div>
+        <div class="meta">{t.get("author", "")}{("  ·  " + t.get("date", "")) if t.get("date") else ""}</div>
     </div>
 </div>
 </body></html>"""
@@ -839,25 +830,23 @@ def _pattern_editorial(t: dict) -> str:
     - Author / date bottom-left, page type bottom-right
     Designed for editorial reports, annual reviews, magazine-format content.
     """
-    bg      = t.get("cover_bg", "#FFFFFF")
-    accent  = t["accent"]
-    dark    = t.get("dark", "#0A0A0A")
-    muted   = t.get("muted", "#777777")
-    text_l  = t.get("text_light", "#FFFFFF")
+    bg = t.get("cover_bg", "#FFFFFF")
+    accent = t["accent"]
+    dark = t.get("dark", "#0A0A0A")
+    muted = t.get("muted", "#777777")
+    text_l = t.get("text_light", "#FFFFFF")
 
     # Ghost letter — first character of title
-    ghost = t['title'][0].upper() if t['title'] else "A"
+    ghost = t["title"][0].upper() if t["title"] else "A"
 
     subtitle_block = ""
     if t.get("subtitle"):
         subtitle_block = f'<div class="subtitle">{t["subtitle"]}</div>'
 
     # Determine if background is dark (use light text) or light (use dark text)
-    is_dark_bg = (
-        bg.startswith("#0") or bg.startswith("#1") or bg.startswith("#2")
-    )
+    is_dark_bg = bg.startswith("#0") or bg.startswith("#1") or bg.startswith("#2")
     title_color = text_l if is_dark_bg else dark  # noqa: F841
-    body_color  = text_l if is_dark_bg else dark
+    body_color = text_l if is_dark_bg else dark
 
     return f"""<!DOCTYPE html>
 <html>
@@ -871,7 +860,7 @@ html, body {{ background: {bg}; }}
 .ghost {{
     position: absolute;
     right: -60px; top: -40px;
-    font-family: '{t['font_display']}', 'Arial Black', sans-serif;
+    font-family: '{t["font_display"]}', 'Arial Black', sans-serif;
     font-weight: 900;
     font-size: 680px;
     line-height: 1;
@@ -910,7 +899,7 @@ html, body {{ background: {bg}; }}
 }}
 
 .title {{
-    font-family: '{t['font_display']}', 'Arial Black', Impact, sans-serif;
+    font-family: '{t["font_display"]}', 'Arial Black', Impact, sans-serif;
     font-weight: 900;
     font-size: 80px;
     line-height: 0.92;
@@ -955,17 +944,17 @@ html, body {{ background: {bg}; }}
 <div class="page">
     <div class="ghost">{ghost}</div>
     <div class="topbar"></div>
-    <div class="category">{t.get('doc_type','').upper()}</div>
+    <div class="category">{t.get("doc_type", "").upper()}</div>
 
     <div class="content">
-        <div class="title">{t['title']}</div>
+        <div class="title">{t["title"]}</div>
         {subtitle_block}
     </div>
 
     <div class="footer-rule"></div>
     <div class="footer">
-        <div class="footer-author">{t.get('author','')}</div>
-        <div class="footer-date">{t.get('date','')}</div>
+        <div class="footer-author">{t.get("author", "")}</div>
+        <div class="footer-date">{t.get("date", "")}</div>
     </div>
 </div>
 </body></html>"""
@@ -978,12 +967,12 @@ def _pattern_magazine(t: dict) -> str:
     decorative rule, italic subtitle, optional hero image, abstract block, author.
     Used for: annual reports, strategic documents, formal publications.
     """
-    bg       = t.get("cover_bg", "#F2F0EC")
-    accent   = t["accent"]
-    dark     = t.get("dark", "#0D1A2B")
-    muted    = t.get("muted", "#888888")
-    org      = t.get("doc_type", "").upper()
-    img_url  = t.get("cover_image", "")
+    bg = t.get("cover_bg", "#F2F0EC")
+    accent = t["accent"]
+    dark = t.get("dark", "#0D1A2B")
+    muted = t.get("muted", "#888888")
+    org = t.get("doc_type", "").upper()
+    img_url = t.get("cover_image", "")
 
     subtitle_block = ""
     if t.get("subtitle"):
@@ -1003,7 +992,7 @@ def _pattern_magazine(t: dict) -> str:
         <div style="font-size:11px;line-height:1.7;color:{muted};
                     text-align:justify;max-width:560px;margin:0 auto 0;">
             <span style="font-weight:700;color:{accent};">Abstract:</span>
-            {t['abstract']}
+            {t["abstract"]}
         </div>"""
 
     return f"""<!DOCTYPE html>
@@ -1025,7 +1014,7 @@ html, body {{ background: {bg}; }}
     margin: 0 auto 52px;
 }}
 .title {{
-    font-family: '{t['font_display']}', Georgia, 'Times New Roman', serif;
+    font-family: '{t["font_display"]}', Georgia, 'Times New Roman', serif;
     font-weight: 700; font-size: 52px; line-height: 1.08;
     color: {dark}; text-align: center; letter-spacing: -0.015em;
     max-width: 560px; word-wrap: break-word; margin-bottom: 18px;
@@ -1035,7 +1024,7 @@ html, body {{ background: {bg}; }}
     margin: 0 auto 20px;
 }}
 .subtitle {{
-    font-family: '{t['font_display']}', Georgia, serif;
+    font-family: '{t["font_display"]}', Georgia, serif;
     font-style: italic; font-size: 14px; color: {muted};
     text-align: center; line-height: 1.5; max-width: 440px;
     margin: 0 auto;
@@ -1046,7 +1035,7 @@ html, body {{ background: {bg}; }}
     margin: 28px auto;
 }}
 .author-name {{
-    font-family: '{t['font_display']}', Georgia, serif;
+    font-family: '{t["font_display"]}', Georgia, serif;
     font-size: 16px; font-weight: 700; color: {accent};
     text-align: center; margin-bottom: 6px;
 }}
@@ -1060,14 +1049,14 @@ html, body {{ background: {bg}; }}
 <div class="page">
     <div class="org-name">{org}</div>
     <div class="org-rule"></div>
-    <div class="title">{t['title']}</div>
+    <div class="title">{t["title"]}</div>
     <div class="title-rule"></div>
     {subtitle_block}
     {image_block}
     {abstract_block}
-    {'<div class="separator"></div>' if (t.get('abstract') or img_url) else '<div style="margin:28px 0;"></div>'}
-    <div class="author-name">{t.get('author','')}</div>
-    <div class="date-line">{t.get('date','')}</div>
+    {'<div class="separator"></div>' if (t.get("abstract") or img_url) else '<div style="margin:28px 0;"></div>'}
+    <div class="author-name">{t.get("author", "")}</div>
+    <div class="date-line">{t.get("date", "")}</div>
 </div>
 </body></html>"""
 
@@ -1079,12 +1068,12 @@ def _pattern_darkroom(t: dict) -> str:
     deep navy page, white/silver text, accent rules in lighter tone.
     Used for: premium reports, tech annual reviews, dark-themed documents.
     """
-    bg       = t.get("cover_bg", "#151C27")
-    accent   = t["accent"]
-    text_l   = t.get("text_light", "#F0EDE6")
-    muted    = t.get("muted", "#8A9AB0")
-    org      = t.get("doc_type", "").upper()
-    img_url  = t.get("cover_image", "")
+    bg = t.get("cover_bg", "#151C27")
+    accent = t["accent"]
+    text_l = t.get("text_light", "#F0EDE6")
+    muted = t.get("muted", "#8A9AB0")
+    org = t.get("doc_type", "").upper()
+    img_url = t.get("cover_image", "")
 
     subtitle_block = ""
     if t.get("subtitle"):
@@ -1105,7 +1094,7 @@ def _pattern_darkroom(t: dict) -> str:
         <div style="font-size:11px;line-height:1.7;color:{muted};
                     text-align:justify;max-width:560px;margin:0 auto 0;">
             <span style="font-weight:700;color:{accent};">Abstract:</span>
-            {t['abstract']}
+            {t["abstract"]}
         </div>"""
 
     return f"""<!DOCTYPE html>
@@ -1127,7 +1116,7 @@ html, body {{ background: {bg}; }}
     opacity: 0.35; margin: 0 auto 52px;
 }}
 .title {{
-    font-family: '{t['font_display']}', Georgia, 'Times New Roman', serif;
+    font-family: '{t["font_display"]}', Georgia, 'Times New Roman', serif;
     font-weight: 700; font-size: 52px; line-height: 1.08;
     color: {text_l}; text-align: center; letter-spacing: -0.015em;
     max-width: 560px; word-wrap: break-word; margin-bottom: 18px;
@@ -1137,7 +1126,7 @@ html, body {{ background: {bg}; }}
     opacity: 0.35; margin: 0 auto 20px;
 }}
 .subtitle {{
-    font-family: '{t['font_display']}', Georgia, serif;
+    font-family: '{t["font_display"]}', Georgia, serif;
     font-style: italic; font-size: 14px; color: {muted};
     text-align: center; line-height: 1.5; max-width: 440px;
     margin: 0 auto;
@@ -1148,7 +1137,7 @@ html, body {{ background: {bg}; }}
     margin: 28px auto;
 }}
 .author-name {{
-    font-family: '{t['font_display']}', Georgia, serif;
+    font-family: '{t["font_display"]}', Georgia, serif;
     font-size: 16px; font-weight: 700; color: {text_l};
     text-align: center; margin-bottom: 6px;
 }}
@@ -1162,14 +1151,14 @@ html, body {{ background: {bg}; }}
 <div class="page">
     <div class="org-name">{org}</div>
     <div class="org-rule"></div>
-    <div class="title">{t['title']}</div>
+    <div class="title">{t["title"]}</div>
     <div class="title-rule"></div>
     {subtitle_block}
     {image_block}
     {abstract_block}
-    {'<div class="separator"></div>' if (t.get('abstract') or img_url) else '<div style="margin:28px 0;"></div>'}
-    <div class="author-name">{t.get('author','')}</div>
-    <div class="date-line">{t.get('date','')}</div>
+    {'<div class="separator"></div>' if (t.get("abstract") or img_url) else '<div style="margin:28px 0;"></div>'}
+    <div class="author-name">{t.get("author", "")}</div>
+    <div class="date-line">{t.get("date", "")}</div>
 </div>
 </body></html>"""
 
@@ -1181,14 +1170,14 @@ def _pattern_terminal(t: dict) -> str:
     corner brackets around the title block, status bar at bottom.
     Used for: tech reports, developer docs, security audits, system documentation.
     """
-    bg      = t.get("cover_bg", "#0D1117")
-    accent  = t["accent"]
-    text_l  = t.get("text_light", "#E6EDF3")
-    muted   = t.get("muted", "#48897C")
-    dark    = t.get("dark", "#010409")
-    org     = t.get("doc_type", "DOCUMENT").upper()
-    date_s  = t.get("date", "")
-    author  = t.get("author", "")
+    bg = t.get("cover_bg", "#0D1117")
+    accent = t["accent"]
+    text_l = t.get("text_light", "#E6EDF3")
+    muted = t.get("muted", "#48897C")
+    dark = t.get("dark", "#010409")
+    org = t.get("doc_type", "DOCUMENT").upper()
+    date_s = t.get("date", "")
+    author = t.get("author", "")
 
     subtitle_line = ""
     if t.get("subtitle"):
@@ -1197,21 +1186,18 @@ def _pattern_terminal(t: dict) -> str:
     abstract_block = ""
     if t.get("abstract"):
         abstract_block = f"""
-        <div class="abstract-text">{t['abstract']}</div>"""
+        <div class="abstract-text">{t["abstract"]}</div>"""
 
     # grid overlay: horizontal + vertical lines
     h_lines = "".join(
-        f'<line x1="0" y1="{y}" x2="794" y2="{y}" stroke="{accent}" stroke-width="0.4"/>'
-        for y in range(0, 1124, 48)
+        f'<line x1="0" y1="{y}" x2="794" y2="{y}" stroke="{accent}" stroke-width="0.4"/>' for y in range(0, 1124, 48)
     )
     v_lines = "".join(
-        f'<line x1="{x}" y1="0" x2="{x}" y2="1123" stroke="{accent}" stroke-width="0.4"/>'
-        for x in range(0, 795, 48)
+        f'<line x1="{x}" y1="0" x2="{x}" y2="1123" stroke="{accent}" stroke-width="0.4"/>' for x in range(0, 795, 48)
     )
     grid_svg = (
-        f'<svg style="position:absolute;top:0;left:0;width:794px;height:1123px;'
-        f'pointer-events:none;opacity:0.07" xmlns="http://www.w3.org/2000/svg">'
-        + h_lines + v_lines + "</svg>"
+        '<svg style="position:absolute;top:0;left:0;width:794px;height:1123px;'
+        'pointer-events:none;opacity:0.07" xmlns="http://www.w3.org/2000/svg">' + h_lines + v_lines + "</svg>"
     )
 
     return f"""<!DOCTYPE html>
@@ -1232,7 +1218,7 @@ html, body {{ background: {bg}; }}
     background: {accent}; flex-shrink: 0;
 }}
 .term-meta {{
-    font-family: '{t['font_body']}', 'Courier New', monospace;
+    font-family: '{t["font_body"]}', 'Courier New', monospace;
     font-size: 10px; color: {accent}; letter-spacing: 0.08em;
     text-transform: uppercase;
 }}
@@ -1261,14 +1247,14 @@ html, body {{ background: {bg}; }}
 }}
 
 .title {{
-    font-family: '{t['font_display']}', 'Courier New', monospace;
+    font-family: '{t["font_display"]}', 'Courier New', monospace;
     font-weight: 700; font-size: 46px; line-height: 1.05;
     color: {text_l}; letter-spacing: 0.01em;
     text-transform: uppercase;
     word-wrap: break-word; margin-bottom: 16px;
 }}
 .subtitle {{
-    font-family: '{t['font_body']}', 'Courier New', monospace;
+    font-family: '{t["font_body"]}', 'Courier New', monospace;
     font-size: 13px; color: {accent};
     line-height: 1.5; letter-spacing: 0.02em;
     margin-top: 8px;
@@ -1281,7 +1267,7 @@ html, body {{ background: {bg}; }}
     display: flex; gap: 40px; align-items: flex-start;
 }}
 .abstract-text {{
-    font-family: '{t['font_body']}', 'Courier New', monospace;
+    font-family: '{t["font_body"]}', 'Courier New', monospace;
     font-size: 10.5px; line-height: 1.8; color: {muted};
     flex: 1;
 }}
@@ -1289,16 +1275,16 @@ html, body {{ background: {bg}; }}
     text-align: right; flex-shrink: 0; min-width: 160px;
 }}
 .author-label {{
-    font-family: '{t['font_body']}', monospace;
+    font-family: '{t["font_body"]}', monospace;
     font-size: 8px; letter-spacing: 0.20em; color: {muted};
     text-transform: uppercase; margin-bottom: 6px;
 }}
 .author-name {{
-    font-family: '{t['font_body']}', monospace;
+    font-family: '{t["font_body"]}', monospace;
     font-size: 14px; font-weight: 700; color: {text_l};
 }}
 .author-org {{
-    font-family: '{t['font_body']}', monospace;
+    font-family: '{t["font_body"]}', monospace;
     font-size: 10px; color: {accent}; margin-top: 4px;
 }}
 
@@ -1313,7 +1299,7 @@ html, body {{ background: {bg}; }}
     justify-content: space-between; padding: 0 56px;
 }}
 .sb-item {{
-    font-family: '{t['font_body']}', monospace;
+    font-family: '{t["font_body"]}', monospace;
     font-size: 9px; color: {muted}; letter-spacing: 0.12em;
     text-transform: uppercase;
 }}
@@ -1329,7 +1315,7 @@ html, body {{ background: {bg}; }}
     </div>
 
     <div class="bracket-block">
-        <div class="title">{t['title']}</div>
+        <div class="title">{t["title"]}</div>
         {subtitle_line}
     </div>
 
@@ -1359,11 +1345,11 @@ def _pattern_poster(t: dict) -> str:
     title, typewriter-style metadata. Optional thumbnail on the right side.
     Used for: portfolios, creative reports, journalism, photography books.
     """
-    bg      = t.get("cover_bg", "#FFFFFF")
-    accent  = t["accent"]       # typically black or strong dark
-    dark    = t.get("dark", "#0A0A0A")
-    muted   = t.get("muted", "#888888")
-    text_l  = t.get("text_light", "#FFFFFF")
+    bg = t.get("cover_bg", "#FFFFFF")
+    accent = t["accent"]  # typically black or strong dark
+    dark = t.get("dark", "#0A0A0A")
+    muted = t.get("muted", "#888888")
+    text_l = t.get("text_light", "#FFFFFF")
     img_url = t.get("cover_image", "")
 
     sidebar_w = 52
@@ -1414,7 +1400,7 @@ html, body {{ background: {bg}; }}
 
 /* Oversized display title */
 .title {{
-    font-family: '{t['font_display']}', 'Arial Black', Impact, sans-serif;
+    font-family: '{t["font_display"]}', 'Arial Black', Impact, sans-serif;
     font-weight: 900;
     font-size: 96px;
     line-height: 0.92;
@@ -1427,7 +1413,7 @@ html, body {{ background: {bg}; }}
 }}
 
 .subtitle {{
-    font-family: '{t['font_body']}', 'Courier New', monospace;
+    font-family: '{t["font_body"]}', 'Courier New', monospace;
     font-size: 12px;
     color: {muted};
     letter-spacing: 0.05em;
@@ -1446,16 +1432,16 @@ html, body {{ background: {bg}; }}
     margin-top: 32px;
 }}
 .meta-line {{
-    font-family: '{t['font_body']}', 'Courier New', monospace;
+    font-family: '{t["font_body"]}', 'Courier New', monospace;
     font-size: 12px; color: {dark};
     line-height: 1.8; letter-spacing: 0.02em;
 }}
 .meta-role {{
-    font-family: '{t['font_body']}', 'Courier New', monospace;
+    font-family: '{t["font_body"]}', 'Courier New', monospace;
     color: {muted};
 }}
 .meta-date {{
-    font-family: '{t['font_body']}', 'Courier New', monospace;
+    font-family: '{t["font_body"]}', 'Courier New', monospace;
     font-size: 12px; color: {dark};
     margin-top: 8px;
 }}
@@ -1491,7 +1477,7 @@ html, body {{ background: {bg}; }}
     <div class="sidebar"></div>
 
     <div class="content">
-        <div class="title">{t['title']}</div>
+        <div class="title">{t["title"]}</div>
         {subtitle_block}
         <div class="rule"></div>
         <div class="meta-group">{meta_block}</div>
@@ -1513,19 +1499,19 @@ html, body {{ background: {bg}; }}
 
 # ── Dispatch ───────────────────────────────────────────────────────────────────
 PATTERNS = {
-    "fullbleed":   _pattern_fullbleed,
-    "split":       _pattern_split,
+    "fullbleed": _pattern_fullbleed,
+    "split": _pattern_split,
     "typographic": _pattern_typographic,
     "atmospheric": _pattern_atmospheric,
-    "minimal":     _pattern_minimal,
-    "stripe":      _pattern_stripe,
-    "diagonal":    _pattern_diagonal,
-    "frame":       _pattern_frame,
-    "editorial":   _pattern_editorial,
-    "magazine":    _pattern_magazine,
-    "darkroom":    _pattern_darkroom,
-    "terminal":    _pattern_terminal,
-    "poster":      _pattern_poster,
+    "minimal": _pattern_minimal,
+    "stripe": _pattern_stripe,
+    "diagonal": _pattern_diagonal,
+    "frame": _pattern_frame,
+    "editorial": _pattern_editorial,
+    "magazine": _pattern_magazine,
+    "darkroom": _pattern_darkroom,
+    "terminal": _pattern_terminal,
+    "poster": _pattern_poster,
 }
 
 
@@ -1541,7 +1527,7 @@ def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="Render cover HTML from tokens.json")
     parser.add_argument("--tokens", default="tokens.json")
-    parser.add_argument("--out",    default="cover.html")
+    parser.add_argument("--out", default="cover.html")
     parser.add_argument("--subtitle", default="", help="Optional subtitle override")
     args = parser.parse_args()
 
@@ -1549,8 +1535,7 @@ def main():
         with open(args.tokens, encoding="utf-8") as f:
             tokens = json.load(f)
     except FileNotFoundError:
-        print(json.dumps({"status": "error", "error": f"tokens file not found: {args.tokens}"}),
-              file=sys.stderr)
+        print(json.dumps({"status": "error", "error": f"tokens file not found: {args.tokens}"}), file=sys.stderr)
         sys.exit(1)
     except json.JSONDecodeError as e:
         print(json.dumps({"status": "error", "error": f"invalid JSON: {e}"}), file=sys.stderr)
@@ -1568,11 +1553,15 @@ def main():
         print(json.dumps({"status": "error", "error": str(e)}), file=sys.stderr)
         sys.exit(3)
 
-    print(json.dumps({
-        "status":  "ok",
-        "out":     args.out,
-        "pattern": tokens.get("cover_pattern"),
-    }))
+    print(
+        json.dumps(
+            {
+                "status": "ok",
+                "out": args.out,
+                "pattern": tokens.get("cover_pattern"),
+            }
+        )
+    )
 
 
 if __name__ == "__main__":

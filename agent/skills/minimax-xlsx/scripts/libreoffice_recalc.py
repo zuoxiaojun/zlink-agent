@@ -21,15 +21,15 @@ Exit codes:
     1 — LibreOffice found but recalculation failed (timeout, crash, bad file)
 """
 
+import argparse
+import os
+import shutil
 import subprocess
 import sys
-import shutil
-import os
 import tempfile
-import argparse
-
 
 # ── LibreOffice discovery ───────────────────────────────────────────────────
+
 
 def find_soffice() -> str | None:
     """
@@ -42,8 +42,8 @@ def find_soffice() -> str | None:
     """
     candidates = [
         "/Applications/LibreOffice.app/Contents/MacOS/soffice",  # macOS
-        "soffice",     # Linux / macOS if on PATH
-        "libreoffice", # alternative Linux name
+        "soffice",  # Linux / macOS if on PATH
+        "libreoffice",  # alternative Linux name
     ]
     for c in candidates:
         # shutil.which handles PATH lookup; also check absolute paths directly
@@ -69,6 +69,7 @@ def get_libreoffice_version(soffice: str) -> str:
 
 
 # ── Recalculation ───────────────────────────────────────────────────────────
+
 
 def recalculate(
     input_path: str,
@@ -103,10 +104,12 @@ def recalculate(
         cmd = [
             soffice,
             "--headless",
-            "--norestore",           # do not attempt to restore crashed sessions
+            "--norestore",  # do not attempt to restore crashed sessions
             "--infilter=Calc MS Excel 2007 XML",
-            "--convert-to", "xlsx",
-            "--outdir", tmpdir,
+            "--convert-to",
+            "xlsx",
+            "--outdir",
+            tmpdir,
             tmp_input,
         ]
 
@@ -128,11 +131,7 @@ def recalculate(
         if result.returncode != 0:
             stderr = result.stderr.decode(errors="replace").strip()
             stdout = result.stdout.decode(errors="replace").strip()
-            return False, (
-                f"LibreOffice exited with code {result.returncode}.\n"
-                f"stderr: {stderr}\n"
-                f"stdout: {stdout}"
-            )
+            return False, (f"LibreOffice exited with code {result.returncode}.\nstderr: {stderr}\nstdout: {stdout}")
 
         # LibreOffice writes: <tmpdir>/<stem>.xlsx
         stem = os.path.splitext(os.path.basename(tmp_input))[0]
@@ -159,6 +158,7 @@ def recalculate(
 
 
 # ── CLI ─────────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(

@@ -33,11 +33,11 @@ Limitations:
   - External workbook links in xl/externalLinks/ are NOT updated.
 """
 
-import sys
 import os
 import re
-import xml.etree.ElementTree as ET
+import sys
 import xml.dom.minidom
+import xml.etree.ElementTree as ET
 
 
 def col_letter(n: int) -> str:
@@ -61,19 +61,21 @@ def col_number(s: str) -> int:
 # Core shifting logic for formula strings
 # ---------------------------------------------------------------------------
 
+
 def _shift_refs(text: str, at: int, delta: int) -> str:
     """Shift cell references in a non-quoted formula fragment."""
+
     def replacer(m: re.Match) -> str:
-        dollar_col = m.group(1)   # "$" or ""
-        col_part = m.group(2)     # e.g. "B" or "AB"
-        dollar_row = m.group(3)   # "$" or ""
-        row_str = m.group(4)      # e.g. "7"
+        dollar_col = m.group(1)  # "$" or ""
+        col_part = m.group(2)  # e.g. "B" or "AB"
+        dollar_row = m.group(3)  # "$" or ""
+        row_str = m.group(4)  # e.g. "7"
         row = int(row_str)
         if row >= at:
             row = max(1, row + delta)
         return f"{dollar_col}{col_part}{dollar_row}{row}"
 
-    pattern = r'(\$?)([A-Z]+)(\$?)(\d+)'
+    pattern = r"(\$?)([A-Z]+)(\$?)(\d+)"
     return re.sub(pattern, replacer, text)
 
 
@@ -115,8 +117,8 @@ def shift_sqref(sqref: str, at: int, delta: int) -> str:
     parts = sqref.split()
     result = []
     for part in parts:
-        if ':' in part:
-            left, right = part.split(':', 1)
+        if ":" in part:
+            left, right = part.split(":", 1)
             left = shift_formula(left, at, delta)
             right = shift_formula(right, at, delta)
             result.append(f"{left}:{right}")
@@ -132,11 +134,11 @@ def shift_chart_range(text: str, at: int, delta: int) -> str:
       'Q1 Data'!$A$3:$A$15
     """
     # Split on the "!" to preserve sheet name
-    if '!' not in text:
+    if "!" not in text:
         return text
-    bang = text.index('!')
-    sheet_part = text[:bang + 1]
-    range_part = text[bang + 1:]
+    bang = text.index("!")
+    sheet_part = text[: bang + 1]
+    range_part = text[bang + 1 :]
     return sheet_part + shift_formula(range_part, at, delta)
 
 
@@ -232,7 +234,7 @@ def process_worksheet(path: str, at: int, delta: int) -> int:
 def process_chart(path: str, at: int, delta: int) -> int:
     """Update data range references in a chart XML."""
     # Charts use DrawingML namespace; we look for <f> elements with range strings
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         content = fh.read()
 
     # Pattern matches content of <f>Sheet1!$A$1:$A$10</f> style elements
@@ -243,8 +245,7 @@ def process_chart(path: str, at: int, delta: int) -> int:
         new_inner = shift_chart_range(inner, at, delta)
         return f"{tag_open}{new_inner}{tag_close}"
 
-    new_content = re.sub(r'(<(?:[^:>]+:)?f>)([^<]+)(</(?:[^:>]+:)?f>)',
-                          replace_f, content)
+    new_content = re.sub(r"(<(?:[^:>]+:)?f>)([^<]+)(</(?:[^:>]+:)?f>)", replace_f, content)
     changes = content != new_content
     if changes:
         with open(path, "w", encoding="utf-8") as fh:
@@ -291,7 +292,7 @@ def _write_tree(tree: ET.ElementTree, path: str) -> None:
     """Write ElementTree back to file with pretty-printing."""
     tree.write(path, encoding="unicode", xml_declaration=False)
     # Re-pretty-print for readability
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         raw = fh.read()
     try:
         dom = xml.dom.minidom.parseString(raw.encode("utf-8"))
@@ -306,6 +307,7 @@ def _write_tree(tree: ET.ElementTree, path: str) -> None:
 # ---------------------------------------------------------------------------
 # Main driver
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     if len(sys.argv) < 5:

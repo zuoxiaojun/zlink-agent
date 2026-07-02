@@ -37,12 +37,12 @@ import xml.etree.ElementTree as ET
 NS_SS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 NS_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 
-ET.register_namespace('', NS_SS)
-ET.register_namespace('r', NS_REL)
-ET.register_namespace('xdr', 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing')
-ET.register_namespace('x14', 'http://schemas.microsoft.com/office/spreadsheetml/2009/9/main')
-ET.register_namespace('xr2', 'http://schemas.microsoft.com/office/spreadsheetml/2015/revision2')
-ET.register_namespace('mc', 'http://schemas.openxmlformats.org/markup-compatibility/2006')
+ET.register_namespace("", NS_SS)
+ET.register_namespace("r", NS_REL)
+ET.register_namespace("xdr", "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing")
+ET.register_namespace("x14", "http://schemas.microsoft.com/office/spreadsheetml/2009/9/main")
+ET.register_namespace("xr2", "http://schemas.microsoft.com/office/spreadsheetml/2015/revision2")
+ET.register_namespace("mc", "http://schemas.openxmlformats.org/markup-compatibility/2006")
 
 
 def _tag(local: str) -> str:
@@ -51,7 +51,7 @@ def _tag(local: str) -> str:
 
 def _write_tree(tree: ET.ElementTree, path: str) -> None:
     tree.write(path, encoding="unicode", xml_declaration=False)
-    with open(path, "r", encoding="utf-8") as fh:
+    with open(path, encoding="utf-8") as fh:
         raw = fh.read()
     try:
         dom = xml.dom.minidom.parseString(raw.encode("utf-8"))
@@ -140,20 +140,16 @@ def parse_kv(specs: list[str] | None) -> dict[str, str]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Insert a new row into a worksheet in an unpacked xlsx")
+    parser = argparse.ArgumentParser(description="Insert a new row into a worksheet in an unpacked xlsx")
     parser.add_argument("work_dir", help="Unpacked xlsx working directory")
-    parser.add_argument("--at", type=int, required=True,
-                        help="Row number to insert at (existing rows shift down)")
+    parser.add_argument("--at", type=int, required=True, help="Row number to insert at (existing rows shift down)")
     parser.add_argument("--sheet", default=None, help="Sheet name (default: first)")
-    parser.add_argument("--text", nargs="+", default=None,
-                        help="Text cells: COL=VALUE (e.g., A=Utilities)")
-    parser.add_argument("--values", nargs="+", default=None,
-                        help="Numeric cells: COL=VALUE (e.g., B=3000 C=3000)")
-    parser.add_argument("--formula", nargs="+", default=None,
-                        help="Formula cells: COL=FORMULA with {row} (e.g., F=SUM(B{row}:E{row}))")
-    parser.add_argument("--copy-style-from", type=int, default=None,
-                        help="Copy cell styles from this row number")
+    parser.add_argument("--text", nargs="+", default=None, help="Text cells: COL=VALUE (e.g., A=Utilities)")
+    parser.add_argument("--values", nargs="+", default=None, help="Numeric cells: COL=VALUE (e.g., B=3000 C=3000)")
+    parser.add_argument(
+        "--formula", nargs="+", default=None, help="Formula cells: COL=FORMULA with {row} (e.g., F=SUM(B{row}:E{row}))"
+    )
+    parser.add_argument("--copy-style-from", type=int, default=None, help="Copy cell styles from this row number")
     args = parser.parse_args()
 
     at = args.at
@@ -168,7 +164,8 @@ def main() -> None:
     print(f"Step 1: Shifting rows >= {at} down by 1...")
     result = subprocess.run(
         [sys.executable, shift_script, args.work_dir, "insert", str(at), "1"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         print(f"ERROR: shift_rows failed:\n{result.stderr}")
@@ -188,7 +185,7 @@ def main() -> None:
     text_indices = {}
     for col, text in text_cells.items():
         text_indices[col] = add_shared_string(args.work_dir, text)
-        print(f"  Added shared string: \"{text}\" → index {text_indices[col]}")
+        print(f'  Added shared string: "{text}" → index {text_indices[col]}')
 
     # Step 4: Re-parse worksheet and build new row
     ws_tree = ET.parse(ws_path)
@@ -242,7 +239,7 @@ def main() -> None:
     print(f"\nStep 3: Inserted row {at} with {len(all_cols)} cells:")
     for col in all_cols:
         if col in text_cells:
-            print(f"  {col}{at} = \"{text_cells[col]}\" (text)")
+            print(f'  {col}{at} = "{text_cells[col]}" (text)')
         elif col in num_cells:
             print(f"  {col}{at} = {num_cells[col]} (number)")
         elif col in formula_cells:

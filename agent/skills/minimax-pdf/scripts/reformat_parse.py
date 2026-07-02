@@ -23,14 +23,12 @@ Exit codes: 0 success, 1 bad args / unsupported format, 2 dep missing, 3 parse e
 """
 
 import argparse
+import importlib.util
 import json
 import os
 import re
 import sys
-import importlib.util
 from pathlib import Path
-
-
 
 
 def ensure_deps():
@@ -39,9 +37,8 @@ def ensure_deps():
         missing.append("pypdf")
     if missing:
         import subprocess
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "--break-system-packages", "-q"] + missing
-        )
+
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--break-system-packages", "-q"] + missing)
 
 
 ensure_deps()
@@ -55,7 +52,7 @@ def parse_markdown(text: str) -> list:
     | tables |, plain paragraphs.
     """
     blocks = []
-    lines  = text.splitlines()
+    lines = text.splitlines()
     i = 0
 
     def flush_para(buf: list):
@@ -77,7 +74,7 @@ def parse_markdown(text: str) -> list:
             continue
 
         # ATX Headings: # ## ###
-        m = re.match(r'^(#{1,3})\s+(.*)', stripped)
+        m = re.match(r"^(#{1,3})\s+(.*)", stripped)
         if m:
             flush_para(para_buf)
             para_buf = []
@@ -127,25 +124,25 @@ def parse_markdown(text: str) -> list:
         if stripped.startswith(">"):
             flush_para(para_buf)
             para_buf = []
-            qt = re.sub(r'^>\s*', '', stripped)
+            qt = re.sub(r"^>\s*", "", stripped)
             blocks.append({"type": "callout", "text": _md_inline(qt)})
             i += 1
             continue
 
         # Unordered bullet: -, *, +
-        if re.match(r'^[-*+]\s+', stripped):
+        if re.match(r"^[-*+]\s+", stripped):
             flush_para(para_buf)
             para_buf = []
-            text_part = re.sub(r'^[-*+]\s+', '', stripped)
+            text_part = re.sub(r"^[-*+]\s+", "", stripped)
             blocks.append({"type": "bullet", "text": _md_inline(text_part)})
             i += 1
             continue
 
         # Ordered list: 1. 2. etc. → numbered (preserves counter in render_body)
-        if re.match(r'^\d+\.\s+', stripped):
+        if re.match(r"^\d+\.\s+", stripped):
             flush_para(para_buf)
             para_buf = []
-            text_part = re.sub(r'^\d+\.\s+', '', stripped)
+            text_part = re.sub(r"^\d+\.\s+", "", stripped)
             blocks.append({"type": "numbered", "text": _md_inline(text_part)})
             i += 1
             continue
@@ -159,24 +156,26 @@ def parse_markdown(text: str) -> list:
                 table_lines.append(lines[i].strip())
                 i += 1
             # Remove separator rows (|---|---|)
-            data_rows = [r for r in table_lines if not re.match(r'^\|[-:| ]+\|$', r)]
+            data_rows = [r for r in table_lines if not re.match(r"^\|[-:| ]+\|$", r)]
             parsed = []
             for row in data_rows:
                 cells = [c.strip() for c in row.strip("|").split("|")]
                 parsed.append(cells)
             if len(parsed) >= 2:
-                blocks.append({
-                    "type":    "table",
-                    "headers": parsed[0],
-                    "rows":    parsed[1:],
-                })
+                blocks.append(
+                    {
+                        "type": "table",
+                        "headers": parsed[0],
+                        "rows": parsed[1:],
+                    }
+                )
             elif len(parsed) == 1:
                 # Single row — treat as paragraph
                 blocks.append({"type": "body", "text": " | ".join(parsed[0])})
             continue
 
         # Horizontal rule → spacer
-        if re.match(r'^[-*_]{3,}$', stripped):
+        if re.match(r"^[-*_]{3,}$", stripped):
             flush_para(para_buf)
             para_buf = []
             blocks.append({"type": "spacer", "pt": 16})
@@ -194,15 +193,15 @@ def parse_markdown(text: str) -> list:
 def _md_inline(text: str) -> str:
     """Convert inline Markdown to ReportLab XML markup."""
     # Bold: **text** or __text__
-    text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
-    text = re.sub(r'__(.+?)__',     r'<b>\1</b>', text)
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+    text = re.sub(r"__(.+?)__", r"<b>\1</b>", text)
     # Italic: *text* or _text_
-    text = re.sub(r'\*(.+?)\*', r'<i>\1</i>', text)
-    text = re.sub(r'_(.+?)_',   r'<i>\1</i>', text)
+    text = re.sub(r"\*(.+?)\*", r"<i>\1</i>", text)
+    text = re.sub(r"_(.+?)_", r"<i>\1</i>", text)
     # Inline code: `code`
-    text = re.sub(r'`(.+?)`', r'<font name="Courier">\1</font>', text)
+    text = re.sub(r"`(.+?)`", r'<font name="Courier">\1</font>', text)
     # Strip markdown links, keep text
-    text = re.sub(r'\[(.+?)\]\(.+?\)', r'\1', text)
+    text = re.sub(r"\[(.+?)\]\(.+?\)", r"\1", text)
     return text
 
 
@@ -237,7 +236,7 @@ def parse_plain(text: str) -> list:
     Everything else → paragraphs.
     """
     blocks = []
-    paragraphs = re.split(r'\n{2,}', text.strip())
+    paragraphs = re.split(r"\n{2,}", text.strip())
 
     for para in paragraphs:
         para = para.strip()
@@ -248,14 +247,14 @@ def parse_plain(text: str) -> list:
 
         # Single short line that looks like a heading
         if len(lines) == 1 and len(para) < 80:
-            if para.isupper() or re.match(r'^[A-Z][^.!?]*$', para):
+            if para.isupper() or re.match(r"^[A-Z][^.!?]*$", para):
                 blocks.append({"type": "h1", "text": para.title()})
                 continue
 
         # Bullet lists
         if lines[0].startswith(("- ", "• ", "* ")):
             for line in lines:
-                text_part = re.sub(r'^[-•*]\s+', '', line.strip())
+                text_part = re.sub(r"^[-•*]\s+", "", line.strip())
                 if text_part:
                     blocks.append({"type": "bullet", "text": text_part})
             continue
@@ -267,8 +266,24 @@ def parse_plain(text: str) -> list:
 
 
 # ── Pass-through validator ─────────────────────────────────────────────────────
-VALID_TYPES = {"h1","h2","h3","body","bullet","numbered","callout","table",
-               "image","code","math","divider","caption","pagebreak","spacer"}
+VALID_TYPES = {
+    "h1",
+    "h2",
+    "h3",
+    "body",
+    "bullet",
+    "numbered",
+    "callout",
+    "table",
+    "image",
+    "code",
+    "math",
+    "divider",
+    "caption",
+    "pagebreak",
+    "spacer",
+}
+
 
 def validate_content_json(data: list) -> tuple[list, list]:
     """Return (valid_blocks, warnings)."""
@@ -307,7 +322,7 @@ def parse_file(input_path: str) -> tuple[list, list]:
         # Maybe it's a meta-wrapper {"content": [...]}
         if isinstance(data, dict) and "content" in data:
             return validate_content_json(data["content"])
-        return [], [f"JSON file does not contain a list of content blocks"]
+        return [], ["JSON file does not contain a list of content blocks"]
 
     return [], [f"Unsupported file type: {ext}. Supported: .md .txt .pdf .json"]
 
@@ -316,57 +331,59 @@ def parse_file(input_path: str) -> tuple[list, list]:
 def main():
     parser = argparse.ArgumentParser(description="Parse a document into content.json")
     parser.add_argument("--input", required=True, help="Input file (.md, .txt, .pdf, .json)")
-    parser.add_argument("--out",   default="content.json", help="Output content.json path")
+    parser.add_argument("--out", default="content.json", help="Output content.json path")
     args = parser.parse_args()
 
     if not os.path.exists(args.input):
-        print(json.dumps({"status": "error", "error": f"File not found: {args.input}"}),
-              file=sys.stderr)
+        print(json.dumps({"status": "error", "error": f"File not found: {args.input}"}), file=sys.stderr)
         sys.exit(1)
 
     try:
         blocks, warnings = parse_file(args.input)
     except Exception as e:
         import traceback
-        print(json.dumps({"status": "error", "error": str(e),
-                          "trace": traceback.format_exc()}), file=sys.stderr)
+
+        print(json.dumps({"status": "error", "error": str(e), "trace": traceback.format_exc()}), file=sys.stderr)
         sys.exit(3)
 
     if not blocks:
-        print(json.dumps({
-            "status":   "error",
-            "error":    "No content blocks extracted",
-            "warnings": warnings,
-        }), file=sys.stderr)
+        print(
+            json.dumps(
+                {
+                    "status": "error",
+                    "error": "No content blocks extracted",
+                    "warnings": warnings,
+                }
+            ),
+            file=sys.stderr,
+        )
         sys.exit(3)
 
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(blocks, f, indent=2, ensure_ascii=False)
 
     result = {
-        "status":      "ok",
-        "out":         args.out,
+        "status": "ok",
+        "out": args.out,
         "block_count": len(blocks),
-        "warnings":    warnings,
+        "warnings": warnings,
     }
     print(json.dumps(result, indent=2))
 
-    print(f"\n── Parsed {args.input} ─────────────────────────────────────",
-          file=sys.stderr)
+    print(f"\n── Parsed {args.input} ─────────────────────────────────────", file=sys.stderr)
     print(f"  Blocks : {len(blocks)}", file=sys.stderr)
 
     type_counts: dict = {}
     for b in blocks:
-        type_counts[b.get("type","?")] = type_counts.get(b.get("type","?"), 0) + 1
+        type_counts[b.get("type", "?")] = type_counts.get(b.get("type", "?"), 0) + 1
     for t, n in sorted(type_counts.items()):
         print(f"    {t:12} × {n}", file=sys.stderr)
 
     if warnings:
-        print(f"  Warnings:", file=sys.stderr)
+        print("  Warnings:", file=sys.stderr)
         for w in warnings:
             print(f"    ⚠  {w}", file=sys.stderr)
-    print(f"\n  Next: bash make.sh run --content {args.out} --title '...' --type ...",
-          file=sys.stderr)
+    print(f"\n  Next: bash make.sh run --content {args.out} --title '...' --type ...", file=sys.stderr)
     print("", file=sys.stderr)
 
 

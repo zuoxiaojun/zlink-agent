@@ -17,15 +17,15 @@ Exit codes:
     1 — file not found / unsupported format / encoding failure
 """
 
-import sys
-import json
 import argparse
+import json
+import sys
 from pathlib import Path
-
 
 # ---------------------------------------------------------------------------
 # Format detection and loading
 # ---------------------------------------------------------------------------
+
 
 def detect_and_load(file_path: str, sheet_name_filter: str | None = None) -> dict:
     """
@@ -36,10 +36,10 @@ def detect_and_load(file_path: str, sheet_name_filter: str | None = None) -> dic
     """
     try:
         import pandas as pd
-    except ImportError:
+    except ImportError as err:
         raise RuntimeError(
             "pandas is not installed. Run: pip install pandas openpyxl"
-        )
+        ) from err
 
     path = Path(file_path)
     if not path.exists():
@@ -63,16 +63,14 @@ def detect_and_load(file_path: str, sheet_name_filter: str | None = None) -> dic
         for enc in encodings:
             try:
                 import pandas as pd
+
                 df = pd.read_csv(file_path, sep=sep, encoding=enc)
                 df._reader_encoding = enc  # attach metadata (non-standard, for reporting)
                 return {path.stem: df}
             except (UnicodeDecodeError, Exception) as e:
                 last_error = e
                 continue
-        raise ValueError(
-            f"Cannot decode {file_path}. Tried encodings: {encodings}. "
-            f"Last error: {last_error}"
-        )
+        raise ValueError(f"Cannot decode {file_path}. Tried encodings: {encodings}. Last error: {last_error}")
 
     elif suffix == ".xls":
         raise ValueError(
@@ -81,15 +79,13 @@ def detect_and_load(file_path: str, sheet_name_filter: str | None = None) -> dic
         )
 
     else:
-        raise ValueError(
-            f"Unsupported file format: {suffix}. "
-            "Supported formats: .xlsx, .xlsm, .csv, .tsv"
-        )
+        raise ValueError(f"Unsupported file format: {suffix}. Supported formats: .xlsx, .xlsm, .csv, .tsv")
 
 
 # ---------------------------------------------------------------------------
 # Structure discovery
 # ---------------------------------------------------------------------------
+
 
 def explore_structure(sheets: dict) -> dict:
     """
@@ -118,6 +114,7 @@ def explore_structure(sheets: dict) -> dict:
 # Data quality audit
 # ---------------------------------------------------------------------------
 
+
 def audit_quality(sheets: dict) -> dict:
     """
     Return data quality findings per sheet.
@@ -134,25 +131,25 @@ def audit_quality(sheets: dict) -> dict:
         for col, cnt in null_counts.items():
             if cnt > 0:
                 pct = round(cnt / max(len(df), 1) * 100, 1)
-                sheet_findings.append({
-                    "type": "null_values",
-                    "column": col,
-                    "count": int(cnt),
-                    "pct": pct,
-                    "note": f"Column '{col}' has {cnt} null values ({pct}%). "
-                            "If this column contains Excel formulas, null values may "
-                            "indicate that the formula cache has not been populated "
-                            "(file was never opened in Excel after the formulas were written)."
-                })
+                sheet_findings.append(
+                    {
+                        "type": "null_values",
+                        "column": col,
+                        "count": int(cnt),
+                        "pct": pct,
+                        "note": f"Column '{col}' has {cnt} null values ({pct}%). "
+                        "If this column contains Excel formulas, null values may "
+                        "indicate that the formula cache has not been populated "
+                        "(file was never opened in Excel after the formulas were written).",
+                    }
+                )
 
         # Duplicate rows
         dup_count = int(df.duplicated().sum())
         if dup_count > 0:
-            sheet_findings.append({
-                "type": "duplicate_rows",
-                "count": dup_count,
-                "note": f"{dup_count} fully duplicate rows found."
-            })
+            sheet_findings.append(
+                {"type": "duplicate_rows", "count": dup_count, "note": f"{dup_count} fully duplicate rows found."}
+            )
 
         # Mixed-type object columns (numeric data stored as text)
         for col in df.select_dtypes(include="object").columns:
@@ -160,16 +157,18 @@ def audit_quality(sheets: dict) -> dict:
             convertible = int(numeric_converted.notna().sum())
             non_null_total = int(df[col].notna().sum())
             if 0 < convertible < non_null_total:
-                sheet_findings.append({
-                    "type": "mixed_type",
-                    "column": col,
-                    "convertible_to_numeric": convertible,
-                    "non_convertible": non_null_total - convertible,
-                    "note": f"Column '{col}' appears to contain mixed types: "
-                            f"{convertible} values can be parsed as numbers, "
-                            f"{non_null_total - convertible} cannot. "
-                            "Use pd.to_numeric(df[col], errors='coerce') to unify."
-                })
+                sheet_findings.append(
+                    {
+                        "type": "mixed_type",
+                        "column": col,
+                        "convertible_to_numeric": convertible,
+                        "non_convertible": non_null_total - convertible,
+                        "note": f"Column '{col}' appears to contain mixed types: "
+                        f"{convertible} values can be parsed as numbers, "
+                        f"{non_null_total - convertible} cannot. "
+                        "Use pd.to_numeric(df[col], errors='coerce') to unify.",
+                    }
+                )
 
         # Year column formatting (e.g., 2024.0 stored as float)
         for col in df.select_dtypes(include="number").columns:
@@ -178,13 +177,15 @@ def audit_quality(sheets: dict) -> dict:
             if "year" in col_lower or "yr" in col_lower or "年" in col_lower:
                 if df[col].dropna().between(1900, 2200).all():
                     if df[col].dtype == float:
-                        sheet_findings.append({
-                            "type": "year_as_float",
-                            "column": col,
-                            "note": f"Column '{col}' appears to be a year column stored as float "
-                                    "(e.g., 2024.0). Convert with df[col].astype(int).astype(str) "
-                                    "to get clean year strings like '2024'."
-                        })
+                        sheet_findings.append(
+                            {
+                                "type": "year_as_float",
+                                "column": col,
+                                "note": f"Column '{col}' appears to be a year column stored as float "
+                                "(e.g., 2024.0). Convert with df[col].astype(int).astype(str) "
+                                "to get clean year strings like '2024'.",
+                            }
+                        )
 
         # Outliers via IQR on numeric columns
         for col in df.select_dtypes(include="number").columns:
@@ -198,13 +199,15 @@ def audit_quality(sheets: dict) -> dict:
             outlier_mask = (df[col] < Q1 - 1.5 * IQR) | (df[col] > Q3 + 1.5 * IQR)
             outlier_count = int(outlier_mask.sum())
             if outlier_count > 0:
-                sheet_findings.append({
-                    "type": "outliers_iqr",
-                    "column": col,
-                    "count": outlier_count,
-                    "note": f"Column '{col}' has {outlier_count} potential outlier(s) "
-                            f"(outside 1.5×IQR bounds: [{Q1 - 1.5*IQR:.2f}, {Q3 + 1.5*IQR:.2f}])."
-                })
+                sheet_findings.append(
+                    {
+                        "type": "outliers_iqr",
+                        "column": col,
+                        "count": outlier_count,
+                        "note": f"Column '{col}' has {outlier_count} potential outlier(s) "
+                        f"(outside 1.5×IQR bounds: [{Q1 - 1.5 * IQR:.2f}, {Q3 + 1.5 * IQR:.2f}]).",
+                    }
+                )
 
         findings[sheet_name] = sheet_findings
 
@@ -214,6 +217,7 @@ def audit_quality(sheets: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Summary statistics
 # ---------------------------------------------------------------------------
+
 
 def compute_stats(sheets: dict) -> dict:
     """Compute descriptive statistics for numeric columns per sheet."""
@@ -231,6 +235,7 @@ def compute_stats(sheets: dict) -> dict:
 # ---------------------------------------------------------------------------
 # Human-readable report rendering
 # ---------------------------------------------------------------------------
+
 
 def render_report(
     file_path: str,
@@ -280,10 +285,12 @@ def render_report(
             for col in numeric_cols[:6]:
                 col_stats = sheet_stats[col]
                 p(f"    {col}:")
-                p(f"      count={col_stats.get('count', 'N/A')}  "
-                  f"mean={col_stats.get('mean', 'N/A')}  "
-                  f"min={col_stats.get('min', 'N/A')}  "
-                  f"max={col_stats.get('max', 'N/A')}")
+                p(
+                    f"      count={col_stats.get('count', 'N/A')}  "
+                    f"mean={col_stats.get('mean', 'N/A')}  "
+                    f"min={col_stats.get('min', 'N/A')}  "
+                    f"max={col_stats.get('max', 'N/A')}"
+                )
             if len(numeric_cols) > 6:
                 p(f"    ... and {len(numeric_cols) - 6} more numeric columns")
 
@@ -300,6 +307,7 @@ def render_report(
         if info["preview"]:
             p("\n  Preview (first 3 rows):")
             import pandas as pd
+
             preview_df = pd.DataFrame(info["preview"][:3])
             for line in preview_df.to_string(index=False).splitlines():
                 p(f"    {line}")
@@ -319,19 +327,13 @@ def render_report(
 # CLI entry point
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="Read and analyze Excel/CSV files without modifying them."
-    )
+    parser = argparse.ArgumentParser(description="Read and analyze Excel/CSV files without modifying them.")
     parser.add_argument("file", help="Path to .xlsx, .xlsm, .csv, or .tsv file")
     parser.add_argument("--sheet", help="Analyze a specific sheet only", default=None)
-    parser.add_argument(
-        "--json", action="store_true", help="Output machine-readable JSON"
-    )
-    parser.add_argument(
-        "--quality", action="store_true",
-        help="Run data quality audit only (skip stats)"
-    )
+    parser.add_argument("--json", action="store_true", help="Output machine-readable JSON")
+    parser.add_argument("--quality", action="store_true", help="Run data quality audit only (skip stats)")
     args = parser.parse_args()
 
     try:

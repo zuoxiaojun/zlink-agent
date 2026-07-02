@@ -13,25 +13,22 @@ Exit codes: 0 success, 1 bad args / file not found, 2 dep missing, 3 read error
 """
 
 import argparse
-import json
-import sys
 import importlib.util
+import json
 import os
-
-
+import sys
 
 
 def ensure_deps():
     if importlib.util.find_spec("pypdf") is None:
         import subprocess
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "--break-system-packages", "-q", "pypdf"]
-        )
+
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--break-system-packages", "-q", "pypdf"])
 
 
 ensure_deps()
 from pypdf import PdfReader
-from pypdf.generic import ArrayObject, DictionaryObject, NameObject, TextStringObject
+from pypdf.generic import ArrayObject
 
 
 # ── Field type resolution ──────────────────────────────────────────────────────
@@ -112,8 +109,8 @@ def _walk_fields(fields, page_map: dict, parent_name: str = "") -> list:
             continue
 
         entry = {
-            "name":  full,
-            "type":  ftype,
+            "name": full,
+            "type": ftype,
             "value": _field_value(field),
         }
         entry.update(_field_options(field, ftype))
@@ -142,32 +139,31 @@ def inspect(pdf_path: str) -> dict:
     acroform = reader.trailer.get("/Root", {}).get("/AcroForm")
     if acroform is None or "/Fields" not in acroform:
         return {
-            "status":     "ok",
+            "status": "ok",
             "has_fields": False,
             "field_count": 0,
-            "fields":     [],
-            "note":       "This PDF has no fillable form fields.",
+            "fields": [],
+            "note": "This PDF has no fillable form fields.",
         }
 
     fields = _walk_fields(list(acroform["/Fields"]), page_map)
 
     return {
-        "status":      "ok",
-        "has_fields":  bool(fields),
+        "status": "ok",
+        "has_fields": bool(fields),
         "field_count": len(fields),
-        "fields":      fields,
+        "fields": fields,
     }
 
 
 def main():
     parser = argparse.ArgumentParser(description="Inspect PDF form fields")
     parser.add_argument("--input", required=True, help="PDF file to inspect")
-    parser.add_argument("--out",   default="",    help="Write JSON to file (optional)")
+    parser.add_argument("--out", default="", help="Write JSON to file (optional)")
     args = parser.parse_args()
 
     if not os.path.exists(args.input):
-        print(json.dumps({"status": "error", "error": f"File not found: {args.input}"}),
-              file=sys.stderr)
+        print(json.dumps({"status": "error", "error": f"File not found: {args.input}"}), file=sys.stderr)
         sys.exit(1)
 
     result = inspect(args.input)
@@ -182,14 +178,13 @@ def main():
 
     # Human-readable summary
     if result["status"] == "ok" and result["has_fields"]:
-        print(f"\n── Fields in {args.input} ──────────────────────────────",
-              file=sys.stderr)
+        print(f"\n── Fields in {args.input} ──────────────────────────────", file=sys.stderr)
         for f in result["fields"]:
-            pg  = f"  p.{f['page']}" if "page" in f else ""
+            pg = f"  p.{f['page']}" if "page" in f else ""
             val = f"  = {f['value']}" if f.get("value") else ""
             extra = ""
             if "choices" in f:
-                extra = f"  [{', '.join(c['value'] for c in f['choices'][:4])}{'…' if len(f['choices'])>4 else ''}]"
+                extra = f"  [{', '.join(c['value'] for c in f['choices'][:4])}{'…' if len(f['choices']) > 4 else ''}]"
             elif "states" in f:
                 extra = f"  {f['states']}"
             print(f"  {f['type']:12}  {f['name']}{pg}{val}{extra}", file=sys.stderr)
