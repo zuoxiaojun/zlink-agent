@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, ToggleLeft, ToggleRight, FlaskConical, RefreshCw, ChevronDown, ChevronRight, Server, Braces, FormInput } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, ToggleLeft, ToggleRight, FlaskConical, RefreshCw, ChevronDown, ChevronRight, Server, Braces, FormInput, Edit3, Wifi, WifiOff, Loader2 } from "lucide-react";
 import { api } from "../api/http";
 import type { MCPServerStatus, MCPServerConfig, MCPTestResult } from "../types";
 
@@ -19,6 +19,7 @@ const DEFAULT_CONFIG: MCPServerConfig = {
 export default function McpPage() {
   const navigate = useNavigate();
   const [servers, setServers] = useState<MCPServerStatus[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [addMode, setAddMode] = useState<"form" | "json">("form");
   const [form, setForm] = useState<MCPServerConfig>({ ...DEFAULT_CONFIG });
@@ -28,12 +29,25 @@ export default function McpPage() {
   const [testResults, setTestResults] = useState<Record<string, MCPTestResult | null>>({});
   const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
   const [reloading, setReloading] = useState(false);
+  const [editingServer, setEditingServer] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<MCPServerConfig>({ ...DEFAULT_CONFIG });
+  const [reconnecting, setReconnecting] = useState<Record<string, boolean>>({});
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const loadServers = () => {
-    api.get<MCPServerStatus[]>("/mcp/servers").then(setServers).catch(() => {});
-  };
+  const loadServers = useCallback(() => {
+    api.get<MCPServerStatus[]>("/mcp/servers").then((data) => {
+      setServers(data);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, []);
 
-  useEffect(() => { loadServers(); }, []);
+  useEffect(() => { loadServers(); }, [loadServers]);
+
+  // Auto-poll every 15 seconds
+  useEffect(() => {
+    pollRef.current = setInterval(loadServers, 15000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [loadServers]);
 
   const handleAdd = async () => {
     setError("");
@@ -102,6 +116,45 @@ export default function McpPage() {
     } catch (e: any) {
       setTestResults((prev) => ({ ...prev, [name]: { success: false, tools_discovered: 0, tool_names: [], error_message: e.message } }));
     }
+  };
+
+  const handleReconnect = async (name: string) => {
+    setReconnecting((prev) => ({ ...prev, [name]: true }));
+    try {
+      await api.post(`/mcp/servers/${name}/reconnect`);
+      loadServers();
+    } catch (e: any) {
+      setError(e.message);
+    }
+    setReconnecting((prev) => ({ ...prev, [name]: false }));
+  };
+
+  const startEdit = (s: MCPServerStatus) => {
+    setEditingServer(s.name);
+    setEditForm({
+      name: s.name,
+      transport: s.transport as "stdio" | "http",
+      command: "",
+      args: [],
+      url: "",
+      headers: {},
+      env: {},
+      enabled: true,
+      timeout: 120,
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editingServer) return;
+    setSubmitting(true);
+    try {
+      await api.put(`/mcp/servers/${editingServer}`, editForm);
+      setEditingServer(null);
+      loadServers();
+    } catch (e: any) {
+      setError(e.message);
+    }
+    setSubmitting(false);
   };
 
   const handleReload = async () => {
@@ -246,7 +299,12 @@ export default function McpPage() {
         </div>
       )}
 
-      {servers.length === 0 ? (
+      {loading ? (
+        <div className="empty-state">
+          <Loader2 size={40} className="empty-state-icon spin" style={{ opacity: 0.3 }} />
+          <p>加载中...</p>
+        </div>
+      ) : servers.length === 0 ? (
         <div className="empty-state">
           <Server size={40} className="empty-state-icon" style={{ opacity: 0.3 }} />
           <p>暂无 MCP 服务器，点击上方按钮添加</p>
@@ -279,6 +337,23 @@ export default function McpPage() {
                     title="测试连接"
                   >
                     <FlaskConical size={14} color="var(--text-3)" />
+                  </button>
+                  <button
+                    className="btn btn-ghost"
+                    style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
+                    onClick={() => startEdit(s)}
+                    title="编辑配置"
+                  >
+                    <Edit3 size={13} color="var(--text-3)" />
+                  </button>
+                  <button
+                    className="btn btn-ghost"
+                    style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
+                    onClick={() => handleReconnect(s.name)}
+                    disabled={reconnecting[s.name]}
+                    title="重新连接"
+                  >
+                    {reconnecting[s.name] ? <Loader2 size={14} className="spin" /> : <WifiOff size={14} color="var(--text-3)" />}
                   </button>
                   <button
                     className="btn btn-ghost"
@@ -330,6 +405,52 @@ export default function McpPage() {
                   ) : (
                     <span style={{ color: "var(--error)" }}>测试失败: {testResults[s.name]!.error_message}</span>
                   )}
+                </div>
+              )}
+
+              {editingServer === s.name && (
+                <div style={{ marginTop: "12px", padding: "12px", background: "var(--bg-2)", borderRadius: "6px" }}>
+                  <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 600 }}>编辑配置</h4>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <label className="form-label">名称</label>
+                      <input className="form-input" value={editForm.name} disabled />
+                    </div>
+                    <div>
+                      <label className="form-label">传输方式</label>
+                      <select className="form-input" value={editForm.transport} onChange={(e) => setEditForm({ ...editForm, transport: e.target.value as "stdio" | "http" })}>
+                        <option value="stdio">stdio (子进程)</option>
+                        <option value="http">HTTP</option>
+                      </select>
+                    </div>
+                    {editForm.transport === "stdio" ? (
+                      <>
+                        <div>
+                          <label className="form-label">Command</label>
+                          <input className="form-input" value={editForm.command || ""} onChange={(e) => setEditForm({ ...editForm, command: e.target.value })} />
+                        </div>
+                        <div>
+                          <label className="form-label">Args (逗号分隔)</label>
+                          <input className="form-input" value={(editForm.args || []).join(", ")} onChange={(e) => setEditForm({ ...editForm, args: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} />
+                        </div>
+                      </>
+                    ) : (
+                      <div>
+                        <label className="form-label">URL</label>
+                        <input className="form-input" value={editForm.url || ""} onChange={(e) => setEditForm({ ...editForm, url: e.target.value })} />
+                      </div>
+                    )}
+                    <div>
+                      <label className="form-label">超时 (秒)</label>
+                      <input className="form-input" type="number" min={10} max={600} value={editForm.timeout || 120} onChange={(e) => setEditForm({ ...editForm, timeout: Number(e.target.value) })} />
+                    </div>
+                  </div>
+                  <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+                    <button className="btn btn-primary" onClick={saveEdit} disabled={submitting}>
+                      {submitting ? "保存中..." : "保存并重连"}
+                    </button>
+                    <button className="btn btn-ghost" onClick={() => setEditingServer(null)}>取消</button>
+                  </div>
                 </div>
               )}
             </div>

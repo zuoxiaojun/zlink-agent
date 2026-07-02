@@ -363,3 +363,41 @@ registry.register(
     handler=_handle_skill_install,
     emoji="📦",
 )
+
+
+# ── Export tool ──────────────────────────────────────────────
+
+
+def _handle_skill_export(args: dict) -> str:
+    """Export a skill as a downloadable SKILL.md file content."""
+    name = args.get("name", "")
+    if not name:
+        return tool_error("name is required")
+    content = _get_skill_content(name)
+    if content is None:
+        return tool_error(f"未找到技能: {name}")
+    return tool_result(
+        data=f"技能「{name}」的内容如下（可保存为 {name}-SKILL.md）：",
+        content=content,
+    )
+
+
+SKILL_EXPORT_SCHEMA = {
+    "name": "skill_export",
+    "description": "导出指定技能的 SKILL.md 内容，包含完整 frontmatter。可用于备份或分享。",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "要导出的技能名称"},
+        },
+        "required": ["name"],
+    },
+}
+
+registry.register(
+    name="skill_export",
+    toolset="skills",
+    schema=SKILL_EXPORT_SCHEMA,
+    handler=_handle_skill_export,
+    emoji="📤",
+)

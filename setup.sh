@@ -14,6 +14,20 @@ echo -e "${CYAN}  YS-Agent 一键构建脚本${NC}"
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
+# ── 镜像配置 ──
+USE_MIRROR="${YS_USE_MIRROR:-true}"
+if [ "$USE_MIRROR" = "true" ]; then
+    PIP_MIRROR="${YS_PIP_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple}"
+    NPM_MIRROR="${YS_NPM_MIRROR:-https://mirrors.npmmirror.com}"
+    echo -e "${GREEN}使用国内镜像：${NC}"
+    echo "  PIP: $PIP_MIRROR"
+    echo "  NPM: $NPM_MIRROR"
+    echo "  设置 YS_USE_MIRROR=false 可关闭镜像"
+else
+    PIP_MIRROR=""
+    NPM_MIRROR=""
+fi
+
 # ── Python 环境 ──
 if [ ! -d ".venv" ]; then
     echo -e "${GREEN}[1/5] 创建 Python 虚拟环境...${NC}"
@@ -22,7 +36,11 @@ fi
 
 echo -e "${GREEN}[2/5] 安装 Python 依赖...${NC}"
 source .venv/bin/activate
-pip install -r requirements.txt -q
+if [ -n "$PIP_MIRROR" ]; then
+    pip install -r requirements.txt -q -i "$PIP_MIRROR"
+else
+    pip install -r requirements.txt -q
+fi
 
 # ── 配置文件 ──
 if [ ! -f ".env" ]; then
@@ -38,6 +56,9 @@ mkdir -p data/logs data/sessions data/memory
 # ── 前端构建 ──
 echo -e "${GREEN}[4/5] 安装前端依赖...${NC}"
 cd "$PROJECT_DIR/web"
+if [ -n "$NPM_MIRROR" ]; then
+    npm config set registry "$NPM_MIRROR"
+fi
 npm ci --silent 2>/dev/null || npm install --silent
 
 echo -e "${GREEN}[5/5] 构建前端...${NC}"

@@ -34,6 +34,25 @@ async def add_server(body: MCPServerConfig):
     return {"ok": True}
 
 
+@router.put("/servers/{name}")
+async def update_server(name: str, body: MCPServerConfig):
+    cfg = config_manager.load()
+    servers = cfg.get("mcp_servers", {})
+    if name not in servers:
+        raise HTTPException(status_code=404, detail=f"Server '{name}' not found")
+    # Disconnect old connection
+    await disconnect_server(name)
+    # Update config under existing name
+    config_dict = _build_config_dict(body)
+    config_dict["enabled"] = servers[name].get("enabled", True)
+    servers[name] = config_dict
+    config_manager.save(cfg)
+    # Reconnect if enabled
+    if config_dict["enabled"]:
+        await connect_server(name, config_dict)
+    return {"ok": True}
+
+
 @router.delete("/servers/{name}", status_code=204)
 async def delete_server(name: str):
     cfg = config_manager.load()
@@ -60,6 +79,17 @@ async def toggle_server(name: str):
     else:
         await disconnect_server(name)
     return {"ok": True, "enabled": new_enabled}
+
+
+@router.post("/servers/{name}/reconnect")
+async def reconnect_server(name: str):
+    cfg = config_manager.load()
+    servers = cfg.get("mcp_servers", {})
+    if name not in servers:
+        raise HTTPException(status_code=404, detail=f"Server '{name}' not found")
+    await disconnect_server(name)
+    await connect_server(name, servers[name])
+    return {"ok": True}
 
 
 @router.post("/servers/{name}/test", response_model=MCPTestResult)

@@ -191,6 +191,7 @@ class MCPServerConnection:
         self._request_id: int = 0
         self._pending: dict[int, asyncio.Future] = {}
         self._reader_task: asyncio.Task | None = None
+        self._stderr_task: asyncio.Task | None = None
         self._rpc_lock: asyncio.Lock | None = None
         self._server_name: str = ""
         self._server_version: str = ""
@@ -272,6 +273,15 @@ class MCPServerConnection:
             except asyncio.CancelledError:
                 pass
             self._reader_task = None
+
+        # Cancel stderr reader
+        if self._stderr_task:
+            self._stderr_task.cancel()
+            try:
+                await self._stderr_task
+            except asyncio.CancelledError:
+                pass
+            self._stderr_task = None
 
         # Resolve pending futures
         for fut in self._pending.values():
@@ -364,6 +374,7 @@ class MCPServerConnection:
         self._reader_lock = asyncio.Lock()
         self._rpc_lock = asyncio.Lock()
         self._reader_task = asyncio.ensure_future(self._stdio_reader())
+        self._stderr_task = asyncio.ensure_future(self._stderr_reader())
 
     async def _stdio_reader(self):
         """Read line-delimited JSON-RPC responses from process stdout."""
@@ -387,6 +398,25 @@ class MCPServerConnection:
             if self._ready:
                 self._ready = False
                 self._error = "stdio process exited unexpectedly"
+
+    async def _stderr_reader(self):
+        """Log stderr output from the subprocess."""
+        assert self._process and self._process.stderr
+        try:
+            buf = b""
+            while True:
+                chunk = await self._process.stderr.read(8192)
+                if not chunk:
+                    break
+                buf += chunk
+                while b"\n" in buf:
+                    line, buf = buf.split(b"\n", 1)
+                    if line.strip():
+                        logger.debug("[mcp %s stderr] %s", self.name, line.decode("utf-8", errors="replace"))
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            pass
 
     def _handle_line(self, line: str):
         try:

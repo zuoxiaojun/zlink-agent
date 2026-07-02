@@ -158,6 +158,34 @@ def get_instructions_for_query(query: str) -> str:
     return "\n\n## 触发技能指令\n\n根据你的问题，以下已启用的技能与之相关，请严格遵循：\n\n" + "\n\n".join(matched)
 
 
+# ── Content update ────────────────────────────────────────────
+
+
+def update_skill_content(name: str, content: str) -> bool:
+    """Update a skill's SKILL.md content. Returns False if not found."""
+    import yaml
+
+    target_dir = SKILLS_DIR / name
+    skill_file = target_dir / "SKILL.md"
+    if not skill_file.exists():
+        return False
+    # Validate frontmatter
+    if content.startswith("---"):
+        try:
+            meta = yaml.safe_load(content.split("---", 2)[1])
+            if not meta or not meta.get("name"):
+                return False
+        except yaml.YAMLError:
+            return False
+    else:
+        return False
+    tmp = skill_file.with_suffix(".md.tmp")
+    tmp.write_text(content, encoding="utf-8")
+    tmp.replace(skill_file)
+    logger.info("Skill content updated: %s", name)
+    return True
+
+
 # ── Zip installation ──────────────────────────────────────────
 
 

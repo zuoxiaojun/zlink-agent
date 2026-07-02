@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from agent import skill_manager
-from backend.schemas.skill import SkillInfo, SkillToggle
+from backend.schemas.skill import SkillInfo, SkillToggle, SkillUpdate
 
 router = APIRouter(prefix="/api/skills", tags=["skills"])
 
@@ -38,6 +38,14 @@ def get_skill(name: str):
 @router.put("/{name}/toggle")
 def toggle_skill(name: str, body: SkillToggle):
     ok = skill_manager.set_skill_active(name, body.active)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Skill not found")
+    return {"ok": True}
+
+
+@router.put("/{name}")
+def update_skill(name: str, body: SkillUpdate):
+    ok = skill_manager.update_skill_content(name, body.content)
     if not ok:
         raise HTTPException(status_code=404, detail="Skill not found")
     return {"ok": True}

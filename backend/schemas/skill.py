@@ -11,3 +11,7 @@ class SkillInfo(BaseModel):
 
 class SkillToggle(BaseModel):
     active: bool
+
+
+class SkillUpdate(BaseModel):
+    content: str
