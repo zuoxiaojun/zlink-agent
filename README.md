@@ -64,42 +64,6 @@ cd ..
 ./start.sh
 ```
 
-## 生产部署
-
-```bash
-# 前端 — nginx 托管 web/dist/，代理 /api 和 /ws 到后端
-# 后端 — 多 worker 启动
-uvicorn backend.main:app --host 0.0.0.0 --port 8089 --workers 4
-```
-
-nginx 配置示例：
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    root /opt/ys-agent/web/dist;
-    index index.html;
-
-    location / {
-        try_files $uri /index.html;
-    }
-
-    location /api/ {
-        proxy_pass http://127.0.0.1:8089;
-        proxy_set_header Host $host;
-    }
-
-    location /ws {
-        proxy_pass http://127.0.0.1:8089;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-}
-```
-
 ## 配置
 
 | 配置项 | 方式 |
