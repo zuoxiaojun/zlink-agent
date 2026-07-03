@@ -99,6 +99,7 @@ from backend.api.memory_api import router as memory_router
 from backend.api.metrics_api import router as metrics_router
 from backend.api.sessions import router as sessions_router
 from backend.api.skills_api import router as skills_router
+from backend.api.system_api import router as system_router
 from backend.api.tools_api import router as tools_router
 
 app.include_router(sessions_router)
@@ -110,3 +111,4 @@ app.include_router(tools_router)
 app.include_router(chat_router)
 app.include_router(mcp_router)
 app.include_router(extensions_router)
+app.include_router(system_router)
