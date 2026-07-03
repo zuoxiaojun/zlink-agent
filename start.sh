@@ -52,9 +52,10 @@ kill_port() {
 kill_port $BACKEND_PORT
 
 cd "$PROJECT_DIR"
-source "$VENV_ACTIVATE"
+# Clear PYTHONPATH to avoid Hermes venv pydantic conflicts
+PYTHONPATH="" source "$VENV_ACTIVATE"
 echo "Starting backend on http://localhost:$BACKEND_PORT ..."
-uvicorn backend.main:app --host 0.0.0.0 --port $BACKEND_PORT &
+PYTHONPATH="" uvicorn backend.main:app --host 0.0.0.0 --port $BACKEND_PORT &
 BACKEND_PID=$!
 
 # ── Frontend ──

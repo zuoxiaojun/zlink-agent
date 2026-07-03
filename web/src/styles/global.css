@@ -983,12 +983,21 @@ body {
   height: 38px;
   padding: 0 12px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 13px;
-  color: var(--text-1);
+  border-radius: var(--radius-sm);
   background: var(--bg-card);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  color: var(--text-1);
+  font-size: 13px;
+  font-family: var(--font-sans);
   outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+textarea.form-input {
+  height: auto;
+  min-height: 80px;
+  padding: 8px 12px;
+  line-height: 1.5;
+  resize: vertical;
 }
 
 .form-input:focus {

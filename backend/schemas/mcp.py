@@ -24,6 +24,12 @@ class MCPServerStatus(BaseModel):
     status: Literal["connected", "disconnected", "error"]
     tool_count: int = 0
     error_message: str | None = None
+    command: str | None = None
+    args: list[str] = []
+    url: str | None = None
+    headers: dict[str, str] = {}
+    env: dict[str, str] = {}
+    timeout: int = 120
 
 
 class MCPTestResult(BaseModel):

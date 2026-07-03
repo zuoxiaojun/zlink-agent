@@ -29,7 +29,16 @@ _DEFAULT_CONFIG = {
     "max_context_tokens": 0,  # 0 = auto-detect from model
     "reserve_tokens": 4000,
     "keep_recent_tokens": 8000,
-    "mcp_servers": {},
+    "mcp_servers": {
+        "mcp-server-chart": {
+            "transport": "stdio",
+            "enabled": True,
+            "timeout": 120,
+            "command": "npx",
+            "args": ["-y", "@antv/mcp-server-chart"],
+            "env": {},
+        },
+    },
     "disabled_extensions": [],  # M5+: names of extensions the user turned off
 }
 
@@ -64,6 +73,11 @@ def load() -> dict:
     try:
         data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
         result = dict(_DEFAULT_CONFIG)
+        if "mcp_servers" in data and isinstance(data.get("mcp_servers"), dict):
+            # Deep-merge mcp_servers: defaults first, then user overrides
+            merged = dict(_DEFAULT_CONFIG.get("mcp_servers", {}))
+            merged.update(data["mcp_servers"])
+            data["mcp_servers"] = merged
         result.update(data)
         for field in _ENCRYPTED_FIELDS:
             val = result.get(field, "")

@@ -603,12 +603,21 @@ def get_server_statuses() -> list[dict]:
     for name, scfg in servers_cfg.items():
         conn = _connections.get(name)
         enabled = scfg.get("enabled", True)
+        base = {
+            "name": name,
+            "transport": scfg.get("transport", "stdio"),
+            "enabled": enabled,
+            "command": scfg.get("command"),
+            "args": scfg.get("args", []),
+            "url": scfg.get("url"),
+            "headers": scfg.get("headers", {}),
+            "env": scfg.get("env", {}),
+            "timeout": scfg.get("timeout", 120),
+        }
         if not enabled:
             result.append(
                 {
-                    "name": name,
-                    "transport": scfg.get("transport", "stdio"),
-                    "enabled": False,
+                    **base,
                     "status": "disconnected",
                     "tool_count": 0,
                     "error_message": None,
@@ -617,20 +626,16 @@ def get_server_statuses() -> list[dict]:
         elif conn:
             result.append(
                 {
-                    "name": name,
-                    "transport": scfg.get("transport", "stdio"),
-                    "enabled": True,
-                    "status": conn.status,
-                    "tool_count": conn.tool_count if conn.connected else 0,
-                    "error_message": conn._error if conn.status == "error" else None,
+                    **base,
+                    "status": "connected" if conn.connected else "error",
+                    "tool_count": len(conn._registered_tool_names) if conn.connected else 0,
+                    "error_message": conn._error if not conn.connected else None,
                 }
             )
         else:
             result.append(
                 {
-                    "name": name,
-                    "transport": scfg.get("transport", "stdio"),
-                    "enabled": True,
+                    **base,
                     "status": "disconnected",
                     "tool_count": 0,
                     "error_message": None,

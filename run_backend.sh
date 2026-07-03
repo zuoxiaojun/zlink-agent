@@ -35,6 +35,7 @@ kill_port() {
 
 kill_port $PORT
 cd "$PROJECT_DIR"
-source "$VENV_ACTIVATE"
+# Clear PYTHONPATH to avoid Hermes venv pydantic conflicts
+PYTHONPATH="" source "$VENV_ACTIVATE"
 echo "Starting YS-Agent Backend on http://localhost:$PORT ..."
-exec uvicorn backend.main:app --host 0.0.0.0 --port $PORT --reload
+PYTHONPATH="" exec uvicorn backend.main:app --host 0.0.0.0 --port $PORT --reload

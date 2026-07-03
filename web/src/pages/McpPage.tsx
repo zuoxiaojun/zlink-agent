@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, ToggleLeft, ToggleRight, FlaskConical, RefreshCw, ChevronDown, ChevronRight, Server, Braces, FormInput, Edit3, Wifi, WifiOff, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, ToggleLeft, ToggleRight, Play, RefreshCw, ChevronDown, ChevronRight, Server, Braces, FormInput, Edit3, Loader2 } from "lucide-react";
 import { api } from "../api/http";
 import type { MCPServerStatus, MCPServerConfig, MCPTestResult } from "../types";
 
@@ -31,6 +31,8 @@ export default function McpPage() {
   const [reloading, setReloading] = useState(false);
   const [editingServer, setEditingServer] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<MCPServerConfig>({ ...DEFAULT_CONFIG });
+  const [editJsonMode, setEditJsonMode] = useState<"form" | "json">("form");
+  const [editJsonText, setEditJsonText] = useState("");
   const [reconnecting, setReconnecting] = useState<Record<string, boolean>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -131,24 +133,47 @@ export default function McpPage() {
 
   const startEdit = (s: MCPServerStatus) => {
     setEditingServer(s.name);
-    setEditForm({
+    setEditJsonMode("form");
+    const cfg: MCPServerConfig = {
       name: s.name,
       transport: s.transport as "stdio" | "http",
-      command: "",
-      args: [],
-      url: "",
-      headers: {},
-      env: {},
-      enabled: true,
-      timeout: 120,
-    });
+      command: s.command || "",
+      args: s.args || [],
+      url: s.url || "",
+      headers: s.headers || {},
+      env: s.env || {},
+      enabled: s.enabled ?? true,
+      timeout: s.timeout ?? 120,
+    };
+    setEditForm(cfg);
+    setEditJsonText(JSON.stringify(cfg, null, 2));
   };
 
   const saveEdit = async () => {
     if (!editingServer) return;
     setSubmitting(true);
+    setError("");
+    let config: MCPServerConfig;
+
+    if (editJsonMode === "json") {
+      try {
+        config = JSON.parse(editJsonText);
+      } catch {
+        setError("JSON 格式无效，请检查语法");
+        setSubmitting(false);
+        return;
+      }
+      if (!config.name?.trim()) {
+        setError("JSON 中缺少必填字段 name");
+        setSubmitting(false);
+        return;
+      }
+    } else {
+      config = { ...editForm };
+    }
+
     try {
-      await api.put(`/mcp/servers/${editingServer}`, editForm);
+      await api.put(`/mcp/servers/${editingServer}`, config);
       setEditingServer(null);
       loadServers();
     } catch (e: any) {
@@ -271,8 +296,8 @@ export default function McpPage() {
               <label className="form-label">JSON 配置</label>
               <textarea
                 className="form-input"
-                rows={10}
-                style={{ fontFamily: "var(--mono-font, monospace)", fontSize: "12px", resize: "vertical" }}
+                rows={14}
+                style={{ fontFamily: "var(--mono-font, monospace)", fontSize: "12px", resize: "vertical", minHeight: "260px" }}
                 value={jsonText}
                 onChange={(e) => setJsonText(e.target.value)}
                 placeholder={`{
@@ -336,7 +361,7 @@ export default function McpPage() {
                     onClick={() => handleTest(s.name)}
                     title="测试连接"
                   >
-                    <FlaskConical size={14} color="var(--text-3)" />
+                    <Play size={13} color="var(--primary)" />
                   </button>
                   <button
                     className="btn btn-ghost"
@@ -353,7 +378,7 @@ export default function McpPage() {
                     disabled={reconnecting[s.name]}
                     title="重新连接"
                   >
-                    {reconnecting[s.name] ? <Loader2 size={14} className="spin" /> : <WifiOff size={14} color="var(--text-3)" />}
+                    {reconnecting[s.name] ? <Loader2 size={14} className="spin" /> : <RefreshCw size={13} color="var(--text-3)" />}
                   </button>
                   <button
                     className="btn btn-ghost"
@@ -410,7 +435,37 @@ export default function McpPage() {
 
               {editingServer === s.name && (
                 <div style={{ marginTop: "12px", padding: "12px", background: "var(--bg-2)", borderRadius: "6px" }}>
-                  <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 600 }}>编辑配置</h4>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                    <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>编辑配置</h4>
+                    <div style={{ display: "flex", gap: "4px", background: "var(--bg-page)", borderRadius: "6px", padding: "2px" }}>
+                      <button
+                        className={`btn ${editJsonMode === "form" ? "btn-primary" : "btn-ghost"}`}
+                        style={{ height: "26px", padding: "0 8px", fontSize: "11px" }}
+                        onClick={() => { setEditJsonMode("form"); setError(""); }}
+                      >
+                        <FormInput size={11} /> 表单
+                      </button>
+                      <button
+                        className={`btn ${editJsonMode === "json" ? "btn-primary" : "btn-ghost"}`}
+                        style={{ height: "26px", padding: "0 8px", fontSize: "11px" }}
+                        onClick={() => { setEditJsonMode("json"); setError(""); }}
+                      >
+                        <Braces size={11} /> JSON
+                      </button>
+                    </div>
+                  </div>
+
+                  {editJsonMode === "json" ? (
+                    <div>
+                      <textarea
+                        className="form-input"
+                        rows={14}
+                        style={{ fontFamily: "var(--mono-font, monospace)", fontSize: "12px", resize: "vertical", minHeight: "260px" }}
+                        value={editJsonText}
+                        onChange={(e) => setEditJsonText(e.target.value)}
+                      />
+                    </div>
+                  ) : (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                     <div>
                       <label className="form-label">名称</label>
@@ -445,6 +500,7 @@ export default function McpPage() {
                       <input className="form-input" type="number" min={10} max={600} value={editForm.timeout || 120} onChange={(e) => setEditForm({ ...editForm, timeout: Number(e.target.value) })} />
                     </div>
                   </div>
+                  )}
                   <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
                     <button className="btn btn-primary" onClick={saveEdit} disabled={submitting}>
                       {submitting ? "保存中..." : "保存并重连"}

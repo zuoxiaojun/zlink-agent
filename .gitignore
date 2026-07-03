@@ -25,3 +25,10 @@ CLAUDE.md
 
 # 防止字面 ~ 目录被误创建（Python os.path 不会自动展开 ~，需用 expanduser）
 ~
+
+# ── Skill 目录：密钥/缓存不应被跟踪 ──
+agent/skills/*/.env
+agent/skills/*/cache/
+agent/skills/*/output/
+agent/skills/*/token*
+agent/skills/*/*.token

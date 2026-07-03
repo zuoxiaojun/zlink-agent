@@ -64,7 +64,7 @@ async def on_startup():
     cfg = config_manager.load()
     servers_cfg = cfg.get("mcp_servers", {})
 
-    # Ensure built-in YonSuite MCP server is configured
+    # Ensure built-in MCP servers are configured
     if "yonsuite" not in servers_cfg:
         py_path = sys.executable
         servers_cfg["yonsuite"] = {
@@ -76,6 +76,18 @@ async def on_startup():
         }
         cfg["mcp_servers"] = servers_cfg
         config_manager.save(cfg)
+
+    if "mcp-server-chart" not in servers_cfg:
+        servers_cfg["mcp-server-chart"] = {
+            "transport": "stdio",
+            "enabled": True,
+            "timeout": 120,
+            "command": "npx",
+            "args": ["-y", "@antv/mcp-server-chart"],
+            "env": {},
+        }
+        # Don't save here — _DEFAULT_CONFIG already has it, so
+        # load() will deep-merge it into the next persisted config.
 
     if servers_cfg:
         import asyncio

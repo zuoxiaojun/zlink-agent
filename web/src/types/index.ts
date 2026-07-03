@@ -140,6 +140,12 @@ export interface MCPServerStatus {
   status: "connected" | "disconnected" | "error";
   tool_count: number;
   error_message: string | null;
+  command?: string;
+  args?: string[];
+  url?: string;
+  headers?: Record<string, string>;
+  env?: Record<string, string>;
+  timeout?: number;
 }
 
 export interface MCPTestResult {

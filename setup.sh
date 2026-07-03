@@ -129,7 +129,8 @@ echo ""
 
 # ── 4. 安装 Python 依赖 ──
 echo -e "${GREEN}[4/8] 安装 Python 依赖...${NC}"
-source "$VENV_ACTIVATE"
+# Clear PYTHONPATH to avoid venv conflicts (e.g. from Hermes, asdf, pyenv)
+PYTHONPATH="" source "$VENV_ACTIVATE"
 
 pip install --upgrade pip -q 2>/dev/null || true
 
@@ -215,7 +216,7 @@ if ! echo ":$PATH:" | grep -q ":${HOME}/.local/bin:"; then
 fi
 
 # 数据迁移
-source "$VENV_ACTIVATE"
+PYTHONPATH="" source "$VENV_ACTIVATE"
 python -m scripts.migrate && ok "数据迁移检查完成" || warn "数据迁移执行异常（可后续手动执行）"
 
 echo ""
