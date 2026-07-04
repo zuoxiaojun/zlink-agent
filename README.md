@@ -115,9 +115,7 @@ ys-agent/
 
 ## 版本
 
-当前版本：**v1.3.0**（2026-07-04）。v1.2.0 → v1.3.0 变更见 [CHANGELOG.md](./CHANGELOG.md)。
-
-> **版本发布规范**：改版本号时同步完成五步——更新 `pyproject.toml` 的 `version`、更新 `VERSION` 文件、更新 `CHANGELOG.md`、更新 `README.md`（版本号 + 功能列表 + 项目结构）、打 git tag 并推送（`git tag vX.Y.Z && git push origin vX.Y.Z`）。
+当前版本：**v1.3.0**（2026-07-04）。完整变更日志见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## v1.3+ 新增
 
