@@ -79,6 +79,9 @@ export default function ChatPage() {
           }
           if (state.agentRunning) {
             const streamingMsg: Message = { role: "assistant", content: state.streamingText || "" };
+            if (state.reasoningText) {
+              streamingMsg.reasoning_content = state.reasoningText;
+            }
             if (groups.length > 0 && groups[groups.length - 1][0].role !== "user") {
               groups[groups.length - 1].push(streamingMsg);
             } else {

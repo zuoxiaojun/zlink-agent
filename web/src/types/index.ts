@@ -53,6 +53,20 @@ export interface LLMConfigPayload {
   provider: string;
 }
 
+export interface ModelInfo {
+  id: string;
+  context_length: number;
+  max_output?: number;
+}
+
+export interface ProviderInfo {
+  name: string;
+  base_url: string;
+  models: ModelInfo[];
+  api_key_label: string;
+  api_key_placeholder: string;
+}
+
 export interface YonSuiteConfigPayload {
   app_key: string;
   app_secret: string;
@@ -75,13 +89,7 @@ export interface ConfigResponse {
   agent: AgentConfigPayload;
 }
 
-export interface ProviderInfo {
-  name: string;
-  base_url: string;
-  models: string[];
-  api_key_label: string;
-  api_key_placeholder: string;
-}
+
 
 export interface ToolInfo {
   name: string;
@@ -117,8 +125,7 @@ export interface MemorySummary {
 
 // WebSocket message types
 export type WsClientMessage =
-  | { type: "send_message"; content: string | ContentPart[] }
-  | { type: "stop" };
+  { type: "send_message"; content: string | ContentPart[] } | { type: "stop" };
 
 // MCP types
 export interface MCPServerConfig {
@@ -170,9 +177,20 @@ export interface ExtensionReloadResult {
 
 export type WsServerMessage =
   | { type: "token"; content: string }
+  | { type: "reasoning_token"; content: string }
   | { type: "tool_call"; tool_name: string; arguments_preview: string }
   | { type: "tool_result"; result_preview: string }
   | { type: "tool_done" }
   | { type: "progress"; message: string }
-  | { type: "done"; final_response: string; messages: Message[]; api_calls: number; token_usage: TokenUsage | null; completed: boolean; error: string | null; session_id: string; session_title: string }
+  | {
+      type: "done";
+      final_response: string;
+      messages: Message[];
+      api_calls: number;
+      token_usage: TokenUsage | null;
+      completed: boolean;
+      error: string | null;
+      session_id: string;
+      session_title: string;
+    }
   | { type: "error"; message: string; session_id?: string };

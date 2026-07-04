@@ -166,14 +166,14 @@
   <h1>YS-Agent <span class="sub">v1.1.1</span></h1>
   <p>基于 FastAPI + React (Vite) 的独立 AI Agent，为 <strong>YonSuite（用友云 ERP）</strong>提供 AI 能力。支持自然语言查询库存、订单、客户等 11 大业务域，内置工具调用循环、记忆系统、技能插件和可扩展的 MCP Server 生态。</p>
   <div class="stat-bar">
-    <div class="stat"><div class="num">26+</div><div class="lbl">内置工具</div></div>
+    <div class="stat"><div class="num">27</div><div class="lbl">内置工具</div></div>
     <div class="stat"><div class="num">11</div><div class="lbl">YonSuite 业务域</div></div>
     <div class="stat"><div class="num">2</div><div class="lbl">记忆系统层</div></div>
     <div class="stat"><div class="num">7</div><div class="lbl">Slash 命令</div></div>
     <div class="stat"><div class="num">40+</div><div class="lbl">支持模型</div></div>
     <div class="stat"><div class="num">8089</div><div class="lbl">后端端口</div></div>
-    <div class="stat"><div class="num">8</div><div class="lbl">事件类型</div></div>
-    <div class="stat"><div class="num">2</div><div class="lbl">内置扩展</div></div>
+    <div class="stat"><div class="num">9</div><div class="lbl">事件类型</div></div>
+    <div class="stat"><div class="num">3</div><div class="lbl">内置扩展</div></div>
   </div>
 </div>
 
@@ -241,7 +241,7 @@
 <span class="co">│  │</span>  <span class="kw">│</span>  /api/skills <span class="kw">│</span>  <span class="kw">│</span>  ┌──────────────────────────────┐  <span class="co">│</span>                 <span class="co">│</span>
 <span class="co">│  │</span>  <span class="kw">│</span>  /api/memory <span class="kw">│</span>  <span class="kw">│</span>  <span class="kw">│</span>          <span class="hl">AIAgent</span>             <span class="kw">│</span>  <span class="co">│</span>                 <span class="co">│</span>
 <span class="co">│  │</span>  <span class="kw">│</span>  /api/config <span class="kw">│</span>  <span class="kw">│</span>  <span class="kw">│</span>  run_conversation<span class="kw">()</span>           <span class="kw">│</span>  <span class="co">│</span>                 <span class="co">│</span>
-<span class="co">│  │</span>  <span class="kw">│</span>  /api/report <span class="kw">│</span>  <span class="kw">│</span>  <span class="kw">│</span>                              <span class="kw">│</span>  <span class="co">│</span>                 <span class="co">│</span>
+<span class="co">│  │</span>  <span class="kw">│</span>  /api/metrics<span class="kw">│</span>  <span class="kw">│</span>  <span class="kw">│</span>                              <span class="kw">│</span>  <span class="co">│</span>                 <span class="co">│</span>
 <span class="co">│  │</span>  └──────────────┘  <span class="kw">│</span>  ① 组装 System Prompt       <span class="kw">│</span>  <span class="co">│</span>                 <span class="co">│</span>
 <span class="co">│  │</span>                    <span class="kw">│</span>  ② 调用 LLM <span class="kw">(</span>OpenAI 兼容<span class="kw">)</span>      <span class="kw">│</span>  <span class="co">│</span>                 <span class="co">│</span>
 <span class="co">│  │</span>                    <span class="kw">│</span>  ③ 判断 text / tool_calls     <span class="kw">│</span>  <span class="co">│</span>                 <span class="co">│</span>
@@ -339,7 +339,7 @@
 <h2 id="agent"><span class="dot" style="background:var(--orange);"></span>4. AIAgent 核心引擎</h2>
 
 <div class="card orange-left">
-  <p><code>agent/agent.py</code> — 项目的核心大脑。所有对话逻辑集中于此。</p>
+  <p><code>agent/core/agent.py</code> — 项目的核心大脑。所有对话逻辑集中于此。</p>
 </div>
 
 <h3>run_conversation() 全流程</h3>
@@ -523,7 +523,7 @@ tools = registry.build_openai_tools()  <span class="co"># 所有注册工具</sp
   <tr><td>file</td><td><code>read_file, write_file, patch, search_files, ls</code></td><td>文件系统操作</td></tr>
   <tr><td>web</td><td><code>web_search, web_extract</code></td><td>网页搜索和内容提取</td></tr>
   <tr><td>browser</td><td><code>browser_navigate, browser_snapshot, browser_click, browser_type, 等 9 个</code></td><td>Playwright 浏览器自动化</td></tr>
-  <tr><td>skills</td><td><code>skill_list, skill_view, skill_activate, skill_deactivate, skill_install</code></td><td>技能管理</td></tr>
+  <tr><td>skills</td><td><code>skill_list, skill_view, skill_activate, skill_deactivate, skill_install, skill_export</code></td><td>技能管理</td></tr>
   <tr><td>mcp-yonsuite</td><td><code>mcp_yonsuite_*</code> (11 个)</td><td>YonSuite 业务查询</td></tr>
   <tr><td>mcp-*</td><td>动态</td><td>其他 MCP Server 工具</td></tr>
   <tr><td>todo</td><td><code>todo</code></td><td>会话级任务列表</td></tr>
@@ -611,8 +611,8 @@ dispatch(tool_name, args):
   <p>v1.1 引入的 <strong>EventBus + Extension</strong> 机制（借鉴 Pi 项目的扩展点设计）在 v1.1.1 完成配置化落地——用户可在 Web UI 上启用/停用每个 Extension，状态持久化到 <code>config.json</code>，运行时立即生效无需重启服务。</p>
 </div>
 
-<h4>事件流：8 个扩展点</h4>
-<div class="arch-diagram"><span class="co"># run_conversation() 调用一次发出 8 类事件</span>
+<h4>事件流：9 个扩展点</h4>
+<div class="arch-diagram"><span class="co"># run_conversation() 调用一次发出 9 类事件</span>
 session_start   <span class="hl">──→</span> on_session_start
 user_message    <span class="hl">──→</span> on_user_message   <span class="co">(可改 event.content / cancel)</span>
 <span class="co">──── 循环开始 ────</span>
@@ -660,6 +660,7 @@ register_extensions([MyExtension()])  <span class="co"># 注册到全局 EventBu
     <table style="font-size:0.84rem;">
       <tr><th>name</th><th>kind</th><th>作用</th></tr>
       <tr><td><code>log-everything</code></td><td><span class="tag g">log</span></td><td>DEBUG 级别记录所有事件，便于追踪事件流</td></tr>
+      <tr><td><code>monitoring</code></td><td><span class="tag b">metrics</span></td><td>Token 用量、工具调用频次等 Prometheus 指标</td></tr>
       <tr><td><code>security-event</code></td><td><span class="tag r">policy</span></td><td>事件层阻断危险工具调用（写入受保护路径 / 危险 shell）</td></tr>
     </table>
     <p style="margin-top:10px;font-size:0.86rem;">新增内置扩展：<code>agent/extensions/&lt;name&gt;.py</code> 定义类，<code>agent/extensions/__init__.py</code> 的 <code>_built_in_classes()</code> 追加，<code>backend/api/extensions_api.py:_KIND_BY_NAME</code> 加描述 + kind，UI 自动出现。</p>
@@ -687,15 +688,16 @@ register_extensions([MyExtension()])  <span class="co"># 注册到全局 EventBu
     <h4>前端路由</h4>
     <table>
       <tr><th>路径</th><th>页面</th><th>功能</th></tr>
-      <tr><td><code>/chat</code></td><td>ChatPage</td><td>AI 对话主界面</td></tr>
+      <tr><td><code>/</code></td><td>ChatPage</td><td>AI 对话主界面</td></tr>
+      <tr><td><code>/history</code></td><td>HistoryPage</td><td>会话历史管理</td></tr>
       <tr><td><code>/tools</code></td><td>ToolsPage</td><td>工具列表展示</td></tr>
-      <tr><td><code>/sessions</code></td><td>SessionsPage</td><td>会话历史管理</td></tr>
       <tr><td><code>/skills</code></td><td>SkillManagerPage</td><td>技能安装/激活</td></tr>
       <tr><td><code>/memory</code></td><td>MemoryPage</td><td>记忆内容查看</td></tr>
       <tr><td><code>/mcp</code></td><td>McpPage</td><td>MCP 服务器管理</td></tr>
-      <tr><td><code>/settings/llm</code></td><td>SettingsPage</td><td>LLM 模型配置</td></tr>
-      <tr><td><code>/settings/ys</code></td><td>YSSettingsPage</td><td>YonSuite 连接配置</td></tr>
-      <tr><td><code>/settings/agent</code></td><td>AgentSettings</td><td>Agent 行为参数</td></tr>
+      <tr><td><code>/settings/llm</code></td><td>SettingsLLMPage</td><td>LLM 模型配置</td></tr>
+      <tr><td><code>/settings/agent</code></td><td>SettingsAgentPage</td><td>Agent 行为参数</td></tr>
+      <tr><td><code>/settings/yonsuite</code></td><td>SettingsYSPage</td><td>YonSuite 连接配置</td></tr>
+      <tr><td><code>/settings/extensions</code></td><td>SettingsExtensionsPage</td><td>扩展管理</td></tr>
     </table>
   </div>
   <div>
@@ -706,9 +708,11 @@ register_extensions([MyExtension()])  <span class="co"># 注册到全局 EventBu
       <tr><td><code>GET/POST/DELETE /api/sessions</code></td><td>会话 CRUD</td></tr>
       <tr><td><code>GET/POST/DELETE/PUT /api/mcp/*</code></td><td>MCP 管理</td></tr>
       <tr><td><code>GET/POST /api/skills/*</code></td><td>技能管理</td></tr>
-      <tr><td><code>GET /api/memory</code></td><td>记忆查询</td></tr>
-      <tr><td><code>GET/POST /api/config</code></td><td>配置读写</td></tr>
-      <tr><td><code>WS /ws</code></td><td>AI 聊天</td></tr>
+      <tr><td><code>GET /api/memory/*</code></td><td>记忆查询</td></tr>
+      <tr><td><code>GET/PUT /api/config</code></td><td>配置读写</td></tr>
+      <tr><td><code>GET /api/metrics</code></td><td>指标 & 健康检查</td></tr>
+      <tr><td><code>GET/PUT /api/extensions</code></td><td>扩展管理</td></tr>
+      <tr><td><code>WS /ws/chat/{session_id}</code></td><td>AI 聊天</td></tr>
     </table>
   </div>
 </div>
@@ -747,6 +751,10 @@ register_extensions([MyExtension()])  <span class="co"># 注册到全局 EventBu
 <h4>启动命令</h4>
 <div class="card green-left">
   <pre style="color:var(--muted);font-size:0.84rem;background:transparent;">
+<span class="co"># 一键启动（推荐）</span>
+./start.sh
+
+<span class="co"># 或分别启动：</span>
 <span class="co"># 激活虚拟环境</span>
 source .venv/bin/activate
 

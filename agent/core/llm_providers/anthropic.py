@@ -228,6 +228,7 @@ class AnthropicProvider(LLMProvider):
         tool_choice: str | None = "auto",
         stream: bool = False,
         stream_callback: Callable[[str], None] | None = None,
+        reasoning_callback: Callable[[str], None] | None = None,
         stop_event: threading.Event | None = None,
         max_retries: int | None = None,
         max_retry_delay: float | None = None,

@@ -63,6 +63,20 @@ def get_provider(
 
     If *base_url* is not provided, the registry's default is used.
     """
+    if display_name == "自定义":
+        if not base_url:
+            raise LLMProviderError(
+                "Custom provider requires a base_url",
+                transient=False,
+            )
+        return OpenAICompatProvider(
+            api_key=api_key,
+            base_url=base_url,
+            timeout=timeout,
+            max_retries=max_retries,
+            max_retry_delay=max_retry_delay,
+        )
+
     providers = _load_providers_dict()
     if display_name not in providers:
         raise LLMProviderError(
@@ -93,17 +107,6 @@ def get_provider(
             timeout=timeout,
             max_retries=max_retries,
             max_retry_delay=max_retry_delay,
-        )
-
-    if protocol == "baidu_qianfan":
-        # Baidu's API differs enough from OpenAI that a separate
-        # class is needed.  M5 will add it; for now, error clearly.
-        raise LLMProviderError(
-            f"Provider {display_name!r} uses protocol 'baidu_qianfan' "
-            f"which is not yet implemented in M3.  Add "
-            f"`BaiduQianfanProvider` in agent/core/llm_providers/baidu.py "
-            f"and wire it into factory.get_provider().",
-            transient=False,
         )
 
     raise LLMProviderError(

@@ -254,12 +254,10 @@ async def _run_agent(
     stop_received = False
 
     def stream_callback(token: str):
-        # Detect structured tool messages from agent.py sentinel patterns
-        # agent.py sends tool info formatted as:
-        #   "\n\n---\n🔧 **调用工具:** {name}\n\n" + args_preview
-        #   "\n\n📤 **返回结果:**\n\n" + result_preview
-        #   "\n\n✅ **工具执行完成**\n\n"
         loop.call_soon_threadsafe(queue.put_nowait, {"type": "token", "content": token})
+
+    def reasoning_callback(token: str):
+        loop.call_soon_threadsafe(queue.put_nowait, {"type": "reasoning_token", "content": token})
 
     def progress_callback(msg: str):
         loop.call_soon_threadsafe(queue.put_nowait, {"type": "progress", "message": msg})
@@ -293,6 +291,7 @@ async def _run_agent(
                 conversation_history=history,
                 system_message=system_with_memory,
                 stream_callback=stream_callback,
+                reasoning_callback=reasoning_callback,
                 stop_event=stop_event,
             )
 

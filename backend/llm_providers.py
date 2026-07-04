@@ -1,28 +1,14 @@
-"""LLM provider definitions — single source of truth shared by backend and app.py.
-
-The ``protocol`` field picks which provider class to use:
-
-* ``"openai_compat"`` — OpenAI Chat Completions protocol.  Covers most
-  Chinese / third-party hosts.
-* ``"anthropic"``     — Anthropic native Messages API.
-* ``"baidu_qianfan"`` — Baidu Qianfan custom (not OpenAI-compat).
-
-The factory in :mod:`agent.core.llm_providers.factory` reads this field
-and instantiates the right class.  Adding a new provider only requires
-adding an entry here — no Python code changes.
-"""
-
 LLM_PROVIDERS = {
     "OpenAI": {
         "base_url": "https://api.openai.com/v1",
         "models": [
-            "gpt-4o",
-            "gpt-4o-mini",
-            "gpt-4.1",
-            "gpt-4.1-mini",
-            "gpt-4.1-nano",
-            "o3",
-            "o4-mini",
+            {"id": "gpt-4o", "context_length": 128000},
+            {"id": "gpt-4o-mini", "context_length": 128000},
+            {"id": "gpt-4.1", "context_length": 1000000, "max_output": 8192},
+            {"id": "gpt-4.1-mini", "context_length": 1000000, "max_output": 8192},
+            {"id": "gpt-4.1-nano", "context_length": 1000000, "max_output": 8192},
+            {"id": "o3", "context_length": 200000, "max_output": 100000},
+            {"id": "o4-mini", "context_length": 200000, "max_output": 100000},
         ],
         "api_key_label": "OpenAI API Key",
         "api_key_placeholder": "sk-...",
@@ -30,35 +16,54 @@ LLM_PROVIDERS = {
     },
     "DeepSeek": {
         "base_url": "https://api.deepseek.com",
-        "models": ["deepseek-chat", "deepseek-reasoner", "deepseek-v3"],
+        "models": [
+            {"id": "deepseek-v4-flash", "context_length": 1000000, "max_output": 384000},
+            {"id": "deepseek-v4-pro", "context_length": 1000000},
+        ],
         "api_key_label": "DeepSeek API Key",
         "api_key_placeholder": "sk-...",
         "protocol": "openai_compat",
     },
     "Anthropic": {
         "base_url": "https://api.anthropic.com",
-        "models": ["claude-sonnet-4-20250514", "claude-3-5-haiku-latest"],
+        "models": [
+            {"id": "claude-sonnet-4-20250514", "context_length": 200000},
+            {"id": "claude-3-5-haiku-latest", "context_length": 200000},
+        ],
         "api_key_label": "Anthropic API Key",
         "api_key_placeholder": "sk-ant-...",
         "protocol": "anthropic",
     },
     "Kimi (Moonshot)": {
         "base_url": "https://api.moonshot.cn/v1",
-        "models": ["kimi-k2.5", "kimi-latest"],
+        "models": [
+            {"id": "kimi-k2.5", "context_length": 128000},
+            {"id": "kimi-latest", "context_length": 128000},
+        ],
         "api_key_label": "Kimi API Key",
         "api_key_placeholder": "sk-kimi-...",
         "protocol": "openai_compat",
     },
     "智谱 GLM": {
         "base_url": "https://open.bigmodel.cn/api/paas/v4",
-        "models": ["glm-4-plus", "glm-4-air", "glm-4-flash"],
+        "models": [
+            {"id": "glm-4-plus", "context_length": 128000},
+            {"id": "glm-4-air", "context_length": 128000},
+            {"id": "glm-4-flash", "context_length": 128000},
+        ],
         "api_key_label": "智谱 AI API Key",
         "api_key_placeholder": "",
         "protocol": "openai_compat",
     },
     "阿里通义千问 (Qwen)": {
         "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-        "models": ["qwen-plus", "qwen-turbo", "qwen-max", "qwen-coder-plus", "qwen-coder-turbo"],
+        "models": [
+            {"id": "qwen-plus", "context_length": 1000000},
+            {"id": "qwen-turbo", "context_length": 1000000},
+            {"id": "qwen-max", "context_length": 1000000},
+            {"id": "qwen-coder-plus", "context_length": 1000000},
+            {"id": "qwen-coder-turbo", "context_length": 128000},
+        ],
         "api_key_label": "阿里云 DashScope API Key",
         "api_key_placeholder": "sk-...",
         "protocol": "openai_compat",
@@ -66,10 +71,10 @@ LLM_PROVIDERS = {
     "硅基流动 (SiliconFlow)": {
         "base_url": "https://api.siliconflow.cn/v1",
         "models": [
-            "Qwen/Qwen2.5-72B-Instruct",
-            "deepseek-ai/DeepSeek-V3",
-            "deepseek-ai/DeepSeek-R1",
-            "Pro/Qwen/Qwen2.5-7B-Instruct",
+            {"id": "Qwen/Qwen2.5-72B-Instruct", "context_length": 128000},
+            {"id": "deepseek-ai/DeepSeek-V3", "context_length": 128000},
+            {"id": "deepseek-ai/DeepSeek-R1", "context_length": 128000},
+            {"id": "Pro/Qwen/Qwen2.5-7B-Instruct", "context_length": 32768},
         ],
         "api_key_label": "SiliconFlow API Key",
         "api_key_placeholder": "sk-...",
@@ -78,70 +83,50 @@ LLM_PROVIDERS = {
     "OpenRouter": {
         "base_url": "https://openrouter.ai/api/v1",
         "models": [
-            "openai/gpt-4o",
-            "anthropic/claude-sonnet-4",
-            "deepseek/deepseek-chat",
-            "qwen/qwen-coder-plus",
+            {"id": "openai/gpt-4o", "context_length": 128000},
+            {"id": "anthropic/claude-sonnet-4", "context_length": 200000},
+            {"id": "deepseek/deepseek-chat", "context_length": 1000000},
+            {"id": "qwen/qwen-coder-plus", "context_length": 1000000},
         ],
         "api_key_label": "OpenRouter API Key",
         "api_key_placeholder": "sk-or-...",
         "protocol": "openai_compat",
     },
-    "百度千帆 (ERNIE)": {
-        "base_url": "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat",
-        "models": ["ernie-4.0", "ernie-3.5"],
-        "api_key_label": "百度 API Key",
-        "api_key_placeholder": "",
-        "protocol": "baidu_qianfan",
-    },
     "MiniMax": {
         "base_url": "https://api.minimaxi.com/v1",
-        "models": ["MiniMax-M2.5-70B", "MiniMax-Text-01"],
+        "models": [
+            {"id": "MiniMax-M2.5-70B", "context_length": 128000},
+            {"id": "MiniMax-Text-01", "context_length": 1000000},
+        ],
         "api_key_label": "MiniMax API Key",
         "api_key_placeholder": "",
         "protocol": "openai_compat",
     },
 }
 
-# ── Vision capability registry ────────────────────────────────────
-# Model substring patterns that DO support image input.
-# Models not matching any pattern are treated as text-only.
 _VISION_MODELS: list[str] = [
-    # OpenAI
     "gpt-4o",
     "gpt-4.1",
     "o3",
     "o4-mini",
-    # Anthropic
     "claude-sonnet-4",
     "claude-opus-4",
     "claude-3-5",
     "claude-3-opus",
-    # Gemini
     "gemini-2.5",
     "gemini-2.0",
     "gemini-1.5",
-    # Qwen (vision variants)
     "qwen-vl",
     "qwen2.5-vl",
     "qvq",
-    # Kimi (k2.5 supports vision)
     "kimi-k2",
     "kimi-latest",
-    # GLM (4v = vision)
     "glm-4v",
-    # Minimax
     "minimax-m2",
 ]
 
 
 def model_supports_vision(model_id: str) -> bool:
-    """Check if *model_id* supports image input (vision).
-
-    Matches case-insensitively against known vision-capable model
-    patterns.  Returns ``False`` for unrecognised models (safe default:
-    text-only).
-    """
     if not model_id:
         return False
     lowered = model_id.lower()

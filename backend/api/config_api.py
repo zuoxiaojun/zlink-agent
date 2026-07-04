@@ -9,6 +9,7 @@ from backend.schemas.config import (
     AgentConfig,
     ConfigResponse,
     LLMConfig,
+    ModelInfo,
     ProviderInfo,
     YonSuiteConfig,
 )
@@ -93,13 +94,23 @@ def save_agent_config(body: AgentConfig):
 
 @router.get("/providers", response_model=list[ProviderInfo])
 def get_providers():
-    return [
+    items = [
         ProviderInfo(
             name=name,
             base_url=info["base_url"],
-            models=info["models"],
+            models=[ModelInfo(**m) for m in info["models"]],
             api_key_label=info["api_key_label"],
             api_key_placeholder=info["api_key_placeholder"],
         )
         for name, info in LLM_PROVIDERS.items()
     ]
+    items.append(
+        ProviderInfo(
+            name="自定义",
+            base_url="",
+            models=[],
+            api_key_label="API Key",
+            api_key_placeholder="",
+        )
+    )
+    return items

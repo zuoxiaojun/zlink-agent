@@ -23,6 +23,7 @@ export interface AppState {
   messages: Message[];
   agentRunning: boolean;
   streamingText: string;
+  reasoningText: string;
   progressMessage: string;
   tokenUsage: TokenUsage | null;
   apiCalls: number;
@@ -35,6 +36,7 @@ const initialState: AppState = {
   messages: WELCOME_MESSAGE,
   agentRunning: false,
   streamingText: "",
+  reasoningText: "",
   progressMessage: "",
   tokenUsage: null,
   apiCalls: 0,
@@ -47,6 +49,7 @@ export type AppAction =
   | { type: "SET_MESSAGES"; messages: Message[] }
   | { type: "SET_RUNNING"; running: boolean }
   | { type: "APPEND_TOKEN"; token: string }
+  | { type: "APPEND_REASONING"; token: string }
   | { type: "SET_PROGRESS"; message: string }
   | { type: "SET_RESULT"; messages: Message[]; tokenUsage: TokenUsage | null; apiCalls: number; error: string | null }
   | { type: "SET_ERROR"; error: string }
@@ -62,6 +65,7 @@ function reducer(state: AppState, action: AppAction): AppState {
         currentSessionTitle: action.title,
         messages: action.messages ?? state.messages,
         streamingText: "",
+        reasoningText: "",
         agentRunning: false,
       };
     case "NEW_SESSION":
@@ -71,14 +75,17 @@ function reducer(state: AppState, action: AppAction): AppState {
         currentSessionTitle: "",
         messages: WELCOME_MESSAGE,
         streamingText: "",
+        reasoningText: "",
         agentRunning: false,
       };
     case "SET_MESSAGES":
       return { ...state, messages: action.messages };
     case "SET_RUNNING":
-      return { ...state, agentRunning: action.running, streamingText: "", progressMessage: "" };
+      return { ...state, agentRunning: action.running, streamingText: "", reasoningText: "", progressMessage: "" };
     case "APPEND_TOKEN":
       return { ...state, streamingText: state.streamingText + action.token };
+    case "APPEND_REASONING":
+      return { ...state, reasoningText: state.reasoningText + action.token };
     case "SET_PROGRESS":
       return { ...state, progressMessage: action.message };
     case "SET_RESULT": {
@@ -97,6 +104,7 @@ function reducer(state: AppState, action: AppAction): AppState {
         messages: msgs,
         agentRunning: false,
         streamingText: "",
+        reasoningText: "",
         progressMessage: "",
         tokenUsage: action.tokenUsage,
         apiCalls: action.apiCalls,
@@ -107,11 +115,12 @@ function reducer(state: AppState, action: AppAction): AppState {
         ...state,
         agentRunning: false,
         streamingText: "",
+        reasoningText: "",
         progressMessage: "",
         messages: [...state.messages, { role: "assistant", content: `❌ ${action.error}` }],
       };
     case "CLEAR_STREAMING":
-      return { ...state, streamingText: "", progressMessage: "" };
+      return { ...state, streamingText: "", reasoningText: "", progressMessage: "" };
     case "SET_CONFIG":
       return { ...state, config: action.config };
     default:

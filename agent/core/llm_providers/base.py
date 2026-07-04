@@ -248,6 +248,7 @@ class LLMProvider(ABC):
         tool_choice: str | None = "auto",
         stream: bool = False,
         stream_callback: Callable[[str], None] | None = None,
+        reasoning_callback: Callable[[str], None] | None = None,
         stop_event: threading.Event | None = None,
         max_retries: int = 3,
         max_retry_delay: float = 30.0,

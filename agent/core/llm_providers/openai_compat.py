@@ -97,6 +97,7 @@ class OpenAICompatProvider(LLMProvider):
         tool_choice: str | None = "auto",
         stream: bool = False,
         stream_callback: Callable[[str], None] | None = None,
+        reasoning_callback: Callable[[str], None] | None = None,
         stop_event: threading.Event | None = None,
         max_retries: int | None = None,
         max_retry_delay: float | None = None,
@@ -121,6 +122,7 @@ class OpenAICompatProvider(LLMProvider):
                     return self._chat_stream(
                         body=body,
                         stream_callback=stream_callback,
+                        reasoning_callback=reasoning_callback,
                         stop_event=stop_event,
                     )
                 return self._chat_blocking(body)
@@ -198,6 +200,7 @@ class OpenAICompatProvider(LLMProvider):
         *,
         body: dict,
         stream_callback: Callable[[str], None],
+        reasoning_callback: Callable[[str], None] | None = None,
         stop_event: threading.Event | None,
     ) -> LLMResponse:
         body = dict(body)
@@ -241,7 +244,10 @@ class OpenAICompatProvider(LLMProvider):
                 rc = delta.get("reasoning_content")
                 if rc:
                     reasoning += rc
-                    stream_callback(rc)
+                    if reasoning_callback:
+                        reasoning_callback(rc)
+                    else:
+                        stream_callback(rc)
                 tc_deltas = delta.get("tool_calls")
                 if tc_deltas:
                     for tc_delta in tc_deltas:

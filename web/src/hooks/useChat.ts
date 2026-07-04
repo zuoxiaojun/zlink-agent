@@ -29,6 +29,9 @@ export function useChat() {
           case "token":
             dispatch({ type: "APPEND_TOKEN", token: msg.content });
             break;
+          case "reasoning_token":
+            dispatch({ type: "APPEND_REASONING", token: msg.content });
+            break;
           case "progress":
             dispatch({ type: "SET_PROGRESS", message: msg.message });
             break;

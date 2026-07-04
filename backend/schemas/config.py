@@ -1,6 +1,12 @@
 from pydantic import BaseModel, Field
 
 
+class ModelInfo(BaseModel):
+    id: str
+    context_length: int
+    max_output: int | None = None
+
+
 class LLMConfig(BaseModel):
     api_key: str = ""
     base_url: str = "https://api.openai.com/v1"
@@ -33,6 +39,6 @@ class ConfigResponse(BaseModel):
 class ProviderInfo(BaseModel):
     name: str
     base_url: str
-    models: list[str]
+    models: list[ModelInfo]
     api_key_label: str
     api_key_placeholder: str

@@ -372,6 +372,7 @@ class AIAgent:
         messages: list[dict],
         tool_defs: list[dict],
         stream_callback: Callable | None,
+        reasoning_callback: Callable | None = None,
         stop_event: threading.Event | None,
     ) -> LLMResponse:
         """Make one LLM call.  Translates the ``(system + messages)`` shape
@@ -391,6 +392,7 @@ class AIAgent:
             tool_choice="auto" if tool_defs else None,
             stream=stream_callback is not None,
             stream_callback=stream_callback,
+            reasoning_callback=reasoning_callback,
             stop_event=stop_event,
         )
 
@@ -484,6 +486,7 @@ class AIAgent:
         system_message: str | None = None,
         conversation_history: list[dict] | None = None,
         stream_callback: Callable[[str], None] | None = None,
+        reasoning_callback: Callable[[str], None] | None = None,
         stop_event: threading.Event | None = None,
     ) -> dict[str, Any]:
         """Run a conversation with tool calling support.
@@ -598,6 +601,7 @@ class AIAgent:
                     messages=messages,
                     tool_defs=snap.tool_defs,
                     stream_callback=stream_callback,
+                    reasoning_callback=reasoning_callback,
                     stop_event=stop_event,
                 )
                 api_calls += 1

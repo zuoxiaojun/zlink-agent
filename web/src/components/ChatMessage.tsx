@@ -50,6 +50,11 @@ function AssistantGroupContent({ msgs }: { msgs: Message[] }) {
         if (msg.role === "assistant") {
           return (
             <div key={i}>
+              {msg.reasoning_content && (
+                <div className="reasoning-content">
+                  {msg.reasoning_content}
+                </div>
+              )}
               {typeof msg.content === "string" && msg.content.trim() ? (
                 <div className="msg-bubble">
                   <MessageContent content={msg.content} />

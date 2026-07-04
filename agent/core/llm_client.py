@@ -143,6 +143,7 @@ class LLMClient:
         tool_choice: str | None = "auto",
         stream: bool = False,
         stream_callback: Callable[[str], None] | None = None,
+        reasoning_callback: Callable[[str], None] | None = None,
         stop_event: threading.Event | None = None,
     ) -> LLMResponse:
         """Make a chat completion call.
@@ -161,6 +162,7 @@ class LLMClient:
                 tool_choice=tool_choice,
                 stream=stream,
                 stream_callback=stream_callback,
+                reasoning_callback=reasoning_callback,
                 stop_event=stop_event,
             ),
             max_retries=self.max_retries,
