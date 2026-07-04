@@ -57,18 +57,19 @@ export default function McpPage() {
 
     if (addMode === "json") {
       try {
-        config = JSON.parse(jsonText);
+        config = JSON.parse(jsonText) as MCPServerConfig;
       } catch {
         setError("JSON 格式无效，请检查语法");
         return;
       }
       // Auto-unwrap Claude Code .mcp.json format: {"mcpServers": {"name": {...}}}
-      if (config.mcpServers && typeof config.mcpServers === "object") {
-        const entries = Object.entries(config.mcpServers as Record<string, any>);
+      const raw = JSON.parse(jsonText) as Record<string, unknown>;
+      if (raw.mcpServers && typeof raw.mcpServers === "object") {
+        const entries = Object.entries(raw.mcpServers as Record<string, object>);
         if (entries.length === 0) { setError("mcpServers 中无服务器配置"); return; }
         const [name, serverCfg] = entries[0];
         if (typeof serverCfg !== "object" || !serverCfg) { setError("mcpServers 中服务器配置无效"); return; }
-        config = { name, transport: "stdio", timeout: 120, ...serverCfg };
+        config = { name, transport: "stdio", timeout: 120, ...serverCfg } as MCPServerConfig;
       }
       if (!config.name?.trim()) { setError("JSON 中缺少必填字段 name"); return; }
     } else {

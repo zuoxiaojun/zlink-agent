@@ -24,7 +24,7 @@ def list_servers():
 @router.post("/servers", status_code=201)
 async def add_server(body: MCPServerConfig):
     cfg = config_manager.load()
-    servers = cfg.get("mcp_servers", {})
+    servers = cfg.mcp_servers
     if body.name in servers:
         raise HTTPException(status_code=409, detail=f"Server '{body.name}' already exists")
     config_dict = _build_config_dict(body)
@@ -37,17 +37,14 @@ async def add_server(body: MCPServerConfig):
 @router.put("/servers/{name}")
 async def update_server(name: str, body: MCPServerConfig):
     cfg = config_manager.load()
-    servers = cfg.get("mcp_servers", {})
+    servers = cfg.mcp_servers
     if name not in servers:
         raise HTTPException(status_code=404, detail=f"Server '{name}' not found")
-    # Disconnect old connection
     await disconnect_server(name)
-    # Update config under existing name
     config_dict = _build_config_dict(body)
     config_dict["enabled"] = servers[name].get("enabled", True)
     servers[name] = config_dict
     config_manager.save(cfg)
-    # Reconnect if enabled
     if config_dict["enabled"]:
         await connect_server(name, config_dict)
     return {"ok": True}
@@ -56,7 +53,7 @@ async def update_server(name: str, body: MCPServerConfig):
 @router.delete("/servers/{name}", status_code=204)
 async def delete_server(name: str):
     cfg = config_manager.load()
-    servers = cfg.get("mcp_servers", {})
+    servers = cfg.mcp_servers
     if name not in servers:
         raise HTTPException(status_code=404, detail=f"Server '{name}' not found")
     await disconnect_server(name)
@@ -67,7 +64,7 @@ async def delete_server(name: str):
 @router.put("/servers/{name}/toggle")
 async def toggle_server(name: str):
     cfg = config_manager.load()
-    servers = cfg.get("mcp_servers", {})
+    servers = cfg.mcp_servers
     if name not in servers:
         raise HTTPException(status_code=404, detail=f"Server '{name}' not found")
     current = servers[name]
@@ -84,7 +81,7 @@ async def toggle_server(name: str):
 @router.post("/servers/{name}/reconnect")
 async def reconnect_server(name: str):
     cfg = config_manager.load()
-    servers = cfg.get("mcp_servers", {})
+    servers = cfg.mcp_servers
     if name not in servers:
         raise HTTPException(status_code=404, detail=f"Server '{name}' not found")
     await disconnect_server(name)
@@ -98,7 +95,7 @@ async def test_server(name: str, body: MCPServerConfig | None = None):
         config_dict = _build_config_dict(body)
     else:
         cfg = config_manager.load()
-        servers = cfg.get("mcp_servers", {})
+        servers = cfg.mcp_servers
         if name not in servers:
             raise HTTPException(status_code=404, detail=f"Server '{name}' not found")
         config_dict = servers[name]

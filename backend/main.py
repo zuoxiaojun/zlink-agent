@@ -14,6 +14,8 @@ if getattr(sys, "frozen", False):
 
     os.environ.setdefault("YS_DATA_DIR", str(Path.home() / ".ys-agent" / "data"))
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -34,37 +36,25 @@ logging.basicConfig(
     force=True,
 )
 
-app = FastAPI(title="YS-Agent API", version="1.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+_logger = logging.getLogger(__name__)
 
 
-@app.on_event("startup")
-async def on_startup():
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    # Startup
     from agent import config_manager, search_index
     from agent.tools.mcp_manager import connect_all_servers
-    from agent.utils import DATA_DIR
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     search_index.init_db()
     if search_index.count_indexed() == 0:
         n = search_index.migrate_from_json()
         if n:
-            import logging
+            _logger.info("搜索索引迁移完成: %d 个会话", n)
 
-            logging.getLogger(__name__).info("搜索索引迁移完成: %d 个会话", n)
-
-    # Connect to enabled MCP servers in background
     cfg = config_manager.load()
-    servers_cfg = cfg.get("mcp_servers", {})
+    servers_cfg = cfg.mcp_servers
 
-    # Ensure built-in MCP servers are configured
     if "yonsuite" not in servers_cfg:
         py_path = sys.executable
         servers_cfg["yonsuite"] = {
@@ -74,7 +64,7 @@ async def on_startup():
             "enabled": True,
             "timeout": 120,
         }
-        cfg["mcp_servers"] = servers_cfg
+        cfg.mcp_servers = servers_cfg
         config_manager.save(cfg)
 
     if "mcp-server-chart" not in servers_cfg:
@@ -86,20 +76,29 @@ async def on_startup():
             "args": ["-y", "@antv/mcp-server-chart"],
             "env": {},
         }
-        # Don't save here — _DEFAULT_CONFIG already has it, so
-        # load() will deep-merge it into the next persisted config.
 
     if servers_cfg:
         import asyncio
 
         asyncio.ensure_future(connect_all_servers(servers_cfg))
 
+    yield
 
-@app.on_event("shutdown")
-async def on_shutdown():
+    # Shutdown
     from agent.tools.mcp_manager import disconnect_all_servers
 
     await disconnect_all_servers()
+
+
+app = FastAPI(title="YS-Agent API", version="1.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # Register routers

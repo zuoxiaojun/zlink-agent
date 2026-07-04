@@ -87,31 +87,13 @@ def isolated_config(monkeypatch, tmp_path: Path):
     the persisted JSON directly.
     """
     from agent import config_manager
+    from agent.config_model import AppConfig
 
     fake_file = tmp_path / "config.json"
-    fake_file.write_text(json.dumps({"disabled_extensions": []}))
-
-    def _load() -> dict:
-        if not fake_file.exists():
-            return dict(config_manager._DEFAULT_CONFIG)
-        try:
-            data = json.loads(fake_file.read_text(encoding="utf-8"))
-            result = dict(config_manager._DEFAULT_CONFIG)
-            result.update(data)
-            return result
-        except (json.JSONDecodeError, OSError):
-            return dict(config_manager._DEFAULT_CONFIG)
-
-    def _save(data: dict) -> None:
-        fake_file.parent.mkdir(parents=True, exist_ok=True)
-        from agent.utils import atomic_json_write
-
-        payload = {k: data.get(k, v) for k, v in config_manager._DEFAULT_CONFIG.items()}
-        atomic_json_write(fake_file, payload)
+    AppConfig().model_dump_encrypted()
+    fake_file.write_text(json.dumps(AppConfig().model_dump_encrypted()))
 
     monkeypatch.setattr(config_manager, "CONFIG_FILE", fake_file)
-    monkeypatch.setattr(config_manager, "load", _load)
-    monkeypatch.setattr(config_manager, "save", _save)
     return fake_file
 
 

@@ -56,7 +56,7 @@ export default function SettingsYSPage() {
           {fields.map(({ key, label }) => (
             <div key={key} className="form-group">
               <span className="form-label">{label}</span>
-              <div className="card-body">{SECRET_KEYS.has(key) ? maskSecret(state.config?.yonsuite[key]) || "（未设置）" : state.config?.yonsuite[key] || "（未设置）"}</div>
+              <div className="card-body">{SECRET_KEYS.has(key) ? maskSecret(state.config?.yonsuite[key] ?? "") || "（未设置）" : state.config?.yonsuite[key] || "（未设置）"}</div>
             </div>
           ))}
           <div className="card-actions">

@@ -587,7 +587,7 @@ async def reload_all_servers() -> dict:
 
     await disconnect_all_servers()
     cfg = config_manager.load()
-    servers_cfg = cfg.get("mcp_servers", {})
+    servers_cfg = {k: v.model_dump() for k, v in cfg.mcp_servers.items()}
     status = await connect_all_servers(servers_cfg)
     return {"status": status}
 
@@ -597,7 +597,7 @@ def get_server_statuses() -> list[dict]:
     from agent import config_manager
 
     cfg = config_manager.load()
-    servers_cfg = cfg.get("mcp_servers", {})
+    servers_cfg = {k: v.model_dump() for k, v in cfg.mcp_servers.items()}
 
     result = []
     for name, scfg in servers_cfg.items():

@@ -112,7 +112,7 @@ def _cmd_model(args: str, ctx: dict) -> str:
 
     cfg = config_manager.load()
     new_model = args.strip()
-    cfg["llm_model"] = new_model
+    cfg.llm_model = new_model
     config_manager.save(cfg)
     return f"已切换到模型: **{new_model}**\n\n刷新页面后生效，新对话将使用此模型。"
 

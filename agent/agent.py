@@ -33,9 +33,8 @@ try:
     from agent.events.extensions import apply_config_overrides
 
     cfg = config_manager.load()
-    disabled = cfg.get("disabled_extensions", [])
-    if disabled:
-        apply_config_overrides(disabled)
+    if cfg.disabled_extensions:
+        apply_config_overrides(cfg.disabled_extensions)
 except Exception:  # pragma: no cover
     pass
 

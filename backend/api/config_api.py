@@ -26,30 +26,28 @@ def _mask(val: str) -> str:
 @router.get("", response_model=ConfigResponse)
 def get_config():
     cfg = config_manager.load()
-    model = cfg.get("llm_model", "gpt-4o")
-    raw_ctx = cfg.get("max_context_tokens", 0)
-    # Resolve effective context window: 0 = auto-detect from model
-    effective_ctx = raw_ctx if raw_ctx > 0 else resolve_context_window(model)
+    raw_ctx = cfg.max_context_tokens
+    effective_ctx = raw_ctx if raw_ctx > 0 else resolve_context_window(cfg.llm_model)
     return ConfigResponse(
         llm=LLMConfig(
-            api_key=_mask(cfg.get("llm_api_key", "")),
-            base_url=cfg.get("llm_base_url", "https://api.openai.com/v1"),
-            model=model,
-            provider=cfg.get("llm_provider", "OpenAI"),
+            api_key=_mask(cfg.llm_api_key),
+            base_url=cfg.llm_base_url,
+            model=cfg.llm_model,
+            provider=cfg.llm_provider,
         ),
         yonsuite=YonSuiteConfig(
-            app_key=_mask(cfg.get("ys_app_key", "")),
-            app_secret=_mask(cfg.get("ys_app_secret", "")),
-            tenant_id=_mask(cfg.get("ys_tenant_id", "")),
-            gateway_url=cfg.get("ys_gateway_url", "https://c2.yonyoucloud.com/iuap-api-gateway"),
+            app_key=_mask(cfg.ys_app_key),
+            app_secret=_mask(cfg.ys_app_secret),
+            tenant_id=_mask(cfg.ys_tenant_id),
+            gateway_url=cfg.ys_gateway_url,
         ),
         agent=AgentConfig(
-            max_iterations=cfg.get("max_iterations", 30),
-            compaction_enabled=cfg.get("compaction_enabled", True),
+            max_iterations=cfg.max_iterations,
+            compaction_enabled=cfg.compaction_enabled,
             max_context_tokens=effective_ctx,
             max_context_tokens_auto=(raw_ctx == 0),
-            reserve_tokens=cfg.get("reserve_tokens", 4000),
-            keep_recent_tokens=cfg.get("keep_recent_tokens", 8000),
+            reserve_tokens=cfg.reserve_tokens,
+            keep_recent_tokens=cfg.keep_recent_tokens,
         ),
     )
 
@@ -57,10 +55,10 @@ def get_config():
 @router.put("/llm")
 def save_llm_config(body: LLMConfig):
     cfg = config_manager.load()
-    cfg["llm_api_key"] = body.api_key
-    cfg["llm_base_url"] = body.base_url
-    cfg["llm_model"] = body.model
-    cfg["llm_provider"] = body.provider
+    cfg.llm_api_key = body.api_key
+    cfg.llm_base_url = body.base_url
+    cfg.llm_model = body.model
+    cfg.llm_provider = body.provider
     config_manager.save(cfg)
     return {"ok": True}
 
@@ -69,12 +67,12 @@ def save_llm_config(body: LLMConfig):
 def save_yonsuite_config(body: YonSuiteConfig):
     cfg = config_manager.load()
     if body.app_key:
-        cfg["ys_app_key"] = body.app_key
+        cfg.ys_app_key = body.app_key
     if body.app_secret:
-        cfg["ys_app_secret"] = body.app_secret
+        cfg.ys_app_secret = body.app_secret
     if body.tenant_id:
-        cfg["ys_tenant_id"] = body.tenant_id
-    cfg["ys_gateway_url"] = body.gateway_url
+        cfg.ys_tenant_id = body.tenant_id
+    cfg.ys_gateway_url = body.gateway_url
     config_manager.save(cfg)
     return {"ok": True}
 
@@ -82,12 +80,11 @@ def save_yonsuite_config(body: YonSuiteConfig):
 @router.put("/agent")
 def save_agent_config(body: AgentConfig):
     cfg = config_manager.load()
-    cfg["max_iterations"] = body.max_iterations
-    cfg["compaction_enabled"] = body.compaction_enabled
-    # Store 0 when auto-detect is enabled, otherwise store manual override
-    cfg["max_context_tokens"] = 0 if body.max_context_tokens_auto else body.max_context_tokens
-    cfg["reserve_tokens"] = body.reserve_tokens
-    cfg["keep_recent_tokens"] = body.keep_recent_tokens
+    cfg.max_iterations = body.max_iterations
+    cfg.compaction_enabled = body.compaction_enabled
+    cfg.max_context_tokens = 0 if body.max_context_tokens_auto else body.max_context_tokens
+    cfg.reserve_tokens = body.reserve_tokens
+    cfg.keep_recent_tokens = body.keep_recent_tokens
     config_manager.save(cfg)
     return {"ok": True}
 

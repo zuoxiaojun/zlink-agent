@@ -107,34 +107,27 @@ def toggle_extension(name: str, body: ExtensionToggle) -> ExtensionInfo:
 
     # Read current persisted list, update it, save, then apply.
     cfg = config_manager.load()
-    disabled: list[str] = list(cfg.get("disabled_extensions", []))
+    disabled = list(cfg.disabled_extensions)
 
     if body.enabled:
-        # Enable: remove from disabled list
         disabled = [n for n in disabled if n != name]
     else:
-        # Disable: add to disabled list (idempotent)
         if name not in disabled:
             disabled.append(name)
 
-    cfg["disabled_extensions"] = disabled
+    cfg.disabled_extensions = disabled
     config_manager.save(cfg)
 
     apply_config_overrides(disabled)
 
-    # Re-find the (possibly newly-enabled) instance to return.
     after = next(e for e in list_all_extensions() if e.name == name)
     return _info_for(after)
 
 
 @router.post("/reload", response_model=ExtensionReloadResult)
 def reload_extensions() -> ExtensionReloadResult:
-    """Re-apply the persisted ``disabled_extensions`` list.
-
-    Useful after a manual ``config.json`` edit, or in tests.
-    """
     cfg = config_manager.load()
-    disabled: list[str] = list(cfg.get("disabled_extensions", []))
+    disabled = list(cfg.disabled_extensions)
     now_active, now_disabled = apply_config_overrides(disabled)
     return ExtensionReloadResult(
         now_active=[e.name for e in now_active],

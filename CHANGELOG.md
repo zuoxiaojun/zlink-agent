@@ -1,5 +1,12 @@
 # Changelog
-## v1.2.0 — 2026-07-04 (CLI 命令标准化)
+## v1.3.0 — 2026-07-04 (架构优化：Pydantic 配置 + Phase 枚举 + 插件发现)
+
+- **Pydantic 配置化**：`agent/config_model.py` 新增 `AppConfig` 模型，`config_manager` 返回/写入类型安全的 Pydantic 对象而非裸 `dict`；加密字段自动处理；所有调用点（`config_api.py` / `chat.py` / `mcp_api.py` / `mcp_manager.py` / `agent.py` / `slash_commands.py` / `extensions_api.py` / `main.py`）改为属性访问
+- **运行时状态机规范化**：`AgentPhase` 类 → `Phase` 枚举（`str` 子类，向后兼容）；新增 `Envelope` 数据类 `(seq, phase, payload_type, payload)` 为 SSE 提供状态追踪
+- **插件系统动态化**：`agent/plugin_system/` 新增，支持 `[project.entry-points."ys-agent.extensions"]` 入口点发现 + `data/plugins/*.py` 目录扫描；`agent/extensions/__init__.py` 自动集成到注册流程
+- **前端修复**：`McpPage.tsx` TS 类型错误（`mcpServers` 属性访问）和 `SettingsYSPage.tsx` TS 类型错误（`undefined` 处理）修复
+- **后端清理**：FastAPI `on_event` → `lifespan` 上下文管理器；`agent/skills/*` E402 放行；测试 `conftest.py` 和 `test_config_manager.py` 同步适配 Pydantic
+- **ruff 0 errors / pytest 41 passed / tsc 0 errors**
 
 - **命令兼容性修复**：`version*|--version*` 前缀匹配替代精确匹配，`versionb` 等手误不再误启动服务
 - **未知命令拦截**：不匹配的子命令直接报错退出，不再默认落到启动服务

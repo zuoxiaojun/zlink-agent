@@ -77,15 +77,15 @@ async def ws_chat(websocket: WebSocket, session_id: str):
     from agent import config_manager
 
     cfg = config_manager.load()
-    api_key = cfg.get("llm_api_key", "")
-    base_url = cfg.get("llm_base_url", "https://api.openai.com/v1")
-    model = cfg.get("llm_model", "gpt-4o")
-    max_iterations = cfg.get("max_iterations", 30)
+    api_key = cfg.llm_api_key
+    base_url = cfg.llm_base_url
+    model = cfg.llm_model
+    max_iterations = cfg.max_iterations
     compaction_settings = CompactionSettings(
-        enabled=cfg.get("compaction_enabled", True),
-        max_context_tokens=cfg.get("max_context_tokens", 0),
-        reserve_tokens=cfg.get("reserve_tokens", 4000),
-        keep_recent_tokens=cfg.get("keep_recent_tokens", 8000),
+        enabled=cfg.compaction_enabled,
+        max_context_tokens=cfg.max_context_tokens,
+        reserve_tokens=cfg.reserve_tokens,
+        keep_recent_tokens=cfg.keep_recent_tokens,
     )
 
     if not api_key:

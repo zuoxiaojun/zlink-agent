@@ -73,15 +73,8 @@ logger = logging.getLogger(__name__)
 # ── Phase Machine ─────────────────────────────────────────────────
 
 
-class AgentPhase:
-    """Phase constants for the agent lifecycle state machine.
-
-    Transitions
-    -----------
-    idle ──→ turn ──→ idle            (normal round-trip)
-    idle ──→ compaction ──→ idle       (before-turn compaction)
-    idle ──→ turn ──→ retry ──→ turn  (LLM retry)
-    """
+class Phase(str):
+    """Agent lifecycle phase constants (str enum for drop-in compatibility)."""
 
     IDLE = "idle"
     TURN = "turn"
@@ -89,12 +82,15 @@ class AgentPhase:
     RETRY = "retry"
 
 
-_ALL_PHASES = {AgentPhase.IDLE, AgentPhase.TURN, AgentPhase.COMPACTION, AgentPhase.RETRY}
+# Keep old name for backward compat
+AgentPhase = Phase
+
+_ALL_PHASES = {Phase.IDLE, Phase.TURN, Phase.COMPACTION, Phase.RETRY}
 _VALID_TRANSITIONS: dict[str, set[str]] = {
-    AgentPhase.IDLE: {AgentPhase.TURN, AgentPhase.COMPACTION},
-    AgentPhase.TURN: {AgentPhase.IDLE, AgentPhase.RETRY},
-    AgentPhase.COMPACTION: {AgentPhase.IDLE, AgentPhase.TURN},
-    AgentPhase.RETRY: {AgentPhase.TURN, AgentPhase.IDLE},
+    Phase.IDLE: {Phase.TURN, Phase.COMPACTION},
+    Phase.TURN: {Phase.IDLE, Phase.RETRY},
+    Phase.COMPACTION: {Phase.IDLE, Phase.TURN},
+    Phase.RETRY: {Phase.TURN, Phase.IDLE},
 }
 
 
@@ -106,6 +102,25 @@ def _check_transition(from_phase: str, to_phase: str) -> None:
         raise ValueError(
             f"Invalid phase transition: {from_phase!r} → {to_phase!r} (allowed from {from_phase!r}: {allowed})"
         )
+
+
+# ── Envelope ──────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class Envelope:
+    """SSE message wrapper carrying phase context alongside a payload.
+
+    ``Envelope`` wraps every message the agent sends to the frontend so
+    the frontend can always see ``(phase, seq, payload)`` as a triple.
+    This makes it possible to trace agent state transitions on the
+    frontend without parsing message content.
+    """
+
+    seq: int
+    phase: str
+    payload_type: str
+    payload: dict
 
 
 # ── Turn Snapshot ─────────────────────────────────────────────────
@@ -238,8 +253,20 @@ class AIAgent:
         self._memory_store = fact_memory.init_store()
 
         # ── M7: Phase Machine ──
-        self.phase: str = AgentPhase.IDLE
+        self.phase: str = Phase.IDLE
         self._snapshot: TurnSnapshot | None = None
+        self._envelope_seq: int = 0
+
+    # ── Envelope helper ──
+
+    def _enveloped(self, payload_type: str, payload: dict) -> dict:
+        self._envelope_seq += 1
+        return {
+            "seq": self._envelope_seq,
+            "phase": self.phase,
+            "type": payload_type,
+            "payload": payload,
+        }
 
     # ── Phase Machine helpers ──
 
@@ -254,7 +281,7 @@ class AIAgent:
 
     def _assert_idle(self, operation: str) -> None:
         """Raise if not in idle phase — prevents re-entrant calls."""
-        if self.phase != AgentPhase.IDLE:
+        if self.phase != Phase.IDLE:
             raise RuntimeError(
                 f"Cannot {operation} while agent is in phase {self.phase!r}. Wait for the current run to finish."
             )
