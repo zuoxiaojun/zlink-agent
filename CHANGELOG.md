@@ -1,4 +1,12 @@
 # Changelog
+## v1.2.0 — 2026-07-04 (CLI 命令标准化)
+
+- **命令兼容性修复**：`version*|--version*` 前缀匹配替代精确匹配，`versionb` 等手误不再误启动服务
+- **未知命令拦截**：不匹配的子命令直接报错退出，不再默认落到启动服务
+- **命令格式统一**：`--stop` → `stop`，字段说明统一为动词子命令格式（参考 git/docker 惯例）
+- **精简帮助**：移除 `--help` 中的环境变量说明（配置统一走 `.env` 文件）
+- **安装脚本清理**：`setup.sh` 安装 `ys-agent` CLI 到 `~/.local/bin/` 后，不再需要 `.zshrc` 中的 alias
+
 ## v1.2.1 — 2026-07-01 (内存模块修复：事实记忆注入 + list 操作 + 并发锁 + 上限)
 
 - **修复事实记忆不注入的 bug**：`chat.py` 手动拼接 `system_message` 后传递给 `run_conversation`，覆盖了内部 `build_system_prompt` 对 `memory_store` 的调用；导致 `memory` 和 `user` 条目从未出现在系统提示中，LLM 在盲写记忆。现改用 `build_system_prompt(memory_store=fact_memory.init_store(), ...)` 统一构建

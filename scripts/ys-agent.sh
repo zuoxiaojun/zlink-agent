@@ -47,17 +47,11 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     echo ""
     echo "用法:"
     echo "  ys-agent                    启动后端 + 前端，并打开浏览器"
-    echo "  ys-agent --stop             停止正在运行的服务"
+    echo "  ys-agent stop               停止正在运行的服务"
     echo "  ys-agent update             拉取最新代码并升级"
     echo "  ys-agent migrate            手动执行数据迁移"
-    echo "  ys-agent version            显示版本信息"
+    echo "  ys-agent version / --version 显示版本信息"
     echo "  ys-agent --help             显示此帮助"
-    echo ""
-    echo "环境变量:"
-    echo "  YS_AGENT_HOST   监听地址 (默认: 0.0.0.0)"
-    echo "  YS_AGENT_PORT   监听端口 (默认: 8089)"
-    echo "  YS_FRONTEND_PORT 前端端口 (默认: 8088)"
-    echo "  YS_DATA_DIR     数据目录 (默认: project-root/data/)"
     echo ""
     echo "升级:"
     echo "  ys-agent update             拉取最新代码并升级（自动备份数据）"
@@ -104,8 +98,8 @@ FRONTEND_PORT="${YS_FRONTEND_PORT:-8088}"
 # ── 子命令处理 ──────────────────────────────────────────────────────────────
 case "${1:-}" in
 
-    # ── version ──
-    version)
+    # ── version / --version ──
+    version*|--version*)
         source "$VENV_ACTIVATE"
         python -c "
 from backend.api.system_api import _get_version, _get_git_info
@@ -131,11 +125,23 @@ print(f'  Commit: {g[\"commit\"]}   Branch: {g[\"branch\"]}')
         ;;
 
     # ── stop ──
-    --stop)
+    stop)
         kill_port "$BACKEND_PORT"
         kill_port "$FRONTEND_PORT"
         ok "服务已停止"
         exit 0
+        ;;
+
+    # ── 空参数 → 继续执行后面的启动流程 ──
+    "")
+        # 不传参数时启动服务，走下面的默认逻辑
+        ;;
+
+    # ── 未知命令 → 报错退出 ──
+    *)
+        err "未知命令: ${1:-}"
+        err "使用 ys-agent --help 查看可用命令"
+        exit 1
         ;;
 
 esac
