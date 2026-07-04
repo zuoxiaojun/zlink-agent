@@ -38,7 +38,10 @@ def ensure_deps():
     if missing:
         import subprocess
 
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "--break-system-packages", "-q"] + missing)
+        cmd = [sys.executable, "-m", "pip", "install", "-q"] + missing
+        if sys.platform != "win32":
+            cmd.insert(-1, "--break-system-packages")
+        subprocess.check_call(cmd)
 
 
 ensure_deps()

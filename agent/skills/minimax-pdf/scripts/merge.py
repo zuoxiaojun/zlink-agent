@@ -20,7 +20,10 @@ def ensure_deps():
     if importlib.util.find_spec("pypdf") is None:
         import subprocess
 
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "--break-system-packages", "-q", "pypdf"])
+        cmd = [sys.executable, "-m", "pip", "install", "-q", "pypdf"]
+        if sys.platform != "win32":
+            cmd.insert(-1, "--break-system-packages")
+        subprocess.check_call(cmd)
 
 
 ensure_deps()

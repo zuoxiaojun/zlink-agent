@@ -37,9 +37,7 @@ def detect_and_load(file_path: str, sheet_name_filter: str | None = None) -> dic
     try:
         import pandas as pd
     except ImportError as err:
-        raise RuntimeError(
-            "pandas is not installed. Run: pip install pandas openpyxl"
-        ) from err
+        raise RuntimeError("pandas is not installed. Run: pip install pandas openpyxl") from err
 
     path = Path(file_path)
     if not path.exists():

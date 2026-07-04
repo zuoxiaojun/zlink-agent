@@ -1,7 +1,7 @@
 """Terminal command execution tool.
 
-Simplified from Hermes Agent's terminal_tool.py — local bash execution
-with timeout and basic dangerous-command detection.
+Cross-platform shell execution with timeout and dangerous-command detection.
+Supports bash (Unix) and cmd.exe / PowerShell (Windows).
 """
 
 import logging
@@ -10,10 +10,13 @@ import re
 import shutil
 import signal
 import subprocess
+import sys
 
 from agent.tools.registry import registry, tool_error, tool_result
 
 logger = logging.getLogger(__name__)
+
+_IS_WINDOWS = sys.platform == "win32"
 
 # ── Dangerous command patterns (simplified from Hermes approval.py) ──────
 
@@ -62,13 +65,48 @@ DEFAULT_TIMEOUT = 120
 MAX_OUTPUT_CHARS = 50_000
 
 
-def _find_bash() -> str:
+def _find_shell() -> str:
+    """Find a usable shell — bash on Unix, cmd.exe on Windows."""
+    if _IS_WINDOWS:
+        comspec = os.environ.get("COMSPEC", "")
+        if comspec:
+            return comspec
+        for candidate in ["cmd.exe", "powershell.exe", "pwsh.exe"]:
+            found = shutil.which(candidate)
+            if found:
+                return found
+        return "cmd.exe"
     return shutil.which("bash") or shutil.which("sh") or "bash"
+
+
+def _make_popen_args(command: str) -> list[str]:
+    """Build subprocess args for the current platform."""
+    if _IS_WINDOWS:
+        shell = _find_shell()
+        name = os.path.basename(shell).lower()
+        if "powershell" in name or "pwsh" in name:
+            return [shell, "-NoProfile", "-Command", command]
+        return [shell, "/c", command]
+    return [_find_shell(), "-c", command]
+
+
+def _kill_process_tree(proc: subprocess.Popen) -> None:
+    """Kill a process and its children, cross-platform."""
+    if _IS_WINDOWS:
+        subprocess.run(
+            ["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    else:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except Exception:
+            proc.kill()
 
 
 def _execute(command: str, timeout: int, workdir: str | None) -> dict:
     """Execute a shell command and return result dict."""
-    # Check for dangerous patterns
     danger = _check_dangerous(command)
     if danger:
         return {
@@ -79,26 +117,27 @@ def _execute(command: str, timeout: int, workdir: str | None) -> dict:
             "exit_code": -1,
         }
 
-    bash = _find_bash()
+    shell_args = _make_popen_args(command)
     cwd = workdir or os.getcwd()
 
     try:
-        proc = subprocess.Popen(
-            [bash, "-c", command],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=cwd,
-            env=os.environ,
-            preexec_fn=os.setsid,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-        )
+        popen_kwargs: dict = {
+            "stdin": subprocess.DEVNULL,
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.PIPE,
+            "cwd": cwd,
+            "env": os.environ,
+            "text": True,
+            "encoding": "utf-8",
+            "errors": "replace",
+        }
+        if not _IS_WINDOWS:
+            popen_kwargs["preexec_fn"] = os.setsid
+        proc = subprocess.Popen(shell_args, **popen_kwargs)
     except FileNotFoundError:
         return {
             "success": False,
-            "error": f"Shell not found: {bash}",
+            "error": f"Shell not found: {shell_args[0]}",
             "stdout": "",
             "stderr": "",
             "exit_code": -1,
@@ -116,11 +155,7 @@ def _execute(command: str, timeout: int, workdir: str | None) -> dict:
         stdout, stderr = proc.communicate(timeout=timeout)
         exit_code = proc.returncode
     except subprocess.TimeoutExpired:
-        # Kill the entire process tree
-        try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        except Exception:
-            proc.kill()
+        _kill_process_tree(proc)
         stdout, stderr = proc.communicate(timeout=5)
         return {
             "success": False,
