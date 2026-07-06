@@ -3,6 +3,7 @@
 from fastapi import APIRouter, HTTPException
 
 from agent import config_manager
+from agent.config_model import MCPServerEntry
 from agent.tools.mcp_manager import (
     _build_config_dict,
     connect_server,
@@ -14,6 +15,14 @@ from agent.tools.mcp_manager import (
 from backend.schemas.mcp import MCPServerConfig, MCPServerStatus, MCPTestResult
 
 router = APIRouter(prefix="/api/mcp", tags=["mcp"])
+
+
+def _to_dict(entry: MCPServerEntry) -> dict:
+    return entry.model_dump()
+
+
+def _to_entry(d: dict) -> MCPServerEntry:
+    return MCPServerEntry(**d)
 
 
 @router.get("/servers", response_model=list[MCPServerStatus])
@@ -28,7 +37,7 @@ async def add_server(body: MCPServerConfig):
     if body.name in servers:
         raise HTTPException(status_code=409, detail=f"Server '{body.name}' already exists")
     config_dict = _build_config_dict(body)
-    servers[body.name] = config_dict
+    servers[body.name] = _to_entry(config_dict)
     config_manager.save(cfg)
     await connect_server(body.name, config_dict)
     return {"ok": True}
@@ -42,8 +51,8 @@ async def update_server(name: str, body: MCPServerConfig):
         raise HTTPException(status_code=404, detail=f"Server '{name}' not found")
     await disconnect_server(name)
     config_dict = _build_config_dict(body)
-    config_dict["enabled"] = servers[name].get("enabled", True)
-    servers[name] = config_dict
+    config_dict["enabled"] = servers[name].enabled
+    servers[name] = _to_entry(config_dict)
     config_manager.save(cfg)
     if config_dict["enabled"]:
         await connect_server(name, config_dict)
@@ -67,12 +76,12 @@ async def toggle_server(name: str):
     servers = cfg.mcp_servers
     if name not in servers:
         raise HTTPException(status_code=404, detail=f"Server '{name}' not found")
-    current = servers[name]
-    new_enabled = not current.get("enabled", True)
-    current["enabled"] = new_enabled
+    entry = servers[name]
+    new_enabled = not entry.enabled
+    entry.enabled = new_enabled
     config_manager.save(cfg)
     if new_enabled:
-        await connect_server(name, current)
+        await connect_server(name, _to_dict(entry))
     else:
         await disconnect_server(name)
     return {"ok": True, "enabled": new_enabled}
@@ -85,7 +94,7 @@ async def reconnect_server(name: str):
     if name not in servers:
         raise HTTPException(status_code=404, detail=f"Server '{name}' not found")
     await disconnect_server(name)
-    await connect_server(name, servers[name])
+    await connect_server(name, _to_dict(servers[name]))
     return {"ok": True}
 
 
@@ -98,7 +107,7 @@ async def test_server(name: str, body: MCPServerConfig | None = None):
         servers = cfg.mcp_servers
         if name not in servers:
             raise HTTPException(status_code=404, detail=f"Server '{name}' not found")
-        config_dict = servers[name]
+        config_dict = _to_dict(servers[name])
     result = await test_server_connection(name, config_dict)
     return MCPTestResult(**result)
 

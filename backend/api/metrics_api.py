@@ -6,8 +6,6 @@ Endpoints
 * ``GET /api/health``        — replaces the inline health check with detail
 """
 
-from __future__ import annotations
-
 import logging
 import time
 
@@ -43,6 +41,6 @@ def health() -> dict:
     return {
         "status": "ok",
         "uptime_seconds": time.time() - _SERVER_START,
-        "version": "1.1.2",
+        "version": "1.3.0",
         "mcp_servers_connected": len(_connections),
     }

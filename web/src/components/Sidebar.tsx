@@ -67,7 +67,7 @@ export default function Sidebar() {
 
       <div className="sidebar-footer">
         <div className="sidebar-footer-dot" />
-        YS-Agent v1.0
+        YS-Agent v1.3.0
       </div>
     </aside>
   );
