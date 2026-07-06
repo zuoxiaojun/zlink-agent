@@ -1,0 +1,47 @@
+image: node:20-bullseye
+
+stages:
+  - build
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  key: "$CI_JOB_NAME"
+  paths:
+    - .cache/pip/
+    - node_modules/
+    - web/node_modules/
+
+build-mac:
+  stage: build
+  tags:
+    - macos
+  script:
+    # Python 环境
+    - apt-get update && apt-get install -y python3-pip python3-venv
+    - python3 -m venv .venv
+    - source .venv/bin/activate
+    - pip install -r requirements.txt pyinstaller
+
+    # 前端构建
+    - cd web && npm ci && npm run build && cd ..
+
+    # PyInstaller
+    - source .venv/bin/activate
+    - pyinstaller backend/ys-agent.spec --clean --noconfirm
+
+    # Electron 依赖
+    - npm ci
+
+    # macOS .dmg
+    - npx electron-builder --mac --config electron-builder.yml --publish=never
+
+  artifacts:
+    paths:
+      - dist/YS-Agent-*.dmg
+    expire_in: 30 days
+  only:
+    - tags
+  except:
+    - branches
