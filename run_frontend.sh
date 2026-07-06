@@ -8,12 +8,6 @@ if [ -f "$PROJECT_DIR/.env" ]; then
 fi
 PORT="${YS_FRONTEND_PORT:-8088}"
 
-# 优先用便携版 Node.js
-_NODE_BIN="$PROJECT_DIR/.node/bin/node"
-if [ -f "$_NODE_BIN" ]; then
-    PATH="$(dirname "$_NODE_BIN"):$PATH"
-fi
-
 cd "$PROJECT_DIR/web"
 
 if [ -d "dist" ]; then
