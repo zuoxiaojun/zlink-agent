@@ -19,6 +19,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from agent.config_model import MCPServerEntry
 from agent.utils import DATA_DIR
 from backend.config import CORS_ORIGINS
 
@@ -57,25 +58,25 @@ async def lifespan(application: FastAPI):
 
     if "yonsuite" not in servers_cfg:
         py_path = sys.executable
-        servers_cfg["yonsuite"] = {
-            "transport": "stdio",
-            "command": py_path,
-            "args": ["-m", "mcp_server.ys_mcp_server"],
-            "enabled": True,
-            "timeout": 120,
-        }
+        servers_cfg["yonsuite"] = MCPServerEntry(
+            transport="stdio",
+            command=py_path,
+            args=["-m", "mcp_server.ys_mcp_server"],
+            enabled=True,
+            timeout=120,
+        )
         cfg.mcp_servers = servers_cfg
         config_manager.save(cfg)
 
     if "mcp-server-chart" not in servers_cfg:
-        servers_cfg["mcp-server-chart"] = {
-            "transport": "stdio",
-            "enabled": True,
-            "timeout": 120,
-            "command": "npx",
-            "args": ["-y", "@antv/mcp-server-chart"],
-            "env": {},
-        }
+        servers_cfg["mcp-server-chart"] = MCPServerEntry(
+            transport="stdio",
+            enabled=True,
+            timeout=120,
+            command="npx",
+            args=["-y", "@antv/mcp-server-chart"],
+            env={},
+        )
 
     if servers_cfg:
         import asyncio

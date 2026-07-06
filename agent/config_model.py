@@ -64,6 +64,7 @@ class AppConfig(BaseModel):
     disabled_extensions: list[str] = []
 
     def model_dump_encrypted(self, **kwargs) -> dict[str, Any]:
+        kwargs.setdefault("mode", "json")
         data = self.model_dump(**kwargs)
         for field in _ENCRYPTED_FIELDS:
             val = data.get(field, "")
