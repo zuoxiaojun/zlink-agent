@@ -90,9 +90,11 @@ def _cmd_help(_args: str, _ctx: dict) -> str:
 @register_command("model", "切换 LLM 模型", "/model <模型名>")
 def _cmd_model(args: str, ctx: dict) -> str:
     if not args.strip():
-        cfg = ctx.get("config", {})
-        current = cfg.get("llm_model", "未知")
-        manual_override = cfg.get("max_context_tokens", 0)
+        from agent.config_model import AppConfig
+
+        cfg: AppConfig = ctx.get("config", {})  # type: ignore[assignment]
+        current = cfg.llm_model or "未知"
+        manual_override = cfg.max_context_tokens or 0
         from agent.context_compactor import resolve_context_window
 
         if manual_override > 0:

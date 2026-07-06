@@ -100,7 +100,7 @@ case "${1:-}" in
 
     # ── version / --version ──
     version*|--version*)
-        source "$VENV_ACTIVATE"
+        PYTHONPATH="" source "$VENV_ACTIVATE"
         python -c "
 from backend.api.system_api import _get_version, _get_git_info
 v = _get_version()
@@ -119,7 +119,7 @@ print(f'  Commit: {g[\"commit\"]}   Branch: {g[\"branch\"]}')
 
     # ── migrate ──
     migrate)
-        source "$VENV_ACTIVATE"
+        PYTHONPATH="" source "$VENV_ACTIVATE"
         python -m scripts.migrate
         exit $?
         ;;
@@ -147,7 +147,7 @@ print(f'  Commit: {g[\"commit\"]}   Branch: {g[\"branch\"]}')
 esac
 
 # ── 默认模式：启动前后端 ───────────────────────────────────────────────────
-source "$VENV_ACTIVATE"
+PYTHONPATH="" source "$VENV_ACTIVATE"
 
 # 停止已占用的端口
 kill_port "$BACKEND_PORT"
@@ -186,4 +186,4 @@ echo "║  按 Ctrl+C 停止                               ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 
-exec uvicorn backend.main:app --host "$HOST" --port "$BACKEND_PORT"
+PYTHONPATH="" exec uvicorn backend.main:app --host "$HOST" --port "$BACKEND_PORT"

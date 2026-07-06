@@ -15,6 +15,8 @@ import time
 
 import httpx
 
+from agent.config_model import MCPServerEntry  # Pydantic model check in connect_all_servers
+
 logger = logging.getLogger(__name__)
 
 # --- Module-level state ---
@@ -533,11 +535,14 @@ def _build_config_dict(body) -> dict:
     return cfg
 
 
-async def connect_all_servers(servers_config: dict[str, dict]) -> dict[str, str]:
+async def connect_all_servers(servers_config: dict) -> dict[str, str]:
     """Connect to all enabled MCP servers from config. Returns status map."""
     _ensure_loop()
     status: dict[str, str] = {}
     for name, cfg in servers_config.items():
+        # Convert Pydantic model to dict (v1.3.0+ config model)
+        if isinstance(cfg, MCPServerEntry):
+            cfg = cfg.model_dump()
         if not cfg.get("enabled", True):
             status[name] = "disabled"
             continue

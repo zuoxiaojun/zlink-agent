@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppProvider, useAppState } from "./context/AppContext";
 import { api } from "./api/http";
@@ -16,12 +16,27 @@ import McpPage from "./pages/McpPage";
 import type { ConfigResponse } from "./types";
 
 function AppInit({ children }: { children: React.ReactNode }) {
-  const { dispatch } = useAppState();
+  const { state: _, dispatch } = useAppState();
+  const retries = useRef(0);
 
   useEffect(() => {
-    api.get<ConfigResponse>("/config")
-      .then((config) => dispatch({ type: "SET_CONFIG", config }))
-      .catch(() => {});
+    let cancelled = false;
+    const load = () => {
+      api.get<ConfigResponse>("/config")
+        .then((config) => {
+          if (!cancelled) {
+            dispatch({ type: "SET_CONFIG", config });
+          }
+        })
+        .catch(() => {
+          if (!cancelled && retries.current < 10) {
+            retries.current++;
+            setTimeout(load, 1000 * retries.current);
+          }
+        });
+    };
+    load();
+    return () => { cancelled = true; };
   }, [dispatch]);
 
   return <>{children}</>;

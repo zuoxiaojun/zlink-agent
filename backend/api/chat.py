@@ -99,10 +99,10 @@ async def ws_chat(websocket: WebSocket, session_id: str):
         session_id = sid
 
     # Set YonSuite env
-    os.environ["YONSUITE_APP_KEY"] = cfg.get("ys_app_key", "")
-    os.environ["YONSUITE_APP_SECRET"] = cfg.get("ys_app_secret", "")
-    os.environ["YONSUITE_TENANT_ID"] = cfg.get("ys_tenant_id", "")
-    os.environ["YONSUITE_GATEWAY_URL"] = cfg.get("ys_gateway_url", "https://c2.yonyoucloud.com/iuap-api-gateway")
+    os.environ["YONSUITE_APP_KEY"] = cfg.ys_app_key or ""
+    os.environ["YONSUITE_APP_SECRET"] = cfg.ys_app_secret or ""
+    os.environ["YONSUITE_TENANT_ID"] = cfg.ys_tenant_id or ""
+    os.environ["YONSUITE_GATEWAY_URL"] = cfg.ys_gateway_url or "https://c2.yonyoucloud.com/iuap-api-gateway"
     os.environ["YONSUITE_CACHE_DIR"] = str(DATA_DIR / "yonsuite_cache")
 
     # Load existing session messages for history context
