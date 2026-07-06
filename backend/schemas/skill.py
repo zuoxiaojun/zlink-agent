@@ -7,6 +7,7 @@ class SkillInfo(BaseModel):
     version: str = ""
     tags: list[str] = []
     active: bool = False
+    builtin: bool = False
 
 
 class SkillToggle(BaseModel):

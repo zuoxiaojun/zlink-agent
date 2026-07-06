@@ -612,6 +612,7 @@ def get_server_statuses() -> list[dict]:
             "name": name,
             "transport": scfg.get("transport", "stdio"),
             "enabled": enabled,
+            "builtin": scfg.get("builtin", False),
             "command": scfg.get("command"),
             "args": scfg.get("args", []),
             "url": scfg.get("url"),

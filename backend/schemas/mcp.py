@@ -21,6 +21,7 @@ class MCPServerStatus(BaseModel):
     name: str
     transport: str
     enabled: bool
+    builtin: bool = False
     status: Literal["connected", "disconnected", "error"]
     tool_count: int = 0
     error_message: str | None = None

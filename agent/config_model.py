@@ -44,6 +44,7 @@ class MCPServerEntry(BaseModel):
     url: str | None = None
     headers: dict[str, str] = {}
     env: dict[str, str] = {}
+    builtin: bool = False
 
 
 class AppConfig(BaseModel):

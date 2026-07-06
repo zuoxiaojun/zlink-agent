@@ -8,7 +8,7 @@ import json
 import logging
 from pathlib import Path
 
-from agent.tools.skills_tool import SKILLS_DIR, _get_skill_content, _load_skill_index
+from agent.tools.skills_tool import SKILLS_DIR, USER_SKILLS_DIR, _find_skill_dir, _get_skill_content, _load_skill_index
 from agent.utils import DATA_DIR, atomic_json_write
 
 logger = logging.getLogger(__name__)
@@ -161,15 +161,18 @@ def get_instructions_for_query(query: str) -> str:
 # ── Content update ────────────────────────────────────────────
 
 
-def update_skill_content(name: str, content: str) -> bool:
-    """Update a skill's SKILL.md content. Returns False if not found."""
+def update_skill_content(name: str, content: str) -> bool | None:
+    """Update a skill's SKILL.md content. Returns True/False; None if builtin."""
+    target_dir = _find_skill_dir(name)
+    if target_dir is None:
+        return False
+    if target_dir.parent == SKILLS_DIR:
+        return None
     import yaml
 
-    target_dir = SKILLS_DIR / name
     skill_file = target_dir / "SKILL.md"
     if not skill_file.exists():
         return False
-    # Validate frontmatter
     if content.startswith("---"):
         try:
             meta = yaml.safe_load(content.split("---", 2)[1])
@@ -189,15 +192,16 @@ def update_skill_content(name: str, content: str) -> bool:
 # ── Zip installation ──────────────────────────────────────────
 
 
-def uninstall_skill(name: str) -> bool:
-    """Delete a skill directory and remove from active list. Returns False if not found."""
-    target = SKILLS_DIR / name
-    if not target.exists():
+def uninstall_skill(name: str) -> bool | None:
+    """Delete a user-installed skill directory. Returns True/False; None if builtin."""
+    target_dir = _find_skill_dir(name)
+    if target_dir is None:
         return False
+    if target_dir.parent == SKILLS_DIR:
+        return None
     import shutil
 
-    shutil.rmtree(target)
-    # Remove from active list
+    shutil.rmtree(target_dir)
     active = _load_active()
     if name in active:
         active.remove(name)
@@ -228,7 +232,7 @@ def install_skill_from_zip(zip_path: Path) -> str | None:
                     raw = md_path.read_text(encoding="utf-8")
                     meta = yaml.safe_load(raw.split("---", 2)[1]) if raw.startswith("---") else {}
                     meta_name = meta.get("name", parent.name if parent.name != "." else "unknown")
-                    target = SKILLS_DIR / meta_name
+                    target = USER_SKILLS_DIR / meta_name
                     shutil.rmtree(target, ignore_errors=True)
                     shutil.copytree(skill_dir, target)
                     logger.info("Skill installed: %s", meta_name)

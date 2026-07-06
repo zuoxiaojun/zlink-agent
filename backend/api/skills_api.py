@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from agent import skill_manager
-from backend.schemas.skill import SkillInfo, SkillToggle, SkillUpdate
+from backend.schemas.skill import SkillInfo, SkillUpdate
 
 router = APIRouter(prefix="/api/skills", tags=["skills"])
 
@@ -22,30 +22,17 @@ def list_skills():
             version=s.get("version", ""),
             tags=s.get("tags", []),
             active=s["name"] in active,
+            builtin=s.get("builtin", False),
         )
         for s in skills
     ]
 
 
-@router.get("/{name}")
-def get_skill(name: str):
-    content = skill_manager.get_skill_content(name)
-    if content is None:
-        raise HTTPException(status_code=404, detail="Skill not found")
-    return {"name": name, "content": content}
-
-
-@router.put("/{name}/toggle")
-def toggle_skill(name: str, body: SkillToggle):
-    ok = skill_manager.set_skill_active(name, body.active)
-    if not ok:
-        raise HTTPException(status_code=404, detail="Skill not found")
-    return {"ok": True}
-
-
 @router.put("/{name}")
 def update_skill(name: str, body: SkillUpdate):
     ok = skill_manager.update_skill_content(name, body.content)
+    if ok is None:
+        raise HTTPException(status_code=403, detail="内置技能不允许修改")
     if not ok:
         raise HTTPException(status_code=404, detail="Skill not found")
     return {"ok": True}
@@ -54,6 +41,8 @@ def update_skill(name: str, body: SkillUpdate):
 @router.delete("/{name}")
 def delete_skill(name: str):
     ok = skill_manager.uninstall_skill(name)
+    if ok is None:
+        raise HTTPException(status_code=403, detail="内置技能不允许删除")
     if not ok:
         raise HTTPException(status_code=404, detail="Skill not found")
     return {"ok": True}

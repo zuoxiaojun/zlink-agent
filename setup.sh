@@ -302,6 +302,25 @@ fi
 PYTHONPATH="" source "$VENV_ACTIVATE"
 python -m scripts.migrate && ok "数据迁移检查完成" || warn "数据迁移执行异常（可后续手动执行）"
 
+# 升级时修复内置 MCP 标记
+if $_IS_UPGRADE; then
+    python -c "
+import json, os
+cfg_path = os.path.join('$PROJECT_DIR', 'data', 'config.json')
+if os.path.exists(cfg_path):
+    cfg = json.load(open(cfg_path, encoding='utf-8'))
+    servers = cfg.get('mcp_servers', {})
+    changed = False
+    for name in ('yonsuite', 'mcp-server-chart'):
+        if name in servers and not servers[name].get('builtin'):
+            servers[name]['builtin'] = True
+            changed = True
+    if changed:
+        json.dump(cfg, open(cfg_path, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)
+        print('  内置 MCP 服务器标记已更新')
+" && ok "内置 MCP 服务器标记已修复" || warn "内置 MCP 标记修复失败（可忽略）"
+fi
+
 echo ""
 
 # ── 完成 ──

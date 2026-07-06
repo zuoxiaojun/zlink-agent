@@ -65,6 +65,7 @@ async def lifespan(application: FastAPI):
             args=["-m", "mcp_server.ys_mcp_server"],
             enabled=True,
             timeout=120,
+            builtin=True,
         )
         cfg.mcp_servers = servers_cfg
         config_manager.save(cfg)
@@ -77,6 +78,7 @@ async def lifespan(application: FastAPI):
             command="npx",
             args=["-y", "@antv/mcp-server-chart"],
             env={},
+            builtin=True,
         )
 
     if servers_cfg:

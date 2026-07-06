@@ -15,20 +15,29 @@ from agent.utils import DATA_DIR, atomic_json_write
 logger = logging.getLogger(__name__)
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
+USER_SKILLS_DIR = DATA_DIR / "skills"
+USER_SKILLS_DIR = DATA_DIR / "skills"
+
+
+def _get_skill_dirs() -> list[tuple[Path, bool]]:
+    """Return [(path, is_builtin)] for all skill directories across both locations."""
+    dirs = []
+    if SKILLS_DIR.exists():
+        for entry in sorted(SKILLS_DIR.iterdir()):
+            if entry.is_dir() and (entry / "SKILL.md").exists():
+                dirs.append((entry, True))
+    if USER_SKILLS_DIR.exists():
+        for entry in sorted(USER_SKILLS_DIR.iterdir()):
+            if entry.is_dir() and (entry / "SKILL.md").exists():
+                dirs.append((entry, False))
+    return dirs
 
 
 def _load_skill_index() -> list[dict]:
     """Scan skills directory and return metadata for all available skills."""
-    if not SKILLS_DIR.exists():
-        return []
-
     skills = []
-    for entry in sorted(SKILLS_DIR.iterdir()):
-        if not entry.is_dir():
-            continue
+    for entry, builtin in _get_skill_dirs():
         skill_file = entry / "SKILL.md"
-        if not skill_file.exists():
-            continue
         try:
             content = skill_file.read_text(encoding="utf-8")
             meta = _parse_frontmatter(content)
@@ -39,6 +48,7 @@ def _load_skill_index() -> list[dict]:
                     "version": meta.get("version", "1.0.0"),
                     "tags": meta.get("metadata", {}).get("hermes", {}).get("tags", []),
                     "path": str(skill_file),
+                    "builtin": builtin,
                 }
             )
         except Exception as e:
@@ -61,14 +71,8 @@ def _parse_frontmatter(content: str) -> dict:
 
 def _get_skill_content(name: str) -> str | None:
     """Get the full content (frontmatter + body) of a skill by name."""
-    if not SKILLS_DIR.exists():
-        return None
-
-    for entry in SKILLS_DIR.iterdir():
-        if not entry.is_dir():
-            continue
+    for entry, _builtin in _get_skill_dirs():
         if entry.name != name:
-            # Also check SKILL.md frontmatter name
             skill_file = entry / "SKILL.md"
             if skill_file.exists():
                 meta = _parse_frontmatter(skill_file.read_text(encoding="utf-8"))
@@ -250,6 +254,19 @@ def _validate_skill_name(name: str) -> str | None:
     return None
 
 
+def _find_skill_dir(name: str) -> Path | None:
+    """Find skill directory by name in either builtin or user dirs."""
+    for entry, _ in _get_skill_dirs():
+        if entry.name == name:
+            return entry
+        skill_file = entry / "SKILL.md"
+        if skill_file.exists():
+            meta = _parse_frontmatter(skill_file.read_text(encoding="utf-8"))
+            if meta.get("name") == name:
+                return entry
+    return None
+
+
 def _handle_skill_install(args: dict) -> str:
     """Install a new skill from provided content."""
     name = args.get("name", "").strip().lower()
@@ -274,7 +291,6 @@ def _handle_skill_install(args: dict) -> str:
     if not meta.get("description", ""):
         return tool_error("SKILL.md frontmatter 缺少 description 字段")
     if meta.get("name") != name:
-        # Allow content name to differ from directory name (use content name)
         name = skill_name
 
     # Content size check
@@ -289,26 +305,24 @@ def _handle_skill_install(args: dict) -> str:
     if scan_err:
         return tool_error(f"安全扫描未通过: {scan_err}")
 
-    # Security scan on extra files (body only, skip frontmatter)
+    # Security scan on extra files
     for filename, file_content in files.items():
         fc = file_content.strip()
         ferr = _scan_threats(fc)
         if ferr:
             return tool_error(f"文件「{filename}」安全扫描未通过: {ferr}")
 
-    # Directory check
-    target_dir = SKILLS_DIR / name
-    if target_dir.exists():
+    existing = _find_skill_dir(name)
+    if existing:
         return tool_error(f"技能「{name}」已存在，如需覆盖请先停用并删除")
 
+    target_dir = USER_SKILLS_DIR / name
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    # Atomic write SKILL.md (temp file + replace)
     tmp = target_dir / "SKILL.md.tmp"
     tmp.write_text(content, encoding="utf-8")
     tmp.replace(target_dir / "SKILL.md")
 
-    # Write extra files
     written = []
     for filename, file_content in files.items():
         safe_name = Path(filename).name
@@ -320,7 +334,6 @@ def _handle_skill_install(args: dict) -> str:
         ftmp.replace(fpath)
         written.append(safe_name)
 
-    # Auto-activate
     active = _load_active_skills()
     if name not in active:
         active.append(name)

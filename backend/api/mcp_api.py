@@ -17,6 +17,12 @@ from backend.schemas.mcp import MCPServerConfig, MCPServerStatus, MCPTestResult
 router = APIRouter(prefix="/api/mcp", tags=["mcp"])
 
 
+def _check_builtin(name: str, servers: dict):
+    entry = servers.get(name)
+    if entry and getattr(entry, "builtin", False):
+        raise HTTPException(status_code=403, detail=f"内置服务器「{name}」不允许修改或删除")
+
+
 def _to_dict(entry: MCPServerEntry) -> dict:
     return entry.model_dump()
 
@@ -49,9 +55,11 @@ async def update_server(name: str, body: MCPServerConfig):
     servers = cfg.mcp_servers
     if name not in servers:
         raise HTTPException(status_code=404, detail=f"Server '{name}' not found")
+    _check_builtin(name, servers)
     await disconnect_server(name)
     config_dict = _build_config_dict(body)
     config_dict["enabled"] = servers[name].enabled
+    config_dict["builtin"] = servers[name].builtin
     servers[name] = _to_entry(config_dict)
     config_manager.save(cfg)
     if config_dict["enabled"]:
@@ -65,6 +73,7 @@ async def delete_server(name: str):
     servers = cfg.mcp_servers
     if name not in servers:
         raise HTTPException(status_code=404, detail=f"Server '{name}' not found")
+    _check_builtin(name, servers)
     await disconnect_server(name)
     del servers[name]
     config_manager.save(cfg)
