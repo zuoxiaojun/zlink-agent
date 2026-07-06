@@ -147,36 +147,3 @@ v1.0 → v1.1.1 的重构增量（41 files / +5097 / -498）。CHANGELOG 里 v1.
 source .venv/bin/activate
 .venv/bin/python -m pytest tests/ -v   # 36 tests, ~0.5s
 ```
-
-
-### 开发工作流
-
-仓库使用 [pre-commit](https://pre-commit.com/) 在每次 `git commit` 时自动跑代码质量钩子（ruff / ruff-format / 通用文件检查）。
-
-**首次克隆后初始化**：
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-pip install pre-commit                              # 装到项目 venv
-git config core.hooksPath .githooks                 # 启用仓库内置钩子
-```
-
-**配置要点**（已提交到仓库，无需手工改）：
-
-- `.githooks/pre-commit` — 仓库内置的钩子入口，使用 `git rev-parse --show-toplevel` 解析仓库根，**不硬编码绝对路径**，跨机器/重命名项目目录都能直接用
-- `.pre-commit-config.yaml` — ruff / ruff-format 使用 `language: system`，复用项目 `.venv` 里的 ruff，**无需联网**即可工作；其他内置钩子（trailing-whitespace / end-of-file-fixer / check-yaml / check-toml / check-added-large-files / check-merge-conflict / detect-private-key）首跑后会缓存到 `~/.cache/pre-commit/`
-- `.atomcode/settings.json` — `pytestRun` hook 的工作目录跟随项目实际路径
-
-**手动跑一次全部钩子**：
-
-```bash
-.venv/bin/python -m pre_commit run --all-files
-```
-
-**绕过钩子**（不推荐，仅在紧急修复时使用）：
-
-```bash
-git commit --no-verify -m "hotfix: ..."
-```
