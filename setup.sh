@@ -77,7 +77,7 @@ PY_CMD=""
 for cmd in python3.14 python3.13 python3.12 python3.11 python3; do
     if command -v "$cmd" &>/dev/null; then
         PY_VER=$("$cmd" --version 2>&1 | awk '{match($2, /[0-9]+\.[0-9]+/); print substr($2, RSTART, RLENGTH)}')
-        if awk "BEGIN {exit !($PY_VER >= 3.11)}" 2>/dev/null; then
+        if awk -v ver="$PY_VER" 'BEGIN {split(ver, v, "."); exit !(v[1] > 3 || (v[1] == 3 && v[2] >= 11))}' 2>/dev/null; then
             PY_CMD="$cmd"
             break
         fi
@@ -164,9 +164,11 @@ fi
 
 # npm
 if command -v npm &>/dev/null; then
+    _NPM_BIN="npm"
     ok "npm: $(npm --version)"
-elif [ -f "$(dirname "$NODE_BIN")/npm" ]; then
-    ok "npm: $($(dirname "$NODE_BIN")/npm --version)"
+elif [ -n "$NODE_BIN" ] && [ -f "$(dirname "$NODE_BIN")/npm" ]; then
+    _NPM_BIN="$(dirname "$NODE_BIN")/npm"
+    ok "npm: $($_NPM_BIN --version)"
 else
     err "未找到 npm。"
     exit 1
@@ -255,9 +257,8 @@ echo -e "${GREEN}[7/8] 安装前端依赖并构建...${NC}"
 cd "$PROJECT_DIR/web"
 
 # 如果用便携版 Node.js，用它的 npm
-_NPM_CMD="npm"
-if [ -n "$NODE_BIN" ] && [ -f "$(dirname "$NODE_BIN")/npm" ]; then
-    _NPM_CMD="$(dirname "$NODE_BIN")/npm"
+_NPM_CMD="$_NPM_BIN"
+if [ -n "$NODE_BIN" ] && [ "$_NPM_BIN" != "npm" ]; then
     PATH="$(dirname "$NODE_BIN"):$PATH"
 fi
 
@@ -300,15 +301,16 @@ fi
 
 # 数据迁移
 PYTHONPATH="" source "$VENV_ACTIVATE"
-python -m scripts.migrate && ok "数据迁移检查完成" || warn "数据迁移执行异常（可后续手动执行）"
+PYTHONPATH="$PROJECT_DIR" python -m scripts.migrate && ok "数据迁移检查完成" || warn "数据迁移执行异常（可后续手动执行）"
 
 # 升级时修复内置 MCP 标记
 if $_IS_UPGRADE; then
-    python -c "
-import json, os
-cfg_path = os.path.join('$PROJECT_DIR', 'data', 'config.json')
-if os.path.exists(cfg_path):
-    cfg = json.load(open(cfg_path, encoding='utf-8'))
+    PYTHONPATH="$PROJECT_DIR" python -c "
+import json, sys
+cfg_path = sys.argv[1] + '/data/config.json'
+try:
+    with open(cfg_path, encoding='utf-8') as f:
+        cfg = json.load(f)
     servers = cfg.get('mcp_servers', {})
     changed = False
     for name in ('yonsuite', 'mcp-server-chart'):
@@ -316,9 +318,12 @@ if os.path.exists(cfg_path):
             servers[name]['builtin'] = True
             changed = True
     if changed:
-        json.dump(cfg, open(cfg_path, 'w', encoding='utf-8'), indent=2, ensure_ascii=False)
+        with open(cfg_path, 'w', encoding='utf-8') as f:
+            json.dump(cfg, f, indent=2, ensure_ascii=False)
         print('  内置 MCP 服务器标记已更新')
-" && ok "内置 MCP 服务器标记已修复" || warn "内置 MCP 标记修复失败（可忽略）"
+except FileNotFoundError:
+    pass
+" "$PROJECT_DIR" && ok "内置 MCP 服务器标记已修复" || warn "内置 MCP 标记修复失败（可忽略）"
 fi
 
 echo ""
