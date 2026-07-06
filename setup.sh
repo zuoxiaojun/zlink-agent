@@ -61,7 +61,7 @@ echo ""
 # ── 1. 前置依赖检查 ─────────────────────────────────────────────────────────
 echo -e "${GREEN}[1/8] 检查依赖...${NC}"
 
-# Python
+# Python — 如果系统没有 >= 3.11，自动下载便携版
 PY_CMD=""
 for cmd in python3.14 python3.13 python3.12 python3.11 python3; do
     if command -v "$cmd" &>/dev/null; then
@@ -74,8 +74,49 @@ for cmd in python3.14 python3.13 python3.12 python3.11 python3; do
 done
 
 if [ -z "$PY_CMD" ]; then
-    err "需要 Python >= 3.11，请安装：https://www.python.org/downloads/"
-    exit 1
+    warn "未找到 Python >= 3.11，正在下载便携版..."
+    _PY_DIR="$PROJECT_DIR/.python"
+    mkdir -p "$_PY_DIR"
+    _PY_VER="3.12.9"
+    # 使用 python-build-standalone（预编译便携版，无需编译/sudo）
+    _PY_STANDALONE_BASE="https://github.com/astral-sh/python-build-standalone/releases/download"
+    # GitHub Release 镜像（国内加速）
+    if [ "${YS_USE_MIRROR:-true}" = "true" ]; then
+        _PY_STANDALONE_BASE="${YS_PYTHON_MIRROR:-https://ghfast.top/https://github.com/astral-sh/python-build-standalone/releases/download}"
+    fi
+    _PY_TAG="20250430"
+    case "$(uname -s)-$(uname -m)" in
+        Darwin-arm64)
+            _PY_URL="$_PY_STANDALONE_BASE/${_PY_TAG}/cpython-${_PY_VER}+aarch64-apple-darwin-install_only.tar.gz"
+            ;;
+        Darwin-x86_64)
+            _PY_URL="$_PY_STANDALONE_BASE/${_PY_TAG}/cpython-${_PY_VER}+x86_64-apple-darwin-install_only.tar.gz"
+            ;;
+        Linux-x86_64)
+            _PY_URL="$_PY_STANDALONE_BASE/${_PY_TAG}/cpython-${_PY_VER}+x86_64-unknown-linux-gnu-install_only.tar.gz"
+            ;;
+        Linux-arm64)
+            _PY_URL="$_PY_STANDALONE_BASE/${_PY_TAG}/cpython-${_PY_VER}+aarch64-unknown-linux-gnu-install_only.tar.gz"
+            ;;
+        *)
+            err "不支持的系统架构: $(uname -s)-$(uname -m)，请手动安装 Python >= 3.11"
+            exit 1
+            ;;
+    esac
+    echo "  下载 $_PY_URL ..."
+    curl -fsSL "$_PY_URL" | tar xz -C "$_PY_DIR" --strip-components=1
+    PY_CMD="$_PY_DIR/bin/python3"
+    if [ ! -f "$PY_CMD" ]; then
+        # 部分 release 目录结构不同，尝试 python/bin/python3
+        PY_CMD="$_PY_DIR/python/bin/python3"
+    fi
+    if [ ! -f "$PY_CMD" ]; then
+        err "Python 便携版下载或解压失败，请手动安装 Python >= 3.11"
+        exit 1
+    fi
+    # 确保 pip 可用
+    "$PY_CMD" -m ensurepip --upgrade --quiet 2>/dev/null || true
+    ok "Python 便携版已安装: $($PY_CMD --version)"
 fi
 ok "Python: $($PY_CMD --version)"
 
