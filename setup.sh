@@ -90,44 +90,47 @@ if [ -z "$PY_CMD" ]; then
         warn "未找到 Python >= 3.11，正在下载便携版..."
         mkdir -p "$_PY_DIR"
         _PY_VER="3.12.9"
-        # 使用 python-build-standalone（预编译便携版，无需编译/sudo）
-        _PY_STANDALONE_BASE="https://github.com/astral-sh/python-build-standalone/releases/download"
-        # GitHub Release 镜像（国内加速）
-if [ "${YS_USE_MIRROR:-true}" = "true" ]; then
-        _PY_STANDALONE_BASE="${YS_PYTHON_MIRROR:-}"
-    fi
-    # 如果没设镜像或镜像为空，用 GitHub 官方地址
-    if [ -z "$_PY_STANDALONE_BASE" ]; then
-        _PY_STANDALONE_BASE="https://github.com/astral-sh/python-build-standalone/releases/download"
-    fi
-        _PY_TAG="20250430"
-        case "$(uname -s)-$(uname -m)" in
-            Darwin-arm64)
-                _PY_URL="$_PY_STANDALONE_BASE/${_PY_TAG}/cpython-${_PY_VER}+aarch64-apple-darwin-install_only.tar.gz"
+        case "$(uname -s)" in
+            Darwin)
+                _PY_MIRROR="${YS_PYTHON_MIRROR:-https://repo.huaweicloud.com/python}"
+                _PY_FILE="python-${_PY_VER}-macos11.pkg"
+                echo "  从 $_PY_MIRROR 下载 Python ..."
+                curl -fsSL "$_PY_MIRROR/$_PY_VER/$_PY_FILE" -o "/tmp/$_PY_FILE"
+                mkdir -p /tmp/python-expand
+                pkgutil --expand "/tmp/$_PY_FILE" /tmp/python-expand/ 2>/dev/null
+                # 从 Python Framework 子包中提取 Payload
+                for f in $(find /tmp/python-expand -name "Payload" -type f); do
+                    (cd "$_PY_DIR" && cpio -idmu < "$f" 2>/dev/null) || (cd "$_PY_DIR" && tar -xf "$f" 2>/dev/null) || true
+                done
+                PY_CMD="$_PY_DIR/usr/local/bin/python3"
+                [ ! -f "$PY_CMD" ] && PY_CMD="$_PY_DIR/Library/Frameworks/Python.framework/Versions/3.12/bin/python3"
+                rm -rf "/tmp/$_PY_FILE" /tmp/python-expand
                 ;;
-            Darwin-x86_64)
-                _PY_URL="$_PY_STANDALONE_BASE/${_PY_TAG}/cpython-${_PY_VER}+x86_64-apple-darwin-install_only.tar.gz"
-                ;;
-            Linux-x86_64)
-                _PY_URL="$_PY_STANDALONE_BASE/${_PY_TAG}/cpython-${_PY_VER}+x86_64-unknown-linux-gnu-install_only.tar.gz"
-                ;;
-            Linux-arm64)
-                _PY_URL="$_PY_STANDALONE_BASE/${_PY_TAG}/cpython-${_PY_VER}+aarch64-unknown-linux-gnu-install_only.tar.gz"
+            Linux)
+                _PY_MIRROR="${YS_PYTHON_MIRROR:-https://repo.huaweicloud.com/python}"
+                _PY_FILE="Python-${_PY_VER}.tar.xz"
+                echo "  从 $_PY_MIRROR 下载 Python 源码..."
+                curl -fsSL "$_PY_MIRROR/$_PY_VER/$_PY_FILE" -o "/tmp/$_PY_FILE"
+                tar xf "/tmp/$_PY_FILE" -C "$_PY_DIR" --strip-components=1
+                rm -f "/tmp/$_PY_FILE"
+                cd "$_PY_DIR"
+                ./configure --prefix="$_PY_DIR/install" --enable-optimizations --quiet
+                make -j"$(nproc)" --quiet 2>/dev/null || make -j"$(nproc)"
+                make install --quiet
+                PY_CMD="$_PY_DIR/install/bin/python3"
+                cd "$PROJECT_DIR"
                 ;;
             *)
-                err "不支持的系统架构: $(uname -s)-$(uname -m)，请手动安装 Python >= 3.11"
+                err "不支持的系统: $(uname -s)，请手动安装 Python >= 3.11"
                 exit 1
                 ;;
         esac
-        echo "  下载 $_PY_URL ..."
-        curl -fsSL "$_PY_URL" | tar xz -C "$_PY_DIR" --strip-components=1
-    fi
-    PY_CMD="$_PY_DIR/bin/python3"
-    if [ ! -f "$PY_CMD" ]; then
-        PY_CMD="$_PY_DIR/python/bin/python3"
+    else
+        PY_CMD="$_PY_DIR/bin/python3"
+        [ ! -f "$PY_CMD" ] && PY_CMD="$_PY_DIR/install/bin/python3"
     fi
     if [ ! -f "$PY_CMD" ]; then
-        err "Python 便携版下载或解压失败，请手动安装 Python >= 3.11"
+        err "Python 便携版安装失败，请手动安装 Python >= 3.11"
         exit 1
     fi
     # 确保 pip 可用
