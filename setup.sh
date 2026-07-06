@@ -93,9 +93,13 @@ if [ -z "$PY_CMD" ]; then
         # 使用 python-build-standalone（预编译便携版，无需编译/sudo）
         _PY_STANDALONE_BASE="https://github.com/astral-sh/python-build-standalone/releases/download"
         # GitHub Release 镜像（国内加速）
-        if [ "${YS_USE_MIRROR:-true}" = "true" ]; then
-            _PY_STANDALONE_BASE="${YS_PYTHON_MIRROR:-https://ghfast.top/https://github.com/astral-sh/python-build-standalone/releases/download}"
-        fi
+if [ "${YS_USE_MIRROR:-true}" = "true" ]; then
+        _PY_STANDALONE_BASE="${YS_PYTHON_MIRROR:-}"
+    fi
+    # 如果没设镜像或镜像为空，用 GitHub 官方地址
+    if [ -z "$_PY_STANDALONE_BASE" ]; then
+        _PY_STANDALONE_BASE="https://github.com/astral-sh/python-build-standalone/releases/download"
+    fi
         _PY_TAG="20250430"
         case "$(uname -s)-$(uname -m)" in
             Darwin-arm64)
