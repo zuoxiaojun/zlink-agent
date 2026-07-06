@@ -11,7 +11,7 @@ that contains all Python dependencies + the static frontend dist.
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path.cwd()
 WEB_DIST = PROJECT_ROOT / "web" / "dist"
 
 # ── Collect hidden imports that PyInstaller's hook scanner misses ──
@@ -85,7 +85,7 @@ if WEB_DIST.is_dir():
             datas.append((str(f), str(f.relative_to(WEB_DIST.parent))))
 
 a = Analysis(
-    ["backend/__main__.py"],
+    ["__main__.py"],
     pathex=[str(PROJECT_ROOT)],
     binaries=[],
     datas=datas,
@@ -98,7 +98,6 @@ a = Analysis(
         "turtle",
         "test",
         "unittest",
-        "distutils",
         "setuptools",
         "pdb",
         "py_compile",
@@ -133,13 +132,4 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-)
-
-# Also create a one-folder bundle (more reliable than one-file for complex packages)
-COLLECT(
-    exe,
-    a.binaries,
-    a.datas,
-    [],
-    name="ys-agent-backend",
 )

@@ -17,11 +17,9 @@ AGENTS.md
 **/cache/
 
 # Electron + PyInstaller 构建产物
-dist/ys-agent-backend/
-dist/mac/
-dist/*.dmg
-dist/*.app/
-dist/*.blockmap
+dist/
+build/ys-agent/
+build/ys-agent-backend/
 
 CLAUDE.md
 
