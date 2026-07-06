@@ -14,7 +14,7 @@ VENV_ACTIVATE="$PROJECT_DIR/.venv/bin/activate"
 [ "$OS" = "windows" ] && VENV_ACTIVATE="$PROJECT_DIR/.venv/Scripts/activate"
 
 if [ -f "$PROJECT_DIR/.env" ]; then
-    source <(grep -E '^YS_(AGENT_PORT|AGENT_CORS)=' "$PROJECT_DIR/.env")
+    source <(grep -E '^YS_(AGENT_PORT|AGENT_CORS)=' "$PROJECT_DIR/.env" 2>/dev/null || true)
 fi
 PORT="${YS_AGENT_PORT:-8089}"
 

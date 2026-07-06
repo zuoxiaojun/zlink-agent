@@ -94,16 +94,24 @@ if [ -z "$PY_CMD" ]; then
             Darwin)
                 _PY_MIRROR="${YS_PYTHON_MIRROR:-https://repo.huaweicloud.com/python}"
                 _PY_FILE="python-${_PY_VER}-macos11.pkg"
-                echo "  从 $_PY_MIRROR 下载 Python ..."
-                curl -fsSL "$_PY_MIRROR/$_PY_VER/$_PY_FILE" -o "/tmp/$_PY_FILE"
+                echo "  正在下载 Python 3.12.9 ..."
+                curl -L "$_PY_MIRROR/$_PY_VER/$_PY_FILE" -o "/tmp/$_PY_FILE" || {
+                    err "Python 下载失败，请手动安装: https://www.python.org/downloads/"
+                    exit 1
+                }
                 mkdir -p /tmp/python-expand
-                pkgutil --expand "/tmp/$_PY_FILE" /tmp/python-expand/ 2>/dev/null
-                # 从 Python Framework 子包中提取 Payload
+                if ! pkgutil --expand "/tmp/$_PY_FILE" /tmp/python-expand/ 2>/dev/null; then
+                    err "Python 安装包解压失败，请手动安装: https://www.python.org/downloads/"
+                    rm -f "/tmp/$_PY_FILE"
+                    exit 1
+                fi
                 for f in $(find /tmp/python-expand -name "Payload" -type f); do
                     (cd "$_PY_DIR" && cpio -idmu < "$f" 2>/dev/null) || (cd "$_PY_DIR" && tar -xf "$f" 2>/dev/null) || true
                 done
-                PY_CMD="$_PY_DIR/usr/local/bin/python3"
-                [ ! -f "$PY_CMD" ] && PY_CMD="$_PY_DIR/Library/Frameworks/Python.framework/Versions/3.12/bin/python3"
+                PY_CMD="$_PY_DIR/Library/Frameworks/Python.framework/Versions/3.12/bin/python3"
+                if [ ! -f "$PY_CMD" ]; then
+                    PY_CMD="$_PY_DIR/usr/local/bin/python3"
+                fi
                 rm -rf "/tmp/$_PY_FILE" /tmp/python-expand
                 ;;
             Linux)
@@ -270,7 +278,7 @@ if [ -n "$NODE_BIN" ] && [ "$_NPM_BIN" != "npm" ]; then
 fi
 
 if [ -n "$NPM_MIRROR" ]; then
-    $_NPM_CMD config set registry "$NPM_MIRROR"
+    $_NPM_CMD config set registry "$NPM_MIRROR" 2>/dev/null || true
     info "npm 镜像已设置: $NPM_MIRROR"
 fi
 

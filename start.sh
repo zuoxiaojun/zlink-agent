@@ -16,7 +16,7 @@ VENV_ACTIVATE="$PROJECT_DIR/.venv/bin/activate"
 
 # 从 .env 文件读取端口（有默认值）
 if [ -f "$PROJECT_DIR/.env" ]; then
-    source <(grep -E '^YS_(AGENT_PORT|FRONTEND_PORT)=' "$PROJECT_DIR/.env")
+    source <(grep -E '^YS_(AGENT_PORT|FRONTEND_PORT)=' "$PROJECT_DIR/.env" 2>/dev/null || true)
 fi
 BACKEND_PORT="${YS_AGENT_PORT:-8089}"
 FRONTEND_PORT="${YS_FRONTEND_PORT:-8088}"
@@ -53,6 +53,10 @@ kill_port() {
 kill_port $BACKEND_PORT
 
 cd "$PROJECT_DIR"
+if [ ! -f "$VENV_ACTIVATE" ]; then
+    echo "❌ 虚拟环境不存在，请先运行: bash setup.sh"
+    exit 1
+fi
 PYTHONPATH="" source "$VENV_ACTIVATE"
 echo "Starting backend on http://$HOST:$BACKEND_PORT ..."
 PYTHONPATH="" uvicorn backend.main:app --host "$HOST" --port $BACKEND_PORT &
