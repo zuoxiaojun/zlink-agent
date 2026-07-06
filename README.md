@@ -32,12 +32,11 @@ cd ys-agent
 启动：
 
 ```bash
-# 前后端一起启动（自动打开浏览器）
+# 生产模式（后端 Serve 前端，自动打开浏览器）
 ./start.sh
 
-# 或分别启动
-./run_backend.sh   # 后端 http://localhost:8089
-./run_frontend.sh  # 前端 http://localhost:8088
+# 开发模式（后端 + Vite 热更新）
+./start.sh --dev
 ```
 
 > 支持 macOS / Linux / Windows (Git Bash)，脚本自动识别系统环境。
@@ -137,10 +136,8 @@ v1.0 → v1.1.1 的重构增量（41 files / +5097 / -498）。CHANGELOG 里 v1.
 - **v1.1.2**：跨平台脚本适配（macOS / Linux / Windows Git Bash），`llm_api_key` Fernet 加密存储，自动打开浏览器
 - **pytest 套件**：`tests/` 36 个 test，0.5s 全过；事件总线 + config 双 fixture 隔离；0 新依赖
 
-### 架构与开发文档
+### 开发参考
 
-- 架构 HTML（含 5.6 安全守卫双防线 + 5.8 Extension 事件系统新章节）：[`architecture.html`](./architecture.html)（直接 `open` 在浏览器看）
-- Markdown 架构说明：[`docs/architecture.md`](./docs/architecture.md)
 - Extension 开发指南：[`docs/extending-ys-agent.md`](./docs/extending-ys-agent.md)
 - pytest 套件说明：[`tests/README.md`](./tests/README.md)
 

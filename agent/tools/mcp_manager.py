@@ -539,6 +539,8 @@ async def connect_all_servers(servers_config: dict) -> dict[str, str]:
     """Connect to all enabled MCP servers from config. Returns status map."""
     _ensure_loop()
     status: dict[str, str] = {}
+    tasks = []
+    names = []
     for name, cfg in servers_config.items():
         # Convert Pydantic model to dict (v1.3.0+ config model)
         if isinstance(cfg, MCPServerEntry):
@@ -546,9 +548,17 @@ async def connect_all_servers(servers_config: dict) -> dict[str, str]:
         if not cfg.get("enabled", True):
             status[name] = "disabled"
             continue
-        await connect_server(name, cfg)
-        conn = _connections.get(name)
-        status[name] = conn.status if conn else "error"
+        tasks.append(connect_server(name, cfg))
+        names.append(name)
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    for name, result in zip(names, results):
+        if isinstance(result, Exception):
+            logger.warning("MCP server '%s' connection error: %s", name, result)
+            status[name] = "error"
+        else:
+            conn = _connections.get(name)
+            status[name] = conn.status if conn else "error"
     return status
 
 

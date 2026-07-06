@@ -164,9 +164,9 @@ fi
 
 if [ -f "pyproject.toml" ]; then
     if [ -n "$PIP_MIRROR" ]; then
-        pip install -e ".[all]" -q -i "$PIP_MIRROR" 2>/dev/null || true
+        pip install -e ".[all]" -q -i "$PIP_MIRROR" || warn "Editable install 提示（可忽略，核心依赖已在 requirements.txt 安装）"
     else
-        pip install -e ".[all]" -q 2>/dev/null || true
+        pip install -e ".[all]" -q || warn "Editable install 提示（可忽略，核心依赖已在 requirements.txt 安装）"
     fi
 fi
 ok "Python 依赖安装完成"

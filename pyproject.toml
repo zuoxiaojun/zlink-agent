@@ -25,6 +25,7 @@ web = [
     "python-multipart>=0.0.9",
 ]
 all = ["ys-agent[web]"]
+dev = ["pytest>=8.0.0"]
 
 [tool.ruff]
 target-version = "py311"
