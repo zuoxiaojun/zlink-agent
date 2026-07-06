@@ -3,7 +3,9 @@
 from fastapi import APIRouter
 
 from agent import config_manager
+from agent.config_model import MCPServerEntry
 from agent.context_compactor import resolve_context_window
+from agent.tools.mcp_manager import connect_server, disconnect_server
 from backend.llm_providers import LLM_PROVIDERS
 from backend.schemas.config import (
     AgentConfig,
@@ -74,7 +76,36 @@ def save_yonsuite_config(body: YonSuiteConfig):
         cfg.ys_tenant_id = body.tenant_id
     cfg.ys_gateway_url = body.gateway_url
     config_manager.save(cfg)
+
+    # Sync updated credentials into the yonsuite MCP server and reconnect
+    servers = cfg.mcp_servers
+    yonsuite = servers.get("yonsuite")
+    if yonsuite:
+        yonsuite.env = {
+            "YONSUITE_APP_KEY": cfg.ys_app_key or "",
+            "YONSUITE_APP_SECRET": cfg.ys_app_secret or "",
+            "YONSUITE_TENANT_ID": cfg.ys_tenant_id or "",
+            "YONSUITE_GATEWAY_URL": cfg.ys_gateway_url or "https://c2.yonyoucloud.com/iuap-api-gateway",
+        }
+        cfg.mcp_servers = servers
+        config_manager.save(cfg)
+        # Reconnect in background so new env takes effect
+        import asyncio
+        asyncio.ensure_future(_reconnect_mcp_yonsuite(yonsuite))
+
     return {"ok": True}
+
+
+async def _reconnect_mcp_yonsuite(entry: MCPServerEntry):
+    """Disconnect and reconnect the yonsuite MCP server with updated env vars."""
+    try:
+        await disconnect_server("yonsuite")
+    except Exception:
+        pass
+    try:
+        await connect_server("yonsuite", entry.model_dump())
+    except Exception:
+        pass
 
 
 @router.put("/agent")

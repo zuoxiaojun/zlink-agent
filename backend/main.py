@@ -70,6 +70,20 @@ async def lifespan(application: FastAPI):
         cfg.mcp_servers = servers_cfg
         config_manager.save(cfg)
 
+    # Inject YonSuite credentials into yonsuite MCP server's env so its subprocess
+    # can read YONSUITE_APP_KEY / YONSUITE_APP_SECRET / YONSUITE_TENANT_ID.
+    # Otherwise _connect_stdio's safe_env whitelist drops them.
+    yonsuite_cfg = servers_cfg.get("yonsuite")
+    if yonsuite_cfg:
+        yonsuite_cfg.env = {
+            "YONSUITE_APP_KEY": cfg.ys_app_key or "",
+            "YONSUITE_APP_SECRET": cfg.ys_app_secret or "",
+            "YONSUITE_TENANT_ID": cfg.ys_tenant_id or "",
+            "YONSUITE_GATEWAY_URL": cfg.ys_gateway_url or "https://c2.yonyoucloud.com/iuap-api-gateway",
+        }
+        cfg.mcp_servers = servers_cfg
+        config_manager.save(cfg)
+
     if "mcp-server-chart" not in servers_cfg:
         servers_cfg["mcp-server-chart"] = MCPServerEntry(
             transport="stdio",
