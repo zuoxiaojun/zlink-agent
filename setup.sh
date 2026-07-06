@@ -86,10 +86,6 @@ done
 
 if [ -z "$PY_CMD" ]; then
     _PY_DIR="$PROJECT_DIR/.python"
-    if $_IS_UPGRADE && [ -d "$_PY_DIR" ]; then
-        info "升级模式，清除旧的便携版 Python..."
-        rm -rf "$_PY_DIR"
-    fi
     if [ ! -d "$_PY_DIR" ]; then
         warn "未找到 Python >= 3.11，正在下载便携版..."
         mkdir -p "$_PY_DIR"
@@ -143,10 +139,6 @@ if command -v node &>/dev/null; then
     ok "Node.js: $(node --version)"
 else
     _NODE_DIR="$PROJECT_DIR/.node"
-    if $_IS_UPGRADE && [ -d "$_NODE_DIR" ]; then
-        info "升级模式，清除旧的便携版 Node.js..."
-        rm -rf "$_NODE_DIR"
-    fi
     if [ ! -d "$_NODE_DIR" ]; then
         warn "未找到 Node.js，正在下载便携版..."
         mkdir -p "$_NODE_DIR"
@@ -210,14 +202,7 @@ if [ ! -d ".venv" ]; then
     $PY_CMD -m venv .venv
     ok "虚拟环境已创建"
 else
-    if $_IS_UPGRADE; then
-        warn "检测到虚拟环境已存在，将重新创建..."
-        rm -rf .venv
-        $PY_CMD -m venv .venv
-        ok "虚拟环境已重建"
-    else
-        info "虚拟环境已存在，跳过"
-    fi
+    info "虚拟环境已存在，跳过"
 fi
 echo ""
 
@@ -326,7 +311,7 @@ if $_IS_UPGRADE; then
     echo -e "${CYAN}╠══════════════════════════════════════════════╣${NC}"
     echo -e "${CYAN}║  安装路径: $PROJECT_DIR${NC}"
     echo -e "${CYAN}║  用户数据: 已保留 (data/)                     ║${NC}"
-    echo -e "${CYAN}║  虚拟环境: 已重建                             ║${NC}"
+    echo -e "${CYAN}║  虚拟环境: 已原地更新                             ║${NC}"
     echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
     echo ""
     echo "  升级已完成，请重启后端使新代码生效："
