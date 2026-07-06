@@ -76,7 +76,7 @@ echo -e "${GREEN}[1/8] 检查依赖...${NC}"
 PY_CMD=""
 for cmd in python3.14 python3.13 python3.12 python3.11 python3; do
     if command -v "$cmd" &>/dev/null; then
-        PY_VER=$("$cmd" --version 2>&1 | grep -oP '\d+\.\d+')
+        PY_VER=$("$cmd" --version 2>&1 | awk '{match($2, /[0-9]+\.[0-9]+/); print substr($2, RSTART, RLENGTH)}')
         if awk "BEGIN {exit !($PY_VER >= 3.11)}" 2>/dev/null; then
             PY_CMD="$cmd"
             break
