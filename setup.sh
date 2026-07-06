@@ -57,6 +57,17 @@ echo -e "${CYAN}║        $PROJECT_DIR${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
 
+# ── 检测是否已有旧版本 ──────────────────────────────────────────────────────
+_IS_UPGRADE=false
+if [ -f ".venv/bin/python" ] || [ -d "data/sessions" ]; then
+    _IS_UPGRADE=true
+    echo ""
+    echo -e "${YELLOW}╔══════════════════════════════════════════════╗${NC}"
+    echo -e "${YELLOW}║  检测到已有 YS-Agent 安装                      ║${NC}"
+    echo -e "${YELLOW}║  升级模式：保留 data/ 用户数据                  ║${NC}"
+    echo -e "${YELLOW}╚══════════════════════════════════════════════╝${NC}"
+    echo ""
+fi
 
 # ── 1. 前置依赖检查 ─────────────────────────────────────────────────────────
 echo -e "${GREEN}[1/8] 检查依赖...${NC}"
@@ -74,40 +85,45 @@ for cmd in python3.14 python3.13 python3.12 python3.11 python3; do
 done
 
 if [ -z "$PY_CMD" ]; then
-    warn "未找到 Python >= 3.11，正在下载便携版..."
     _PY_DIR="$PROJECT_DIR/.python"
-    mkdir -p "$_PY_DIR"
-    _PY_VER="3.12.9"
-    # 使用 python-build-standalone（预编译便携版，无需编译/sudo）
-    _PY_STANDALONE_BASE="https://github.com/astral-sh/python-build-standalone/releases/download"
-    # GitHub Release 镜像（国内加速）
-    if [ "${YS_USE_MIRROR:-true}" = "true" ]; then
-        _PY_STANDALONE_BASE="${YS_PYTHON_MIRROR:-https://ghfast.top/https://github.com/astral-sh/python-build-standalone/releases/download}"
+    if $_IS_UPGRADE && [ -d "$_PY_DIR" ]; then
+        info "升级模式，清除旧的便携版 Python..."
+        rm -rf "$_PY_DIR"
     fi
-    _PY_TAG="20250430"
-    case "$(uname -s)-$(uname -m)" in
-        Darwin-arm64)
-            _PY_URL="$_PY_STANDALONE_BASE/${_PY_TAG}/cpython-${_PY_VER}+aarch64-apple-darwin-install_only.tar.gz"
-            ;;
-        Darwin-x86_64)
-            _PY_URL="$_PY_STANDALONE_BASE/${_PY_TAG}/cpython-${_PY_VER}+x86_64-apple-darwin-install_only.tar.gz"
-            ;;
-        Linux-x86_64)
-            _PY_URL="$_PY_STANDALONE_BASE/${_PY_TAG}/cpython-${_PY_VER}+x86_64-unknown-linux-gnu-install_only.tar.gz"
-            ;;
-        Linux-arm64)
-            _PY_URL="$_PY_STANDALONE_BASE/${_PY_TAG}/cpython-${_PY_VER}+aarch64-unknown-linux-gnu-install_only.tar.gz"
-            ;;
-        *)
-            err "不支持的系统架构: $(uname -s)-$(uname -m)，请手动安装 Python >= 3.11"
-            exit 1
-            ;;
-    esac
-    echo "  下载 $_PY_URL ..."
-    curl -fsSL "$_PY_URL" | tar xz -C "$_PY_DIR" --strip-components=1
+    if [ ! -d "$_PY_DIR" ]; then
+        warn "未找到 Python >= 3.11，正在下载便携版..."
+        mkdir -p "$_PY_DIR"
+        _PY_VER="3.12.9"
+        # 使用 python-build-standalone（预编译便携版，无需编译/sudo）
+        _PY_STANDALONE_BASE="https://github.com/astral-sh/python-build-standalone/releases/download"
+        # GitHub Release 镜像（国内加速）
+        if [ "${YS_USE_MIRROR:-true}" = "true" ]; then
+            _PY_STANDALONE_BASE="${YS_PYTHON_MIRROR:-https://ghfast.top/https://github.com/astral-sh/python-build-standalone/releases/download}"
+        fi
+        _PY_TAG="20250430"
+        case "$(uname -s)-$(uname -m)" in
+            Darwin-arm64)
+                _PY_URL="$_PY_STANDALONE_BASE/${_PY_TAG}/cpython-${_PY_VER}+aarch64-apple-darwin-install_only.tar.gz"
+                ;;
+            Darwin-x86_64)
+                _PY_URL="$_PY_STANDALONE_BASE/${_PY_TAG}/cpython-${_PY_VER}+x86_64-apple-darwin-install_only.tar.gz"
+                ;;
+            Linux-x86_64)
+                _PY_URL="$_PY_STANDALONE_BASE/${_PY_TAG}/cpython-${_PY_VER}+x86_64-unknown-linux-gnu-install_only.tar.gz"
+                ;;
+            Linux-arm64)
+                _PY_URL="$_PY_STANDALONE_BASE/${_PY_TAG}/cpython-${_PY_VER}+aarch64-unknown-linux-gnu-install_only.tar.gz"
+                ;;
+            *)
+                err "不支持的系统架构: $(uname -s)-$(uname -m)，请手动安装 Python >= 3.11"
+                exit 1
+                ;;
+        esac
+        echo "  下载 $_PY_URL ..."
+        curl -fsSL "$_PY_URL" | tar xz -C "$_PY_DIR" --strip-components=1
+    fi
     PY_CMD="$_PY_DIR/bin/python3"
     if [ ! -f "$PY_CMD" ]; then
-        # 部分 release 目录结构不同，尝试 python/bin/python3
         PY_CMD="$_PY_DIR/python/bin/python3"
     fi
     if [ ! -f "$PY_CMD" ]; then
@@ -126,24 +142,32 @@ if command -v node &>/dev/null; then
     NODE_BIN="$(command -v node)"
     ok "Node.js: $(node --version)"
 else
-    warn "未找到 Node.js，正在下载便携版..."
     _NODE_DIR="$PROJECT_DIR/.node"
-    mkdir -p "$_NODE_DIR"
-    _NODE_VER="22.14.0"
-    case "$(uname -s)-$(uname -m)" in
-        Darwin-arm64)  _NODE_URL="https://nodejs.org/dist/v$_NODE_VER/node-v$_NODE_VER-darwin-arm64.tar.gz" ;;
-        Darwin-x86_64) _NODE_URL="https://nodejs.org/dist/v$_NODE_VER/node-v$_NODE_VER-darwin-x64.tar.gz" ;;
-        Linux-arm64)   _NODE_URL="https://nodejs.org/dist/v$_NODE_VER/node-v$_NODE_VER-linux-arm64.tar.gz" ;;
-        Linux-x86_64)  _NODE_URL="https://nodejs.org/dist/v$_NODE_VER/node-v$_NODE_VER-linux-x64.tar.gz" ;;
-        *)
-            err "不支持的系统架构: $(uname -s)-$(uname -m)，请手动安装 Node.js >= 18"
-            exit 1
-            ;;
-    esac
-    echo "  下载 $_NODE_URL ..."
-    curl -fsSL "$_NODE_URL" | tar xz -C "$_NODE_DIR" --strip-components=1
+    if $_IS_UPGRADE && [ -d "$_NODE_DIR" ]; then
+        info "升级模式，清除旧的便携版 Node.js..."
+        rm -rf "$_NODE_DIR"
+    fi
+    if [ ! -d "$_NODE_DIR" ]; then
+        warn "未找到 Node.js，正在下载便携版..."
+        mkdir -p "$_NODE_DIR"
+        _NODE_VER="22.14.0"
+        case "$(uname -s)-$(uname -m)" in
+            Darwin-arm64)  _NODE_URL="https://nodejs.org/dist/v$_NODE_VER/node-v$_NODE_VER-darwin-arm64.tar.gz" ;;
+            Darwin-x86_64) _NODE_URL="https://nodejs.org/dist/v$_NODE_VER/node-v$_NODE_VER-darwin-x64.tar.gz" ;;
+            Linux-arm64)   _NODE_URL="https://nodejs.org/dist/v$_NODE_VER/node-v$_NODE_VER-linux-arm64.tar.gz" ;;
+            Linux-x86_64)  _NODE_URL="https://nodejs.org/dist/v$_NODE_VER/node-v$_NODE_VER-linux-x64.tar.gz" ;;
+            *)
+                err "不支持的系统架构: $(uname -s)-$(uname -m)，请手动安装 Node.js >= 18"
+                exit 1
+                ;;
+        esac
+        echo "  下载 $_NODE_URL ..."
+        curl -fsSL "$_NODE_URL" | tar xz -C "$_NODE_DIR" --strip-components=1
+    else
+        info "便携版 Node.js 已存在，跳过"
+    fi
     NODE_BIN="$_NODE_DIR/bin/node"
-    ok "Node.js 便携版已安装: $($NODE_BIN --version)"
+    ok "Node.js: $($NODE_BIN --version)"
 fi
 
 # npm
@@ -186,7 +210,14 @@ if [ ! -d ".venv" ]; then
     $PY_CMD -m venv .venv
     ok "虚拟环境已创建"
 else
-    info "虚拟环境已存在，跳过"
+    if $_IS_UPGRADE; then
+        warn "检测到虚拟环境已存在，将重新创建..."
+        rm -rf .venv
+        $PY_CMD -m venv .venv
+        ok "虚拟环境已重建"
+    else
+        info "虚拟环境已存在，跳过"
+    fi
 fi
 echo ""
 
@@ -256,9 +287,6 @@ ok "前端依赖安装完成"
 $_NPM_CMD run build
 ok "前端构建完成"
 
-cd "$PROJECT_DIR"
-echo ""
-
 # ── 8. 安装 ys-agent 快捷命令 + 数据迁移 ──
 echo -e "${GREEN}[8/8] 安装快捷命令并执行初始化...${NC}"
 
@@ -292,13 +320,26 @@ python -m scripts.migrate && ok "数据迁移检查完成" || warn "数据迁移
 echo ""
 
 # ── 完成 ──
-echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║     ✅ YS-Agent 安装完成                      ║${NC}"
-echo -e "${CYAN}╠══════════════════════════════════════════════╣${NC}"
-echo -e "${CYAN}║  安装路径: $PROJECT_DIR${NC}"
-echo -e "${CYAN}║  快捷命令: ys-agent                           ║${NC}"
-echo -e "${CYAN}║  数据目录: $PROJECT_DIR/data/${NC}"
-echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
+if $_IS_UPGRADE; then
+    echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║     ✅ YS-Agent 升级完成                      ║${NC}"
+    echo -e "${CYAN}╠══════════════════════════════════════════════╣${NC}"
+    echo -e "${CYAN}║  安装路径: $PROJECT_DIR${NC}"
+    echo -e "${CYAN}║  用户数据: 已保留 (data/)                     ║${NC}"
+    echo -e "${CYAN}║  虚拟环境: 已重建                             ║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
+    echo ""
+    echo "  升级已完成，请重启后端使新代码生效："
+    echo "    ys-agent stop && ys-agent"
+else
+    echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║     ✅ YS-Agent 安装完成                      ║${NC}"
+    echo -e "${CYAN}╠══════════════════════════════════════════════╣${NC}"
+    echo -e "${CYAN}║  安装路径: $PROJECT_DIR${NC}"
+    echo -e "${CYAN}║  快捷命令: ys-agent                           ║${NC}"
+    echo -e "${CYAN}║  数据目录: $PROJECT_DIR/data/${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
+fi
 echo ""
 echo "  启动方式："
 echo ""
