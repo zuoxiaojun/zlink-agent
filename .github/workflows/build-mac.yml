@@ -1,0 +1,75 @@
+name: Build macOS Client
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      skip_pyinstaller:
+        description: 'Skip PyInstaller (use system Python in Electron)'
+        type: boolean
+        default: false
+
+jobs:
+  build-mac:
+    runs-on: macos-13
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: PyInstaller backend
+        if: ${{ !inputs.skip_pyinstaller }}
+        run: |
+          source .venv/bin/activate
+          pyinstaller backend/ys-agent.spec --clean --noconfirm
+
+      - name: electron-builder
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx electron-builder --mac --config electron-builder.yml --publish=never
+
+      - name: Upload .dmg
+        uses: actions/upload-artifact@v4
+        with:
+          name: YS-Agent-macOS
+          path: dist/YS-Agent-*.dmg
+          retention-days: 90
+
+      - name: Upload .app (for debugging)
+        uses: actions/upload-artifact@v4
+        with:
+          name: YS-Agent-app
+          path: dist/mac/YS-Agent.app
+          retention-days: 7

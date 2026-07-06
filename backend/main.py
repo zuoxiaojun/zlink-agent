@@ -18,6 +18,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from agent.config_model import MCPServerEntry
 from agent.utils import DATA_DIR
@@ -124,3 +125,8 @@ app.include_router(chat_router)
 app.include_router(mcp_router)
 app.include_router(extensions_router)
 app.include_router(system_router)
+
+# ── Serve React frontend static files (for production / frozen builds) ──
+_STATIC_DIR = Path(__file__).resolve().parent.parent / "web" / "dist"
+if _STATIC_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=str(_STATIC_DIR), html=True), name="frontend")

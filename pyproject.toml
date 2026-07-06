@@ -43,6 +43,7 @@ select = ["E", "F", "I", "N", "W", "UP", "B"]
 "agent/slash_commands.py" = ["B007"]
 "agent/core/llm_providers/anthropic.py" = ["F841"]
 "backend/api/*.py" = ["B904", "F841", "B008"]
+"backend/__main__.py" = ["E402"]
 
 [tool.ruff.format]
 quote-style = "double"

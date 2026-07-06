@@ -1,0 +1,48 @@
+# YS-Agent electron-builder config for macOS
+appId: com.ys-agent.app
+productName: YS-Agent
+copyright: Copyright © 2025 YS-Agent
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  icon: build/icon.icns
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  artifactName: "YS-Agent-${version}-${arch}.${ext}"
+
+dmg:
+  title: "YS-Agent ${version}"
+  background: null
+  contents:
+    - x: 130
+      y: 220
+      type: file
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+extraResources:
+  # PyInstaller 打包的后端二进制
+  - from: dist/ys-agent-backend
+    to: backend
+    filter:
+      - "**/*"
+
+files:
+  - electron/**/*
+  - package.json
+
+directories:
+  buildResources: build
+  output: dist
+
+afterSign: null
+forceCodeSigning: false

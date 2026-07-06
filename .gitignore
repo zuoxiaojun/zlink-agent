@@ -5,18 +5,24 @@ data/
 .env
 .yonsuite_token_cache
 node_modules/
-web/node_modules/
 web/dist/
+web/node_modules/
 .DS_Store
 .vite/
 AGENTS.md
 
 .playwright-mcp/
-package.json
-package-lock.json
 
 # 缓存文件
 **/cache/
+
+# Electron + PyInstaller 构建产物
+dist/ys-agent-backend/
+dist/mac/
+dist/*.dmg
+dist/*.app/
+dist/*.blockmap
+
 CLAUDE.md
 
 # AI 编码工具本地索引（非项目产物）
@@ -26,7 +32,7 @@ CLAUDE.md
 # 防止字面 ~ 目录被误创建（Python os.path 不会自动展开 ~，需用 expanduser）
 ~
 
-# ── Skill 目录：密钥/缓存不应被跟踪 ──
+# Skill 目录：密钥/缓存不应被跟踪
 agent/skills/*/.env
 agent/skills/*/cache/
 agent/skills/*/output/
