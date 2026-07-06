@@ -6,8 +6,7 @@
 #
 # 用法：
 #   ys-agent             启动后端（前台运行，后端 Serve 前端）
-#   ys-agent --dev       启动后端 + Vite 开发服务器
-#   ys-agent --stop      停止正在运行的服务
+#   ys-agent stop        停止正在运行的服务
 #   ys-agent update      拉取最新代码并升级
 #   ys-agent migrate     手动执行数据迁移
 #   ys-agent version     显示版本信息
@@ -47,7 +46,6 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     echo ""
     echo "用法:"
     echo "  ys-agent                    启动后端，浏览器访问 http://localhost:8089"
-    echo "  ys-agent --dev              启动后端 + Vite 开发服务器（前端热更新）"
     echo "  ys-agent stop               停止正在运行的服务"
     echo "  ys-agent update             拉取最新代码并升级"
     echo "  ys-agent migrate            手动执行数据迁移"
@@ -125,19 +123,13 @@ print(f'  Commit: {g[\"commit\"]}   Branch: {g[\"branch\"]}')
     # ── stop ──
     stop)
         kill_port "$BACKEND_PORT"
-        [[ -n "${FRONTEND_PID:-}" ]] && kill "$FRONTEND_PID" 2>/dev/null || true
         ok "服务已停止"
         exit 0
         ;;
 
-    # ── --dev → Vite 开发服务器模式 ──
-    --dev)
-        DEV_MODE=true
-        ;;
-
-    # ── 空参数 → 默认模式 ──
+    # ── 空参数 → 默认启动 ──
     "")
-        DEV_MODE=false
+        # 默认走下方启动流程
         ;;
 
     # ── 未知命令 ──
@@ -152,34 +144,20 @@ esac
 # ── 启动 ──
 PYTHONPATH="" source "$VENV_ACTIVATE"
 kill_port "$BACKEND_PORT"
-kill_port "$FRONTEND_PORT"
 
 HOST="${YS_AGENT_HOST:-0.0.0.0}"
 
-if [[ "$DEV_MODE" == "true" ]]; then
-    # 开发模式：Vite 热更新
-    if [[ -d "$YS_PROJECT_DIR/web/node_modules" ]]; then
-        cd "$YS_PROJECT_DIR/web"
-        info "启动前端开发服务器: http://localhost:$FRONTEND_PORT"
-        npx vite --host "$HOST" --port "$FRONTEND_PORT" &
-        FRONTEND_PID=$!
-        cd "$YS_PROJECT_DIR"
-    else
-        warn "前端依赖未安装，跳过前端（如需请: cd web && npm install）"
-    fi
+# 生产模式：后端直接 Serve 前端静态文件
+if [[ -d "$YS_PROJECT_DIR/web/dist" ]]; then
+    info "前端已构建，通过后端统一 Serve: http://$HOST:$BACKEND_PORT"
+elif [[ -d "$YS_PROJECT_DIR/web/node_modules" ]]; then
+    warn "前端未构建（web/dist 不存在），用 Vite 临时启动..."
+    cd "$YS_PROJECT_DIR/web"
+    npx vite --host "$HOST" --port "$FRONTEND_PORT" &
+    FRONTEND_PID=$!
+    cd "$YS_PROJECT_DIR"
 else
-    # 生产模式：后端直接 Serve 前端静态文件
-    if [[ -d "$YS_PROJECT_DIR/web/dist" ]]; then
-        info "前端已构建，通过后端统一 Serve: http://$HOST:$BACKEND_PORT"
-    elif [[ -d "$YS_PROJECT_DIR/web/node_modules" ]]; then
-        warn "前端未构建（web/dist 不存在），用 Vite 临时启动..."
-        cd "$YS_PROJECT_DIR/web"
-        npx vite --host "$HOST" --port "$FRONTEND_PORT" &
-        FRONTEND_PID=$!
-        cd "$YS_PROJECT_DIR"
-    else
-        warn "前端未构建，请先运行: bash setup.sh"
-    fi
+    warn "前端未构建，请先运行: bash setup.sh"
 fi
 
 info "启动后端: http://$HOST:$BACKEND_PORT"
