@@ -79,15 +79,37 @@ if [ -z "$PY_CMD" ]; then
 fi
 ok "Python: $($PY_CMD --version)"
 
+# Node.js — 如果系统没有，自动下载便携版（仅构建用）
+NODE_BIN=""
 if command -v node &>/dev/null; then
+    NODE_BIN="$(command -v node)"
     ok "Node.js: $(node --version)"
 else
-    err "未找到 Node.js，前端页面无法构建。"
-    exit 1
+    warn "未找到 Node.js，正在下载便携版..."
+    _NODE_DIR="$PROJECT_DIR/.node"
+    mkdir -p "$_NODE_DIR"
+    _NODE_VER="22.14.0"
+    case "$(uname -s)-$(uname -m)" in
+        Darwin-arm64)  _NODE_URL="https://nodejs.org/dist/v$_NODE_VER/node-v$_NODE_VER-darwin-arm64.tar.gz" ;;
+        Darwin-x86_64) _NODE_URL="https://nodejs.org/dist/v$_NODE_VER/node-v$_NODE_VER-darwin-x64.tar.gz" ;;
+        Linux-arm64)   _NODE_URL="https://nodejs.org/dist/v$_NODE_VER/node-v$_NODE_VER-linux-arm64.tar.gz" ;;
+        Linux-x86_64)  _NODE_URL="https://nodejs.org/dist/v$_NODE_VER/node-v$_NODE_VER-linux-x64.tar.gz" ;;
+        *)
+            err "不支持的系统架构: $(uname -s)-$(uname -m)，请手动安装 Node.js >= 18"
+            exit 1
+            ;;
+    esac
+    echo "  下载 $_NODE_URL ..."
+    curl -fsSL "$_NODE_URL" | tar xz -C "$_NODE_DIR" --strip-components=1
+    NODE_BIN="$_NODE_DIR/bin/node"
+    ok "Node.js 便携版已安装: $($NODE_BIN --version)"
 fi
 
+# npm
 if command -v npm &>/dev/null; then
     ok "npm: $(npm --version)"
+elif [ -f "$(dirname "$NODE_BIN")/npm" ]; then
+    ok "npm: $($(dirname "$NODE_BIN")/npm --version)"
 else
     err "未找到 npm。"
     exit 1
@@ -175,15 +197,22 @@ echo ""
 echo -e "${GREEN}[7/8] 安装前端依赖并构建...${NC}"
 cd "$PROJECT_DIR/web"
 
+# 如果用便携版 Node.js，用它的 npm
+_NPM_CMD="npm"
+if [ -n "$NODE_BIN" ] && [ -f "$(dirname "$NODE_BIN")/npm" ]; then
+    _NPM_CMD="$(dirname "$NODE_BIN")/npm"
+    PATH="$(dirname "$NODE_BIN"):$PATH"
+fi
+
 if [ -n "$NPM_MIRROR" ]; then
-    npm config set registry "$NPM_MIRROR"
+    $_NPM_CMD config set registry "$NPM_MIRROR"
     info "npm 镜像已设置: $NPM_MIRROR"
 fi
 
-npm ci --silent 2>/dev/null || npm install --silent
+$_NPM_CMD ci --silent 2>/dev/null || $_NPM_CMD install --silent
 ok "前端依赖安装完成"
 
-npm run build
+$_NPM_CMD run build
 ok "前端构建完成"
 
 cd "$PROJECT_DIR"

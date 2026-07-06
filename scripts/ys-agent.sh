@@ -5,8 +5,8 @@
 # 由 setup.sh 安装到 ~/.local/bin/ys-agent，替换 __PROJECT_DIR__ 为实际路径。
 #
 # 用法：
-#   ys-agent             启动后端（前台运行，Ctrl+C 停止）
-#   ys-agent --dev       启动后端 + 前端开发服务器
+#   ys-agent             启动后端（前台运行，后端 Serve 前端）
+#   ys-agent --dev       启动后端 + Vite 开发服务器
 #   ys-agent --stop      停止正在运行的服务
 #   ys-agent update      拉取最新代码并升级
 #   ys-agent migrate     手动执行数据迁移
@@ -46,15 +46,13 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
     echo "YS-Agent — AI Agent for YonSuite ERP"
     echo ""
     echo "用法:"
-    echo "  ys-agent                    启动后端 + 前端，并打开浏览器"
+    echo "  ys-agent                    启动后端，浏览器访问 http://localhost:8089"
+    echo "  ys-agent --dev              启动后端 + Vite 开发服务器（前端热更新）"
     echo "  ys-agent stop               停止正在运行的服务"
     echo "  ys-agent update             拉取最新代码并升级"
     echo "  ys-agent migrate            手动执行数据迁移"
     echo "  ys-agent version / --version 显示版本信息"
     echo "  ys-agent --help             显示此帮助"
-    echo ""
-    echo "升级:"
-    echo "  ys-agent update             拉取最新代码并升级（自动备份数据）"
     exit 0
 fi
 
@@ -90,7 +88,7 @@ kill_port() {
 
 # ── 读取端口（兼容 .env） ──────────────────────────────────────────────────
 if [[ -f "$YS_PROJECT_DIR/.env" ]]; then
-    source <(grep -E '^YS_(FRONTEND_PORT|AGENT_PORT)=' "$YS_PROJECT_DIR/.env" 2>/dev/null || true)
+    source <(grep -E '^YS_(AGENT_PORT|FRONTEND_PORT)=' "$YS_PROJECT_DIR/.env" 2>/dev/null || true)
 fi
 BACKEND_PORT="${YS_AGENT_PORT:-8089}"
 FRONTEND_PORT="${YS_FRONTEND_PORT:-8088}"
@@ -127,17 +125,22 @@ print(f'  Commit: {g[\"commit\"]}   Branch: {g[\"branch\"]}')
     # ── stop ──
     stop)
         kill_port "$BACKEND_PORT"
-        kill_port "$FRONTEND_PORT"
+        [[ -n "${FRONTEND_PID:-}" ]] && kill "$FRONTEND_PID" 2>/dev/null || true
         ok "服务已停止"
         exit 0
         ;;
 
-    # ── 空参数 → 继续执行后面的启动流程 ──
-    "")
-        # 不传参数时启动服务，走下面的默认逻辑
+    # ── --dev → Vite 开发服务器模式 ──
+    --dev)
+        DEV_MODE=true
         ;;
 
-    # ── 未知命令 → 报错退出 ──
+    # ── 空参数 → 默认模式 ──
+    "")
+        DEV_MODE=false
+        ;;
+
+    # ── 未知命令 ──
     *)
         err "未知命令: ${1:-}"
         err "使用 ys-agent --help 查看可用命令"
@@ -146,42 +149,46 @@ print(f'  Commit: {g[\"commit\"]}   Branch: {g[\"branch\"]}')
 
 esac
 
-# ── 默认模式：启动前后端 ───────────────────────────────────────────────────
+# ── 启动 ──
 PYTHONPATH="" source "$VENV_ACTIVATE"
-
-# 停止已占用的端口
 kill_port "$BACKEND_PORT"
 kill_port "$FRONTEND_PORT"
 
 HOST="${YS_AGENT_HOST:-0.0.0.0}"
 
-# ── 启动前端（后台） ──
-if [[ -d "$YS_PROJECT_DIR/web/node_modules" ]]; then
-    info "启动前端: http://localhost:$FRONTEND_PORT"
-    cd "$YS_PROJECT_DIR/web"
-    npx vite --host 0.0.0.0 --port "$FRONTEND_PORT" &
-    FRONTEND_PID=$!
-    cd "$YS_PROJECT_DIR"
-
-    # 自动打开浏览器
-    sleep 2
-    case "$OS" in
-        macos) open "http://localhost:$FRONTEND_PORT" 2>/dev/null || true ;;
-        linux) xdg-open "http://localhost:$FRONTEND_PORT" 2>/dev/null || true ;;
-    esac
+if [[ "$DEV_MODE" == "true" ]]; then
+    # 开发模式：Vite 热更新
+    if [[ -d "$YS_PROJECT_DIR/web/node_modules" ]]; then
+        cd "$YS_PROJECT_DIR/web"
+        info "启动前端开发服务器: http://localhost:$FRONTEND_PORT"
+        npx vite --host "$HOST" --port "$FRONTEND_PORT" &
+        FRONTEND_PID=$!
+        cd "$YS_PROJECT_DIR"
+    else
+        warn "前端依赖未安装，跳过前端（如需请: cd web && npm install）"
+    fi
 else
-    warn "前端依赖未安装，跳过前端启动（如需前端请执行: cd web && npm install）"
+    # 生产模式：后端直接 Serve 前端静态文件
+    if [[ -d "$YS_PROJECT_DIR/web/dist" ]]; then
+        info "前端已构建，通过后端统一 Serve: http://$HOST:$BACKEND_PORT"
+    elif [[ -d "$YS_PROJECT_DIR/web/node_modules" ]]; then
+        warn "前端未构建（web/dist 不存在），用 Vite 临时启动..."
+        cd "$YS_PROJECT_DIR/web"
+        npx vite --host "$HOST" --port "$FRONTEND_PORT" &
+        FRONTEND_PID=$!
+        cd "$YS_PROJECT_DIR"
+    else
+        warn "前端未构建，请先运行: bash setup.sh"
+    fi
 fi
 
-# ── 启动后端（前台） ──
 info "启动后端: http://$HOST:$BACKEND_PORT"
 
 echo ""
 echo "╔══════════════════════════════════════════════╗"
 echo "║     YS-Agent 启动完成                         ║"
-echo "║  前端: http://localhost:$FRONTEND_PORT             ║"
-echo "║  后端: http://localhost:$BACKEND_PORT              ║"
-echo "║  API 文档: http://localhost:$BACKEND_PORT/docs    ║"
+echo "║  访问: http://$HOST:$BACKEND_PORT              ║"
+echo "║  API 文档: http://$HOST:$BACKEND_PORT/docs    ║"
 echo "║  按 Ctrl+C 停止                               ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""

@@ -16,10 +16,11 @@ VENV_ACTIVATE="$PROJECT_DIR/.venv/bin/activate"
 
 # 从 .env 文件读取端口（有默认值）
 if [ -f "$PROJECT_DIR/.env" ]; then
-    source <(grep -E '^YS_(FRONTEND_PORT|AGENT_PORT)=' "$PROJECT_DIR/.env")
+    source <(grep -E '^YS_(AGENT_PORT|FRONTEND_PORT)=' "$PROJECT_DIR/.env")
 fi
 BACKEND_PORT="${YS_AGENT_PORT:-8089}"
 FRONTEND_PORT="${YS_FRONTEND_PORT:-8088}"
+HOST="${YS_AGENT_HOST:-0.0.0.0}"
 
 cleanup() {
     echo ""
@@ -52,35 +53,42 @@ kill_port() {
 kill_port $BACKEND_PORT
 
 cd "$PROJECT_DIR"
-# Clear PYTHONPATH to avoid Hermes venv pydantic conflicts
 PYTHONPATH="" source "$VENV_ACTIVATE"
-echo "Starting backend on http://localhost:$BACKEND_PORT ..."
-PYTHONPATH="" uvicorn backend.main:app --host 0.0.0.0 --port $BACKEND_PORT &
+echo "Starting backend on http://$HOST:$BACKEND_PORT ..."
+PYTHONPATH="" uvicorn backend.main:app --host "$HOST" --port $BACKEND_PORT &
 BACKEND_PID=$!
 
-# ── Frontend ──
-kill_port $FRONTEND_PORT
-
-cd "$PROJECT_DIR/web"
-echo "Starting frontend on http://localhost:$FRONTEND_PORT ..."
-npx vite --host 0.0.0.0 &
-FRONTEND_PID=$!
+# ── Frontend（仅在 web/node_modules 存在时启动 Vite 开发服务器） ──
+if [ -d "$PROJECT_DIR/web/dist" ]; then
+    echo "  前端已构建，通过后端 Serve: http://$HOST:$BACKEND_PORT"
+elif [ -d "$PROJECT_DIR/web/node_modules" ]; then
+    kill_port $FRONTEND_PORT
+    cd "$PROJECT_DIR/web"
+    echo "Starting frontend dev server on http://localhost:$FRONTEND_PORT ..."
+    npx vite --host 0.0.0.0 &
+    FRONTEND_PID=$!
+    cd "$PROJECT_DIR"
+else
+    echo "  ⚠ 前端未构建（web/dist 不存在），请先运行: bash setup.sh"
+fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  YS-Agent 启动完成"
-echo "  前端: http://localhost:$FRONTEND_PORT"
-echo "  后端: http://localhost:$BACKEND_PORT"
-echo "  API 文档: http://localhost:$BACKEND_PORT/docs"
+echo "  访问: http://$HOST:$BACKEND_PORT"
+if [ -n "$FRONTEND_PID" ]; then
+echo "  前端开发服务器: http://localhost:$FRONTEND_PORT"
+fi
+echo "  API 文档: http://$HOST:$BACKEND_PORT/docs"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
 # 自动打开浏览器
 sleep 2
 case "$OS" in
-  macos) open "http://localhost:$FRONTEND_PORT" ;;
-  linux) xdg-open "http://localhost:$FRONTEND_PORT" 2>/dev/null || true ;;
-  windows) start "http://localhost:$FRONTEND_PORT" ;;
+  macos) open "http://$HOST:$BACKEND_PORT" 2>/dev/null || true ;;
+  linux) xdg-open "http://$HOST:$BACKEND_PORT" 2>/dev/null || true ;;
+  windows) start "http://$HOST:$BACKEND_PORT" ;;
 esac
 
 wait $BACKEND_PID $FRONTEND_PID

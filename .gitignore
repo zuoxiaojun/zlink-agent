@@ -4,6 +4,7 @@ __pycache__/
 data/
 .env
 .yonsuite_token_cache
+.node/
 node_modules/
 web/dist/
 web/node_modules/
