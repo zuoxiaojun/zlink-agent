@@ -266,6 +266,10 @@ PLIST
       cp packaging/app.icns "$APP_BUNDLE/Contents/Resources/app.icns"
     fi
 
+    # ad-hoc 签名 — 让自定义图标在 Finder 中显示，无开发者账号也能用
+    info "[+] 签名 .app（ad-hoc）..."
+    codesign --force --deep --sign - "$APP_BUNDLE" 2>/dev/null && ok "  签名完成" || warn "  签名失败（不影响运行）"
+
     # ── DMG 安装包（--dmg 时） ──────────────────────────────────────────
     DMG_PATH=""
     if $BUILD_DMG; then
