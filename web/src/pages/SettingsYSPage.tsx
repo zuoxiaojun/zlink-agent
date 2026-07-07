@@ -13,7 +13,6 @@ export default function SettingsYSPage() {
     app_key: "",
     app_secret: "",
     tenant_id: "",
-    gateway_url: "https://c2.yonyoucloud.com/iuap-api-gateway",
   });
   const [saved, setSaved] = useState(false);
 
@@ -37,7 +36,6 @@ export default function SettingsYSPage() {
     { key: "app_key" as const, label: "App Key", type: "password" },
     { key: "app_secret" as const, label: "App Secret", type: "password" },
     { key: "tenant_id" as const, label: "Tenant ID", type: "text" },
-    { key: "gateway_url" as const, label: "Gateway URL", type: "text" },
   ];
 
   const maskSecret = (value: string) => value ? "••••••••" : "";

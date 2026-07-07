@@ -71,7 +71,6 @@ export interface YonSuiteConfigPayload {
   app_key: string;
   app_secret: string;
   tenant_id: string;
-  gateway_url: string;
 }
 
 export interface AgentConfigPayload {

@@ -59,10 +59,15 @@ async def lifespan(application: FastAPI):
 
     if "yonsuite" not in servers_cfg:
         py_path = sys.executable
+        if getattr(sys, "frozen", False):
+            # PyInstaller: use the same binary with --mcp-server flag
+            mcp_args = ["--mcp-server"]
+        else:
+            mcp_args = ["-m", "mcp_server.ys_mcp_server"]
         servers_cfg["yonsuite"] = MCPServerEntry(
             transport="stdio",
             command=py_path,
-            args=["-m", "mcp_server.ys_mcp_server"],
+            args=mcp_args,
             enabled=True,
             timeout=120,
             builtin=True,
@@ -84,16 +89,48 @@ async def lifespan(application: FastAPI):
         cfg.mcp_servers = servers_cfg
         config_manager.save(cfg)
 
-    if "mcp-server-chart" not in servers_cfg:
-        servers_cfg["mcp-server-chart"] = MCPServerEntry(
-            transport="stdio",
-            enabled=True,
-            timeout=120,
-            command="npx",
-            args=["-y", "@antv/mcp-server-chart"],
-            env={},
-            builtin=True,
-        )
+    # Chart MCP server (npx-based) — skip if npx unavailable in frozen mode
+    _chart_enabled = True
+    if getattr(sys, "frozen", False):
+        import shutil
+
+        if not shutil.which("npx"):
+            _logger.warning("npx 未安装, MCP chart 服务器已跳过（不影响核心功能）")
+            _chart_enabled = False
+
+    if _chart_enabled:
+        if "mcp-server-chart" not in servers_cfg:
+            servers_cfg["mcp-server-chart"] = MCPServerEntry(
+                transport="stdio",
+                enabled=True,
+                timeout=120,
+                command="npx",
+                # --prefer-offline: 已缓存的包不走网络，加速启动
+                args=["--prefer-offline", "-y", "@antv/mcp-server-chart"],
+                env={},
+                builtin=True,
+            )
+        else:
+            # Ensure existing entry has builtin flag (migration from older configs)
+            servers_cfg["mcp-server-chart"].builtin = True
+            # Also patch args to add --prefer-offline if missing (migration)
+            if "mcp-server-chart" in servers_cfg:
+                chart = servers_cfg["mcp-server-chart"]
+                if chart.args and "-y" in chart.args and "--prefer-offline" not in chart.args:
+                    chart.args = ["--prefer-offline"] + chart.args
+
+    # Guard: ensure both builtin servers have builtin=True even if loaded from old config
+    _BUILTIN_NAMES = {"yonsuite", "mcp-server-chart"}
+    _builtin_fixed = False
+    for name in _BUILTIN_NAMES:
+        entry = servers_cfg.get(name)
+        if entry and not entry.builtin:
+            entry.builtin = True
+            _logger.info("已修复内置 MCP 服务器「%s」的 builtin 标记", name)
+            _builtin_fixed = True
+    if _builtin_fixed:
+        cfg.mcp_servers = servers_cfg
+        config_manager.save(cfg)
 
     if servers_cfg:
         import asyncio

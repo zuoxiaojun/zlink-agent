@@ -18,7 +18,6 @@ class YonSuiteConfig(BaseModel):
     app_key: str = ""
     app_secret: str = ""
     tenant_id: str = ""
-    gateway_url: str = "https://c2.yonyoucloud.com/iuap-api-gateway"
 
 
 class AgentConfig(BaseModel):

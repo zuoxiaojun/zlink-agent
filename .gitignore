@@ -19,8 +19,7 @@ AGENTS.md
 
 # Electron + PyInstaller 构建产物
 dist/
-build/ys-agent/
-build/ys-agent-backend/
+build/
 
 CLAUDE.md
 

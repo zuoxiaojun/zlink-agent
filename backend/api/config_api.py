@@ -66,7 +66,7 @@ def save_llm_config(body: LLMConfig):
 
 
 @router.put("/yonsuite")
-def save_yonsuite_config(body: YonSuiteConfig):
+async def save_yonsuite_config(body: YonSuiteConfig):
     cfg = config_manager.load()
     if body.app_key:
         cfg.ys_app_key = body.app_key
@@ -74,7 +74,6 @@ def save_yonsuite_config(body: YonSuiteConfig):
         cfg.ys_app_secret = body.app_secret
     if body.tenant_id:
         cfg.ys_tenant_id = body.tenant_id
-    cfg.ys_gateway_url = body.gateway_url
     config_manager.save(cfg)
 
     # Sync updated credentials into the yonsuite MCP server and reconnect
@@ -89,9 +88,8 @@ def save_yonsuite_config(body: YonSuiteConfig):
         }
         cfg.mcp_servers = servers
         config_manager.save(cfg)
-        # Reconnect in background so new env takes effect
-        import asyncio
-        asyncio.ensure_future(_reconnect_mcp_yonsuite(yonsuite))
+        # Reconnect so new env takes effect immediately
+        await _reconnect_mcp_yonsuite(yonsuite)
 
     return {"ok": True}
 
