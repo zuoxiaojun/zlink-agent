@@ -241,6 +241,8 @@ LAUNCHER
   <string>YS-Agent</string>
   <key>CFBundleIdentifier</key>
   <string>com.yousuite.ys-agent</string>
+  <key>CFBundleIconFile</key>
+  <string>app.icns</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
