@@ -160,7 +160,7 @@ ys-agent/
 
 ## 版本
 
-当前版本：**v1.3.2**（2026-07-08）。完整变更日志见 [CHANGELOG.md](./CHANGELOG.md)。
+当前版本：**v1.3.3**（2026-07-08）。完整变更日志见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## v1.3+ 新增
 

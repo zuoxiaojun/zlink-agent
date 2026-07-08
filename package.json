@@ -1,6 +1,6 @@
 {
   "name": "ys-agent",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "YS-Agent — AI Agent for YonSuite ERP",
   "main": "electron/main.js",
   "type": "commonjs",

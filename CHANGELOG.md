@@ -1,4 +1,15 @@
 # Changelog
+## v1.3.3 — 2026-07-08 (hotfix: .app 看不到项目数据)
+
+- **修复 .app 数据目录智能解析**：`packaging/launcher.py` 和 `backend/main.py` 不再强制 `YS_DATA_DIR=~/.ys-agent/data/`，改由 `agent/utils.py` 的 `_resolve_data_dir()` 智能解析。优先级：`YS_DATA_DIR` 环境变量 > .app 旁边的项目 data/ (sibling of dist/) > `~/YS-Agent/data/` > `~/.ys-agent/data/` (默认)
+- **.app 启动信息按路径动态显示**：`scripts/build-app.sh` 启动器从写死 `~/.ys-agent/data/` 改为按 `.app` 位置探测真实数据目录
+
+**实测：** .app 在 `dist/YS-Agent.app/` 启动后，`/api/sessions` 现在显示项目里的 111 个 session（v1.3.2 只显示 `~/.ys-agent/data/` 里的 4 个老 test session）。
+
+**这是 v1.3.2 的关键 bug** —— 如果用户从源码模式（用项目 data/）切到 .app 模式，.app 会落到空的 `~/.ys-agent/data/`，看起来"数据丢了"。强烈建议 v1.3.2 用户升级到此版本。
+
+**未变：** 18 个内置工具、.app 体积 73M、所有 v1.3.2 改进（Mac 安装加固、playwright 移除、anthropic 依赖）。
+
 ## v1.3.2 — 2026-07-08 (.app 体积优化 199M → 73M + 启动修复)
 
 - **.app 真正自包含**：移除 `playwright` 依赖（之前打包了 127MB 的浏览器自动化库，但 v1.3.1 已经移除了 `browser_tool.py` 没人用了）。`packaging/ys-agent.spec` 把 `playwright` / `playwright.sync_api` / `playwright._impl` 加进 `excludes`；`scripts/build-app.sh` 的 chart MCP 预缓存段措辞改为"可选"
