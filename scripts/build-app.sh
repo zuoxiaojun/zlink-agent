@@ -235,8 +235,9 @@ open http://127.0.0.1:8089
 LAUNCHER
     chmod +x "$APP_BUNDLE/Contents/MacOS/YS-Agent"
 
-    # 创建 Info.plist
-    cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'
+    # 创建 Info.plist (版本号从 VERSION 文件动态读, 避免硬编码过期)
+    PLIST_VERSION=$(cat VERSION 2>/dev/null || echo "0.0.0")
+    cat > "$APP_BUNDLE/Contents/Info.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -259,9 +260,9 @@ LAUNCHER
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>1.3.0</string>
+  <string>${PLIST_VERSION}</string>
   <key>CFBundleVersion</key>
-  <string>1.3.0</string>
+  <string>${PLIST_VERSION}</string>
   <key>LSMinimumSystemVersion</key>
   <string>10.15</string>
   <key>NSHighResolutionCapable</key>
