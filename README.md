@@ -4,7 +4,7 @@
 
 ## 功能
 
-- **AI 对话** — WebSocket 流式聊天，18 个内置工具 + YonSuite/chart MCP 自动调用，支持推理过程实时显示；浏览器自动化通过自装 `@playwright/mcp` 提供
+- **AI 对话** — WebSocket 流式聊天，18 个内置工具 + YonSuite MCP 自动调用，支持推理过程实时显示；浏览器/图表功能通过自装 MCP 提供（无需 Python/Node 依赖）
 - **YonSuite 集成** — 销售/采购/生产订单、库存、待办、商机等 11 个查询工具
 - **Pydantic 配置** — 类型安全的配置模型，自动加密敏感字段，属性访问替代字典操作
 - **Phase 状态机** — 4 阶段生命周期（idle/turn/compaction/retry）+ Envelope SSE 消息包装
@@ -123,7 +123,7 @@ ys-agent/
 │   ├── events/             # 事件总线 + 8 事件类 + Extension 系统
 │   ├── extensions/         # 内置扩展（日志/监控/安全）
 │   ├── plugin_system/      # 插件发现（entry-point + 目录扫描）
-│   ├── tools/              # 26+ 个内置工具 + MCP 管理器
+│   ├── tools/              # 18 个内置工具 + MCP 管理器
 │   ├── yonsuite_client/    # YonSuite API 核心库
 │   ├── skills/             # 技能包
 │   ├── session_manager.py  # 会话管理
@@ -160,7 +160,7 @@ ys-agent/
 
 ## 版本
 
-当前版本：**v1.3.1**（2026-07-08）。完整变更日志见 [CHANGELOG.md](./CHANGELOG.md)。
+当前版本：**v1.3.2**（2026-07-08）。完整变更日志见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## v1.3+ 新增
 

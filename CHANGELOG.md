@@ -1,4 +1,19 @@
 # Changelog
+## v1.3.2 — 2026-07-08 (.app 体积优化 199M → 73M + 启动修复)
+
+- **.app 真正自包含**：移除 `playwright` 依赖（之前打包了 127MB 的浏览器自动化库，但 v1.3.1 已经移除了 `browser_tool.py` 没人用了）。`packaging/ys-agent.spec` 把 `playwright` / `playwright.sync_api` / `playwright._impl` 加进 `excludes`；`scripts/build-app.sh` 的 chart MCP 预缓存段措辞改为"可选"
+- **.app 不再隐式依赖 Node.js**：`backend/main.py` 的 chart MCP 注入在 `frozen` 模式下静默跳过（之前是 warning，会让 .app 用户疑惑）。开发模式保留 warning（缺 npx 是异常）
+- **修复 _get_version 在 frozen 模式下返回 `"unknown"`**：`backend/main.py` 的 import 位置错误（之前 inline 在 `app = FastAPI(...)` 上面，触发 `NameError` 导致 .app 启动崩）；`backend/api/system_api.py` 加 `import sys` 并读 `sys._MEIPASS` 路径；`packaging/ys-agent.spec` 把 `VERSION` 文件以 3-tuple 形式打进 `datas`
+- **yonsuite skill 软化**："必须使用 @antv/mcp-server-chart" 改为 "优先使用, 无则 matplotlib/ECharts 兜底"，避免 .app 用户（无 Node.js）撞强依赖
+- **Mac 安装体验加固**：`setup.sh` 在 macOS 上新增 Homebrew（可选提示）和 Xcode Command Line Tools（强失败，pip 装包需要）检测；brew 警告改为"可选"措辞，给出 python.org / nodejs.org 手动安装路径
+- **依赖补全**：`requirements.txt` / `pyproject.toml` 新增 `anthropic>=0.40.0`（v1.3.1 漏了）
+
+**实测：** `dist/YS-Agent.app` 从 199M 降到 73M（-63%），双击启动 HTTP 200，`/api/health` 返回 `version: "1.3.2"`，无需系统装 Python / Node / Xcode CLT。
+
+**未变：** 18 个内置工具、11 个 YonSuite MCP、9 个 LLM provider、Extension 系统、Phase 状态机、记忆/会话/技能系统。
+
+**迁移说明：** 从 v1.3.1 升级只需 `ys-agent update`，会自动用新镜像回退链重装 Python 依赖；.app 用户下载新 .app 替换即可。
+
 ## v1.3.1 — 2026-07-08 (安装脚本加固 + 浏览器工具改 MCP 化)
 
 - **移除内置 browser 工具集**：`agent/tools/browser_tool.py` 删除（649 行）。`playwright` 不再是 YS-Agent 的运行时依赖，少装 ~500MB 浏览器二进制。需要浏览器自动化的用户，可在前端 MCP 管理页添加官方 `@playwright/mcp`（`npx -y @playwright/mcp@latest`）。`web/src/pages/ToolsPage.tsx` 同步移除 `browser` 工具集 emoji 映射
