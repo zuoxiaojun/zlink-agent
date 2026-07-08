@@ -123,6 +123,33 @@ else
     warn "未找到 git，无法使用升级功能（ys-agent update）"
 fi
 
+# ── Mac 专属前置检查 (其他平台跳过) ─────────────────────────────────────
+if [ "$OS" = "macos" ]; then
+    # Homebrew 检测 (warn, 不阻塞)
+    if ! command -v brew &>/dev/null; then
+        warn "未检测到 Homebrew"
+        warn "  Mac 用户推荐通过 brew 装 Python/Node:"
+        warn "    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)""
+    else
+        ok "Homebrew: $(brew --version | head -1)"
+    fi
+
+    # Xcode Command Line Tools 检测 (强失败, pip 装包会卡)
+    if ! command -v xcode-select &>/dev/null || ! xcode-select -p &>/dev/null 2>&1; then
+        err "Xcode Command Line Tools 未装"
+        err "  cryptography / pydantic-core 等需要它编译本地扩展"
+        err "  修复: xcode-select --install"
+        err "  跳过此检查: XCODE_CLT_SKIP=1 bash setup.sh"
+        if [ "${XCODE_CLT_SKIP:-}" != "1" ]; then
+            exit 1
+        else
+            warn "XCODE_CLT_SKIP=1 已设置, 跳过 (后续装包可能失败)"
+        fi
+    else
+        ok "Xcode CLT: $(xcode-select -p)"
+    fi
+fi
+
 echo ""
 
 # ── 2. 镜像配置 ─────────────────────────────────────────────────────────────
