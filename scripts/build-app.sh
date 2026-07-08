@@ -203,19 +203,22 @@ if curl -sf http://127.0.0.1:8089/api/config >/dev/null 2>&1; then
   exit 0
 fi
 
-# 在独立终端窗口里启动服务
-osascript -e "tell application \"Terminal\" to do script \"cd '$DIR' && clear && \\
-echo '━━━ YS-Agent 启动中 ━━━' && \\
-# 数据目录优先: .app 旁边的项目 data/ > ~/YS-Agent/data/ > ~/.ys-agent/data/
+
+# 计算数据目录 (按优先级, 用于显示)
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"  # .app 路径
 PROJECT_DATA="$(dirname "$(dirname "$APP_DIR")")/data"  # dist/YS-Agent.app/../data
 if [ -d "$PROJECT_DATA" ]; then
-  echo "数据目录: $PROJECT_DATA (项目数据)" && \
+  DATA_DIR_DISPLAY="$PROJECT_DATA (项目数据)"
 elif [ -d "$HOME/YS-Agent/data" ]; then
-  echo "数据目录: ~/YS-Agent/data" && \
+  DATA_DIR_DISPLAY="~/YS-Agent/data"
 else
-  echo "数据目录: ~/.ys-agent/data (默认)" && \
-fi \\
+  DATA_DIR_DISPLAY="~/.ys-agent/data (默认)"
+fi
+
+# 在独立终端窗口里启动服务
+osascript -e "tell application \"Terminal\" to do script \"cd '$DIR' && clear && \\
+echo '━━━ YS-Agent 启动中 ━━━' && \\
+echo '数据目录: $DATA_DIR_DISPLAY' && \\
 echo '访问地址: http://127.0.0.1:8089' && \\
 echo '按 Ctrl+C 停止服务' && \\
 echo '' && \\
@@ -223,7 +226,6 @@ echo '' && \\
 echo ''; \\
 echo '服务已停止，此窗口将自动关闭...'; \\
 sleep 3\"" &
-
 # 等服务就绪后自动打开浏览器
 for i in $(seq 1 20); do
   if curl -sf http://127.0.0.1:8089/api/config >/dev/null 2>&1; then
