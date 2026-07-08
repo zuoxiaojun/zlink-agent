@@ -52,7 +52,6 @@ a = Analysis(
         "agent.tools.file_tools",
         "agent.tools.web_tools",
         "agent.tools.web_extract_tool",
-        "agent.tools.browser_tool",
         "agent.tools.skills_tool",
         "agent.tools.todo_tool",
         "agent.tools.clarify_tool",
@@ -152,6 +151,9 @@ a = Analysis(
         "cv2",
         "tensorflow",
         "torch",
+        "playwright",  # v1.3.1+ 移除内置 browser 工具, 改用 @playwright/mcp 自装
+        "playwright.sync_api",
+        "playwright._impl",
     ],
 
     hookspath=[],
@@ -225,7 +227,7 @@ coll = COLLECT(
 #     icon=str(PROJECT_ROOT / "packaging" / "app.icns"),
 #     bundle_identifier="com.yousuite.ys-agent",
 #     info_plist={
-#         "CFBundleShortVersionString": "1.3.0",
+#         "CFBundleShortVersionString": "1.3.1",
 #         "CFBundleDisplayName": "YS-Agent",
 #         "CFBundleName": "YS-Agent",
 #         "NSHighResolutionCapable": True,

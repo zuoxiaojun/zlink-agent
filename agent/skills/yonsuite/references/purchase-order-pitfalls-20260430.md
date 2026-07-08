@@ -13,7 +13,7 @@
 ```
 ① 查询数据 → 写入 /tmp/purchase_week_result.json
 ② skill_view('data-analysis') + 执行统计分析（HHI/IQR/漏斗）
-③ 生成图表（mcp-server-chart）
+③ 生成图表（优先 mcp-server-chart，无则用 matplotlib/ECharts 兜底）
 ④ 用 sale_analysis_template.html 组装 HTML
    → 读取 JSON 中真实 rows，按模板占位符格式替换
    → 不得虚构任何明细行数据

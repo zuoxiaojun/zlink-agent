@@ -141,17 +141,17 @@ else
 fi
 echo ""
 
-# ── 4. 预缓存 MCP 依赖 ──────────────────────────────────────────────────
-info "[4/5] 预缓存 MCP 依赖..."
-
-# 预缓存 chart MCP 的 npx 包，避免用户首次启动等待下载
+# ── 4. 预缓存 MCP 依赖 (可选, 仅当 Node.js 可用时执行) ───────────────
+# v1.3.1+ chart MCP 不再内置, 用户通过 MCP 管理页自装 @antv/mcp-server-chart
+# 构建时若本机有 npx, 顺便预缓存, 加速用户首次启动
 if command -v npx &>/dev/null; then
-  info "  缓存 mcp-server-chart (npx)..."
+  info "[4/5] 预缓存 chart MCP (npx, 可选)..."
   npx --prefer-offline -y @antv/mcp-server-chart --version &>/dev/null || \
   npx -y @antv/mcp-server-chart --version &>/dev/null && \
-  ok "  mcp-server-chart 已缓存"
+  ok "  mcp-server-chart 已缓存" || \
+  warn "  mcp-server-chart 缓存失败 (不影响构建)"
 else
-  warn "  npx 未安装，跳过缓存（chart MCP 启动时可能稍慢）"
+  info "[4/5] 跳过 chart MCP 预缓存 (本机无 npx, 用户自装时再下)"
 fi
 echo ""
 

@@ -133,9 +133,14 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 5. 拼装 HTML 报告 → 写入文件 → 发送/打开
 ```
 
-### 图表生成（必须使用 @antv/mcp-server-chart）
+### 图表生成
 
-⚠️ **画分析图必须使用 `@antv/mcp-server-chart` MCP 工具**，禁止用 Python matplotlib、echarts 等其他方式生成图表。
+**优先使用 `@antv/mcp-server-chart` MCP 工具**（用友品牌风格，theme=academy）。
+如果用户没有装 chart MCP（v1.3.1+ 默认不内置），可用其他方式兜底：
+- Python `matplotlib` / `plotly` 静态图
+- HTML + ECharts 前端渲染
+
+不要因为没有 chart MCP 就报错，应该选择可用的方式出图。
 
 支持以下图表类型（theme=academy 用友品牌风格）：
 

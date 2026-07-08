@@ -95,8 +95,14 @@ async def lifespan(application: FastAPI):
         import shutil
 
         if not shutil.which("npx"):
-            _logger.warning("npx 未安装, MCP chart 服务器已跳过（不影响核心功能）")
+            # .app 用户预期没装 Node.js, 静默跳过 chart MCP
+            _logger.info("未检测到 npx, MCP chart 服务器已跳过 (用户可通过 MCP 管理页自装 @antv/mcp-server-chart)")
             _chart_enabled = False
+    else:
+        # 开发模式: npx 缺失是异常, 提醒
+        import shutil
+        if not shutil.which("npx"):
+            _logger.warning("npx 未安装, MCP chart 服务器已跳过 (运行 npm i -g npx 修复)")
 
     if _chart_enabled:
         if "mcp-server-chart" not in servers_cfg:

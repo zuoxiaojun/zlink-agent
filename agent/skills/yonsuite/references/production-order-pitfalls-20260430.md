@@ -14,7 +14,7 @@
 ```
 ① 查数据（YonSuite API）
 ② skill_view('data-analysis') + 执行统计分析（HHI/IQR/漏斗）
-③ 生成图表（mcp-server-chart）
+③ 生成图表（优先 mcp-server-chart，无则用 matplotlib/ECharts 兜底）
 ④ 用 sale_analysis_template.html 组装 HTML（含决策简报+全量明细）
 ⑤ 直调 OpenAPI 发飞书（不走 open）
 ```
