@@ -125,13 +125,16 @@ fi
 
 # ── Mac 专属前置检查 (其他平台跳过) ─────────────────────────────────────
 if [ "$OS" = "macos" ]; then
-    # Homebrew 检测 (warn, 不阻塞)
+    # Homebrew 检测 (可选, 仅作提示)
     if ! command -v brew &>/dev/null; then
-        warn "未检测到 Homebrew"
-        warn "  Mac 用户推荐通过 brew 装 Python/Node:"
-        warn "    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)""
+        info "Homebrew 未装 (可选, 装 Python/Node 不是必需的)"
+        info "  方案 A — 手动装 (无需 Homebrew):"
+        info "    Python 3.11+: https://www.python.org/downloads/macos/"
+        info "    Node.js 18+:  https://nodejs.org/en/download"
+        info "  方案 B — 装 Homebrew 后用 brew:"
+        info "    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)""
     else
-        ok "Homebrew: $(brew --version | head -1)"
+        ok "Homebrew: $(brew --version | head -1) (可选)"
     fi
 
     # Xcode Command Line Tools 检测 (强失败, pip 装包会卡)
