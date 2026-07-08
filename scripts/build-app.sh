@@ -285,27 +285,57 @@ PLIST
     codesign --force --deep --sign - "$APP_BUNDLE" 2>/dev/null && ok "  签名完成" || warn "  签名失败（不影响运行）"
 
     # ── DMG 安装包（--dmg 时） ──────────────────────────────────────────
+    # 用 hdiutil 而非 create-dmg, 因为我们想在 DMG 里同时放 .app + 说明文档
+    # create-dmg 只接受单个 .app, 不支持 add-file 类选项
     DMG_PATH=""
     if $BUILD_DMG; then
       VERSION=$(cat VERSION 2>/dev/null || echo "1.3.1")
-      DMG_NAME="YS-Agent ${VERSION}.dmg"
-      DMG_PATH="dist/${DMG_NAME}"
+      DMG_PATH="dist/YS-Agent ${VERSION}.dmg"
 
       info "[+] 生成 DMG 安装包..."
 
-      if create-dmg --overwrite --no-code-sign "$APP_BUNDLE" "dist/" 2>/dev/null; then
-        # find the generated DMG (create-dmg auto-names it)
-        DMG_PATH=$(ls -t dist/*.dmg 2>/dev/null | head -1)
-        if [ -n "$DMG_PATH" ] && [ -f "$DMG_PATH" ]; then
-          DMG_SIZE=$(du -sh "$DMG_PATH" 2>/dev/null | awk '{print $1}')
-          ok "DMG 安装包已生成: $(basename "$DMG_PATH") (${DMG_SIZE})"
-        else
-          warn "DMG 文件未找到，可能命名不同，请检查 dist/ 目录"
-          BUILD_DMG=false
-        fi
+      # staging 目录: 装 .app + 首次安装说明.txt + Applications 软链
+      DMG_STAGE=$(mktemp -d)
+      cp -R "$APP_BUNDLE" "$DMG_STAGE/"
+      ln -s /Applications "$DMG_STAGE/Applications"
+      cat > "$DMG_STAGE/首次安装说明.txt" << 'FIRST_RUN'
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  YS-Agent 首次安装说明 (macOS)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. 把 YS-Agent.app 拖到右边的 Applications 文件夹
+2. 在 Applications 里找到 YS-Agent.app
+3. 首次启动: 右键点击 → 选择"打开" (不是双击!)
+   → 弹出确认框, 再点一次"打开"
+4. 之后双击即可正常使用
+
+为什么要右键打开?
+  本 .app 用了 ad-hoc 签名 (无 Apple 开发者账号, 免费)
+  macOS Gatekeeper 默认会拦截"未识别开发者"的 .app
+  右键打开是 macOS 给非商店 App 的官方放行方式
+
+不想右键? 也可以在终端跑:
+  xattr -dr com.apple.quarantine /Applications/YS-Agent.app
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  访问地址: http://127.0.0.1:8089
+  停止服务: 关闭启动时弹出的 Terminal 窗口即可
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FIRST_RUN
+
+      rm -f "$DMG_PATH"
+      if hdiutil create -volname "YS-Agent ${VERSION}" \
+              -srcfolder "$DMG_STAGE" \
+              -ov -format UDZO \
+              "$DMG_PATH" > /dev/null 2>&1; then
+        rm -rf "$DMG_STAGE"
+        DMG_SIZE=$(du -sh "$DMG_PATH" 2>/dev/null | awk '{print $1}')
+        ok "DMG 安装包已生成: $(basename "$DMG_PATH") (${DMG_SIZE})"
       else
-        warn "DMG 生成失败，跳过"
+        warn "DMG 生成失败 (hdiutil 错误)"
+        rm -rf "$DMG_STAGE"
         BUILD_DMG=false
+        DMG_PATH=""
       fi
     fi
 
