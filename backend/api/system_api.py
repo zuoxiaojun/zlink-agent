@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -38,7 +39,19 @@ _update_status: dict = {
 
 
 def _get_version() -> str:
-    """从 pyproject.toml 读取版本号。"""
+    """读取版本号: 优先级 VERSION 文件 > pyproject.toml > unknown."""
+    # 1. 优先读 VERSION 文件 (源码/frozen 都行)
+    candidates = [_PROJECT_ROOT / "VERSION", Path(__file__).resolve().parent.parent.parent / "VERSION"]
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        candidates.append(Path(meipass) / "VERSION")
+    for candidate in candidates:
+        try:
+            if candidate.exists():
+                return candidate.read_text().strip()
+        except Exception:
+            pass
+    # 2. 退化: 从 pyproject.toml 解析
     try:
         pyproject = _PROJECT_ROOT / "pyproject.toml"
         if pyproject.exists():

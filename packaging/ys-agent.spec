@@ -169,6 +169,12 @@ frontend_dist = PROJECT_ROOT / "web" / "dist"
 if frontend_dist.is_dir():
     a.datas += Tree(frontend_dist, prefix="web/dist")
 
+# ── VERSION 文件 (让 _get_version() 在 frozen 模式下能读到) ──────────
+version_file = PROJECT_ROOT / "VERSION"
+if version_file.is_file():
+    # PyInstaller 6.x: datas 是 list of (dest_name, source_path, typecode)
+    a.datas += [("VERSION", str(version_file), "DATA")]
+
 # ── Builtin skills (agent/skills/ directory) ────────────────────────────
 # Skills are loaded dynamically at runtime, so PyInstaller can't
 # follow them as imports.  Bundle them as data files.

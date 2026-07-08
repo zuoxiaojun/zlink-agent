@@ -151,6 +151,8 @@ async def lifespan(application: FastAPI):
     await disconnect_all_servers()
 
 
+from backend.api.system_api import _get_version  # noqa: E402
+
 app = FastAPI(title="YS-Agent API", version=_get_version(), lifespan=lifespan)
 
 app.add_middleware(
