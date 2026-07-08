@@ -9,10 +9,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-if getattr(sys, "frozen", False):
-    import os
-
-    os.environ.setdefault("YS_DATA_DIR", str(Path.home() / ".ys-agent" / "data"))
+# 注意: YS_DATA_DIR 不再在这里强制设置, 由 agent/utils.py 的 _resolve_data_dir()
+# 智能解析 (找项目 data/ > ~/YS-Agent/data/ > ~/.ys-agent/data/)
+# 仅当用户在 ys-agent.sh / start.sh 显式 export 时才用 env
 
 from contextlib import asynccontextmanager
 

@@ -206,7 +206,16 @@ fi
 # 在独立终端窗口里启动服务
 osascript -e "tell application \"Terminal\" to do script \"cd '$DIR' && clear && \\
 echo '━━━ YS-Agent 启动中 ━━━' && \\
-echo '数据目录: ~/.ys-agent/data/' && \\
+# 数据目录优先: .app 旁边的项目 data/ > ~/YS-Agent/data/ > ~/.ys-agent/data/
+APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"  # .app 路径
+PROJECT_DATA="$(dirname "$(dirname "$APP_DIR")")/data"  # dist/YS-Agent.app/../data
+if [ -d "$PROJECT_DATA" ]; then
+  echo "数据目录: $PROJECT_DATA (项目数据)" && \
+elif [ -d "$HOME/YS-Agent/data" ]; then
+  echo "数据目录: ~/YS-Agent/data" && \
+else
+  echo "数据目录: ~/.ys-agent/data (默认)" && \
+fi \\
 echo '访问地址: http://127.0.0.1:8089' && \\
 echo '按 Ctrl+C 停止服务' && \\
 echo '' && \\
