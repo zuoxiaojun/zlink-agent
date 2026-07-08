@@ -1,4 +1,21 @@
 # Changelog
+## v1.3.1 — 2026-07-08 (安装脚本加固 + 浏览器工具改 MCP 化)
+
+- **移除内置 browser 工具集**：`agent/tools/browser_tool.py` 删除（649 行）。`playwright` 不再是 YS-Agent 的运行时依赖，少装 ~500MB 浏览器二进制。需要浏览器自动化的用户，可在前端 MCP 管理页添加官方 `@playwright/mcp`（`npx -y @playwright/mcp@latest`）。`web/src/pages/ToolsPage.tsx` 同步移除 `browser` 工具集 emoji 映射
+- **依赖补全**：`requirements.txt` / `pyproject.toml` 新增 `anthropic>=0.40.0`（Anthropic provider 的 SDK，之前缺失导致选 Anthropic 时需要手动 `pip install anthropic`）
+- **setup.sh / setup.bat 加固**：
+  - PyPI 镜像回退链（清华 → 阿里云 → 腾讯云 → PyPI 官方），单镜像挂掉自动切下一个；`--retries 1 --timeout 15` 快速失败，单镜像失败 ~3s 而不是 30s+
+  - venv 创建后立即验证 `pip --version`（Debian/Ubuntu 上 `python3-venv` 缺失时 venv 会建成功但 pip 找不到，原版要到 `[4/8]` 才暴露错误）
+  - venv 创建失败时按 OS 给具体修复指引（`apt install python3-venv` / `brew install python` / Windows 勾选 pip）
+  - `pip install` 错误现在直接打到终端（移除 `-q 2>/dev/null` 静默吞错）
+  - 装完最后跑 `pip check` 验证依赖图一致性
+- **update.sh 同步加固**：升级时也用镜像回退链（之前只用单清华源，海外/挂掉时升级会卡住），加 `pip check`，npm install 加 `--no-audit --no-fund`
+- **工具数 27 → 18**：去掉 9 个 `browser_*` 工具（`browser_navigate` / `browser_snapshot` / `browser_click` / `browser_type` / `browser_scroll` / `browser_back` / `browser_press` / `browser_get_images` / `browser_console`）。其余 18 个内置工具 + 11 个 YonSuite MCP 查询 + 27 个 chart MCP 查询保持不变
+
+**未变：** 30 个 FastAPI 路由、9 个 LLM provider、Extension 系统、Phase 状态机、记忆/会话/技能系统、YonSuite 业务工具、前端结构。
+
+**迁移说明：** 升级到 v1.3.1 后，已有的浏览器工具调用历史/记忆里的"用 browser_navigate..."描述会失效。LLM 会自动改用 `web_extract` 或提示用户装 `@playwright/mcp`。无数据迁移需要。
+
 ## v1.3.0 — 2026-07-04 (架构优化：Pydantic 配置 + Phase 枚举 + 插件发现)
 
 - **Pydantic 配置化**：`agent/config_model.py` 新增 `AppConfig` 模型，`config_manager` 返回/写入类型安全的 Pydantic 对象而非裸 `dict`；加密字段自动处理；所有调用点（`config_api.py` / `chat.py` / `mcp_api.py` / `mcp_manager.py` / `agent.py` / `slash_commands.py` / `extensions_api.py` / `main.py`）改为属性访问

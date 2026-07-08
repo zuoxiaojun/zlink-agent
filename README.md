@@ -4,7 +4,7 @@
 
 ## 功能
 
-- **AI 对话** — WebSocket 流式聊天，26+ 个内置工具自动调用，支持推理过程实时显示
+- **AI 对话** — WebSocket 流式聊天，18 个内置工具 + YonSuite/chart MCP 自动调用，支持推理过程实时显示；浏览器自动化通过自装 `@playwright/mcp` 提供
 - **YonSuite 集成** — 销售/采购/生产订单、库存、待办、商机等 11 个查询工具
 - **Pydantic 配置** — 类型安全的配置模型，自动加密敏感字段，属性访问替代字典操作
 - **Phase 状态机** — 4 阶段生命周期（idle/turn/compaction/retry）+ Envelope SSE 消息包装
@@ -21,7 +21,7 @@
 - Node.js 18+
 - npm 9+
 
-## 一键构建
+## 一键构建（macOS / Linux）
 
 ```bash
 git clone https://atomgit.com/gcw_cJbJuamU/ys-agent.git
@@ -39,9 +39,25 @@ cd ys-agent
 ./start.sh --dev
 ```
 
-> 支持 macOS / Linux / Windows (Git Bash)，脚本自动识别系统环境。
+## 一键构建（Windows）
 
-## 手动构建
+在 Windows CMD 或 PowerShell 中运行：
+
+```bat
+git clone https://atomgit.com/gcw_cJbJuamU/ys-agent.git
+cd ys-agent
+setup.bat
+```
+
+启动：
+
+```bat
+start.bat              生产模式（后端 Serve 前端）
+start.bat --dev        开发模式（后端 + Vite 热更新）
+start.bat stop         停止服务
+```
+
+## 手动构建（跨平台）
 
 ```bash
 # 1. 克隆
@@ -50,7 +66,8 @@ cd ys-agent
 
 # 2. 后端
 python3 -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+# Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
 
 # 3. 配置端口
@@ -64,8 +81,27 @@ npm run build     # 输出到 web/dist/
 cd ..
 
 # 5. 启动
-./start.sh
+# macOS/Linux: ./start.sh
+# Windows: start.bat
 ```
+
+## 打包 Windows 桌面应用
+
+在 Windows 上打包为独立可执行文件（无需 Python 环境即可运行）：
+
+```bat
+scripts\build-windows.bat              默认打包
+scripts\build-windows.bat --no-frontend 跳过前端构建
+scripts\build-windows.bat --installer   额外生成 NSIS 安装包（需安装 NSIS）
+scripts\build-windows.bat --debug       debug 模式
+```
+
+前置条件：
+
+- `pip install pyinstaller`
+- 可选：[NSIS 3.0+](https://nsis.sourceforge.io/Download) — 用于生成安装包
+
+输出：`dist\YS-Agent\` — 包含 `ys-agent.exe` 和 `start-ys-agent.bat`。无需 Python / Node.js 即可双击运行。
 
 ## 配置
 
@@ -107,14 +143,24 @@ ys-agent/
 ├── data/                   # 运行时数据（config.json / 会话 / 记忆 / 日志 / 插件）
 ├── tests/                  # pytest 套件（41 tests）
 ├── .env.example            # 环境变量模板
-├── setup.sh                # 一键构建脚本
-├── start.sh                # 启动脚本
+├── setup.sh                # 一键构建脚本（macOS/Linux）
+├── setup.bat               # 一键构建脚本（Windows）
+├── start.sh                # 启动脚本（macOS/Linux）
+├── start.bat               # 启动脚本（Windows）
+├── packaging/              # 打包配置
+│   ├── ys-agent.spec       # PyInstaller spec
+│   ├── launcher.py         # 打包入口
+│   ├── installer.nsi       # NSIS 安装包脚本（Windows）
+│   ├── app-icon.ico        # Windows 图标
+│   └── generate_icon.py    # 图标生成脚本
+├── scripts/
+│   └── build-windows.bat   # Windows 打包脚本
 └── VERSION                 # 版本号
 ```
 
 ## 版本
 
-当前版本：**v1.3.0**（2026-07-04）。完整变更日志见 [CHANGELOG.md](./CHANGELOG.md)。
+当前版本：**v1.3.1**（2026-07-08）。完整变更日志见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## v1.3+ 新增
 

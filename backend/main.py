@@ -145,7 +145,7 @@ async def lifespan(application: FastAPI):
     await disconnect_all_servers()
 
 
-app = FastAPI(title="YS-Agent API", version="1.3.0", lifespan=lifespan)
+app = FastAPI(title="YS-Agent API", version=_get_version(), lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

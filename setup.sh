@@ -128,46 +128,131 @@ echo ""
 # ── 2. 镜像配置 ─────────────────────────────────────────────────────────────
 echo -e "${GREEN}[2/8] 配置镜像源...${NC}"
 USE_MIRROR="${YS_USE_MIRROR:-true}"
+NPM_MIRROR="${YS_NPM_MIRROR:-https://mirrors.npmmirror.com}"
+# PyPI 镜像回退链：按优先级逐个尝试，首个成功即用，全部失败才报错
+PIP_MIRRORS=(
+    "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+    "https://mirrors.aliyun.com/pypi/simple"
+    "https://mirrors.cloud.tencent.com/pypi/simple"
+    "https://pypi.org/simple"
+)
 if [ "$USE_MIRROR" = "true" ]; then
-    PIP_MIRROR="${YS_PIP_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple}"
-    NPM_MIRROR="${YS_NPM_MIRROR:-https://mirrors.npmmirror.com}"
-    echo "  PIP: $PIP_MIRROR"
+    if [ -n "${YS_PIP_MIRROR:-}" ]; then
+        # 用户指定了单一镜像，禁用回退
+        PIP_MIRRORS=("$YS_PIP_MIRROR")
+        echo "  PIP: $YS_PIP_MIRROR (用户指定, 无回退)"
+    else
+        echo "  PIP 镜像回退链 (按优先级):"
+        for m in "${PIP_MIRRORS[@]}"; do echo "    - $m"; done
+    fi
     echo "  NPM: $NPM_MIRROR"
 else
-    PIP_MIRROR=""
-    NPM_MIRROR=""
-    echo "  不使用镜像源"
+    PIP_MIRRORS=()
+    echo "  不使用镜像源 (走 PyPI 官方)"
 fi
 echo ""
+
+# ── 2b. pip 安装辅助函数 (镜像回退 + 错误可见) ───────────────────────────
+# 用法: pip_install_robust -r requirements.txt
+#      pip_install_robust -e ".[all]"
+#      pip_install_robust --upgrade pip
+# 返回: 0=成功, 1=全部失败
+pip_install_robust() {
+    set +e
+    if [ ${#PIP_MIRRORS[@]} -eq 0 ]; then
+        info "  尝试 PyPI 官方源"
+        if pip install --retries 1 --timeout 15 "$@"; then
+            set -e
+            return 0
+        fi
+        warn "  PyPI 官方源失败"
+        set -e
+        return 1
+    fi
+    for mirror in "${PIP_MIRRORS[@]}"; do
+        info "  尝试镜像: $mirror"
+        if pip install --retries 1 --timeout 15 -i "$mirror" "$@"; then
+            ok "  镜像 $mirror 安装成功"
+            set -e
+            return 0
+        fi
+        warn "  镜像 $mirror 失败, 尝试下一个..."
+    done
+    set -e
+    err "  所有 PyPI 镜像均不可用，请检查网络"
+    err "  提示: YS_USE_MIRROR=false 走官方, 或 YS_PIP_MIRROR=<URL> 指定单一镜像"
+    return 1
+}
 
 # ── 3. Python 虚拟环境 ──────────────────────────────────────────────────────
 echo -e "${GREEN}[3/8] 创建 Python 虚拟环境...${NC}"
 if [ ! -d ".venv" ]; then
-    $PY_CMD -m venv .venv
+    if ! $PY_CMD -m venv .venv 2>&1; then
+        err "虚拟环境创建失败"
+        case "$OS" in
+            linux)
+                err "Debian/Ubuntu 通常需要: sudo apt install python3-venv python3-pip"
+                err "Fedora: sudo dnf install python3-virtualenv"
+                ;;
+            macos)
+                err "macOS: brew install python (或 python@3.12)"
+                ;;
+            windows)
+                err "Windows 安装 Python 时勾选 'tcl/tk and IDLE' 和 'Add to PATH'"
+                ;;
+        esac
+        exit 1
+    fi
     ok "虚拟环境已创建"
 else
     info "虚拟环境已存在，跳过"
 fi
+# 验证 venv 里的 pip 可用 (Debian 上 python3-venv 未装时 venv 会建成功但 pip 缺失)
+if [ "$OS" = "windows" ]; then
+    if ! .venv/Scripts/python.exe -m pip --version >/dev/null 2>&1; then
+        err "虚拟环境创建成功但 pip 不可用"
+        err "重装 Python 时勾选 pip, 或: python -m ensurepip --upgrade"
+        exit 1
+    fi
+else
+    if ! .venv/bin/python -m pip --version >/dev/null 2>&1; then
+        err "虚拟环境创建成功但 pip 不可用"
+        err "Debian/Ubuntu: sudo apt install python3-venv"
+        err "或手动引导: .venv/bin/python -m ensurepip --upgrade"
+        exit 1
+    fi
+fi
+ok "venv pip 就绪"
 echo ""
 
 # ── 4. 安装 Python 依赖 ────────────────────────────────────────────────────
 echo -e "${GREEN}[4/8] 安装 Python 依赖...${NC}"
 PYTHONPATH="" source "$VENV_ACTIVATE"
 
-pip install --upgrade pip -q 2>/dev/null || true
+# 升级 pip 自身 (失败可容忍, 旧 pip 也能装包)
+info "升级 pip..."
+pip_install_robust --upgrade pip || warn "pip 升级失败, 继续用现有版本"
 
-if [ -n "$PIP_MIRROR" ]; then
-    pip install -r requirements.txt -q -i "$PIP_MIRROR"
-else
-    pip install -r requirements.txt -q
+# 装 requirements.txt (核心依赖, 失败即终止)
+info "安装 requirements.txt..."
+if ! pip_install_robust -r requirements.txt; then
+    err "Python 依赖安装失败"
+    err "请检查上方 pip 错误信息, 修复后重新运行本脚本"
+    exit 1
 fi
 
+# 装 pyproject extras (开发/打包用, 失败仅警告)
 if [ -f "pyproject.toml" ]; then
-    if [ -n "$PIP_MIRROR" ]; then
-        pip install -e ".[all]" -q -i "$PIP_MIRROR" || warn "Editable install 提示（可忽略，核心依赖已在 requirements.txt 安装）"
-    else
-        pip install -e ".[all]" -q || warn "Editable install 提示（可忽略，核心依赖已在 requirements.txt 安装）"
-    fi
+    info "安装 pyproject extras (.[all])..."
+    pip_install_robust -e ".[all]" --no-deps || warn "pyproject extras 安装失败 (非阻塞, 核心依赖已在 requirements.txt 安装)"
+fi
+
+# 验证依赖图一致性
+info "验证依赖图 (pip check)..."
+if pip check 2>&1; then
+    ok "依赖图一致"
+else
+    warn "依赖图存在冲突, 但通常不影响运行。可手动查看: .venv/bin/pip check"
 fi
 ok "Python 依赖安装完成"
 echo ""

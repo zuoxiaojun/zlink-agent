@@ -10,6 +10,7 @@ import logging
 import time
 
 from fastapi import APIRouter
+from backend.api.system_api import _get_version
 from fastapi.responses import PlainTextResponse
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,6 @@ def health() -> dict:
     return {
         "status": "ok",
         "uptime_seconds": time.time() - _SERVER_START,
-        "version": "1.3.0",
+        "version": _get_version(),
         "mcp_servers_connected": len(_connections),
     }

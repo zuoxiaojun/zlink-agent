@@ -8,7 +8,6 @@ const TOOLSET_EMOJI: Record<string, string> = {
   terminal: "💻",
   file: "📁",
   web: "🌐",
-  browser: "🌐",
   skills: "🎯",
   yonsuite: "📊",
   todo: "✅",

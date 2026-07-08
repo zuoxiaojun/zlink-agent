@@ -275,7 +275,7 @@ PLIST
     # ── DMG 安装包（--dmg 时） ──────────────────────────────────────────
     DMG_PATH=""
     if $BUILD_DMG; then
-      VERSION=$(cat VERSION 2>/dev/null || echo "1.3.0")
+      VERSION=$(cat VERSION 2>/dev/null || echo "1.3.1")
       DMG_NAME="YS-Agent ${VERSION}.dmg"
       DMG_PATH="dist/${DMG_NAME}"
 

@@ -197,23 +197,74 @@ fi
 NEW_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 NEW_VERSION=$(git describe --tags --always 2>/dev/null || echo "unknown")
 
+# ── 镜像回退 (与 setup.sh 一致) ─────────────────────────────────────────
+USE_MIRROR="${YS_USE_MIRROR:-true}"
+NPM_MIRROR="${YS_NPM_MIRROR:-https://mirrors.npmmirror.com}"
+PIP_MIRRORS=(
+    "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+    "https://mirrors.aliyun.com/pypi/simple"
+    "https://mirrors.cloud.tencent.com/pypi/simple"
+    "https://pypi.org/simple"
+)
+if [[ "$USE_MIRROR" == "true" && -n "${YS_PIP_MIRROR:-}" ]]; then
+    # 用户指定了单一镜像, 禁用回退
+    PIP_MIRRORS=("$YS_PIP_MIRROR")
+fi
+
+# 用法: pip_install_robust -r requirements.txt
+# 返回: 0=成功, 1=全部失败
+pip_install_robust() {
+    set +e
+    if [[ ${#PIP_MIRRORS[@]} -eq 0 ]]; then
+        info "  尝试 PyPI 官方源"
+        if pip install --retries 1 --timeout 15 "$@"; then
+            set -e; return 0
+        fi
+        warn "  PyPI 官方源失败"
+        set -e; return 1
+    fi
+    for mirror in "${PIP_MIRRORS[@]}"; do
+        info "  尝试镜像: $mirror"
+        if pip install --retries 1 --timeout 15 -i "$mirror" "$@"; then
+            ok "  镜像 $mirror 安装成功"
+            set -e; return 0
+        fi
+        warn "  镜像 $mirror 失败, 尝试下一个..."
+    done
+    set -e
+    err "  所有 PyPI 镜像均不可用"
+    return 1
+}
+
 # ── 更新 Python 依赖 ───────────────────────────────────────────────────────
 info "正在更新 Python 依赖..."
 if [[ -f "requirements.txt" ]]; then
-    $PIP install -r requirements.txt --quiet 2>/dev/null && ok "Python 依赖更新完成" || warn "Python 依赖更新遇到警告，请检查"
+    if pip_install_robust -r requirements.txt; then
+        ok "Python 依赖更新完成"
+    else
+        warn "Python 依赖更新失败, 可手动运行: source .venv/bin/activate && pip install -r requirements.txt"
+    fi
 fi
 
 # pyproject.toml 中的依赖
 if [[ -f "pyproject.toml" ]]; then
-    # 尝试安装可选依赖（忽略错误，用户可能没有某些 extras）
-    $PIP install -e ".[all]" --quiet 2>/dev/null || true
+    info "更新 pyproject extras (.[all])..."
+    pip_install_robust -e ".[all]" --no-deps || warn "pyproject extras 更新失败 (非阻塞)"
     ok "Python 包依赖已检查"
+fi
+
+# 验证依赖图
+info "验证依赖图 (pip check)..."
+if pip check >/dev/null 2>&1; then
+    ok "依赖图一致"
+else
+    warn "依赖图存在冲突, 但通常不影响运行"
 fi
 
 # ── 更新前端依赖 ────────────────────────────────────────────────────────────
 if [[ -d "web/node_modules" ]]; then
     info "正在更新前端依赖..."
-    (cd web && npm install --silent 2>/dev/null) && ok "前端依赖更新完成" || warn "前端依赖更新遇到警告，请手动运行 cd web && npm install"
+    (cd web && npm install --silent --no-audit --no-fund 2>/dev/null) && ok "前端依赖更新完成" || warn "前端依赖更新遇到警告，请手动运行 cd web && npm install"
 fi
 
 # ── 执行数据迁移 ────────────────────────────────────────────────────────────
