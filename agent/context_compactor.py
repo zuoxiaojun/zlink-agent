@@ -218,6 +218,17 @@ _MODEL_CONTEXT_WINDOWS: list[tuple[str, int]] = [
     ("mistral-large", 128_000),
     ("mistral-small", 128_000),
     ("mistral", 128_000),
+    # MiniMax family — M3 / Text-01 是 1M 上下文，放在通配 minimax 之前
+    ("minimax-m3", 1_000_000),
+    ("minimax-text-01", 1_000_000),
+    # M2.x 系列：更具体的子串放在通配 minimax-m2 / minimax 之前，
+    # 否则 "MiniMax-M2.7" 会先匹配 "minimax-m2"（虽然都是 128K，
+    # 但显式列出可避免后续误改）。MiniMax 官方未明说 M2.x 上下文，
+    # 沿用 128K 基线。
+    ("minimax-m2.7-highspeed", 128_000),
+    ("minimax-m2.7", 128_000),
+    ("minimax-m2.5-highspeed", 128_000),
+    ("minimax-m2.5", 128_000),
     ("minimax-m2", 128_000),
     ("minimax-text", 128_000),
     ("minimax", 128_000),

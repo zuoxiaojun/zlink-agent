@@ -95,8 +95,17 @@ LLM_PROVIDERS = {
     "MiniMax": {
         "base_url": "https://api.minimaxi.com/v1",
         "models": [
-            {"id": "MiniMax-M2.5-70B", "context_length": 128000},
-            {"id": "MiniMax-Text-01", "context_length": 1000000},
+            # M2.x 系列 —— MiniMax 官方 models-intro 仅明说 M3 是 1M,
+            # M2.5/M2.7 的具体上下文未在文档列出, 沿用项目原有的 128K 基线。
+            # 如 MiniMax 官方补充了具体数字, 请同步更新此处与
+            # agent/context_compactor.py 中的匹配规则。
+            {"id": "MiniMax-M2.5",        "context_length": 128000},
+            {"id": "MiniMax-M2.5-highspeed", "context_length": 128000},
+            {"id": "MiniMax-M2.7",        "context_length": 128000},
+            {"id": "MiniMax-M2.7-highspeed", "context_length": 128000},
+            # 1M 上下文 —— 官方原文: "原生多模态、1M 上下文的 Frontier Coding 模型"
+            {"id": "MiniMax-M3",          "context_length": 1000000},
+            {"id": "MiniMax-Text-01",     "context_length": 1000000},
         ],
         "api_key_label": "MiniMax API Key",
         "api_key_placeholder": "",
