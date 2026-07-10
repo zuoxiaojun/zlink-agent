@@ -198,17 +198,17 @@ NEW_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 NEW_VERSION=$(git describe --tags --always 2>/dev/null || echo "unknown")
 
 # ── 镜像回退 (与 setup.sh 一致) ─────────────────────────────────────────
-USE_MIRROR="${YS_USE_MIRROR:-true}"
-NPM_MIRROR="${YS_NPM_MIRROR:-https://mirrors.npmmirror.com}"
+USE_MIRROR="${ZLINK_USE_MIRROR:-true}"
+NPM_MIRROR="${ZLINK_NPM_MIRROR:-https://mirrors.npmmirror.com}"
 PIP_MIRRORS=(
     "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
     "https://mirrors.aliyun.com/pypi/simple"
     "https://mirrors.cloud.tencent.com/pypi/simple"
     "https://pypi.org/simple"
 )
-if [[ "$USE_MIRROR" == "true" && -n "${YS_PIP_MIRROR:-}" ]]; then
+if [[ "$USE_MIRROR" == "true" && -n "${ZLINK_PIP_MIRROR:-}" ]]; then
     # 用户指定了单一镜像, 禁用回退
-    PIP_MIRRORS=("$YS_PIP_MIRROR")
+    PIP_MIRRORS=("$ZLINK_PIP_MIRROR")
 fi
 
 # 用法: pip_install_robust -r requirements.txt

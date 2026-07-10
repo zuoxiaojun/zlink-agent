@@ -18,9 +18,9 @@
 #   8. 执行数据迁移
 #
 # 环境变量（镜像加速）：
-#   YS_USE_MIRROR=true          是否使用国内镜像（默认 true）
-#   YS_PIP_MIRROR=...           PyPI 镜像地址
-#   YS_NPM_MIRROR=...           npm 镜像地址
+#   ZLINK_USE_MIRROR=true          是否使用国内镜像（默认 true）
+#   ZLINK_PIP_MIRROR=...           PyPI 镜像地址
+#   ZLINK_NPM_MIRROR=...           npm 镜像地址
 # ===========================================================================
 
 set -e
@@ -157,8 +157,8 @@ echo ""
 
 # ── 2. 镜像配置 ─────────────────────────────────────────────────────────────
 echo -e "${GREEN}[2/8] 配置镜像源...${NC}"
-USE_MIRROR="${YS_USE_MIRROR:-true}"
-NPM_MIRROR="${YS_NPM_MIRROR:-https://mirrors.npmmirror.com}"
+USE_MIRROR="${ZLINK_USE_MIRROR:-true}"
+NPM_MIRROR="${ZLINK_NPM_MIRROR:-https://mirrors.npmmirror.com}"
 # PyPI 镜像回退链：按优先级逐个尝试，首个成功即用，全部失败才报错
 PIP_MIRRORS=(
     "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
@@ -167,10 +167,10 @@ PIP_MIRRORS=(
     "https://pypi.org/simple"
 )
 if [ "$USE_MIRROR" = "true" ]; then
-    if [ -n "${YS_PIP_MIRROR:-}" ]; then
+    if [ -n "${ZLINK_PIP_MIRROR:-}" ]; then
         # 用户指定了单一镜像，禁用回退
-        PIP_MIRRORS=("$YS_PIP_MIRROR")
-        echo "  PIP: $YS_PIP_MIRROR (用户指定, 无回退)"
+        PIP_MIRRORS=("$ZLINK_PIP_MIRROR")
+        echo "  PIP: $ZLINK_PIP_MIRROR (用户指定, 无回退)"
     else
         echo "  PIP 镜像回退链 (按优先级):"
         for m in "${PIP_MIRRORS[@]}"; do echo "    - $m"; done
@@ -210,7 +210,7 @@ pip_install_robust() {
     done
     set -e
     err "  所有 PyPI 镜像均不可用，请检查网络"
-    err "  提示: YS_USE_MIRROR=false 走官方, 或 YS_PIP_MIRROR=<URL> 指定单一镜像"
+    err "  提示: ZLINK_USE_MIRROR=false 走官方, 或 ZLINK_PIP_MIRROR=<URL> 指定单一镜像"
     return 1
 }
 

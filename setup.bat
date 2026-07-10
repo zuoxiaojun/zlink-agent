@@ -19,9 +19,9 @@ chcp 65001 >nul
 ::   8. 执行数据迁移
 ::
 :: 环境变量（镜像加速）：
-::   YS_USE_MIRROR=true          是否使用国内镜像（默认 true）
-::   YS_PIP_MIRROR=...           PyPI 镜像地址
-::   YS_NPM_MIRROR=...           npm 镜像地址
+::   ZLINK_USE_MIRROR=true          是否使用国内镜像（默认 true）
+::   ZLINK_PIP_MIRROR=...           PyPI 镜像地址
+::   ZLINK_NPM_MIRROR=...           npm 镜像地址
 :: ===========================================================================
 
 setlocal enabledelayedexpansion
@@ -94,15 +94,15 @@ echo.
 
 :: ── 2. 镜像配置 ─────────────────────────────────────────────────────────
 echo [2/8] 配置镜像源...
-set USE_MIRROR=%YS_USE_MIRROR%
+set USE_MIRROR=%ZLINK_USE_MIRROR%
 if "%USE_MIRROR%"=="" set USE_MIRROR=true
 
-set NPM_MIRROR=%YS_NPM_MIRROR%
+set NPM_MIRROR=%ZLINK_NPM_MIRROR%
 if "%NPM_MIRROR%"=="" set NPM_MIRROR=https://mirrors.npmmirror.com
 
 if "%USE_MIRROR%"=="true" (
-  if defined YS_PIP_MIRROR (
-    set PIP_MIRROR=%YS_PIP_MIRROR%
+  if defined ZLINK_PIP_MIRROR (
+    set PIP_MIRROR=%ZLINK_PIP_MIRROR%
     echo   PIP: %PIP_MIRROR% ^(用户指定, 无回退^)
   ) else (
     echo   PIP 镜像回退链 ^(按优先级^):
@@ -208,7 +208,7 @@ if "%USE_MIRROR%"=="true" (
       echo     [WARN] 镜像 %%m 失败, 尝试下一个...
     )
     echo   [ERROR] 所有 PyPI 镜像均不可用，请检查网络
-    echo   提示: YS_USE_MIRROR=false 走官方, 或 YS_PIP_MIRROR=^<URL^> 指定单一镜像
+    echo   提示: ZLINK_USE_MIRROR=false 走官方, 或 ZLINK_PIP_MIRROR=^<URL^> 指定单一镜像
     exit /b 1
   )
 ) else (

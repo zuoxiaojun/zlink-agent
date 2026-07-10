@@ -48,7 +48,7 @@ export function useChat() {
               error: msg.error,
             });
             if (msg.session_id && msg.session_id !== "_new") {
-              sessionStorage.setItem("ys_agent_last_session", msg.session_id);
+              sessionStorage.setItem("zlink_agent_last_session", msg.session_id);
               dispatch({
                 type: "SET_SESSION",
                 sessionId: msg.session_id,
