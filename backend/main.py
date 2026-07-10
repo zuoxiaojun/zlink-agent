@@ -9,7 +9,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-# 数据目录: ZLINK_DATA_DIR / YS_DATA_DIR 环境变量 > ~/.zlink-agent/data/，旧 ~/.ys-agent/data/ 自动兼容
+# 数据目录: ZLINK_DATA_DIR 环境变量 > ~/.zlink-agent/data/
 
 from contextlib import asynccontextmanager
 

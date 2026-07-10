@@ -15,7 +15,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 
 def _load_ys_config() -> dict:
-    # v1.4.0: 数据目录统一由 agent.utils 解析 (YS_DATA_DIR > ~/.zlink-agent/data/，旧 ~/.ys-agent/data/ 兼容)
+    # 数据目录: 由 agent.utils 解析 (ZLINK_DATA_DIR > ~/.zlink-agent/data/)
     from agent.utils import DATA_DIR
 
     config_path = DATA_DIR / "config.json"

@@ -12,8 +12,7 @@ import sys
 def _setup_frozen_env():
     """Configure runtime paths for frozen (PyInstaller) mode."""
     # 数据目录由 agent.utils._resolve_data_dir() 解析:
-    # ZLINK_DATA_DIR / YS_DATA_DIR > ~/.zlink-agent/data
-    # (old ~/.ys-agent/data fallback)
+    # ZLINK_DATA_DIR > ~/.zlink-agent/data/
 
     # When frozen, _MEIPASS is the _internal/ directory where all files live.
     # sys.path already includes it from PyInstaller bootstrap, but we also

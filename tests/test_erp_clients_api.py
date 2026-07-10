@@ -24,7 +24,7 @@ def client(tmp_path, monkeypatch):
         )
     )
     # 通过 env var 强制 config_manager 用临时文件
-    monkeypatch.setenv("YS_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ZLINK_DATA_DIR", str(tmp_path))
     # 重新加载配置 (Pydantic 缓存可能需要 invalidate)
     from backend.main import app
 
