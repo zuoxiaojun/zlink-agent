@@ -136,9 +136,9 @@ async def lifespan(application: FastAPI):
                     chart.args = ["--prefer-offline"] + chart.args
 
     # Guard: ensure both builtin servers have builtin=True even if loaded from old config
-    _BUILTIN_NAMES = {"yonsuite", "mcp-server-chart"}
+    builtin_names = {"yonsuite", "mcp-server-chart"}
     _builtin_fixed = False
-    for name in _BUILTIN_NAMES:
+    for name in builtin_names:
         entry = servers_cfg.get(name)
         if entry and not entry.builtin:
             entry.builtin = True

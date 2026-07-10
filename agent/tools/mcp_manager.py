@@ -552,7 +552,7 @@ async def connect_all_servers(servers_config: dict) -> dict[str, str]:
         names.append(name)
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    for name, result in zip(names, results):
+    for name, result in zip(names, results, strict=False):
         if isinstance(result, Exception):
             logger.warning("MCP server '%s' connection error: %s", name, result)
             status[name] = "error"

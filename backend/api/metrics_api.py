@@ -10,8 +10,9 @@ import logging
 import time
 
 from fastapi import APIRouter
-from backend.api.system_api import _get_version
 from fastapi.responses import PlainTextResponse
+
+from backend.api.system_api import _get_version
 
 logger = logging.getLogger(__name__)
 
