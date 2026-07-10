@@ -53,7 +53,7 @@ router = APIRouter(prefix="/api/extensions", tags=["extensions"])
 # without modifying the extension's own source.
 _KIND_BY_NAME: dict[str, tuple[str, str]] = {
     "log-everything": (
-        "把所有事件写到 ys-agent.events logger（DEBUG 级别）。用来追踪事件流，调试时打开。",
+        "把所有事件写到 zlink-agent.events logger（DEBUG 级别）。用来追踪事件流，调试时打开。",
         "log",
     ),
     "monitoring": (

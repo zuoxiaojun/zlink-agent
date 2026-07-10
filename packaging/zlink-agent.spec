@@ -1,8 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec for YS-Agent desktop app.
+"""PyInstaller spec for ZLink Agent desktop app.
 
-Build:  pyinstaller packaging/ys-agent.spec --clean --noconfirm
-Output: dist/YS-Agent/  (onedir: one directory, double-clickable binary inside)
+Build:  pyinstaller packaging/zlink-agent.spec --clean --noconfirm
+Output: dist/ZLink-Agent/  (onedir: one directory, double-clickable binary inside)
 
 Prerequisites:
   - web/dist/  (frontend already built — run `npm run build` in web/ first)
@@ -102,19 +102,17 @@ a = Analysis(
         "agent.context_compactor",
         "agent.slash_commands",
         "agent.config_manager",
-        "agent.yonsuite_client",
+        "agent.erp_clients.yonsuite",
 
         # ── Uvicorn internals (PyInstaller often misses protocol loops) ──
         "uvicorn.logging",
         "uvicorn.protocols.http.auto",
         "uvicorn.protocols.http.h11_impl",
         "uvicorn.protocols.http.httptools_impl",
-        "uvicorn.protocols.websocket.auto",
-        "uvicorn.protocols.websocket.wsproto_impl",
-        "uvicorn.protocols.websocket.websockets_impl",
+        "uvicorn.protocols.websockets.auto",
+        "uvicorn.protocols.websockets.websockets_impl",
         "uvicorn.loops.auto",
         "uvicorn.loops.asyncio",
-        "uvicorn.middleware.debug",
         "uvicorn.middleware.proxy_headers",
 
         # ── FastAPI extras ──
@@ -191,7 +189,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="ys-agent",
+    name="zlink-agent",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -206,9 +204,9 @@ exe = EXE(
     entitlements_file=None,
 )
 
-# ── COLLECT (onedir output: dist/YS-Agent/) ──────────────────────────────
-# Creates dist/YS-Agent/ with:
-#   ys-agent          ← 启动入口
+# ── COLLECT (onedir output: dist/ZLink-Agent/) ──────────────────────────────
+# Creates dist/ZLink-Agent/ with:
+#   zlink-agent       ← 启动入口
 #   _internal/        ← 所有 Python 模块 + 原生库 + 数据文件
 #
 # 这样 MCP 子进程（sys.executable --mcp-server）在同一个目录下就能
@@ -221,7 +219,7 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name="YS-Agent",
+    name="ZLink-Agent",
 )
 
 # ── macOS .app bundle wrapper (optional) ─────────────────────────────────
@@ -229,13 +227,13 @@ coll = COLLECT(
 # generate a real double-clickable .app on macOS.
 # APP = BUNDLE(
 #     coll,
-#     name="YS-Agent.app",
+#     name="ZLink-Agent.app",
 #     icon=str(PROJECT_ROOT / "packaging" / "app.icns"),
-#     bundle_identifier="com.yousuite.ys-agent",
+#     bundle_identifier="cn.zlink.agent",
 #     info_plist={
 #         "CFBundleShortVersionString": "1.3.1",
-#         "CFBundleDisplayName": "YS-Agent",
-#         "CFBundleName": "YS-Agent",
+#         "CFBundleDisplayName": "ZLink Agent",
+#         "CFBundleName": "ZLink Agent",
 #         "NSHighResolutionCapable": True,
 #     },
 # )

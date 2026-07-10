@@ -1,1 +1,1 @@
-"""Agent package for YS-Agent."""
+"""Agent package for ZLink Agent."""

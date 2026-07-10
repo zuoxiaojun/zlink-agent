@@ -1,13 +1,13 @@
-# Contributing to YS-Agent
+# Contributing to ZLink Agent
 
-感谢你考虑为 YS-Agent 贡献代码！
+感谢你考虑为 ZLink Agent 贡献代码！
 
 ## 开发环境
 
 ```bash
 # 克隆仓库
-git clone https://gitee.com/leftxiaojun/ys-agent.git
-cd ys-agent
+git clone https://atomgit.com/gcw_cJbJuamU/zlink-agent.git
+cd zlink-agent
 
 # Python 虚拟环境
 python3 -m venv .venv
@@ -63,7 +63,7 @@ python -m pytest tests/ --cov=agent --cov=backend --cov-report=term-missing
 
 ## 报告 Issue
 
-请在 [Gitee Issues](https://gitee.com/leftxiaojun/ys-agent/issues) 提交，包含：
+请在 [Gitee Issues](https://atomgit.com/gcw_cJbJuamU/zlink-agent/issues) 提交，包含：
 - Python / Node.js 版本
 - 复现步骤
 - 期望行为 vs 实际行为

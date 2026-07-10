@@ -1,6 +1,6 @@
-# YS-Agent Test Suite
+# ZLink Agent Test Suite
 
-36 pytest tests, ~0.5s total runtime. **No LLM, no network, no YonSuite
+pytest tests, ~0.5s total runtime. **No LLM, no network, no YonSuite
 API.**  Every test runs against the real code with a `MockLLMProvider`
 or a `FastAPI TestClient` plus a tmp-dir-isolated config.
 

@@ -1,4 +1,4 @@
-"""Shared utility functions for YS-Agent."""
+"""Shared utility functions for ZLink Agent."""
 
 import json
 import os

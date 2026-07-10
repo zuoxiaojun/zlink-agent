@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useReducer, type Dispatch } from "react";
 import type { Message, ConfigResponse, TokenUsage } from "../types";
 
@@ -5,7 +6,7 @@ export const WELCOME_MESSAGE: Message[] = [
   {
     role: "assistant",
     content:
-      "你好！我是 **YS-Agent**，你的 YonSuite AI 智能助手。\n\n" +
+      "你好！我是 **ZLink Agent（智链 Agent）**，你的多 ERP AI 智能助手。\n\n" +
       "我可以帮你完成以下工作：\n" +
       "- 🖥 **终端操作**：执行命令、管理文件\n" +
       "- 🔍 **数据查询**：搜索和分析数据\n" +

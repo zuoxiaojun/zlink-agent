@@ -1,4 +1,4 @@
-"""Slash-command system for YS-Agent.
+"""Slash-command system for ZLink Agent.
 
 Commands are triggered when a user message starts with "/".  They execute
 locally (no LLM call) and return a result directly to the UI.

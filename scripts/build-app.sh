@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ===========================================================================
-# build-app.sh — YS-Agent 桌面应用打包脚本
+# build-app.sh — ZLink Agent 桌面应用打包脚本
 #
 # 用法：
 #   bash scripts/build-app.sh                 默认打包（macOS / Linux）
@@ -8,8 +8,8 @@
 #   bash scripts/build-app.sh --no-frontend   跳过前端构建（已 build 过）
 #   bash scripts/build-app.sh --debug         PyInstaller debug 模式
 #
-# 输出：dist/YS-Agent/
-#   ├── ys-agent              ← 双击启动的服务端可执行文件
+# 输出：dist/ZLink-Agent/
+#   ├── zlink-agent           ← 双击启动的服务端可执行文件
 #   ├── _internal/            ← 所有依赖
 #   └── web/dist/             ← 前端静态文件（由 spec 复制）
 #
@@ -78,21 +78,30 @@ echo ""
 # ── 1. 检查依赖 ──────────────────────────────────────────────────────────
 info "[1/4] 检查依赖..."
 
-if ! command -v python3 &>/dev/null && ! command -v python &>/dev/null; then
+PY_CMD=""
+if [ -x "$PROJECT_DIR/.venv/bin/python" ]; then
+  PY_CMD="$PROJECT_DIR/.venv/bin/python"
+elif [ -x "$PROJECT_DIR/.venv/Scripts/python.exe" ]; then
+  PY_CMD="$PROJECT_DIR/.venv/Scripts/python.exe"
+elif command -v python3 &>/dev/null; then
+  PY_CMD="python3"
+elif command -v python &>/dev/null; then
+  PY_CMD="python"
+else
   err "需要 Python >= 3.11"
   exit 1
 fi
 
-PY_CMD="python3"
-if ! command -v python3 &>/dev/null; then
-  PY_CMD="python"
+PY_VER=$($PY_CMD --version 2>&1 | awk '{print $2}')
+info "  Python: $PY_VER ($PY_CMD)"
+
+if ! $PY_CMD -c "import sys; raise SystemExit(sys.version_info < (3, 11))"; then
+  err "需要 Python >= 3.11"
+  exit 1
 fi
 
-PY_VER=$($PY_CMD --version 2>&1 | awk '{print $2}')
-info "  Python: $PY_VER"
-
 if ! $PY_CMD -c "import PyInstaller" 2>/dev/null; then
-  err "需要 PyInstaller，请安装: pip install pyinstaller"
+  err "需要 PyInstaller，请安装到当前环境: $PY_CMD -m pip install pyinstaller"
   exit 1
 fi
 
@@ -159,11 +168,11 @@ echo ""
 info "[5/5] 运行 PyInstaller 打包..."
 
 # 清理之前的构建
-rm -rf dist/YS-Agent build/
+rm -rf dist/ZLink-Agent build/
 
 # 用隔离环境运行（unset PYTHONPATH 避免混入其他 venv 的二进制）
 PYTHONPATH="" $PY_CMD -m PyInstaller \
-  packaging/ys-agent.spec \
+  packaging/zlink-agent.spec \
   --clean \
   --noconfirm \
   $DEBUG_MODE
@@ -171,15 +180,15 @@ PYTHONPATH="" $PY_CMD -m PyInstaller \
 echo ""
 
 # ── 完成 ────────────────────────────────────────────────────────────────
-if [ -f "dist/YS-Agent/ys-agent" ] || [ -f "dist/YS-Agent/ys-agent.exe" ]; then
-  EXE_PATH="dist/YS-Agent/ys-agent"
-  [ "$TARGET_OS" = "windows" ] && EXE_PATH="dist/YS-Agent/ys-agent.exe"
+if [ -f "dist/ZLink-Agent/zlink-agent" ] || [ -f "dist/ZLink-Agent/zlink-agent.exe" ]; then
+  EXE_PATH="dist/ZLink-Agent/zlink-agent"
+  [ "$TARGET_OS" = "windows" ] && EXE_PATH="dist/ZLink-Agent/zlink-agent.exe"
 
-  APP_SIZE=$(du -sh "dist/YS-Agent" 2>/dev/null | awk '{print $1}')
+  APP_SIZE=$(du -sh "dist/ZLink-Agent" 2>/dev/null | awk '{print $1}')
 
   # ── macOS: 自动生成 .app 包装 ────────────────────────────────────────
   if [ "$TARGET_OS" = "macos" ]; then
-    APP_BUNDLE="dist/YS-Agent.app"
+    APP_BUNDLE="dist/ZLink-Agent.app"
     info "[+] 生成 macOS .app 应用包..."
 
     rm -rf "$APP_BUNDLE"
@@ -187,35 +196,35 @@ if [ -f "dist/YS-Agent/ys-agent" ] || [ -f "dist/YS-Agent/ys-agent.exe" ]; then
     mkdir -p "$APP_BUNDLE/Contents/Resources"
 
     # 把 onedir 输出整体放进 Resources/（二进制 + _internal/ 一起）
-    cp -r dist/YS-Agent/* "$APP_BUNDLE/Contents/Resources/"
+    cp -r dist/ZLink-Agent/* "$APP_BUNDLE/Contents/Resources/"
 
     # 创建启动脚本 — 用 osascript 弹一个终端窗口显示服务日志
-    cat > "$APP_BUNDLE/Contents/MacOS/YS-Agent" << 'LAUNCHER'
+    cat > "$APP_BUNDLE/Contents/MacOS/ZLink-Agent" << 'LAUNCHER'
 #!/bin/bash
-# YS-Agent macOS launcher — opens a Terminal window with server logs
+# ZLink Agent macOS launcher — opens a Terminal window with server logs
 DIR="$(cd "$(dirname "$0")/../Resources" && pwd)"
 cd "$DIR" || exit 1
 
 # 检查是否已有实例在运行
 if curl -sf http://127.0.0.1:8089/api/config >/dev/null 2>&1; then
-  osascript -e "tell application \"Terminal\" to do script \"echo '━━━ YS-Agent 已在运行 ━━━' && echo '访问地址: http://127.0.0.1:8089' && read -p '按回车关闭'\""
+  osascript -e "tell application \"Terminal\" to do script \"echo '━━━ ZLink Agent 已在运行 ━━━' && echo '访问地址: http://127.0.0.1:8089' && read -p '按回车关闭'\""
   open http://127.0.0.1:8089
   exit 0
 fi
 
 
-# v1.4.0: 数据目录统一为 ~/.ys-agent/data,源码与 .app 行为一致。
+# v1.4.0: 数据目录统一为 ~/.zlink-agent/data,源码与 .app 行为一致。
 # 这里仅显示一行提示,真实路径由 backend/main.py 启动时打印。
-DATA_DIR_DISPLAY="~/.ys-agent/data (源码与 .app 共享)"
+DATA_DIR_DISPLAY="~/.zlink-agent/data (源码与 .app 共享)"
 
 # 在独立终端窗口里启动服务
 osascript -e "tell application \"Terminal\" to do script \"cd '$DIR' && clear && \\
-echo '━━━ YS-Agent 启动中 ━━━' && \\
+echo '━━━ ZLink Agent 启动中 ━━━' && \\
 echo '数据目录: $DATA_DIR_DISPLAY' && \\
 echo '访问地址: http://127.0.0.1:8089' && \\
 echo '按 Ctrl+C 停止服务' && \\
 echo '' && \\
-./ys-agent; \\
+./zlink-agent; \\
 echo ''; \\
 echo '服务已停止，此窗口将自动关闭...'; \\
 sleep 3\"" &
@@ -228,7 +237,7 @@ for i in $(seq 1 20); do
 done
 open http://127.0.0.1:8089
 LAUNCHER
-    chmod +x "$APP_BUNDLE/Contents/MacOS/YS-Agent"
+    chmod +x "$APP_BUNDLE/Contents/MacOS/ZLink-Agent"
 
     # 创建 Info.plist (版本号从 VERSION 文件动态读, 避免硬编码过期)
     PLIST_VERSION=$(cat VERSION 2>/dev/null || echo "0.0.0")
@@ -241,17 +250,17 @@ LAUNCHER
   <key>CFBundleDevelopmentRegion</key>
   <string>zh_CN</string>
   <key>CFBundleDisplayName</key>
-  <string>YS-Agent</string>
+  <string>ZLink Agent</string>
   <key>CFBundleExecutable</key>
-  <string>YS-Agent</string>
+  <string>ZLink-Agent</string>
   <key>CFBundleIdentifier</key>
-  <string>com.yousuite.ys-agent</string>
+  <string>cn.zlink.agent</string>
   <key>CFBundleIconFile</key>
   <string>app.icns</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>YS-Agent</string>
+  <string>ZLink Agent</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
@@ -263,7 +272,7 @@ LAUNCHER
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSHumanReadableCopyright</key>
-  <string>Copyright © 2026 YS-Agent.</string>
+  <string>Copyright © 2026 ZLink Agent.</string>
 </dict>
 </plist>
 PLIST
@@ -283,7 +292,7 @@ PLIST
     DMG_PATH=""
     if $BUILD_DMG; then
       VERSION=$(cat VERSION 2>/dev/null || echo "1.3.1")
-      DMG_PATH="dist/YS-Agent ${VERSION}.dmg"
+      DMG_PATH="dist/ZLink-Agent ${VERSION}.dmg"
 
       info "[+] 生成 DMG 安装包..."
 
@@ -293,11 +302,11 @@ PLIST
       ln -s /Applications "$DMG_STAGE/Applications"
       cat > "$DMG_STAGE/首次安装说明.txt" << 'FIRST_RUN'
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  YS-Agent 首次安装说明 (macOS)
+  ZLink Agent 首次安装说明 (macOS)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. 把 YS-Agent.app 拖到右边的 Applications 文件夹
-2. 在 Applications 里找到 YS-Agent.app
+1. 把 ZLink-Agent.app 拖到右边的 Applications 文件夹
+2. 在 Applications 里找到 ZLink-Agent.app
 3. 首次启动: 右键点击 → 选择"打开" (不是双击!)
    → 弹出确认框, 再点一次"打开"
 4. 之后双击即可正常使用
@@ -308,7 +317,7 @@ PLIST
   右键打开是 macOS 给非商店 App 的官方放行方式
 
 不想右键? 也可以在终端跑:
-  xattr -dr com.apple.quarantine /Applications/YS-Agent.app
+  xattr -dr com.apple.quarantine /Applications/ZLink-Agent.app
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   访问地址: http://127.0.0.1:8089
@@ -317,7 +326,7 @@ PLIST
 FIRST_RUN
 
       rm -f "$DMG_PATH"
-      if hdiutil create -volname "YS-Agent ${VERSION}" \
+      if hdiutil create -volname "ZLink Agent ${VERSION}" \
               -srcfolder "$DMG_STAGE" \
               -ov -format UDZO \
               "$DMG_PATH" > /dev/null 2>&1; then
@@ -336,30 +345,30 @@ FIRST_RUN
 
     echo ""
     echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║     ✅ YS-Agent macOS 应用打包完成              ║${NC}"
+    echo -e "${CYAN}║     ✅ ZLink Agent macOS 应用打包完成              ║${NC}"
     echo -e "${CYAN}╠══════════════════════════════════════════════╣${NC}"
-    echo -e "${CYAN}║  应用包: dist/YS-Agent.app                    ║${NC}"
+    echo -e "${CYAN}║  应用包: dist/ZLink-Agent.app                    ║${NC}"
     if [ -n "$DMG_PATH" ] && [ -f "$DMG_PATH" ]; then
       echo -e "${CYAN}║  DMG:    ${DMG_PATH}  ║${NC}"
     fi
     echo -e "${CYAN}║  大小: ${APP_BUNDLE_SIZE}                              ║${NC}"
-    echo -e "${CYAN}║  命令行版本: dist/YS-Agent/                    ║${NC}"
+    echo -e "${CYAN}║  命令行版本: dist/ZLink-Agent/                    ║${NC}"
     echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
     echo ""
-    info "双击 dist/YS-Agent.app 启动"
+    info "双击 dist/ZLink-Agent.app 启动"
     if [ -n "$DMG_PATH" ] && [ -f "$DMG_PATH" ]; then
       info "DMG 安装包: open ${DMG_PATH}"
     fi
-    info "或命令行: open dist/YS-Agent.app"
-    info "首次启动会自动创建数据目录: ~/.ys-agent/data/"
+    info "或命令行: open dist/ZLink-Agent.app"
+    info "首次启动会自动创建数据目录: ~/.zlink-agent/data/"
     echo ""
   else
     # 非 macOS 平台
     echo ""
     echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║     ✅ YS-Agent 打包完成                       ║${NC}"
+    echo -e "${CYAN}║     ✅ ZLink Agent 打包完成                       ║${NC}"
     echo -e "${CYAN}╠══════════════════════════════════════════════╣${NC}"
-    echo -e "${CYAN}║  输出: dist/YS-Agent/                         ║${NC}"
+    echo -e "${CYAN}║  输出: dist/ZLink-Agent/                         ║${NC}"
     echo -e "${CYAN}║  入口: ${EXE_PATH}${NC}"
     echo -e "${CYAN}║  大小: ${APP_SIZE}                              ║${NC}"
     echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
@@ -369,6 +378,6 @@ FIRST_RUN
     echo ""
   fi
 else
-  err "打包失败 — dist/YS-Agent/ys-agent 未生成"
+  err "打包失败 — dist/ZLink-Agent/zlink-agent 未生成"
   exit 1
 fi

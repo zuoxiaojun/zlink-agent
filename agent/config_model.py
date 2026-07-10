@@ -1,4 +1,4 @@
-"""Pydantic config model for YS-Agent persistent settings."""
+"""Pydantic config model for ZLink Agent persistent settings."""
 
 from __future__ import annotations
 

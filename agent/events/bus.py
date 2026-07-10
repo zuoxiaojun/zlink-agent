@@ -6,7 +6,7 @@ M1 design notes
   and returns when they all complete.  This is intentional — the agent loop
   is itself synchronous, so we don't need async event handling.  Subscribers
   that want to do background work can spawn their own thread.
-* Thread-safe: YS-Agent runs the agent in a thread pool
+* Thread-safe: ZLink Agent runs the agent in a thread pool
   (see ``backend/api/chat.py``), so subscribers may be added/removed from
   multiple threads.  Registration takes a lock; publish does not (since
   iteration over the subscriber list is GIL-safe in CPython and we replace
@@ -20,7 +20,7 @@ M1 design notes
 
 Why not Pi's async event bus?
 -----------------------------
-Pi's runtime is async (TypeScript + asyncio pattern).  YS-Agent's agent
+Pi's runtime is async (TypeScript + asyncio pattern).  ZLink Agent's agent
 loop is sync (single thread, called from a worker thread).  An async bus
 would require making the whole agent loop async — a 3-4 day rewrite for
 no current benefit.  Revisit if we ever move to async streaming.

@@ -3,6 +3,6 @@ revision = 3
 requires-python = ">=3.11"
 
 [[package]]
-name = "ys-agent"
-version = "1.1.1"
+name = "zlink-agent"
+version = "1.5.0"
 source = { virtual = "." }

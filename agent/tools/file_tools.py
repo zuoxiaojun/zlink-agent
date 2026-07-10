@@ -1,4 +1,4 @@
-"""File manipulation tools for YS-Agent.
+"""File manipulation tools for ZLink Agent.
 
 Port of Hermes file_tools.py — simplified to direct filesystem operations.
 

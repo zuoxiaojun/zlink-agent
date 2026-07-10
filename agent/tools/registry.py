@@ -1,4 +1,4 @@
-"""Central registry for all YS-Agent tools.
+"""Central registry for all ZLink Agent tools.
 
 Each tool file calls ``registry.register()`` at module level to declare its
 schema, handler, and toolset membership.  ``agent.py`` queries the registry

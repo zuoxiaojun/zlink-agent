@@ -1,7 +1,7 @@
 """Extension system — typed handlers for agent events.
 
 Pi's extension model lets users add behaviour without modifying the
-agent loop.  YS-Agent adopts the same shape:
+agent loop.  ZLink Agent adopts the same shape:
 
 * :class:`Extension` is the base class.  Subclasses override typed
   handler methods (``on_before_tool_call`` etc.).
@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 
 
 class Extension:
-    """Base class for YS-Agent extensions.
+    """Base class for ZLink Agent extensions.
 
     Subclass and override any ``on_*`` method.  Only methods that match
     the typed event contract are wired up.  Unhandled events are

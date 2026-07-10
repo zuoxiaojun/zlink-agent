@@ -1,6 +1,6 @@
 """Complete event types — built on top of :mod:`agent.events.bus`.
 
-These mirror the Pi event set, scoped to the events YS-Agent actually
+These mirror the Pi event set, scoped to the events ZLink Agent actually
 needs.  New event types should be added here, not in random modules, so
 the full lifecycle is discoverable in one file.
 

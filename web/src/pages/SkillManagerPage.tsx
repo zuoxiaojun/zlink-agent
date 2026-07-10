@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Upload, Package, ToggleLeft, ToggleRight, Trash2, ChevronDown, Search, Edit3, Download, X } from "lucide-react";
 import { api } from "../api/http";
+import { getErrorMessage } from "../utils/errors";
 import type { SkillInfo } from "../types";
 
 export default function SkillManagerPage() {
@@ -64,8 +65,8 @@ export default function SkillManagerPage() {
       await api.put(`/skills/${name}`, { content: editContent });
       setSkillContent((prev) => ({ ...prev, [name]: editContent }));
       setEditing(null);
-    } catch (e: any) {
-      alert(e.message || "保存失败");
+    } catch (e: unknown) {
+      alert(getErrorMessage(e, "保存失败"));
     }
     setSaving(false);
   };

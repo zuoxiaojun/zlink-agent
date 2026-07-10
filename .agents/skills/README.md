@@ -1,7 +1,7 @@
 # Project-level skills (placeholder)
 
 This directory is reserved for **project-local** Codex/ECC skills that should
-ship with the YS-Agent repository.
+ship with the ZLink Agent repository.
 
 ## Current state
 
@@ -12,7 +12,7 @@ Empty. All active skills today come from the user-level pool at
 
 Add a project-local skill when **all** of the following hold:
 
-1. The skill encodes YS-Agent-specific knowledge (e.g. ERP data model,
+1. The skill encodes ZLink Agent-specific knowledge (e.g. ERP data model,
    YonSuite SDK gotchas, build-script quirks) that is not useful outside
    this repo.
 2. You want every contributor to load it automatically — no per-user install.

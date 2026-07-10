@@ -1,3 +1,3 @@
-"""Tool implementations for YS-Agent."""
+"""Tool implementations for ZLink Agent."""
 
 from agent.tools import security_hooks  # noqa: F401 — registers default hooks

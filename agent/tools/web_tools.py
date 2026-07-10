@@ -1,4 +1,4 @@
-"""Web search and extraction tools for YS-Agent.
+"""Web search and extraction tools for ZLink Agent.
 
 Port of Hermes web_tools.py — simplified using httpx directly.
 Supports configurable search backend via env vars.

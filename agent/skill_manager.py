@@ -1,4 +1,4 @@
-"""Skill management for YS-Agent.
+"""Skill management for ZLink Agent.
 
 Manages skill activation state and builds prompt-injection
 instructions from active skills for the agent loop.

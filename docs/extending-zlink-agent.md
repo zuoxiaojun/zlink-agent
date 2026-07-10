@@ -1,10 +1,10 @@
-# 扩展 YS-Agent —— 写你的第一个 Extension
+# 扩展 ZLink Agent —— 写你的第一个 Extension
 
 最后更新：2026-06-02
 
 ## 一句话
 
-> YS-Agent 的 Extension 系统借鉴自 Pi（earendil-works/pi）：写一个 Python 类，重写 `on_xxx` 方法，调用 `register_extensions([...])` 即可插入到 agent loop 的任何位置。
+> ZLink Agent 的 Extension 系统借鉴自 Pi（earendil-works/pi）：写一个 Python 类，重写 `on_xxx` 方法，调用 `register_extensions([...])` 即可插入到 agent loop 的任何位置。
 
 ## 5 行最小例子
 
@@ -100,7 +100,7 @@ agent loop 读 `event.xxx` 时拿到的就是改后的值。
 import logging
 from agent.events import Extension, BeforeToolCallEvent, AfterToolCallEvent
 
-audit_log = logging.getLogger("ys-agent.audit")
+audit_log = logging.getLogger("zlink-agent.audit")
 
 class AuditExtension(Extension):
     name = "audit"

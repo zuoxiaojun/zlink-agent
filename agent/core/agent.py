@@ -145,7 +145,8 @@ class TurnSnapshot:
     supports_vision: bool = False
 
 
-_DEFAULT_SYSTEM_PROMPT = """你是 YS-Agent，一个智能 AI 助手，专为 YonSuite 系统提供 AI 能力。
+_DEFAULT_SYSTEM_PROMPT = """你是 ZLink Agent（智链 Agent），一个智能 AI 助手，
+专为多 ERP 与业务系统提供 AI 取数、分析和自动化能力。
 
 ## 核心能力
 - 你可以使用多种工具来帮助用户完成任务

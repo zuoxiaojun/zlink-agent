@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ===========================================================================
-# scripts/update.sh — YS-Agent 安全升级脚本
+# scripts/update.sh — ZLink Agent 安全升级脚本
 #
 # 功能：
 #   1. 自动备份 data/ 目录（保留最近 5 份）
@@ -18,7 +18,7 @@
 #
 # 备份说明：
 #   备份文件位于 data/backups/ 目录：
-#     ys-agent-data-2026-07-03_143000.tar.gz
+#     zlink-agent-data-2026-07-03_143000.tar.gz
 #   保留最近 5 份备份，超出自动清理。
 #   恢复方式：tar -xzf data/backups/<文件名> -C data/
 #
@@ -96,7 +96,7 @@ do_backup() {
 
     local timestamp
     timestamp=$(date +%Y-%m-%d_%H%M%S)
-    local backup_file="$BACKUP_DIR/ys-agent-data-$timestamp.tar.gz"
+    local backup_file="$BACKUP_DIR/zlink-agent-data-$timestamp.tar.gz"
 
     info "正在备份 data/ → $backup_file ..."
 
@@ -119,12 +119,12 @@ do_backup() {
 cleanup_old_backups() {
     # 保留最近 N 份，删除更旧的
     local count
-    count=$(ls -1 "$BACKUP_DIR"/ys-agent-data-*.tar.gz 2>/dev/null | wc -l)
+    count=$(ls -1 "$BACKUP_DIR"/zlink-agent-data-*.tar.gz 2>/dev/null | wc -l)
     if [[ "$count" -gt "$BACKUP_RETENTION" ]]; then
         local to_delete
         to_delete=$(( count - BACKUP_RETENTION ))
         info "清理旧备份（保留 $BACKUP_RETENTION 份，删除 $to_delete 份）..."
-        ls -1t "$BACKUP_DIR"/ys-agent-data-*.tar.gz 2>/dev/null | tail -n "$to_delete" | while read -r old; do
+        ls -1t "$BACKUP_DIR"/zlink-agent-data-*.tar.gz 2>/dev/null | tail -n "$to_delete" | while read -r old; do
             rm -f "$old"
             info "  已删除: $old"
         done
@@ -168,7 +168,7 @@ echo ""
 # ── Stash 本地未提交更改 ────────────────────────────────────────────────────
 if ! git diff --quiet 2>/dev/null; then
     info "暂存本地未提交的修改..."
-    git stash --include-untracked -m "YS-Agent auto-stash before update $(date +%Y%m%d_%H%M%S)" 2>/dev/null || true
+    git stash --include-untracked -m "ZLink Agent auto-stash before update $(date +%Y%m%d_%H%M%S)" 2>/dev/null || true
     HAD_STASH=true
 else
     HAD_STASH=false
@@ -284,7 +284,7 @@ fi
 
 # ── 结果输出 ────────────────────────────────────────────────────────────────
 # 找最新备份文件用于显示
-LATEST_BACKUP=$(ls -1t "$BACKUP_DIR"/ys-agent-data-*.tar.gz 2>/dev/null | head -1)
+LATEST_BACKUP=$(ls -1t "$BACKUP_DIR"/zlink-agent-data-*.tar.gz 2>/dev/null | head -1)
 BACKUP_SIZE=$(du -h "$LATEST_BACKUP" 2>/dev/null | cut -f1 || echo "-")
 BACKUP_NAME=$(basename "$LATEST_BACKUP" 2>/dev/null || echo "无")
 echo ""
@@ -304,7 +304,7 @@ if (( $(echo "$NEW_HASH" | tr -d '\n') != $(echo "$PREVIOUS_HASH" | tr -d '\n') 
     info "提示：代码已更新，请重启后端服务以使新代码生效："
     echo ""
     echo "   如果使用 systemd / supervisor："
-    echo "     sudo systemctl restart ys-agent"
+    echo "     sudo systemctl restart zlink"
     echo ""
     echo "   如果使用 uvicorn 直接运行："
     echo "     按 Ctrl+C 停止，然后重新运行："

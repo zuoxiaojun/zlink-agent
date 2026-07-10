@@ -1,4 +1,4 @@
-"""pytest shared fixtures for YS-Agent test suite.
+"""pytest shared fixtures for ZLink Agent test suite.
 
 These tests do NOT touch the network, do NOT use the real LLM, and do
 NOT call the real YonSuite API.  Every test gets a clean

@@ -3,13 +3,16 @@
 
 def test_build_nc_mcp_env_basic():
     from mcp_server.nc_mcp.config import build_nc_mcp_env
-    env = build_nc_mcp_env({
-        "host": "192.168.31.96",
-        "port": "1521",
-        "service": "orcl",
-        "user": "NC65",
-        "password": "secret123",
-    })
+
+    env = build_nc_mcp_env(
+        {
+            "host": "192.168.31.96",
+            "port": "1521",
+            "service": "orcl",
+            "user": "NC65",
+            "password": "secret123",
+        }
+    )
     assert env["ORACLE_HOST"] == "192.168.31.96"
     assert env["ORACLE_PORT"] == "1521"
     assert env["ORACLE_SERVICE"] == "orcl"
@@ -19,24 +22,38 @@ def test_build_nc_mcp_env_basic():
 
 def test_build_nc_mcp_env_with_max_rows():
     from mcp_server.nc_mcp.config import build_nc_mcp_env
-    env = build_nc_mcp_env({
-        "host": "h", "port": "1521", "service": "orcl",
-        "user": "u", "password": "p", "max_rows": 500,
-    })
+
+    env = build_nc_mcp_env(
+        {
+            "host": "h",
+            "port": "1521",
+            "service": "orcl",
+            "user": "u",
+            "password": "p",
+            "max_rows": 500,
+        }
+    )
     assert env["NC_MCP_MAX_ROWS"] == "500"
 
 
 def test_build_nc_mcp_env_default_max_rows():
     from mcp_server.nc_mcp.config import build_nc_mcp_env
-    env = build_nc_mcp_env({
-        "host": "h", "port": "1521", "service": "orcl",
-        "user": "u", "password": "p",
-    })
+
+    env = build_nc_mcp_env(
+        {
+            "host": "h",
+            "port": "1521",
+            "service": "orcl",
+            "user": "u",
+            "password": "p",
+        }
+    )
     assert env["NC_MCP_MAX_ROWS"] == "200"
 
 
 def test_build_nc_mcp_config():
     from mcp_server.nc_mcp.config import build_nc_mcp_config
+
     cfg = build_nc_mcp_config(
         erp_config={"host": "h", "port": "1521", "service": "orcl", "user": "u", "password": "p"},
         enabled=True,

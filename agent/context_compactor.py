@@ -480,7 +480,7 @@ def _extract_paths_from_text(text: str) -> list[str]:
 
 def _extract_paths_from_messages(messages: list[dict]) -> list[str]:
     """Pull file paths out of every tool call's args and every tool
-    result.  This is where YS-Agent most often references files:
+    result.  This is where ZLink Agent most often references files:
     ``read_file`` / ``patch`` / ``write_file`` all take a ``path`` arg;
     the assistant often echoes paths in its own text."""
     paths: list[str] = []
