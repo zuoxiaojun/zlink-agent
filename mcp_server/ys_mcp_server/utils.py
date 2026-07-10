@@ -49,11 +49,11 @@ def get_client():
     global _ys_client
     if _ys_client is not None:
         return _ys_client
-    from agent.yonsuite_client.config import config as ys_config
+    from agent.erp_clients.yonsuite.config import config as ys_config
 
     if not ys_config.is_configured():
         return None
-    from agent.yonsuite_client.ys_client import YonSuiteClient
+    from agent.erp_clients.yonsuite.ys_client import YonSuiteClient
 
     _ys_client = YonSuiteClient()
     return _ys_client
