@@ -1,5 +1,52 @@
 # Changelog
-## v1.4.1 — 2026-07-10 (移除自动迁移: 项目仅服务新用户)
+## v1.5.0 — 2026-07-10 (重命名 ZLink Agent + 多 ERP 架构)
+
+**范围**: 把 YS-Agent 改名为 ZLink Agent（智链 Agent），引入声明性 ERPClient 协议，集成外部 nc-mcp-server 包作为首个非 builtin ERP 客户端。
+
+### 新增
+
+- **`agent/erp_clients/`** 新父目录, 含 `base.py`（ERPClient Protocol + 通用异常 + MCPStarterConfig）、`__init__.py`（声明性注册中心）
+- **`agent/erp_clients/yonsuite/`** 从 `agent/yonsuite_client/` 整体 `git mv` 过来, 内部 0 行代码改动
+- **`mcp_server/nc_mcp/`** NC MCP 集成入口 (config.py: erp_clients.nc → ORACLE_* env 转换; mcp_starter.py: 调 mcp_manager 启停 nc-mcp-server)
+- **`agent/skills/nc/SKILL.md`** NC 工具使用指南
+- **`backend/api/erp_clients_api.py`** `/api/config/erp-clients/*` REST 端点
+- **`web/src/pages/SettingsERPPage.tsx`** `/settings/erp` 页面 (YonSuite + NC 双卡片)
+- **`scripts/zlink.sh`** 新 CLI 入口
+- **`tests/test_erp_clients*.py`** 10 个新测试 (覆盖 base 导出、配置转换、占位符、graceful 降级、启用状态联动)
+
+### 改动
+
+- **`pyproject.toml`**: name `ys-agent` → `zlink-agent`, description 重写, version 1.4.1 → 1.5.0, 加 `[nc]` optional extra
+- **`agent/utils.py`**: `_resolve_data_dir()` 加 `~/.ys-agent/data/` fallback (双兼容老用户)
+- **`agent/config_manager.py`**: 加 `get_erp_config(name)`, 加 `${nc.X}` 占位符解析
+- **`agent/tools/mcp_manager.py`**: 启动 MCP server 前解析 env 占位符
+- **`backend/api/config_api.py`**: 挂 `/api/config/erp-clients/*` 端点
+- **`web/src/App.tsx`**: 加 `/settings/erp` 路由
+- **`README.md`**: 标题/Tagline/克隆命令/功能列表/项目结构全量重写
+- **`AGENTS.md`**: 标题 + 项目名引用更新
+- **`scripts/ys-agent.sh`**: 软链接到 `zlink.sh` (保留兼容)
+- **`docs/architecture.md`**: 加 "多 ERP 抽象" 章节
+- **`docs/extending-ys-agent.md`**: 改名为 `extending-zlink-agent.md` + 内容更新
+- 其它 ~200 处 `ys-agent` 字符串批量替换
+
+### 净增
+
+- `agent/erp_clients/` 新增 ~150 行 (base.py + __init__.py)
+- `mcp_server/nc_mcp/` 新增 ~80 行
+- 10 个新测试 → 41+10 = **56/56 PASS**
+- ruff check 0 errors
+- 数据目录 `~/.zlink-agent/data/` 为新默认, `~/.ys-agent/data/` 兼容 v1.4.x
+
+### 不变
+
+- `YonSuiteClient` 1055 行内部代码 0 改动 (仅移动目录位置)
+- builtin MCP server `ys_mcp_server` 0 改动
+- 工具名 `mcp_yonsuite_*` 0 改名 (老用户无感)
+- LLM provider 抽象 0 改动
+- builtin skills 列表 0 改动
+- 4 个 untracked Windows 文件 0 改动 (用户另外的事)
+
+## v1.4.1 — 2026-07-10 (移除自动迁移: 项目仅服务新用户) (移除自动迁移: 项目仅服务新用户)
 
 **范围**: 移除 v1.4.0 引入的自动迁移机制。后续只面向新用户,旧用户已通过 v1.4.0 完成升级,不再需要 `ys-agent migrate-data-path` 这类兼容性工具。
 
