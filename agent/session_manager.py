@@ -1,4 +1,4 @@
-"""Conversation session management for YS-Agent.
+"""Conversation session management for ZLink Agent.
 
 Persists conversations to disk as JSON files and maintains a session index.
 """

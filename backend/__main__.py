@@ -1,4 +1,4 @@
-"""YS-Agent backend — entry point for `python -m backend`."""
+"""ZLink Agent backend — entry point for `python -m backend`."""
 
 import sys
 from pathlib import Path

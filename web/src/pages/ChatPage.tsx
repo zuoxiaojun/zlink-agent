@@ -6,7 +6,7 @@ import { useChat } from "../hooks/useChat";
 import { api } from "../api/http";
 import ChatMessage from "../components/ChatMessage";
 import ChatInput from "../components/ChatInput";
-import type { Message } from "../types";
+import type { Message, SessionDetail } from "../types";
 import StopButton from "../components/StopButton";
 
 export default function ChatPage() {
@@ -21,9 +21,9 @@ export default function ChatPage() {
     const sid = searchParams.get("s");
     if (!sid) return;
     if (state.currentSessionId === sid) return; // already loaded
-      api.get<any>(`/sessions/${sid}`)
+    api.get<SessionDetail>(`/sessions/${sid}`)
       .then((s) => {
-        const msgs = (s.messages || []);
+        const msgs = s.messages || [];
         dispatch({
           type: "SET_SESSION",
           sessionId: s.id,

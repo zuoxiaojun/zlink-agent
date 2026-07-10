@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, ToggleLeft, ToggleRight, Play, RefreshCw, ChevronDown, ChevronRight, Server, Braces, FormInput, Edit3, Loader2 } from "lucide-react";
 import { api } from "../api/http";
+import { getErrorMessage } from "../utils/errors";
 import type { MCPServerStatus, MCPServerConfig, MCPTestResult } from "../types";
 
 const DEFAULT_CONFIG: MCPServerConfig = {
@@ -86,8 +87,8 @@ export default function McpPage() {
       setForm({ ...DEFAULT_CONFIG });
       setJsonText("");
       loadServers();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(getErrorMessage(e));
     }
     setSubmitting(false);
   };
@@ -106,8 +107,8 @@ export default function McpPage() {
     try {
       await api.put(`/mcp/servers/${name}/toggle`);
       loadServers();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(getErrorMessage(e));
     }
   };
 
@@ -116,8 +117,8 @@ export default function McpPage() {
     try {
       const result = await api.post<MCPTestResult>(`/mcp/servers/${name}/test`);
       setTestResults((prev) => ({ ...prev, [name]: result }));
-    } catch (e: any) {
-      setTestResults((prev) => ({ ...prev, [name]: { success: false, tools_discovered: 0, tool_names: [], error_message: e.message } }));
+    } catch (e: unknown) {
+      setTestResults((prev) => ({ ...prev, [name]: { success: false, tools_discovered: 0, tool_names: [], error_message: getErrorMessage(e) } }));
     }
   };
 
@@ -126,8 +127,8 @@ export default function McpPage() {
     try {
       await api.post(`/mcp/servers/${name}/reconnect`);
       loadServers();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(getErrorMessage(e));
     }
     setReconnecting((prev) => ({ ...prev, [name]: false }));
   };
@@ -177,8 +178,8 @@ export default function McpPage() {
       await api.put(`/mcp/servers/${editingServer}`, config);
       setEditingServer(null);
       loadServers();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(getErrorMessage(e));
     }
     setSubmitting(false);
   };
@@ -188,8 +189,8 @@ export default function McpPage() {
     try {
       await api.post("/mcp/reload");
       loadServers();
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(getErrorMessage(e));
     }
     setReloading(false);
   };

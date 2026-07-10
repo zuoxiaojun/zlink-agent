@@ -1,11 +1,11 @@
-# YS-Agent 架构（M1-M5 重构后）
+# ZLink Agent 架构（M1-M5 重构后）
 
 最后更新：2026-06-02
 适用版本：M1+M2+M3+M4 完成后（即 `agent/agent.py` 缩到 re-export 之后的所有版本）
 
 ## 一句话
 
-> YS-Agent 的 agent loop 在 2026-06 经过一次 Pi 风格架构升级：拆分层、引入事件总线、引入 LLM Provider 抽象、引入压缩前的文件追踪钩子。**前端、YonSuite 业务工具、MCP server、skill 系统零改动**。
+> ZLink Agent 的 agent loop 在 2026-06 经过一次 Pi 风格架构升级：拆分层、引入事件总线、引入 LLM Provider 抽象、引入压缩前的文件追踪钩子。**前端、YonSuite 业务工具、MCP server、skill 系统零改动**。
 
 ## 模块图
 

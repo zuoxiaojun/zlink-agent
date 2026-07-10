@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, CircleCheck, Pencil, Save } from "lucide-react";
 import { api } from "../api/http";
@@ -16,11 +16,13 @@ export default function SettingsYSPage() {
   });
   const [saved, setSaved] = useState(false);
 
-  React.useEffect(() => {
+  const startEdit = () => {
     if (state.config) {
       setForm({ ...state.config.yonsuite, app_key: "", app_secret: "" });
     }
-  }, [state.config]);
+    setEdit(true);
+    setSaved(false);
+  };
 
   const handleSave = async () => {
     await api.put("/config/yonsuite", form);
@@ -58,7 +60,7 @@ export default function SettingsYSPage() {
             </div>
           ))}
           <div className="card-actions">
-            <button className="btn btn-secondary" onClick={() => { setEdit(true); setSaved(false); }}><Pencil size={14} /> 编辑</button>
+            <button className="btn btn-secondary" onClick={startEdit}><Pencil size={14} /> 编辑</button>
           </div>
         </div>
       ) : (

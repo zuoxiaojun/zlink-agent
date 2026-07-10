@@ -1,7 +1,9 @@
 """Plugin discovery and loading system.
 
-YS-Agent's plugin system discovers extensions via two mechanisms:
-1. **Entry points** — packages installed with ``[project.entry-points."ys-agent.extensions"]``
+ZLink Agent's plugin system discovers extensions via two mechanisms:
+1. **Entry points** — packages installed with
+   ``[project.entry-points."zlink-agent.extensions"]``
+   (legacy ``ys-agent.extensions`` is also scanned)
 2. **Directory scan** — ``.py`` files in ``data/plugins/`` (for local development)
 
 Every plugin must expose an ``extension_classes()`` function that returns
@@ -18,30 +20,37 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_ENTRY_POINT_GROUP = "ys-agent.extensions"
+_ENTRY_POINT_GROUPS = ("zlink-agent.extensions", "ys-agent.extensions")
 _loaded_plugins: dict[str, list[type]] = {}
 
 
 def discover_entry_point_plugins() -> dict[str, list[type]]:
     """Discover plugins registered via package entry points.
 
-    Reads ``[project.entry-points."ys-agent.extensions"]`` from every
-    installed package and calls ``extension_classes()`` on each entry.
+    Reads ``[project.entry-points."zlink-agent.extensions"]`` (and legacy
+    ``ys-agent.extensions``) from installed packages and calls
+    ``extension_classes()`` on each entry.
     """
     plugins: dict[str, list[type]] = {}
-    try:
-        eps = importlib.metadata.entry_points(group=_ENTRY_POINT_GROUP)
-        for ep in eps:
-            try:
-                module = ep.load()
-                classes = module.extension_classes() if hasattr(module, "extension_classes") else []
-                if classes:
-                    plugins[ep.name] = classes
-                    logger.info("Plugin loaded via entry point: %s (%d extensions)", ep.name, len(classes))
-            except Exception:
-                logger.exception("Failed to load entry-point plugin: %s", ep.name)
-    except Exception:
-        logger.debug("No entry-point plugins discovered")
+    for group in _ENTRY_POINT_GROUPS:
+        try:
+            eps = importlib.metadata.entry_points(group=group)
+            for ep in eps:
+                try:
+                    module = ep.load()
+                    classes = module.extension_classes() if hasattr(module, "extension_classes") else []
+                    if classes:
+                        plugins[ep.name] = classes
+                        logger.info(
+                            "Plugin loaded via entry point %s: %s (%d extensions)",
+                            group,
+                            ep.name,
+                            len(classes),
+                        )
+                except Exception:
+                    logger.exception("Failed to load entry-point plugin: %s", ep.name)
+        except Exception:
+            logger.debug("No entry-point plugins discovered for group %s", group)
     _loaded_plugins.update(plugins)
     return plugins
 

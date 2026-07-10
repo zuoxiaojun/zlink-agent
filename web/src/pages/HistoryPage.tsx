@@ -23,7 +23,9 @@ export default function HistoryPage() {
       const detail = await api.get<SessionDetail>(`/sessions/${sid}`);
       dispatch({ type: "SET_SESSION", sessionId: detail.id, title: detail.title, messages: detail.messages });
       navigate("/");
-    } catch {}
+    } catch {
+      return;
+    }
   };
 
   const handleDelete = async (sid: string) => {

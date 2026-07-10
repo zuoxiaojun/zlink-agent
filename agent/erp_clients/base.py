@@ -9,11 +9,12 @@ v1.5.0 角色:
 """
 
 from __future__ import annotations
-from typing import Protocol, runtime_checkable, Any
-from dataclasses import dataclass
 
+from dataclasses import dataclass
+from typing import Protocol, runtime_checkable
 
 # === 通用异常 ===
+
 
 class ERPError(Exception):
     """所有 ERP 客户端错误的基类"""
@@ -25,6 +26,7 @@ class ERPAuthError(ERPError):
 
 class ERPRateLimitError(ERPError):
     """频率限制"""
+
     def __init__(self, message: str, retry_after: int | None = None):
         super().__init__(message)
         self.retry_after = retry_after
@@ -36,6 +38,7 @@ class ERPNetworkError(ERPError):
 
 class ERPAPIError(ERPError):
     """API 业务错误"""
+
     def __init__(self, code: int | str, message: str, response: dict | None = None):
         super().__init__(f"[{code}] {message}")
         self.code = code
@@ -43,6 +46,7 @@ class ERPAPIError(ERPError):
 
 
 # === 抽象协议 (声明性, 非强制) ===
+
 
 @runtime_checkable
 class ERPClient(Protocol):
@@ -54,6 +58,7 @@ class ERPClient(Protocol):
     - YonSuiteClient 的 isinstance 检查 (结构子类型)
     - 未来可能新增的"嵌入式 ERP 客户端"扩展点
     """
+
     name: str
 
     def authenticate(self, force_refresh: bool = False) -> str | bool: ...
@@ -62,6 +67,7 @@ class ERPClient(Protocol):
 
 # === MCP 启动配置 schema ===
 
+
 @dataclass(frozen=True)
 class MCPStarterConfig:
     """
@@ -69,6 +75,7 @@ class MCPStarterConfig:
 
     用于 agent/mcp_server/nc_mcp/mcp_starter.py 等
     """
+
     erp_name: str
     enabled: bool
     command: str

@@ -16,7 +16,7 @@ import McpPage from "./pages/McpPage";
 import type { ConfigResponse } from "./types";
 
 function AppInit({ children }: { children: React.ReactNode }) {
-  const { state: _, dispatch } = useAppState();
+  const { dispatch } = useAppState();
   const retries = useRef(0);
 
   useEffect(() => {
@@ -36,7 +36,9 @@ function AppInit({ children }: { children: React.ReactNode }) {
         });
     };
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [dispatch]);
 
   return <>{children}</>;

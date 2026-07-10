@@ -1,4 +1,4 @@
-"""YS-Agent FastAPI backend — serves REST API + WebSocket for the React frontend."""
+"""ZLink Agent FastAPI backend — serves REST API + WebSocket for the React frontend."""
 
 import logging
 import sys
@@ -9,7 +9,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-# 数据目录: YS_DATA_DIR 环境变量 > ~/.ys-agent/data/ (由 agent/utils.py 解析)
+# 数据目录: ZLINK_DATA_DIR / YS_DATA_DIR 环境变量 > ~/.zlink-agent/data/，旧 ~/.ys-agent/data/ 自动兼容
 
 from contextlib import asynccontextmanager
 
@@ -22,7 +22,7 @@ from agent.utils import DATA_DIR
 from backend.config import CORS_ORIGINS
 
 # 启动时打印数据目录,消除"我设置存哪了"的不确定性
-print(f"[YS-Agent] Data directory: {DATA_DIR}", file=sys.stderr)
+print(f"[ZLink Agent] Data directory: {DATA_DIR}", file=sys.stderr)
 
 # Logging setup
 _LOG_DIR = DATA_DIR / "logs"
@@ -154,7 +154,7 @@ async def lifespan(application: FastAPI):
 
 from backend.api.system_api import _get_version  # noqa: E402
 
-app = FastAPI(title="YS-Agent API", version=_get_version(), lifespan=lifespan)
+app = FastAPI(title="ZLink Agent API", version=_get_version(), lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -187,11 +187,11 @@ app.include_router(chat_router)
 app.include_router(mcp_router)
 app.include_router(extensions_router)
 app.include_router(system_router)
+from backend.api.erp_clients_api import router as erp_clients_router
+
+app.include_router(erp_clients_router)
 
 # ── Serve React frontend static files (for production / frozen builds) ──
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "web" / "dist"
 if _STATIC_DIR.is_dir():
     app.mount("/", StaticFiles(directory=str(_STATIC_DIR), html=True), name="frontend")
-
-from backend.api.erp_clients_api import router as erp_clients_router
-app.include_router(erp_clients_router)

@@ -1,11 +1,11 @@
 """LogEverythingExtension — M2-style demo / debugging extension.
 
-Logs every event type to the ``ys-agent.events`` logger at DEBUG level.
+Logs every event type to the ``zlink-agent.events`` logger at DEBUG level.
 Useful for tracing the event flow during development; harmless in
 production (set ``enabled = False`` in the registry to silence).
 
 This is the same pattern described in
-``docs/extending-ys-agent.md`` — the class exists so the M5+
+``docs/extending-zlink-agent.md`` — the class exists so the M5+
 settings page has at least one always-on, observation-only extension
 that users can safely toggle to see the UI work.
 """
@@ -16,11 +16,11 @@ import logging
 
 from agent.events import Event, Extension
 
-logger = logging.getLogger("ys-agent.events")
+logger = logging.getLogger("zlink-agent.events")
 
 
 class LogEverythingExtension(Extension):
-    """Logs every event to the ``ys-agent.events`` logger.
+    """Logs every event to the ``zlink-agent.events`` logger.
 
     The ``on_event`` catch-all runs after the typed handlers (none of
     which this extension implements), so it sees everything.

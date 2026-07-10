@@ -9,14 +9,16 @@ ERP 客户端配置 REST API (v1.5.0)
 - GET    /api/config/mcp-servers              列出所有 MCP server 状态
 - POST   /api/config/mcp-servers/{name}/toggle 启用/禁用
 """
+
 from __future__ import annotations
+
 import json
 import logging
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from agent import config_manager
-from agent.config_model import _encrypt
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -30,6 +32,7 @@ SECRET_FIELDS = {
 
 class ERPPutRequest(BaseModel):
     """ERP 配置 PUT body (v1.5.0)"""
+
     enabled: bool | None = None
     # yonsuite 字段
     tenant_id: str | None = None
@@ -95,8 +98,13 @@ async def put_erp_client(name: str, body: ERPPutRequest) -> dict:
     updates = body.model_dump(exclude_none=True)
     secret_fields = SECRET_FIELDS.get(name, [])
     for k, v in updates.items():
-        if k in secret_fields and v and not v.startswith("encrypted:") and v != "***":
-            cfg[k] = _encrypt(v)
+        if k in secret_fields:
+            if v == "***":
+                continue
+            if v and not v.startswith("encrypted:"):
+                cfg[k] = config_manager.encrypt_secret(v)
+            else:
+                cfg[k] = v
         else:
             cfg[k] = v
 
@@ -106,6 +114,7 @@ async def put_erp_client(name: str, body: ERPPutRequest) -> dict:
     if name == "nc":
         try:
             from mcp_server.nc_mcp.mcp_starter import sync_nc_mcp
+
             await sync_nc_mcp()
         except Exception as e:
             logger.warning("sync_nc_mcp 失败: %s", e)
@@ -118,8 +127,9 @@ async def test_erp_client(name: str) -> dict:
     """测试连接"""
     if name == "yonsuite":
         try:
-            from agent.erp_clients.yonsuite import YonSuiteClient
             from agent.config_manager import get_erp_config
+            from agent.erp_clients.yonsuite import YonSuiteClient
+
             cfg = get_erp_config("yonsuite")
             client = YonSuiteClient(cfg)
             ok = client.health_check()
@@ -129,6 +139,7 @@ async def test_erp_client(name: str) -> dict:
     elif name == "nc":
         try:
             from agent.tools.mcp_manager import get_server_statuses
+
             statuses = {s["name"]: s for s in get_server_statuses()}
             nc_status = statuses.get("mcp-nc", {}).get("status", "disconnected")
             if nc_status == "connected":
@@ -142,13 +153,15 @@ async def test_erp_client(name: str) -> dict:
 @router.get("/api/config/mcp-servers")
 async def list_mcp_servers() -> list:
     from agent.tools.mcp_manager import get_server_statuses
+
     return get_server_statuses()
 
 
 @router.post("/api/config/mcp-servers/{name}/toggle")
 async def toggle_mcp_server(name: str) -> dict:
     """启用/禁用某个 MCP server"""
-    from agent.tools.mcp_manager import reconnect_server, get_server_statuses
+    from agent.tools.mcp_manager import get_server_statuses, reconnect_server
+
     statuses = {s["name"]: s for s in get_server_statuses()}
     if name not in statuses:
         raise HTTPException(404, f"MCP server {name!r} not found")

@@ -77,7 +77,7 @@ def _fetch_url(url: str) -> str:
         return f"[无效 URL: {url}]"
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; YS-Agent/1.0)",
+        "User-Agent": "Mozilla/5.0 (compatible; ZLink-Agent/1.5)",
         "Accept": "text/html,application/xhtml+xml",
     }
 

@@ -1,4 +1,4 @@
-"""Memory management for YS-Agent.
+"""Memory management for ZLink Agent.
 
 Stores conversation summaries and extracted key facts
 for context injection in future conversations.

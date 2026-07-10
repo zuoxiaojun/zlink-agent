@@ -1,4 +1,4 @@
-"""Skills management tools for YS-Agent.
+"""Skills management tools for ZLink Agent.
 
 Port of Hermes skill system — loads SKILL.md files from the skills directory.
 """

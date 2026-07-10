@@ -3,6 +3,7 @@
 """
 
 from __future__ import annotations
+
 import logging
 
 from mcp_server.nc_mcp.config import build_nc_mcp_config

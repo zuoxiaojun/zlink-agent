@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAppState, WELCOME_MESSAGE } from "../context/AppContext";
 import { api } from "../api/http";
+import type { SessionSummary } from "../types";
 import { Bot, Plus, MessageSquare, Brain, Wrench, Puzzle, Cpu, Database, Settings, Plug, Boxes } from "lucide-react";
 
 const NAV = [
@@ -22,7 +23,7 @@ export default function Sidebar() {
 
   const handleNewChat = async () => {
     try {
-      const s = await api.post<any>("/sessions", { title: "" });
+      const s = await api.post<Pick<SessionSummary, "id" | "title">>("/sessions", { title: "" });
       dispatch({ type: "SET_SESSION", sessionId: s.id, title: s.title, messages: WELCOME_MESSAGE });
       navigate(`/?s=${s.id}`);
     } catch {
@@ -38,8 +39,8 @@ export default function Sidebar() {
           <Bot size={18} color="#fff" />
         </div>
         <div>
-          <h3>YS-Agent</h3>
-          <p>YonSuite AI 助手</p>
+          <h3>ZLink Agent</h3>
+          <p>多 ERP AI 助手</p>
         </div>
       </div>
 
@@ -67,7 +68,7 @@ export default function Sidebar() {
 
       <div className="sidebar-footer">
         <div className="sidebar-footer-dot" />
-        YS-Agent v1.3.0
+        ZLink Agent v1.5.0
       </div>
     </aside>
   );

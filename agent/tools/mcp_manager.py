@@ -235,7 +235,7 @@ class MCPServerConnection:
                     "protocolVersion": "2024-11-05",
                     "capabilities": {},
                     "clientInfo": {
-                        "name": "YS-Agent",
+                        "name": "ZLink Agent",
                         "version": "1.0.0",
                     },
                 },
@@ -363,10 +363,12 @@ class MCPServerConnection:
         user_env = self.config.get("env", {})
         try:
             from agent.config_manager import load as _load_cfg
+
             cfg_obj = _load_cfg()
             # Pydantic model → dict (Pydantic v2 用 model_dump)
             full_config = cfg_obj.model_dump() if hasattr(cfg_obj, "model_dump") else dict(cfg_obj)
             from agent.config_manager import resolve_placeholders
+
             user_env = resolve_placeholders(user_env, full_config)
         except Exception:
             # config 不可用时保持原样, 启动时报错定位更明确

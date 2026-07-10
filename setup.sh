@@ -1,6 +1,6 @@
 #!/bin/bash
 # ===========================================================================
-# setup.sh — YS-Agent 一键安装部署脚本
+# setup.sh — ZLink Agent 一键安装部署脚本
 #
 # 前置条件：
 #   - Python >= 3.11（https://www.python.org/downloads/）
@@ -14,7 +14,7 @@
 #   4. 创建 .env 配置文件
 #   5. 创建数据目录
 #   6. 构建前端
-#   7. 安装 ys-agent 快捷命令
+#   7. 安装 zlink 快捷命令（保留 ys-agent 兼容 shim）
 #   8. 执行数据迁移
 #
 # 环境变量（镜像加速）：
@@ -52,7 +52,7 @@ VENV_ACTIVATE="$PROJECT_DIR/.venv/bin/activate"
 
 echo ""
 echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║     YS-Agent 安装部署                        ║${NC}"
+echo -e "${CYAN}║     ZLink Agent 安装部署                        ║${NC}"
 echo -e "${CYAN}║     $PROJECT_DIR${NC}"
 echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
 echo ""
@@ -120,7 +120,7 @@ fi
 if command -v git &>/dev/null; then
     ok "git: $(git --version)"
 else
-    warn "未找到 git，无法使用升级功能（ys-agent update）"
+    warn "未找到 git，无法使用升级功能（zlink update）"
 fi
 
 # ── Mac 专属前置检查 (其他平台跳过) ─────────────────────────────────────
@@ -331,13 +331,20 @@ echo -e "${GREEN}[8/8] 安装快捷命令并执行初始化...${NC}"
 INSTALL_DIR="${HOME}/.local/bin"
 mkdir -p "$INSTALL_DIR"
 
-LAUNCHER_SRC="$PROJECT_DIR/scripts/ys-agent.sh"
-LAUNCHER_DST="$INSTALL_DIR/ys-agent"
+LAUNCHER_SRC="$PROJECT_DIR/scripts/zlink.sh"
+LAUNCHER_DST="$INSTALL_DIR/zlink"
+SHIM_SRC="$PROJECT_DIR/scripts/ys-agent.sh"
+SHIM_DST="$INSTALL_DIR/ys-agent"
 
 if [ -f "$LAUNCHER_SRC" ]; then
     sed "s|__PROJECT_DIR__|$PROJECT_DIR|g" "$LAUNCHER_SRC" > "$LAUNCHER_DST"
     chmod +x "$LAUNCHER_DST"
     ok "快捷命令已安装: $LAUNCHER_DST"
+    if [ -f "$SHIM_SRC" ]; then
+        cp "$SHIM_SRC" "$SHIM_DST"
+        chmod +x "$SHIM_DST"
+        ok "兼容命令已安装: $SHIM_DST -> zlink"
+    fi
 else
     warn "未找到启动器模板: $LAUNCHER_SRC，跳过"
 fi
@@ -379,28 +386,28 @@ echo ""
 # ── 完成 ──
 if $_IS_UPGRADE; then
     echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║     ✅ YS-Agent 升级完成                      ║${NC}"
+    echo -e "${CYAN}║     ✅ ZLink Agent 升级完成                      ║${NC}"
     echo -e "${CYAN}╠══════════════════════════════════════════════╣${NC}"
     echo -e "${CYAN}║  安装路径: $PROJECT_DIR${NC}"
     echo -e "${CYAN}║  用户数据: 已保留                             ║${NC}"
     echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
     echo ""
-    echo "  升级完成，请重启后端：ys-agent stop && ys-agent"
+    echo "  升级完成，请重启后端：zlink stop && zlink"
 else
     echo -e "${CYAN}╔══════════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║     ✅ YS-Agent 安装完成                      ║${NC}"
+    echo -e "${CYAN}║     ✅ ZLink Agent 安装完成                      ║${NC}"
     echo -e "${CYAN}╠══════════════════════════════════════════════╣${NC}"
     echo -e "${CYAN}║  安装路径: $PROJECT_DIR${NC}"
-    echo -e "${CYAN}║  快捷命令: ys-agent                           ║${NC}"
+    echo -e "${CYAN}║  快捷命令: zlink                           ║${NC}"
     echo -e "${CYAN}║  数据目录: $PROJECT_DIR/data/${NC}"
     echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
 fi
 echo ""
 echo "  启动方式："
 echo ""
-echo "    ys-agent                 启动后端（浏览器访问 http://localhost:8089）"
-    echo "    ys-agent update          升级到最新版本"
-    echo "    ys-agent stop            停止服务"
-echo "    ys-agent --help          查看全部命令"
+echo "    zlink                    启动后端（浏览器访问 http://localhost:8089）"
+    echo "    zlink update          升级到最新版本"
+    echo "    zlink stop               停止服务"
+echo "    zlink --help             查看全部命令"
 echo ""
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

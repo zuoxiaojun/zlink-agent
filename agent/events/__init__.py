@@ -1,4 +1,4 @@
-"""Event system for YS-Agent.
+"""Event system for ZLink Agent.
 
 Hierarchy
 ---------

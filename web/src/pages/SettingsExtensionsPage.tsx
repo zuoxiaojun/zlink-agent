@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ToggleLeft, ToggleRight, Plug, RefreshCw } from "lucide-react";
 import { api } from "../api/http";
+import { getErrorMessage } from "../utils/errors";
 import type { ExtensionInfo, ExtensionReloadResult } from "../types";
 
 const KIND_LABEL: Record<ExtensionInfo["kind"], string> = {
@@ -49,8 +50,8 @@ export default function SettingsExtensionsPage() {
       );
       setToast(updated.enabled ? `「${updated.name}」已启用` : `「${updated.name}」已停用`);
       setTimeout(() => setToast(null), 2500);
-    } catch (e: any) {
-      setToast(`操作失败: ${e.message || e}`);
+    } catch (e: unknown) {
+      setToast(`操作失败: ${getErrorMessage(e)}`);
       setTimeout(() => setToast(null), 3500);
     } finally {
       setBusy(false);
@@ -65,8 +66,8 @@ export default function SettingsExtensionsPage() {
       setToast(msg);
       setTimeout(() => setToast(null), 2500);
       await load();
-    } catch (e: any) {
-      setToast(`重载失败: ${e.message || e}`);
+    } catch (e: unknown) {
+      setToast(`重载失败: ${getErrorMessage(e)}`);
       setTimeout(() => setToast(null), 3500);
     } finally {
       setBusy(false);

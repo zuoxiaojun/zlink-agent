@@ -1,4 +1,4 @@
-"""YS-Agent 数据迁移框架。
+"""ZLink Agent 数据迁移框架。
 
 在升级代码后，如果数据格式发生变化，通过此模块安全地迁移用户数据。
 所有迁移均向前兼容，可重复执行，且不会丢失数据。
@@ -138,7 +138,7 @@ def run_migrations(dry_run: bool = False) -> int:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="YS-Agent 数据迁移工具")
+    parser = argparse.ArgumentParser(description="ZLink Agent 数据迁移工具")
     parser.add_argument("--check", action="store_true", help="仅检查当前版本")
     parser.add_argument("--version", action="store_true", help="显示项目期望版本号")
     parser.add_argument("--dry-run", action="store_true", help="模拟运行，不实际修改")

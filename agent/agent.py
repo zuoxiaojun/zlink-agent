@@ -5,7 +5,7 @@ module keeps the old import path working so ``backend/api/chat.py`` and
 any external scripts do not need to change.
 
 M5+ addition: importing this module also triggers registration of
-YS-Agent's built-in :mod:`agent.events` extensions (log + security).
+ZLink Agent's built-in :mod:`agent.events` extensions (log + security).
 Doing it here means any entry point that imports ``AIAgent`` from
 ``agent.agent`` will end up with the extensions wired up — whether
 the entry point is ``backend/api/chat.py`` or a stand-alone script.
