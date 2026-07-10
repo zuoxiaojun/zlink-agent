@@ -1,5 +1,4 @@
 # Changelog
-## v1.5.2 — 2026-07-10 (破坏式收尾: 移除 YS_DATA_DIR + ~/.ys-agent/data 兼容层)
 ## v1.5.3 — 2026-07-10 (终极破坏式清理: 移除所有 ys-agent 命名兼容)
 
 **范围**: 把 v1.5.0 重命名留下的最后一丝 ys-agent 痕迹全部清除。从这个版本起,项目可以当作 100% 全新项目来对待 — 不再有兼容层、不再有旧命名 shim、不再有 fallback。
@@ -42,6 +41,7 @@
 - `dist/release-notes-*` (历史 release notes)
 
 
+## v1.5.2 — 2026-07-10 (破坏式收尾: 移除 YS_DATA_DIR + ~/.ys-agent/data 兼容层)
 **范围**: v1.5.1 完成 CLI 命令名清理, 本 patch 继续把兼容层的「数据目录双兼容」也清掉。物理上已经 `~/.ys-agent` → `~/.zlink-agent`, 这层 fallback 已经没有意义。
 
 ### 改动
