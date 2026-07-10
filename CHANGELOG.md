@@ -1,5 +1,35 @@
 # Changelog
 ## v1.5.0 — 2026-07-10 (重命名 ZLink Agent + 多 ERP 架构)
+## v1.5.2 — 2026-07-10 (破坏式收尾: 移除 YS_DATA_DIR + ~/.ys-agent/data 兼容层)
+
+**范围**: v1.5.1 完成 CLI 命令名清理, 本 patch 继续把兼容层的「数据目录双兼容」也清掉。物理上已经 `~/.ys-agent` → `~/.zlink-agent`, 这层 fallback 已经没有意义。
+
+### 改动
+
+- **`agent/utils.py`**: `_resolve_data_dir()` 删除 `YS_DATA_DIR` 读取 + 删除 `~/.ys-agent/data/` fallback。优先级链简化为 `ZLINK_DATA_DIR > ~/.zlink-agent/data/`
+- **`scripts/migrate.py`**: 读 `ZLINK_DATA_DIR` 而非 `YS_DATA_DIR`
+- **`agent/core/metrics.py`**: 12 个 Prometheus 指标前缀 `ys_agent_*` → `zlink_agent_*`。**下游 scraper 与 Grafana 仪表板过滤规则需同步更新**
+- **`backend/main.py` + `packaging/launcher.py` + `mcp_server/ys_mcp_server/utils.py`**: 注释同步
+- **`tests/test_utils_data_dir.py`**: 删 2 个 YS fallback 测试, 移除冗余 delenv
+- **`tests/test_erp_clients_api.py`**: 改用 `ZLINK_DATA_DIR`
+
+### 净减
+
+- agent/utils.py: 5 行代码净减少 (1 个 fallback 分支)
+- agent/core/metrics.py: 字符串前缀替换 (0 行业务逻辑变动)
+- tests: 1 个测试 (剩 64 PASS)
+
+### 破坏式影响
+
+- 老脚本里 `export YS_DATA_DIR=...` 直接失效, 需改 `ZLINK_DATA_DIR`
+- 任何写过 `~/.ys-agent/` 路径的硬编码自动化需更新
+- 监控 scraper 抓 `ys_agent_*` 指标全部失效, 必须改成 `zlink_agent_*` (或保留别名/variant scraper)
+
+### 保留兼容 (破坏性超出可接受)
+
+- `agent/config_model.py` 加密 salt (`hostname + "::ys-agent::salt_v1"`) — 删了所有老用户 config.json 解密失败
+- `agent/plugin_system/__init__.py` + `agent/extensions/__init__.py` 的 `ys-agent.extensions` plugin entry point group — 老插件兼容
+- `scripts/ys-agent.sh` 兼容 shim (CLI) + `setup.sh` 安装该 shim 的逻辑
 ## v1.5.1 — 2026-07-10 (破坏式 CLI 清理: 镜像环境变量 + sessionStorage key)
 
 **范围**: 把 CLI 残留的旧 `ys-agent` 命名一次清干净,与 v1.5.0 重命名配套形成完整收尾。**破坏式变更,老用户必须重新运行 `setup.sh` / `setup.bat` 才能识别新环境变量名。**
