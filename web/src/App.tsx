@@ -10,6 +10,7 @@ import SkillManagerPage from "./pages/SkillManagerPage";
 import ToolsPage from "./pages/ToolsPage";
 import SettingsLLMPage from "./pages/SettingsLLMPage";
 import SettingsYSPage from "./pages/SettingsYSPage";
+import SettingsERPPage from "./pages/SettingsERPPage";
 import SettingsAgentPage from "./pages/SettingsAgentPage";
 import SettingsExtensionsPage from "./pages/SettingsExtensionsPage";
 import McpPage from "./pages/McpPage";
@@ -58,6 +59,7 @@ export default function App() {
               <Route path="/tools" element={<ToolsPage />} />
               <Route path="/settings/llm" element={<SettingsLLMPage />} />
               <Route path="/settings/yonsuite" element={<SettingsYSPage />} />
+              <Route path="/settings/erp" element={<SettingsERPPage />} />
               <Route path="/settings/agent" element={<SettingsAgentPage />} />
               <Route path="/settings/extensions" element={<SettingsExtensionsPage />} />
               <Route path="/mcp" element={<McpPage />} />
