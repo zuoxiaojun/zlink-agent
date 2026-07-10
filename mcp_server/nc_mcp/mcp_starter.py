@@ -11,6 +11,16 @@ logger = logging.getLogger(__name__)
 
 NC_MCP_NAME = "mcp-nc"
 
+# 顶层导入, 便于测试 mock; 真实场景下避免循环依赖
+try:
+    from agent.config_manager import get_config
+    from agent.tools.mcp_manager import get_server_statuses, reconnect_server
+except ImportError:
+    # 避免硬依赖 (e.g. nc_mcp 作为独立包被 import 时)
+    get_config = None
+    get_server_statuses = None
+    reconnect_server = None
+
 
 async def sync_nc_mcp() -> None:
     """
@@ -21,10 +31,6 @@ async def sync_nc_mcp() -> None:
     - enabled=False: 停止 nc-mcp-server, 工具从 LLM 视野消失
     - 配置不存在: no-op
     """
-    # 延迟导入避免循环依赖
-    from agent.config_manager import get_config
-    from agent.tools.mcp_manager import get_server_statuses, reconnect_server
-
     config = get_config()
     nc_cfg = config.get("erp_clients", {}).get("nc")
 

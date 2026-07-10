@@ -9,21 +9,21 @@ def _run(coro):
 
 def test_sync_nc_mcp_disabled_when_no_config():
     """erp_clients.nc 不存在时, sync_nc_mcp 应该是 no-op"""
-    from mcp_server.nc_mcp.mcp_starter import sync_nc_mcp
+    from mcp_server.nc_mcp import mcp_starter
 
     async def go():
-        with patch("mcp_server.nc_mcp.mcp_starter.get_config") as mock_cfg, \
-             patch("mcp_server.nc_mcp.mcp_starter.reconnect_server", new=AsyncMock()) as mock_reconnect, \
-             patch("mcp_server.nc_mcp.mcp_starter.get_server_statuses", return_value=[]):
+        with patch.object(mcp_starter, "get_config") as mock_cfg, \
+             patch.object(mcp_starter, "reconnect_server", new=AsyncMock()) as mock_reconnect, \
+             patch.object(mcp_starter, "get_server_statuses", return_value=[]):
             mock_cfg.return_value = {}  # 没有 erp_clients
-            await sync_nc_mcp()
+            await mcp_starter.sync_nc_mcp()
             mock_reconnect.assert_not_called()
     _run(go())
 
 
 def test_sync_nc_mcp_enabled_starts_server():
     """erp_clients.nc.enabled=True 且有 host 时, 应该启动 mcp-nc"""
-    from mcp_server.nc_mcp.mcp_starter import sync_nc_mcp
+    from mcp_server.nc_mcp import mcp_starter
 
     nc_config = {
         "host": "1.2.3.4", "port": "1521", "service": "orcl",
@@ -31,11 +31,11 @@ def test_sync_nc_mcp_enabled_starts_server():
     }
 
     async def go():
-        with patch("mcp_server.nc_mcp.mcp_starter.get_config") as mock_cfg, \
-             patch("mcp_server.nc_mcp.mcp_starter.reconnect_server", new=AsyncMock()) as mock_reconnect, \
-             patch("mcp_server.nc_mcp.mcp_starter.get_server_statuses", return_value=[]):
+        with patch.object(mcp_starter, "get_config") as mock_cfg, \
+             patch.object(mcp_starter, "reconnect_server", new=AsyncMock()) as mock_reconnect, \
+             patch.object(mcp_starter, "get_server_statuses", return_value=[]):
             mock_cfg.return_value = {"erp_clients": {"nc": nc_config}}
-            await sync_nc_mcp()
+            await mcp_starter.sync_nc_mcp()
             mock_reconnect.assert_called_once()
             args, kwargs = mock_reconnect.call_args
             assert args[0] == "mcp-nc"
@@ -47,7 +47,7 @@ def test_sync_nc_mcp_enabled_starts_server():
 
 def test_sync_nc_mcp_disabled_stops_server():
     """erp_clients.nc.enabled=False 时, 应该停止 mcp-nc"""
-    from mcp_server.nc_mcp.mcp_starter import sync_nc_mcp
+    from mcp_server.nc_mcp import mcp_starter
 
     nc_config = {
         "host": "1.2.3.4", "enabled": False,
@@ -55,11 +55,11 @@ def test_sync_nc_mcp_disabled_stops_server():
     }
 
     async def go():
-        with patch("mcp_server.nc_mcp.mcp_starter.get_config") as mock_cfg, \
-             patch("mcp_server.nc_mcp.mcp_starter.reconnect_server", new=AsyncMock()) as mock_reconnect, \
-             patch("mcp_server.nc_mcp.mcp_starter.get_server_statuses", return_value=[{"name": "mcp-nc", "status": "connected"}]):
+        with patch.object(mcp_starter, "get_config") as mock_cfg, \
+             patch.object(mcp_starter, "reconnect_server", new=AsyncMock()) as mock_reconnect, \
+             patch.object(mcp_starter, "get_server_statuses", return_value=[{"name": "mcp-nc", "status": "connected"}]):
             mock_cfg.return_value = {"erp_clients": {"nc": nc_config}}
-            await sync_nc_mcp()
+            await mcp_starter.sync_nc_mcp()
             mock_reconnect.assert_called_once()
             args, kwargs = mock_reconnect.call_args
             target_config = args[1]
