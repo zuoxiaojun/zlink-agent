@@ -1,5 +1,27 @@
 # Changelog
 ## v1.5.0 — 2026-07-10 (重命名 ZLink Agent + 多 ERP 架构)
+## v1.5.1 — 2026-07-10 (破坏式 CLI 清理: 镜像环境变量 + sessionStorage key)
+
+**范围**: 把 CLI 残留的旧 `ys-agent` 命名一次清干净,与 v1.5.0 重命名配套形成完整收尾。**破坏式变更,老用户必须重新运行 `setup.sh` / `setup.bat` 才能识别新环境变量名。**
+
+### 改动
+
+- **`setup.sh` + `setup.bat`**: 镜像环境变量 `YS_USE_MIRROR` / `YS_PIP_MIRROR` / `YS_NPM_MIRROR` → `ZLINK_USE_MIRROR` / `ZLINK_PIP_MIRROR` / `ZLINK_NPM_MIRROR` (直接改名, 无回退)
+- **`scripts/update.sh`**: 同上
+- **`web/src/hooks/useChat.ts`**: sessionStorage key `ys_agent_last_session` → `zlink_agent_last_session` (老浏览器里的旧 key 失效, 最多丢失"记住上次会话"功能, 下次启动重置)
+
+### 净减
+
+- 0 行代码净变化 (仅字符串替换)
+- 4 个文件, 22 删 / 24 增
+
+### 保留兼容 (未纳入本次清理)
+
+- `agent/utils.py` 仍读 `YS_DATA_DIR` 环境变量 (数据目录兼容层, 与独立决策点)
+- `ys-agent.extensions` plugin entry point group (老插件)
+- `agent/config_model.py` 加密 salt 中的 `ys-agent` 字串 (删了会破坏老用户配置解密)
+- `scripts/ys-agent.sh` 兼容 shim (AGENTS.md 明确约定)
+
 
 **范围**: 把 YS-Agent 改名为 ZLink Agent（智链 Agent），引入声明性 ERPClient 协议，集成外部 nc-mcp-server 包作为首个非 builtin ERP 客户端。
 
