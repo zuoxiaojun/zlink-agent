@@ -1,203 +1,107 @@
-# YS-Agent
+# ZLink Agent (智链 Agent)
 
-基于 FastAPI + React (Vite) 的独立 AI Agent，为 YonSuite（用友云 ERP）提供 AI 能力。
+> **Smart Link to Your Business Systems** — 把 LLM 连接到你的业务系统的智能中枢。
+
+基于 FastAPI + React (Vite) 的独立 AI Agent，通过 MCP 协议对接 YonSuite、NC 等多种 ERP 系统，提供 AI 驱动的取数与分析能力。
 
 ## 功能
 
-- **AI 对话** — WebSocket 流式聊天，18 个内置工具 + YonSuite MCP 自动调用，支持推理过程实时显示；浏览器/图表功能通过自装 MCP 提供（无需 Python/Node 依赖）
-- **YonSuite 集成** — 销售/采购/生产订单、库存、待办、商机等 11 个查询工具
-- **Pydantic 配置** — 类型安全的配置模型，自动加密敏感字段，属性访问替代字典操作
-- **Phase 状态机** — 4 阶段生命周期（idle/turn/compaction/retry）+ Envelope SSE 消息包装
-- **插件系统** — 支持 entry-point 发现和目录扫描，第三方扩展可独立安装
-- **技能系统** — 可扩展技能包（安装/激活/停用），37+ 个内置技能
+- **AI 对话** — WebSocket 流式聊天，18 个内置工具 + YonSuite/NC MCP 自动调用，支持推理过程实时显示
+- **多 ERP 接入** — 内置 YonSuite MCP；NC 通过 [nc-mcp-server](https://atomgit.com/gcw_cJbJuamU/nc-mcp-project) 集成；新 ERP 按 MCP 包规范添加即可
+- **配置驱动路由** — 用户在 `/settings/erp` 选择启用哪个 ERP，AI 自动从对应系统取数
+- **Pydantic 配置** — 类型安全的配置模型，自动加密敏感字段
+- **Phase 状态机** — 4 阶段生命周期 + Envelope SSE 消息包装
+- **插件系统** — 支持 entry-point 发现和目录扫描
+- **技能系统** — 可扩展技能包（37+ 个内置技能 + 用户自定义）
 - **记忆系统** — Agent 自主笔记 + 用户画像 + 对话摘要
 - **全文搜索** — 历史对话 FTS5 索引
-- **配置加密** — 敏感字段自动 AES 加密存储
-- **跨平台** — 支持 macOS / Linux / Windows
+- **跨平台** — macOS / Linux / Windows
+
+## v1.5.0 升级说明
+
+从 v1.4.x 升级的用户：
+- 数据目录 `~/.ys-agent/data/` 自动兼容，无需迁移
+- CLI 命令 `ys-agent` 仍可用（软链接到 `zlink`）
+- 想用新名：手动 `mv ~/.ys-agent/data ~/.zlink-agent/data`
 
 ## 环境要求
 
 - Python 3.11+
 - Node.js 18+
 - npm 9+
+- （可选）Oracle 客户端库 — 仅当启用 NC 时需要
 
-## 一键构建（macOS / Linux）
+## 一键安装（macOS / Linux）
 
 ```bash
-git clone https://atomgit.com/gcw_cJbJuamU/ys-agent.git
-cd ys-agent
+git clone https://atomgit.com/gcw_cJbJuamU/zlink-agent.git
+cd zlink-agent
 ./setup.sh
 ```
 
-启动：
+## 启用 NC 支持（可选）
 
 ```bash
-# 生产模式（后端 Serve 前端，自动打开浏览器）
-./start.sh
+# 装 NC MCP server 包 (Oracle 直连)
+pip install "zlink-agent[nc]"
 
-# 开发模式（后端 + Vite 热更新）
-./start.sh --dev
+# 或从源码装最新:
+pip install git+https://atomgit.com/gcw_cJbJuamU/nc-mcp-project.git
+
+# 启动后访问 /settings/erp 填 Oracle 连接信息
 ```
 
-## 一键构建（Windows）
-
-在 Windows CMD 或 PowerShell 中运行：
-
-```bat
-git clone https://atomgit.com/gcw_cJbJuamU/ys-agent.git
-cd ys-agent
-setup.bat
-```
-
-启动：
-
-```bat
-start.bat              生产模式（后端 Serve 前端）
-start.bat --dev        开发模式（后端 + Vite 热更新）
-start.bat stop         停止服务
-```
-
-## 手动构建（跨平台）
+## 快速启动
 
 ```bash
-# 1. 克隆
-git clone https://atomgit.com/gcw_cJbJuamU/ys-agent.git
-cd ys-agent
+./start.sh            # 生产模式: 后端 Serve 前端
+./start.sh --dev      # 开发模式: 后端 + Vite 热更新
+./start.sh stop       # 停止服务
+```
 
-# 2. 后端
-python3 -m venv .venv
-# Windows: .venv\Scripts\activate
+## 常用命令
+
+```bash
 source .venv/bin/activate
-pip install -r requirements.txt
-
-# 3. 配置端口
-cp .env.example .env
-# 编辑 .env 修改端口（可选）
-
-# 4. 前端
-cd web
-npm ci
-npm run build     # 输出到 web/dist/
-cd ..
-
-# 5. 启动
-# macOS/Linux: ./start.sh
-# Windows: start.bat
+uvicorn backend.main:app --host 0.0.0.0 --port 8089
+cd web && npm run dev           # Vite 开发服务器
+.venv/bin/python -m pytest tests/ -v
+ruff check . && ruff format --check .
 ```
-
-## 打包 Windows 桌面应用
-
-在 Windows 上打包为独立可执行文件（无需 Python 环境即可运行）：
-
-```bat
-scripts\build-windows.bat              默认打包
-scripts\build-windows.bat --no-frontend 跳过前端构建
-scripts\build-windows.bat --installer   额外生成 NSIS 安装包（需安装 NSIS）
-scripts\build-windows.bat --debug       debug 模式
-```
-
-前置条件：
-
-- `pip install pyinstaller`
-- 可选：[NSIS 3.0+](https://nsis.sourceforge.io/Download) — 用于生成安装包
-
-输出：`dist\YS-Agent\` — 包含 `ys-agent.exe` 和 `start-ys-agent.bat`。无需 Python / Node.js 即可双击运行。
-
-## 配置
-
-| 配置项 | 方式 |
-|--------|------|
-| 端口 | `.env` 文件（`YS_FRONTEND_PORT` / `YS_AGENT_PORT`） |
-| LLM API Key | 启动后访问 `http://localhost:8088` → 设置 → LLM 配置（自动加密存储） |
-| YonSuite 密钥 | 启动后访问 `http://localhost:8088` → 设置 → YonSuite 配置 |
 
 ## 项目结构
 
 ```
-ys-agent/
-├── agent/                  # AI Agent 核心
-│   ├── agent.py            # re-export 入口（旧循环已拆分为 core/）
-│   ├── config_model.py     # Pydantic 配置模型（AppConfig + MCPServerEntry）
-│   ├── config_manager.py   # 持久化配置（加密存储 + 类型安全）
-│   ├── core/               # 分层引擎（agent/message_builder/llm_client/Phase 状态机）
-│   ├── events/             # 事件总线 + 8 事件类 + Extension 系统
-│   ├── extensions/         # 内置扩展（日志/监控/安全）
-│   ├── plugin_system/      # 插件发现（entry-point + 目录扫描）
-│   ├── tools/              # 18 个内置工具 + MCP 管理器
-│   ├── yonsuite_client/    # YonSuite API 核心库
-│   ├── skills/             # 技能包
-│   ├── session_manager.py  # 会话管理
-│   ├── memory_manager.py   # 对话摘要
-│   ├── fact_memory.py      # 自主记忆（笔记 + 用户画像）
-│   └── search_index.py     # FTS5 搜索索引
-├── backend/                # FastAPI 后端
-│   ├── main.py             # 应用入口（lifespan 上下文管理器）
-│   ├── api/                # REST + WebSocket API
-│   ├── schemas/            # Pydantic 响应模型
-│   ├── llm_providers.py    # 9 家 LLM 厂商配置
-│   └── config.py           # 服务配置
-├── web/                    # React 前端
-│   ├── src/pages/          # 页面组件（Chat/History/Tools/Skills/Memory/MCP/Settings）
-│   └── vite.config.ts      # Vite 配置
-├── mcp_server/             # 内置 MCP 服务器（yonsuite）
-├── data/                   # 运行时数据（config.json / 会话 / 记忆 / 日志 / 插件）
-├── tests/                  # pytest 套件（41 tests）
-├── .env.example            # 环境变量模板
-├── setup.sh                # 一键构建脚本（macOS/Linux）
-├── setup.bat               # 一键构建脚本（Windows）
-├── start.sh                # 启动脚本（macOS/Linux）
-├── start.bat               # 启动脚本（Windows）
-├── packaging/              # 打包配置
-│   ├── ys-agent.spec       # PyInstaller spec
-│   ├── launcher.py         # 打包入口
-│   ├── installer.nsi       # NSIS 安装包脚本（Windows）
-│   ├── app-icon.ico        # Windows 图标
-│   └── generate_icon.py    # 图标生成脚本
-├── scripts/
-│   └── build-windows.bat   # Windows 打包脚本
-└── VERSION                 # 版本号
+zlink-agent/
+├── agent/
+│   ├── core/                       # LLM 核心 (agent.py / llm_providers/ / message_builder / tool_dispatcher)
+│   ├── erp_clients/                # [v1.5.0 新] 声明性 ERP 客户端父目录
+│   │   ├── base.py                 # ERPClient Protocol + 通用异常 + MCPStarterConfig
+│   │   ├── __init__.py             # 声明性注册中心
+│   │   └── yonsuite/               # 从 yonsuite_client/ 整体迁移
+│   ├── tools/                      # 27 个内置工具 (file/web/skills/todo/clarify/memory/session_search/mcp_manager)
+│   ├── skills/                     # 内置技能 (yonsuite/nc/...)
+│   ├── events/                     # EventBus + 9 个事件类型
+│   └── extensions/                 # log_everything/security_event/monitoring
+├── backend/
+│   ├── main.py                     # FastAPI app + CORS + 路由挂载
+│   ├── api/                        # /api/chat /api/tools /api/skills /api/memory /api/mcp /api/config(含 /erp-clients)
+│   ├── core/llm_providers/         # openai_compat / anthropic
+│   └── schemas/                    # Pydantic 模型
+├── web/                            # React + Vite (端口 8088)
+│   ├── App.tsx                     # 路由: / /history /tools /skills /memory /mcp /settings/llm /settings/agent /settings/erp [新] /settings/yonsuite /settings/extensions
+│   └── pages/                      # ChatPage / HistoryPage / ToolsPage / SkillManagerPage / MemoryPage / McpPage / SettingsLLMPage / SettingsAgentPage / SettingsERPPage [新] / SettingsYSPage / SettingsExtensionsPage
+├── mcp_server/
+│   ├── ys_mcp_server/              # builtin YonSuite MCP (11 个 query 工具)
+│   └── nc_mcp/                     # [v1.5.0 新] NC MCP 集成入口 (调外部 nc-mcp-server)
+├── data/                           # 运行时数据 (源码模式; .app 模式用 ~/.zlink-agent/data/)
+└── tests/                          # pytest (41+10=56 个)
 ```
 
 ## 版本
 
-当前版本：**v1.4.1**（2026-07-10）。完整变更日志见 [CHANGELOG.md](./CHANGELOG.md)。
+v1.5.0 — 2026-07-10
 
-## v1.4+ 变更
+## License
 
-- **数据目录唯一化**：`~/.ys-agent/data/` 成为唯一数据目录（之前 5 级 fallback 太复杂，源码与 .app 行为不一致）。`agent/utils.py` 砍到 2 级（`YS_DATA_DIR` > 默认）。**v1.4.1 起移除自动迁移**——项目仅服务新用户
-- **启动信息透明**：`backend/main.py` 启动时打印 `[YS-Agent] Data directory: <路径>`，不再需要猜设置存在哪
-- **代码更精简**：`agent/utils.py` 从 247 行砍到 47 行（移除所有迁移相关 API）
-- **测试 41/41 通过**：`MetricsCollector._Stub` 缺 `__init__` bug 已修，3 个内置 extension 全部正常注册
-- 详见 [CHANGELOG.md](./CHANGELOG.md) v1.4.0 / v1.4.1 段
-
-## v1.3+ 新增（保留）
-
-- **Pydantic 配置化**：`agent/config_model.py` 新增 `AppConfig` 模型，类型安全 + 加密字段自动处理
-- **Phase 状态机**：`Phase` 枚举 + `Envelope` SSE 包装器，前端可追踪 agent 生命周期
-- **插件系统**：`agent/plugin_system/` 支持 entry-point 发现和目录扫描
-- **Windows 兼容**：terminal_tool 跨平台 shell 检测（cmd/powershell/bash），路径正则支持 `C:\...`
-- Agent 配置可 Web UI 调整（`/settings/agent`），Extension 可 UI toggle（`/settings/extensions`）
-
-## v1.1+ 新增（已推送，详见 commit `d18369c`）
-
-v1.0 → v1.1.1 的重构增量（41 files / +5097 / -498）。CHANGELOG 里 v1.1.1 段记的概要：
-
-- **M1 分层**：`agent/agent.py` (481 行) 拆为 `agent/core/{agent,message_builder,llm_client,tool_dispatcher,iteration_budget}.py`；`agent/agent.py` 缩到 40 行 re-export
-- **M2 事件系统**：`agent/events/{bus,types,extensions}.py`；8 个事件类（session_start/end、user_message、before/after_llm_call、before/after_tool_call、session_before_compact）；Extension 基类 + typed handler 自动订阅
-- **M3 LLM Provider 抽象**：`agent/core/llm_providers/{base,openai_compat,anthropic,factory}.py`；9 个 OpenAI-compat provider + Anthropic 原生
-- **M4 压缩增强**：`compact_messages` 改吃 `summary_caller`；新增文件追踪（限 5 个/8KB）；`SessionBeforeCompactEvent` 钩子
-- **M5+ Extension 配置化**：4 个 HTTP API（`/api/extensions`、`/active`、`/{name}/toggle`、`/reload`）+ Web UI「扩展管理」页（侧边栏 → 设置 → 扩展管理），状态持久化到 `config.json` 的 `disabled_extensions` 字段，runtime toggle 生效无需重启
-- **v1.1.2**：跨平台脚本适配（macOS / Linux / Windows Git Bash），`llm_api_key` Fernet 加密存储，自动打开浏览器
-- **pytest 套件**：`tests/` 36 个 test，0.5s 全过；事件总线 + config 双 fixture 隔离；0 新依赖
-
-### 开发参考
-
-- Extension 开发指南：[`docs/extending-ys-agent.md`](./docs/extending-ys-agent.md)
-- pytest 套件说明：[`tests/README.md`](./tests/README.md)
-
-### 跑 pytest
-
-```bash
-source .venv/bin/activate
-.venv/bin/python -m pytest tests/ -v   # 36 tests, ~0.5s
-```
+见 `LICENSE` 文件
