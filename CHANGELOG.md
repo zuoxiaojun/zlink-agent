@@ -1,5 +1,4 @@
 # Changelog
-## v1.5.0 — 2026-07-10 (重命名 ZLink Agent + 多 ERP 架构)
 ## v1.5.2 — 2026-07-10 (破坏式收尾: 移除 YS_DATA_DIR + ~/.ys-agent/data 兼容层)
 
 **范围**: v1.5.1 完成 CLI 命令名清理, 本 patch 继续把兼容层的「数据目录双兼容」也清掉。物理上已经 `~/.ys-agent` → `~/.zlink-agent`, 这层 fallback 已经没有意义。
@@ -53,6 +52,7 @@
 - `scripts/ys-agent.sh` 兼容 shim (AGENTS.md 明确约定)
 
 
+## v1.5.0 — 2026-07-10 (重命名 ZLink Agent + 多 ERP 架构)
 **范围**: 把 YS-Agent 改名为 ZLink Agent（智链 Agent），引入声明性 ERPClient 协议，集成外部 nc-mcp-server 包作为首个非 builtin ERP 客户端。
 
 ### 新增
