@@ -11,9 +11,7 @@ import sys
 
 def _setup_frozen_env():
     """Configure runtime paths for frozen (PyInstaller) mode."""
-    # v1.4.0: 数据目录统一为 ~/.ys-agent/data/,源码与 .app 行为完全一致。
-    # 旧位置的检测与首次启动自动迁移由 agent/utils.py 完成。
-    # 唯一覆盖方式: YS_DATA_DIR 环境变量。
+    # 数据目录由 agent.utils._resolve_data_dir() 解析 (YS_DATA_DIR > ~/.ys-agent/data)
 
     # When frozen, _MEIPASS is the _internal/ directory where all files live.
     # sys.path already includes it from PyInstaller bootstrap, but we also

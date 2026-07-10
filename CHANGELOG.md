@@ -1,4 +1,34 @@
 # Changelog
+## v1.4.1 — 2026-07-10 (移除自动迁移: 项目仅服务新用户)
+
+**范围**: 移除 v1.4.0 引入的自动迁移机制。后续只面向新用户,旧用户已通过 v1.4.0 完成升级,不再需要 `ys-agent migrate-data-path` 这类兼容性工具。
+
+### 移除
+
+- **`agent/utils.py`**:
+  - `_maybe_migrate_from_legacy()`(首次启动自动复制旧位置)
+  - `detect_legacy_data_dirs()`(列出旧位置)
+  - `migrate_from()`(执行迁移)
+  - `_find_legacy_data_dirs()` / `_has_real_data()` / `_do_migrate()`(内部辅助)
+  - `DEFAULT_DATA_DIR` 改为模块级常量(从函数返回改为直接计算)
+- **`backend/main.py`**: 启动时不再调用 `detect_legacy_data_dirs()`、不再打印"检测到旧位置"提示
+- **`scripts/ys-agent.sh`**: 删除 `migrate-data-path` 子命令 + help 行 + usage 注释
+- **`packaging/launcher.py`**: 注释去掉迁移相关说明
+
+### 净减
+
+- `agent/utils.py` 247 行 → 47 行 (-200 行)
+- `scripts/ys-agent.sh` 少 1 个子命令分支
+- 启动更快(无旧位置检测)
+- 启动日志更干净(无警告)
+
+### 不变
+
+- 38 个 FastAPI 路由、9 个 LLM provider、3 个内置 extension、18 个内置工具
+- `YS_DATA_DIR` 仍然最高优先级(覆盖默认值,便于测试/多实例)
+- `~/.ys-agent/data/` 仍然是默认数据目录
+- pytest 41/41 仍通过、ruff check 0 errors、smoke test 正常
+
 ## v1.4.0 — 2026-07-10 (数据目录统一: ~/.ys-agent/data)
 
 **架构简化**: 把 5 级数据目录 fallback 砍到 2 级。源码启动和 .app 启动都使用 `~/.ys-agent/data/`,行为完全一致。

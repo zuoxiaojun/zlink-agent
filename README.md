@@ -160,14 +160,15 @@ ys-agent/
 
 ## 版本
 
-当前版本：**v1.4.0**（2026-07-10）。完整变更日志见 [CHANGELOG.md](./CHANGELOG.md)。
+当前版本：**v1.4.1**（2026-07-10）。完整变更日志见 [CHANGELOG.md](./CHANGELOG.md)。
 
-## v1.4+ 新增
+## v1.4+ 变更
 
-- **数据目录统一**：`~/.ys-agent/data/` 成为唯一数据目录（之前 5 级 fallback 太复杂，源码与 .app 行为不一致）。`agent/utils.py` 砍到 2 级（`YS_DATA_DIR` > 默认）；首次启动若新位置为空自动迁移；新位置已有内容时启动时打印提示，让用户用 `ys-agent migrate-data-path --merge` 显式合并
+- **数据目录唯一化**：`~/.ys-agent/data/` 成为唯一数据目录（之前 5 级 fallback 太复杂，源码与 .app 行为不一致）。`agent/utils.py` 砍到 2 级（`YS_DATA_DIR` > 默认）。**v1.4.1 起移除自动迁移**——项目仅服务新用户
 - **启动信息透明**：`backend/main.py` 启动时打印 `[YS-Agent] Data directory: <路径>`，不再需要猜设置存在哪
-- **顺手修测试 41/41 通过**：`MetricsCollector._Stub` 缺 `__init__` 导致 `prometheus_client` 未装时 3 个内置 extension 只能注册 1 个，现在 3 个全 OK
-- 详见 [CHANGELOG.md](./CHANGELOG.md) v1.4.0 段
+- **代码更精简**：`agent/utils.py` 从 247 行砍到 47 行（移除所有迁移相关 API）
+- **测试 41/41 通过**：`MetricsCollector._Stub` 缺 `__init__` bug 已修，3 个内置 extension 全部正常注册
+- 详见 [CHANGELOG.md](./CHANGELOG.md) v1.4.0 / v1.4.1 段
 
 ## v1.3+ 新增（保留）
 
