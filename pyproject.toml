@@ -3,9 +3,9 @@ requires = ["setuptools>=75.0"]
 build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
-name = "ys-agent"
-version = "1.4.1"
-description = "AI Agent for YonSuite ERP"
+name = "zlink-agent"
+version = "1.5.0"
+description = "Smart Link to Your Business Systems - AI Agent for Multi-ERP Analysis"
 requires-python = ">=3.11"
 dependencies = [
     "openai>=1.0.0",
@@ -25,7 +25,10 @@ web = [
     "uvicorn[standard]>=0.27.0",
     "python-multipart>=0.0.9",
 ]
-all = ["ys-agent[web]"]
+nc = [
+    "nc-mcp-server @ git+https://atomgit.com/gcw_cJbJuamU/nc-mcp-project.git@main#subdirectory=nc-mcp",
+]
+all = ["zlink-agent[web]"]
 dev = ["pytest>=8.0.0"]
 
 [tool.ruff]
