@@ -17,12 +17,13 @@
 - **全文搜索** — 历史对话 FTS5 索引
 - **跨平台** — macOS / Linux / Windows
 
-## v1.5.0 升级说明
+## 部署
 
-从 v1.4.x 升级的用户：
-- 数据目录 `~/.ys-agent/data/` 自动兼容，无需迁移
-- CLI 命令 `ys-agent` 仍可用（软链接到 `zlink`）
-- 想用新名：手动 `mv ~/.ys-agent/data ~/.zlink-agent/data`
+- 命令: `zlink` (安装到 `~/.local/bin/zlink`)
+- 数据目录: `~/.zlink-agent/data/`
+- 配置目录: `ZLINK_DATA_DIR` 环境变量覆盖 (可选)
+
+详见 `scripts/setup.sh` (Linux/macOS) 或 `setup.bat` (Windows)。
 
 ## 环境要求
 

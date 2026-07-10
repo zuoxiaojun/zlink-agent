@@ -13,7 +13,7 @@ _ENCRYPTED_FIELDS = {"llm_api_key", "ys_app_key", "ys_app_secret"}
 
 
 def _derive_key() -> bytes:
-    raw = socket.gethostname() + "::ys-agent::salt_v1"
+    raw = socket.gethostname() + "::zlink-agent::salt_v1"
     return hashlib.sha256(raw.encode()).digest()
 
 

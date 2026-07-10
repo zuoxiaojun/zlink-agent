@@ -56,11 +56,11 @@ VENV_ACTIVATE="$ZLINK_PROJECT_DIR/.venv/bin/activate"
 
 # ── 读取端口配置（兼容 .env） ──────────────────────────────────────────────
 if [ -f "$ZLINK_PROJECT_DIR/.env" ]; then
-    source <(grep -E '^(ZLINK|YS)_(AGENT_HOST|AGENT_PORT|FRONTEND_PORT)=' "$ZLINK_PROJECT_DIR/.env" 2>/dev/null || true)
+    source <(grep -E '^ZLINK_(AGENT_HOST|AGENT_PORT|FRONTEND_PORT)=' "$ZLINK_PROJECT_DIR/.env" 2>/dev/null || true)
 fi
-BACKEND_PORT="${ZLINK_AGENT_PORT:-${YS_AGENT_PORT:-8089}}"
-FRONTEND_PORT="${ZLINK_FRONTEND_PORT:-${YS_FRONTEND_PORT:-8088}}"
-HOST="${ZLINK_AGENT_HOST:-${YS_AGENT_HOST:-0.0.0.0}}"
+BACKEND_PORT="${ZLINK_AGENT_PORT:-8089}"
+FRONTEND_PORT="${ZLINK_FRONTEND_PORT:-8088}"
+HOST="${ZLINK_AGENT_HOST:-0.0.0.0}"
 
 # 浏览器打开地址（127.0.0.1 而非 0.0.0.0，部分浏览器不认）
 BROWSER_URL="http://127.0.0.1:$BACKEND_PORT"
@@ -143,8 +143,7 @@ print(f'  Commit: {g[\"commit\"]}   Branch: {g[\"branch\"]}')
         echo "  zlink migrate               数据 schema 迁移 (旧用户使用,新项目无需)"
         echo "  zlink version / --version   显示版本信息"
         echo "  zlink --help                显示此帮助"
-        echo "  ys-agent                    兼容 shim，等同于 zlink"
-        exit 0
+                exit 0
         ;;
 
     # ── --dev 开发模式 ──

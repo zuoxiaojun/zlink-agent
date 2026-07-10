@@ -10,10 +10,8 @@ from dotenv import load_dotenv
 if not getattr(sys, "frozen", False):
     load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-HOST = os.environ.get("ZLINK_AGENT_HOST") or os.environ.get("YS_AGENT_HOST", "0.0.0.0")
-PORT = int(os.environ.get("ZLINK_AGENT_PORT") or os.environ.get("YS_AGENT_PORT", "8089"))
+HOST = os.environ.get("ZLINK_AGENT_HOST", "0.0.0.0")
+PORT = int(os.environ.get("ZLINK_AGENT_PORT", "8089"))
 CORS_ORIGINS = (
-    ["*"]
-    if getattr(sys, "frozen", False)
-    else (os.environ.get("ZLINK_AGENT_CORS") or os.environ.get("YS_AGENT_CORS", "http://localhost:8088")).split(",")
+    ["*"] if getattr(sys, "frozen", False) else os.environ.get("ZLINK_AGENT_CORS", "http://localhost:8088").split(",")
 )
