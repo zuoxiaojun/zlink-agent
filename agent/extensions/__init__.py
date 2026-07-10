@@ -6,8 +6,7 @@ then expose a single :func:`register_built_in_extensions` entry point.
 Discovery
 ---------
 1. Built-in extensions (hard-coded below).
-2. Python entry-point plugins (``[project.entry-points."zlink-agent.extensions"]``;
-   legacy ``ys-agent.extensions`` is also scanned).
+2. Python entry-point plugins (``[project.entry-points."zlink-agent.extensions"]``).
 3. Directory plugins from ``data/plugins/*.py``.
 """
 

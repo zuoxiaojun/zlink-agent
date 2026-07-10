@@ -14,7 +14,7 @@
 #   4. 创建 .env 配置文件
 #   5. 创建数据目录
 #   6. 构建前端
-#   7. 安装 zlink 快捷命令（保留 ys-agent 兼容 shim）
+#   7. 安装 zlink 快捷命令
 #   8. 执行数据迁移
 #
 # 环境变量（镜像加速）：
@@ -333,18 +333,12 @@ mkdir -p "$INSTALL_DIR"
 
 LAUNCHER_SRC="$PROJECT_DIR/scripts/zlink.sh"
 LAUNCHER_DST="$INSTALL_DIR/zlink"
-SHIM_SRC="$PROJECT_DIR/scripts/ys-agent.sh"
-SHIM_DST="$INSTALL_DIR/ys-agent"
+# (ys-agent 兼容 shim 已在 v1.5.3 移除 — 全新项目不保留任何命名兼容)
 
 if [ -f "$LAUNCHER_SRC" ]; then
     sed "s|__PROJECT_DIR__|$PROJECT_DIR|g" "$LAUNCHER_SRC" > "$LAUNCHER_DST"
     chmod +x "$LAUNCHER_DST"
     ok "快捷命令已安装: $LAUNCHER_DST"
-    if [ -f "$SHIM_SRC" ]; then
-        cp "$SHIM_SRC" "$SHIM_DST"
-        chmod +x "$SHIM_DST"
-        ok "兼容命令已安装: $SHIM_DST -> zlink"
-    fi
 else
     warn "未找到启动器模板: $LAUNCHER_SRC，跳过"
 fi

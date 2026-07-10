@@ -6,8 +6,8 @@ export default defineConfig(({ mode }) => {
   const envDir = resolve(__dirname, '..')
   const env = loadEnv(mode, envDir, '')
 
-  const frontendPort = parseInt(env.ZLINK_FRONTEND_PORT || env.YS_FRONTEND_PORT || '8088')
-  const backendPort = env.ZLINK_AGENT_PORT || env.YS_AGENT_PORT || '8089'
+  const frontendPort = parseInt(env.ZLINK_FRONTEND_PORT || '8088')
+  const backendPort = env.ZLINK_AGENT_PORT || '8089'
 
   return {
     plugins: [react()],

@@ -3,7 +3,6 @@
 ZLink Agent's plugin system discovers extensions via two mechanisms:
 1. **Entry points** — packages installed with
    ``[project.entry-points."zlink-agent.extensions"]``
-   (legacy ``ys-agent.extensions`` is also scanned)
 2. **Directory scan** — ``.py`` files in ``data/plugins/`` (for local development)
 
 Every plugin must expose an ``extension_classes()`` function that returns
@@ -20,15 +19,14 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_ENTRY_POINT_GROUPS = ("zlink-agent.extensions", "ys-agent.extensions")
+_ENTRY_POINT_GROUPS = ("zlink-agent.extensions",)
 _loaded_plugins: dict[str, list[type]] = {}
 
 
 def discover_entry_point_plugins() -> dict[str, list[type]]:
     """Discover plugins registered via package entry points.
 
-    Reads ``[project.entry-points."zlink-agent.extensions"]`` (and legacy
-    ``ys-agent.extensions``) from installed packages and calls
+    Reads ``[project.entry-points."zlink-agent.extensions"]`` from installed packages and calls
     ``extension_classes()`` on each entry.
     """
     plugins: dict[str, list[type]] = {}

@@ -1,5 +1,46 @@
 # Changelog
 ## v1.5.2 — 2026-07-10 (破坏式收尾: 移除 YS_DATA_DIR + ~/.ys-agent/data 兼容层)
+## v1.5.3 — 2026-07-10 (终极破坏式清理: 移除所有 ys-agent 命名兼容)
+
+**范围**: 把 v1.5.0 重命名留下的最后一丝 ys-agent 痕迹全部清除。从这个版本起,项目可以当作 100% 全新项目来对待 — 不再有兼容层、不再有旧命名 shim、不再有 fallback。
+
+**这是最后一次破坏式重命名。v1.6.0 起所有 API 与 CLI 都将保持稳定。**
+
+### 改动
+
+- **`agent/config_model.py`** (破坏): 加密 salt `hostname + "::ys-agent::salt_v1"` → `hostname + "::zlink-agent::salt_v1"`。**所有现有用户的加密 config.json 必须重新输入 API key**
+- **`agent/plugin_system/__init__.py` + `agent/extensions/__init__.py`**: 删除 `ys-agent.extensions` plugin entry point 兼容扫描,只保留 `zlink-agent.extensions`
+- **`scripts/ys-agent.sh`**: 删除整个文件 (兼容 shim 不再存在)
+- **`setup.sh`**: 移除安装兼容 shim 的逻辑 (SHIM_SRC/SHIM_DST/sed-install 块)
+- **`scripts/zlink.sh`**: 删除 help 文本中的 `ys-agent` 命令提示
+- **`backend/config.py` + `web/vite.config.ts` + `scripts/zlink.sh`**: 删除 `YS_AGENT_HOST` / `YS_AGENT_PORT` / `YS_FRONTEND_PORT` / `YS_AGENT_CORS` 端口变量 fallback,只读 `ZLINK_*`
+- **`.env` + `.env.example`**: 端口变量改名 `YS_*` → `ZLINK_*`
+- **`AGENTS.md`**: 删除 "v1.5.0 起 `ys-agent` 命令仍可作为兼容 shim" 描述;删除 `~/.ys-agent/data/` 兼容目录说明
+- **`README.md`**: 重写 "升级说明" 段为 "全新部署" 段,不再提旧命名
+
+### 净减
+
+- 10 文件, +23 / -42 (净 19 行)
+- 1 个文件删除 (`scripts/ys-agent.sh`)
+
+### 破坏式影响清单 (用户必须执行的动作)
+
+1. **加密 config 失效**: 加密 salt 改了,所有老用户的 `config.json` 中 `llm_api_key` / `ys_app_key` / `ys_app_secret` 解密失败。需要重新进入前端「设置」页面输入密钥 (会自动用新 salt 重加密)
+2. **CLI 命令**: 老脚本里写的 `ys-agent ...` 必须改成 `zlink ...`
+3. **端口变量**: `YS_FRONTEND_PORT` / `YS_AGENT_PORT` / `YS_AGENT_CORS` / `YS_AGENT_HOST` 必须改名 `ZLINK_*`
+4. **第三方 plugin**: 如果有第三方包通过 `[project.entry-points."ys-agent.extensions"]` 注册扩展,需要改成 `zlink-agent.extensions`
+5. **数据目录**: `~/.ys-agent/` 已被前述迁移为 `~/.zlink-agent/`,如果之前没迁移,会找不到数据
+
+### 保留 (已经无可保留)
+
+无。v1.5.3 已经 0 ys-agent 残留。
+
+### 历史归档 (不改)
+
+- `CHANGELOG.md` v1.5.0 / v1.5.1 / v1.5.2 / 更早的版本段 (历史叙述)
+- `docs/superpowers/plans/` (规划文档)
+- `dist/release-notes-*` (历史 release notes)
+
 
 **范围**: v1.5.1 完成 CLI 命令名清理, 本 patch 继续把兼容层的「数据目录双兼容」也清掉。物理上已经 `~/.ys-agent` → `~/.zlink-agent`, 这层 fallback 已经没有意义。
 
