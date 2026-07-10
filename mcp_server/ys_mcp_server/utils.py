@@ -5,14 +5,20 @@ import os
 import sys
 from pathlib import Path
 
+# Ensure project root on sys.path so agent/ imports work
 if getattr(sys, "frozen", False):
     _PROJECT_ROOT = Path(sys._MEIPASS)
 else:
     _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 
 def _load_ys_config() -> dict:
-    config_path = Path(os.environ.get("YS_DATA_DIR", str(_PROJECT_ROOT / "data"))) / "config.json"
+    # v1.4.0: 数据目录统一由 agent.utils 解析 (YS_DATA_DIR > ~/.ys-agent/data/)
+    from agent.utils import DATA_DIR
+
+    config_path = DATA_DIR / "config.json"
     if config_path.exists():
         try:
             cfg = json.loads(config_path.read_text("utf-8"))
@@ -33,10 +39,6 @@ def _load_ys_config() -> dict:
 
     return cfg
 
-
-# Ensure project root on path for agent/ imports
-if str(_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PROJECT_ROOT))
 
 _load_ys_config()
 

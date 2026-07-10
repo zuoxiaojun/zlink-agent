@@ -1,4 +1,39 @@
 # Changelog
+## v1.4.0 — 2026-07-10 (数据目录统一: ~/.ys-agent/data)
+
+**架构简化**: 把 5 级数据目录 fallback 砍到 2 级。源码启动和 .app 启动都使用 `~/.ys-agent/data/`,行为完全一致。
+
+### 改动
+
+- **数据目录唯一化**：`agent/utils.py` 的 `_resolve_data_dir()` 从 5 级 fallback (`YS_DATA_DIR` > `.app 旁边 data/` > `Resources/data/` > `~/YS-Agent/data/` > `~/.ys-agent/data/`) 砍到 2 级 (`YS_DATA_DIR` > `~/.ys-agent/data/`)。源码与 .app 不再有"看起来数据丢了"的问题
+- **自动迁移**：`agent/utils.py` 新增 `_maybe_migrate_from_legacy()`,首次启动时若新位置完全为空 + 旧位置有数据,自动复制并写 `.migrated` 标记,跳过重复迁移。**不擅自覆盖任何已存在数据**——若新位置已有内容,启动时打印提示让用户显式运行 `ys-agent migrate-data-path` 合并
+- **`ys-agent migrate-data-path` CLI**:`scripts/ys-agent.sh` 新增子命令,自动发现旧位置并迁移,支持 `--merge` 追加模式(同名词不覆盖,跳过的项备份到 `backups/merge-skipped-<ts>/`)
+- **启动信息透明**:`backend/main.py` 每次启动在 stderr 打印 `[YS-Agent] Data directory: <路径>`,若检测到旧位置有数据则提示如何合并,消除"我设置到底存哪了"的不确定性
+- **`mcp_server/ys_mcp_server/utils.py`** 复用 `agent.utils.DATA_DIR`,避免与主进程使用不同路径读 `config.json`(之前在 `.app` 模式下可能读到空配置)
+- **`.app` 启动器简化**:`scripts/build-app.sh` 的 macOS launcher 去掉多级探测逻辑,只显示 `~/.ys-agent/data (源码与 .app 共享)`
+
+### 顺手修
+
+- **`MetricsCollector._Stub` 构造失败 bug**:`agent/core/metrics.py` 的 `_Stub` 没写 `__init__`,Python 3 默认 object 构造拒绝任何参数,导致 `prometheus_client` 未装时 `MetricsCollector()` 抛 `TypeError`,`MonitoringExtension` 注册失败,`/api/extensions` 列表里看不到 monitoring/security-event。补 `def __init__(self, *_args, **_kwargs): pass` 后 3 个内置 extension 全部正常注册
+- **缺失依赖补全**:`.venv` 里没装 `prometheus_client` (虽然 `requirements.txt` 列了),补装 `prometheus_client>=0.21.0`
+- **测试 41/41 通过**: 之前 `test_api_extensions.py` 有 2 failed + 1 error,根因即上面 `_Stub` bug,顺带修好
+
+### 迁移说明 (v1.3.x → v1.4.0)
+
+旧版本在 `.app` 模式下会把数据存到 `~/.ys-agent/data/`,在源码模式下存到 `<项目>/data/`,两边数据可能分散。
+
+**首次启动 v1.4.0 时**:
+- 若 `~/.ys-agent/data/` 为空 + 项目 `data/` 有数据 → 自动迁移,启动日志里会写 "已从旧位置自动迁移数据"
+- 若 `~/.ys-agent/data/` 已有数据 + 项目 `data/` 还有数据 → 不会自动迁移,启动时打印警告,运行 `ys-agent migrate-data-path --merge` 合并
+- 若你之前用 `YS_DATA_DIR` 环境变量覆盖路径 → 仍然有效,优先级最高
+
+迁移前的旧数据会先完整备份到 `~/.ys-agent/data/backups/migration-<timestamp>-from-<旧名>/`,可手动回滚。
+
+### 未变
+
+- 38 个 FastAPI 路由、9 个 LLM provider、3 个内置 extension、18 个内置工具、11 个 YonSuite MCP、27 个 chart MCP、Extension 系统、Phase 状态机、记忆/会话/技能系统、前端结构
+
+## v1.3.3 — 2026-07-08 (hotfix: .app 看不到项目数据)
 ## v1.3.3 — 2026-07-08 (hotfix: .app 看不到项目数据)
 
 - **修复 .app 数据目录智能解析**：`packaging/launcher.py` 和 `backend/main.py` 不再强制 `YS_DATA_DIR=~/.ys-agent/data/`，改由 `agent/utils.py` 的 `_resolve_data_dir()` 智能解析。优先级：`YS_DATA_DIR` 环境变量 > .app 旁边的项目 data/ (sibling of dist/) > `~/YS-Agent/data/` > `~/.ys-agent/data/` (默认)

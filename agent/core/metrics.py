@@ -20,16 +20,23 @@ except ImportError:
     _HAS_PROMETHEUS = False
 
     class _Stub:
-        def labels(self, **labels: Any) -> _Stub:
+        """prometheus_client 不可用时的 no-op 占位。"""
+
+        def __init__(self, *_args: Any, **_kwargs: Any) -> None:
+            # 真实 prometheus_client.Counter/Gauge/Histogram 的 __init__ 需要参数,
+            # 降级 stub 必须吞掉所有参数,否则 MetricsCollector() 会抛 TypeError。
+            pass
+
+        def labels(self, **_labels: Any) -> _Stub:
             return self
 
-        def inc(self, amount: float = 1) -> None:
+        def inc(self, _amount: float = 1) -> None:
             pass
 
-        def observe(self, amount: float) -> None:
+        def observe(self, _amount: float) -> None:
             pass
 
-        def set(self, value: float) -> None:
+        def set(self, _value: float) -> None:
             pass
 
     Counter = _Stub  # type: ignore

@@ -204,16 +204,9 @@ if curl -sf http://127.0.0.1:8089/api/config >/dev/null 2>&1; then
 fi
 
 
-# 计算数据目录 (按优先级, 用于显示)
-APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"  # .app 路径
-PROJECT_DATA="$(dirname "$(dirname "$APP_DIR")")/data"  # dist/YS-Agent.app/../data
-if [ -d "$PROJECT_DATA" ]; then
-  DATA_DIR_DISPLAY="$PROJECT_DATA (项目数据)"
-elif [ -d "$HOME/YS-Agent/data" ]; then
-  DATA_DIR_DISPLAY="~/YS-Agent/data"
-else
-  DATA_DIR_DISPLAY="~/.ys-agent/data (默认)"
-fi
+# v1.4.0: 数据目录统一为 ~/.ys-agent/data,源码与 .app 行为一致。
+# 这里仅显示一行提示,真实路径由 backend/main.py 启动时打印。
+DATA_DIR_DISPLAY="~/.ys-agent/data (源码与 .app 共享)"
 
 # 在独立终端窗口里启动服务
 osascript -e "tell application \"Terminal\" to do script \"cd '$DIR' && clear && \\

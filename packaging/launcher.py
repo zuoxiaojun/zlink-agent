@@ -6,16 +6,14 @@ Two modes:
   2. --mcp-server  Run the YonSuite MCP server (spawned as subprocess by main process)
 """
 
-import os
 import sys
-from pathlib import Path
 
 
 def _setup_frozen_env():
     """Configure runtime paths for frozen (PyInstaller) mode."""
-    # 注意: YS_DATA_DIR 不再强制设置, 由 agent/utils.py 的 _resolve_data_dir()
-    # 智能解析 (找 .app 旁边的项目 data/ > ~/YS-Agent/data/ > ~/.ys-agent/data/)
-    # 仅当用户/启动脚本显式 export YS_DATA_DIR 时才用 env
+    # v1.4.0: 数据目录统一为 ~/.ys-agent/data/,源码与 .app 行为完全一致。
+    # 旧位置的检测与首次启动自动迁移由 agent/utils.py 完成。
+    # 唯一覆盖方式: YS_DATA_DIR 环境变量。
 
     # When frozen, _MEIPASS is the _internal/ directory where all files live.
     # sys.path already includes it from PyInstaller bootstrap, but we also
@@ -32,13 +30,15 @@ def main():
     # ── MCP server subprocess mode ──────────────────────────────────────
     if "--mcp-server" in sys.argv:
         from mcp_server.ys_mcp_server.server import main as mcp_main
+
         mcp_main()
         return
 
     # ── Main server mode ────────────────────────────────────────────────
-    from backend.main import app
-    from backend.config import HOST, PORT
     import uvicorn
+
+    from backend.config import HOST, PORT
+    from backend.main import app
 
     uvicorn.run(
         app,

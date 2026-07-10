@@ -9,9 +9,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-# 注意: YS_DATA_DIR 不再在这里强制设置, 由 agent/utils.py 的 _resolve_data_dir()
-# 智能解析 (找项目 data/ > ~/YS-Agent/data/ > ~/.ys-agent/data/)
-# 仅当用户在 ys-agent.sh / start.sh 显式 export 时才用 env
+# v1.4.0: 数据目录统一为 ~/.ys-agent/data/,源码与 .app 行为一致。
+# 唯一可覆盖方式: export YS_DATA_DIR=/path/to/data (由 agent/utils.py 处理)
+# 旧位置的检测与迁移也在 agent/utils.py 完成 (自动迁移仅在新位置完全为空时执行)
 
 from contextlib import asynccontextmanager
 
@@ -20,8 +20,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from agent.config_model import MCPServerEntry
-from agent.utils import DATA_DIR
+from agent.utils import DATA_DIR, detect_legacy_data_dirs
 from backend.config import CORS_ORIGINS
+
+# v1.4.0: 启动时清晰打印数据目录,消除"我设置存哪了"的不确定性
+print(f"[YS-Agent] Data directory: {DATA_DIR}", file=sys.stderr)
+_legacy = detect_legacy_data_dirs()
+if _legacy:
+    print(
+        f"[YS-Agent] ⚠ 检测到旧位置有数据: {[str(p) for p in _legacy]}\n"
+        f"           数据目录已统一为 {DATA_DIR},如需合并运行: ys-agent migrate-data-path",
+        file=sys.stderr,
+    )
 
 # Logging setup
 _LOG_DIR = DATA_DIR / "logs"
@@ -100,6 +110,7 @@ async def lifespan(application: FastAPI):
     else:
         # 开发模式: npx 缺失是异常, 提醒
         import shutil
+
         if not shutil.which("npx"):
             _logger.warning("npx 未安装, MCP chart 服务器已跳过 (运行 npm i -g npx 修复)")
 

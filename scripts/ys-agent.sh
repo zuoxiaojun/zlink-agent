@@ -11,7 +11,8 @@
 #   ys-agent --dev             开发模式（后端 + Vite 热更新）
 #   ys-agent stop              停止服务
 #   ys-agent update            升级
-#   ys-agent migrate           数据迁移
+#   ys-agent migrate           数据 schema 迁移
+#   ys-agent migrate-data-path 从旧位置合并/迁移数据到 ~/.ys-agent/data
 #   ys-agent version           显示版本
 #   ys-agent --help            帮助
 # ===========================================================================
@@ -116,10 +117,36 @@ print(f'  Commit: {g[\"commit\"]}   Branch: {g[\"branch\"]}')
         exit $?
         ;;
 
-    # ── migrate ──
+    # ── migrate (data schema migration) ──
     migrate)
         PYTHONPATH="" source "$VENV_ACTIVATE"
         python -m scripts.migrate
+        exit $?
+        ;;
+
+    # ── migrate-data-path (旧位置 → ~/.ys-agent/data) ──
+    migrate-data-path)
+        PYTHONPATH="" source "$VENV_ACTIVATE"
+        cd "$YS_PROJECT_DIR"
+        python -c "
+import sys
+from agent.utils import DATA_DIR, detect_legacy_data_dirs, migrate_from
+print(f'目标: {DATA_DIR}')
+legacies = detect_legacy_data_dirs()
+if not legacies:
+    print('未检测到旧位置数据,无需迁移。')
+    sys.exit(0)
+merge = '--merge' in sys.argv
+for d in legacies:
+    try:
+        backup = migrate_from(d, merge=merge)
+        print(f'  ✓ 已迁移 {d} → {DATA_DIR} (备份: {backup})')
+    except FileExistsError as e:
+        print(f'  ✗ 跳过 {d}: {e}')
+        print('     提示: 加 --merge 追加(同名词不覆盖)')
+    except Exception as e:
+        print(f'  ✗ 失败 {d}: {type(e).__name__}: {e}')
+" "$@"
         exit $?
         ;;
 
@@ -140,7 +167,8 @@ print(f'  Commit: {g[\"commit\"]}   Branch: {g[\"branch\"]}')
         echo "  ys-agent --dev              启动开发模式（后端 + Vite 热更新）"
         echo "  ys-agent stop               停止服务"
         echo "  ys-agent update             拉取最新代码并升级"
-        echo "  ys-agent migrate            手动执行数据迁移"
+        echo "  ys-agent migrate            数据 schema 迁移 (脚本级别)"
+        echo "  ys-agent migrate-data-path  从旧位置合并/迁移数据到 ~/.ys-agent/data"
         echo "  ys-agent version / --version 显示版本信息"
         echo "  ys-agent --help             显示此帮助"
         exit 0
