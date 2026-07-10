@@ -35,7 +35,7 @@ SCHEMA_VERSION = 0
 # ── 获取数据目录 ────────────────────────────────────────────────────────────
 # 复用 agent.utils.DATA_DIR 的逻辑
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
-_DATA_DIR_ENV = __import__("os").environ.get("YS_DATA_DIR")
+_DATA_DIR_ENV = __import__("os").environ.get("ZLINK_DATA_DIR")
 DATA_DIR = Path(_DATA_DIR_ENV) if _DATA_DIR_ENV else (_PROJECT_ROOT / "data")
 VERSION_FILE = DATA_DIR / ".schema_version"
 

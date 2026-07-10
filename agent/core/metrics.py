@@ -56,46 +56,46 @@ class MetricsCollector:
 
         # -- Sessions --
         self.sessions_total = Counter(
-            "ys_agent_sessions_total",
+            "zlink_agent_sessions_total",
             "Total sessions processed",
             ["status"],
         )
         self.active_sessions = Gauge(
-            "ys_agent_active_sessions",
+            "zlink_agent_active_sessions",
             "Currently active sessions",
         )
 
         # -- LLM calls --
         self.llm_calls_total = Counter(
-            "ys_agent_llm_calls_total",
+            "zlink_agent_llm_calls_total",
             "Total LLM calls",
             ["model", "status"],
         )
         self.llm_call_duration = Histogram(
-            "ys_agent_llm_call_duration_seconds",
+            "zlink_agent_llm_call_duration_seconds",
             "LLM call latency",
             ["model"],
             buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, float("inf")),
         )
         self.llm_tokens_total = Counter(
-            "ys_agent_llm_tokens_total",
+            "zlink_agent_llm_tokens_total",
             "Tokens consumed by LLM calls",
             ["type"],
         )
         self.llm_retries_total = Counter(
-            "ys_agent_llm_retries_total",
+            "zlink_agent_llm_retries_total",
             "Retried LLM calls",
             ["model"],
         )
 
         # -- Tool calls --
         self.tool_calls_total = Counter(
-            "ys_agent_tool_calls_total",
+            "zlink_agent_tool_calls_total",
             "Total tool calls",
             ["tool", "status"],
         )
         self.tool_call_duration = Histogram(
-            "ys_agent_tool_call_duration_seconds",
+            "zlink_agent_tool_call_duration_seconds",
             "Tool call latency",
             ["tool"],
             buckets=(0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0, float("inf")),
@@ -103,31 +103,31 @@ class MetricsCollector:
 
         # -- Errors --
         self.errors_total = Counter(
-            "ys_agent_errors_total",
+            "zlink_agent_errors_total",
             "Total errors by category",
             ["type"],
         )
 
         # -- MCP --
         self.mcp_connected_servers = Gauge(
-            "ys_agent_mcp_connected_servers",
+            "zlink_agent_mcp_connected_servers",
             "Number of connected MCP servers",
         )
 
         # -- Memory --
         self.memory_operations_total = Counter(
-            "ys_agent_memory_operations_total",
+            "zlink_agent_memory_operations_total",
             "Memory read/write operations",
             ["operation"],
         )
 
         # -- Compaction --
         self.compactions_total = Counter(
-            "ys_agent_compactions_total",
+            "zlink_agent_compactions_total",
             "Context compaction runs",
         )
         self.compaction_tokens_saved = Counter(
-            "ys_agent_compaction_tokens_saved",
+            "zlink_agent_compaction_tokens_saved",
             "Total tokens saved by compaction",
         )
 

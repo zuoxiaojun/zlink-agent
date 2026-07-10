@@ -7,27 +7,22 @@ from pathlib import Path
 from typing import Any
 
 # ── Data directory 解析 ─────────────────────────────────────────────────────
-# v1.5.0 规则 (双兼容):
-# 1. ZLINK_DATA_DIR / YS_DATA_DIR 环境变量 (后者兼容老用法)
-# 2. ~/.zlink-agent/data/ (新默认)
-# 3. ~/.ys-agent/data/ (兼容 v1.4.x, 自动 fallback)
-# 4. 都不存在时返回 ~/.zlink-agent/data/ (新用户首次启动会创建)
+# v1.5.2 规则 (破坏式清理, 老用户数据目录已物理 rename):
+# 1. ZLINK_DATA_DIR 环境变量
+# 2. ~/.zlink-agent/data/ (默认)
 DEFAULT_DATA_DIR = Path.home() / ".zlink-agent" / "data"
 
 
 def _resolve_data_dir() -> Path:
-    """v1.5.0: 解析运行时数据目录 (双兼容)
-    优先级: ZLINK_DATA_DIR > YS_DATA_DIR > ~/.zlink-agent/data/ > ~/.ys-agent/data/ > ~/.zlink-agent/data/
+    """v1.5.2: 解析运行时数据目录
+    优先级: ZLINK_DATA_DIR > ~/.zlink-agent/data/
     """
-    env = os.environ.get("ZLINK_DATA_DIR") or os.environ.get("YS_DATA_DIR")
+    env = os.environ.get("ZLINK_DATA_DIR")
     if env:
         return Path(env).expanduser().resolve()
     new = Path.home() / ".zlink-agent" / "data"
     if new.exists():
         return new
-    old = Path.home() / ".ys-agent" / "data"
-    if old.exists():
-        return old
     return new
 
 
