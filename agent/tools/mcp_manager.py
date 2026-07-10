@@ -359,11 +359,24 @@ class MCPServerConnection:
             raise ValueError("stdio transport requires 'command'")
         args = self.config.get("args", [])
 
+        # v1.5.0: 解析 ${path.to.value} 占位符 (用户友好配置 → MCP env)
+        user_env = self.config.get("env", {})
+        try:
+            from agent.config_manager import load as _load_cfg
+            cfg_obj = _load_cfg()
+            # Pydantic model → dict (Pydantic v2 用 model_dump)
+            full_config = cfg_obj.model_dump() if hasattr(cfg_obj, "model_dump") else dict(cfg_obj)
+            from agent.config_manager import resolve_placeholders
+            user_env = resolve_placeholders(user_env, full_config)
+        except Exception:
+            # config 不可用时保持原样, 启动时报错定位更明确
+            pass
+
         # Filter safe env vars + user-specified env
         safe_env = {
             k: v for k, v in os.environ.items() if k in ("PATH", "HOME", "USER", "SHELL", "TMPDIR", "TEMP", "TMP")
         }
-        safe_env.update(self.config.get("env", {}))
+        safe_env.update(user_env)
 
         self._process = await asyncio.create_subprocess_exec(
             command,
