@@ -37,7 +37,7 @@ agent/                  业务核心
   security_hooks.py     没动（registry 老钩子）—— 仍注册
   session_manager.py    没动
   skill_manager.py      没动
-  yonsuite_client/      没动
+  erp_clients/yonsuite/      没动
 
 frontend/               React/Vite —— 没动
 mcp_server/             YonSuite MCP server —— 没动
