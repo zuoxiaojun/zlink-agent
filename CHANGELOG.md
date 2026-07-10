@@ -25,6 +25,8 @@
 - **`README.md`**: 标题/Tagline/克隆命令/功能列表/项目结构全量重写
 - **`AGENTS.md`**: 标题 + 项目名引用更新
 - **`scripts/ys-agent.sh`**: 软链接到 `zlink.sh` (保留兼容)
+- **`scripts/update.sh` + `setup.sh` + `setup.bat`**: 镜像环境变量 `YS_USE_MIRROR` / `YS_PIP_MIRROR` / `YS_NPM_MIRROR` → `ZLINK_*`（破坏式）
+- **`web/src/hooks/useChat.ts`**: sessionStorage key `ys_agent_last_session` → `zlink_agent_last_session`
 - **`docs/architecture.md`**: 加 "多 ERP 抽象" 章节
 - **`docs/extending-ys-agent.md`**: 改名为 `extending-zlink-agent.md` + 内容更新
 - 其它 ~200 处 `ys-agent` 字符串批量替换
