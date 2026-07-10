@@ -192,3 +192,6 @@ app.include_router(system_router)
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "web" / "dist"
 if _STATIC_DIR.is_dir():
     app.mount("/", StaticFiles(directory=str(_STATIC_DIR), html=True), name="frontend")
+
+from backend.api.erp_clients_api import router as erp_clients_router
+app.include_router(erp_clients_router)
