@@ -1,32 +1,35 @@
 # ZLink Agent v1.5.0 — 重命名 + 多 ERP 抽象层骨架设计
 
-> **状态**: 待用户审查
+> **状态**: 待用户审查（第二轮）
 > **作者**: Codex (default mode)
-> **日期**: 2026-07-10
+> **日期**: 2026-07-10（首版）→ 2026-07-10（修订：NC 改为 MCP 包集成）
 > **基线版本**: v1.4.1（41 测试全过，ruff 0 errors）
+> **本轮变更**：用户决定 NC 走 [nc-mcp-project](https://atomgit.com/gcw_cJbJuamU/nc-mcp-project.git) 的 MCP 包，不做嵌入式 Python 客户端
 
 ---
 
 ## 1. 目标与范围
 
-把 YS-Agent 改名为 ZLink Agent（智链 Agent），并为多 ERP 接入做架构准备。本次（v1.5.0）只做**重命名 + 声明性骨架**，**不实现 NC 实际业务**（NC 业务在 v1.6.0）。
+把 YS-Agent 改名为 ZLink Agent（智链 Agent），并为多 ERP 接入做架构准备。本次（v1.5.0）只做**重命名 + 声明性骨架 + NC MCP 集成入口**，**不内置 NC 业务**——NC 业务由 [nc-mcp-server](https://atomgit.com/gcw_cJbJuamU/nc-mcp-project.git) Python 包通过 stdio MCP 提供。
 
 ### 1.1 关键约束（硬性）
 
 | 约束 | 说明 |
 |------|------|
-| 原 41 测试不挂 + 新增 5 测试 = **46/46 PASS** | v1.5.0 发布时 `pytest tests/ -v` 必须 46/46 全过 |
+| 原 41 测试不挂 + 新增 10 测试 = **56/56 PASS** | v1.5.0 发布时 `pytest tests/ -v` 必须 56/56 全过 |
 | ruff check 0 errors | `ruff check .` 保持 0 errors |
 | `YonSuiteClient` 内部代码 100% 不动 | 只移动目录位置，0 行内部代码修改 |
 | 数据目录双兼容 | v1.5.0 同时认 `~/.ys-agent/data/` 和 `~/.zlink-agent/data/`，老用户不丢数据 |
 | MCP 工具名保持 `mcp_yonsuite_*` | 不破坏已经在用旧名的下游用户 |
+| **NC 走 MCP 包集成，不做嵌入式客户端** | NC 业务由 `nc-mcp-server` Python 包提供，ZLink 只做"调用入口" |
 
 ### 1.2 不在范围
 
-- ❌ 不实现 NC 真实鉴权、API、query 工具
+- ❌ 不实现 NC 嵌入式 Python 客户端
+- ❌ 不内置 NC 业务代码（鉴权、SQL、查询模板）
 - ❌ 不重写 YonSuiteClient 1055 行内部代码
 - ❌ 不改 LLM provider 抽象（与本次无关）
-- ❌ 不改内置 skills 列表
+- ❌ 不动 builtin skills 列表
 - ❌ 不动 4 个 untracked Windows 文件（`packaging/installer.nsi`、`scripts/build-windows.bat`、`setup.bat`、`start.bat`）
 
 ---
@@ -65,27 +68,24 @@ README 第一段定调：
 YS-Agent/                                ZLink-Agent/
 ├── agent/                               ├── agent/
 │   ├── yonsuite_client/                 │   ├── erp_clients/              [新增父目录]
-│   │   ├── __init__.py                  │   │   ├── __init__.py           [新增, 空]
-│   │   ├── ys_client.py                 │   │   ├── base.py               [新增, 抽象层]
-│   │   ├── config.py                    │   │   ├── exceptions.py         [新增, 通用异常]
-│   │   ├── cache.py                     │   │   ├── yonsuite/             [整体移动, 内部不动]
-│   │   ├── exceptions.py                │   │   │   ├── __init__.py
-│   │   ├── models.py                    │   │   │   ├── ys_client.py
-│   │   ├── modules/                     │   │   │   ├── config.py
-│   │   │   ├── base.py                  │   │   │   ├── cache.py
-│   │   │   ├── sales.py                 │   │   │   ├── exceptions.py
-│   │   │   ├── purchase.py              │   │   │   ├── models.py
-│   │   │   ├── ... (11 个业务模块)      │   │   │   ├── modules/
-│   │   ├── tests/                       │   │   │   │   ├── base.py
-│   │   ├── examples/                    │   │   │   │   ├── sales.py
-│   │   └── docs/                        │   │   │   │   └── ...
-│   │                                     │   │   │   ├── tests/
+│   │   ├── __init__.py                  │   │   ├── __init__.py           [新增, 注册中心]
+│   │   ├── ys_client.py                 │   │   ├── base.py               [新增, ERPClient 协议]
+│   │   ├── config.py                    │   │   ├── yonsuite/             [整体移动, 内部不动]
+│   │   ├── cache.py                     │   │   │   ├── __init__.py
+│   │   ├── exceptions.py                │   │   │   ├── ys_client.py
+│   │   ├── models.py                    │   │   │   ├── config.py
+│   │   ├── modules/                     │   │   │   ├── cache.py
+│   │   │   ├── base.py                  │   │   │   ├── exceptions.py
+│   │   │   ├── sales.py                 │   │   │   ├── models.py
+│   │   │   ├── purchase.py              │   │   │   ├── modules/
+│   │   │   ├── ... (11 个业务模块)      │   │   │   │   ├── base.py
+│   │   ├── tests/                       │   │   │   │   ├── sales.py
+│   │   ├── examples/                    │   │   │   │   └── ...
+│   │   └── docs/                        │   │   │   ├── tests/
 │   │                                     │   │   │   ├── examples/
 │   │                                     │   │   │   └── docs/
-│   │                                     │   │   └── nc/                  [新增骨架]
-│   │                                     │   │       ├── __init__.py       [空]
-│   │                                     │   │       └── nc_client.py      [空壳类]
 │   ├── skills/yonsuite/...              │   ├── skills/yonsuite/...       [保留, 内部 SKILL.md 加一句版本说明]
+│   │                                     │   ├── skills/nc/SKILL.md       [新增, NC 工具使用指南]
 │   └── ...                              │   └── ...
 ├── backend/api/                         ├── backend/api/
 │   ├── config_api.py                    │   ├── config_api.py             [修改: 新增 erp-clients 端点]
@@ -95,11 +95,14 @@ YS-Agent/                                ZLink-Agent/
 │   └── pages/                           │   └── pages/
 │                                       │       └── SettingsERPPage.tsx   [新增]
 ├── mcp_server/                          ├── mcp_server/
-│   ├── ys_mcp_server/                   │   ├── ys_mcp_server/            [保留, builtin 标记保持]
-│   └── erp_mcp_router/                  │   └── erp_mcp_router/           [新增, 多 ERP 路由器骨架]
+│   └── ys_mcp_server/                   │   ├── ys_mcp_server/            [保留, builtin 标记保持]
+│   (无 erp_mcp_router 计划)            │   └── nc_mcp/                   [新增: NC MCP 集成入口骨架]
+│                                       │       ├── __init__.py
+│                                       │       ├── config.py             [ORACLE_* 环境变量转换]
+│                                       │       └── mcp_starter.py        [调 mcp_manager 启动 nc-mcp-server]
 ├── scripts/ys-agent.sh                  ├── scripts/zlink.sh              [新增, 内容=旧 ys-agent.sh]
 │                                       │   └── ys-agent.sh               [保留, 软链接/兼容 shim]
-├── pyproject.toml                       ├── pyproject.toml                [name, description, version]
+├── pyproject.toml                       ├── pyproject.toml                [name, description, version, optional nc extra]
 ├── README.md                            ├── README.md                     [全量重写]
 ├── CHANGELOG.md                         ├── CHANGELOG.md                  [追加 v1.5.0 段]
 ├── VERSION                              ├── VERSION                       [1.4.1 → 1.5.0]
@@ -112,26 +115,87 @@ YS-Agent/                                ZLink-Agent/
 
 ---
 
-## 4. 抽象层设计（声明性骨架）
+## 4. 多 ERP 集成架构（重大修改）
 
-### 4.1 设计原则
+### 4.1 架构原则
 
-- **YAGNI**：v1.5.0 不强制 YonSuiteClient 改造，只声明"接口长什么样"
-- **可插拔**：v1.6.0+ 新增 ERP 时，加一个 `agent/erp_clients/<name>/` 子目录 + 一个 `__init__.py` 注册条目即可
-- **零侵入**：`YonSuiteClient` 不继承 `ERPClient`，也不实现 `ERPClient` 协议。两者通过 `agent/erp_clients/__init__.py` 的注册机制关联
-- **测试覆盖**：v1.5.0 加新测试验证"YonSuiteClient 实例满足 ERPClient 协议"（结构性子类型 / duck typing）
+**ZLink Agent 不内置任何具体 ERP 的业务代码。** 所有 ERP 客户端都通过 MCP 协议接入，ZLink 只负责：
+1. 启动/停止 MCP 服务器
+2. 把用户配置（数据库连接、API 凭据）注入到 MCP 服务器的环境变量
+3. 转发 LLM 的工具调用到对应 MCP 服务器
+4. 把工具结果返回给 LLM
 
-### 4.2 `agent/erp_clients/base.py` 内容
+这是 v1.5.0 相对原 spec 的**根本性变更**——从"嵌入式 ERP 客户端"改为"ERP MCP 路由器"。
+
+### 4.2 三个角色
+
+```
+┌──────────────────────────────────────────────────────┐
+│  ZLink Agent (LLM Core + Tool Dispatcher)            │
+│  agent/core/agent.py + agent/tools/mcp_manager.py     │
+└────────┬────────────────────┬────────────────┬────────┘
+         │                    │                │
+         │ 启动 + 注入配置    │ 启动 + 注入配置 │
+         │                    │                │
+   ┌─────▼──────┐     ┌──────▼──────┐   ┌─────▼──────┐
+   │ mcp-yonsuite│     │  mcp-nc     │   │ mcp-xxx    │
+   │  (builtin)  │     │  (opt-in)   │   │ (未来)     │
+   │             │     │             │   │            │
+   │ YonSuite    │     │ nc-mcp-     │   │ sap-mcp    │
+   │ Cloud API   │     │ server      │   │ kingdee-   │
+   │  (内置)     │     │ (外部 pip)  │   │ mcp        │
+   └─────────────┘     └─────────────┘   └────────────┘
+```
+
+**关键点**：
+- 每个 ERP 客户端都是独立的 MCP 服务器进程（stdio JSON-RPC）
+- 工具命名空间天然隔离（`mcp_yonsuite_query_sale_orders` vs `mcp_nc_query_sales_order`）
+- 用户启用哪个 = 启动哪个 = 工具列表出现哪个
+
+### 4.3 用户选择启用哪个 = AI 从哪取数
+
+**这是用户消息里的核心诉求。** 实现方式：
+
+```json
+// ~/.zlink-agent/data/config.json
+{
+  "erp_clients": {
+    "yonsuite": {
+      "enabled": true,            ← 用户在前端打开
+      "tenant_id": "...",
+      "app_key": "encrypted:...",
+      "app_secret": "encrypted:...",
+      "base_url": "https://api.yonsuite.com"
+    },
+    "nc": {
+      "enabled": false,           ← 用户没打开, AI 看不到 NC 工具
+      "host": "192.168.31.96",
+      "port": "1521",
+      "service": "orcl",
+      "user": "NC65",
+      "password": "encrypted:...",
+      "max_rows": 200
+    }
+  }
+}
+```
+
+**行为**：
+- `enabled=true` → mcp_manager 启动对应 MCP 服务器 → 工具被注册到 LLM 工具列表 → LLM 自动按语义选择
+- `enabled=false` → MCP 服务器不启动 → 工具不在 LLM 视野 → LLM 不知道这个 ERP 存在
+- 同一时刻可启用多个 → LLM 看到合并工具列表，自行决定（命名空间隔离避免冲突）
+
+### 4.4 `agent/erp_clients/base.py`（保留，但只用于声明性 Protocol）
 
 ```python
 """
-ERP 客户端抽象层（声明性骨架）
+ERP 客户端抽象层（声明性 Protocol）
 
-v1.5.0 设计目标:
-- 定义所有 ERP 客户端应满足的最小接口
+v1.5.0 角色:
+- 定义所有 ERP 客户端应满足的最小接口 (Protocol)
 - 定义跨 ERP 的通用异常类型
-- 不强制 YonSuiteClient 继承; 通过 isinstance_check 验证结构子类型
-- 未来 ERP (NC/SAP/金蝶) 加 erp_clients/<name>/ 子目录即可
+- 不强制任何 MCP server 继承, 也不强制 YonSuiteClient 实现
+- 主要用于: 类型注解、isinstance 检查、文档生成
 """
 
 from __future__ import annotations
@@ -164,17 +228,6 @@ class ERPAPIError(ERPError):
         self.response = response or {}
 
 
-# === 通用配置 ===
-
-@dataclass(frozen=True)
-class ERPClientConfig:
-    """ERP 客户端配置 (脱敏: 实际 secret 在 config_manager 加密)"""
-    name: str            # "yonsuite" | "nc" | ...
-    enabled: bool        # 用户是否启用此 ERP
-    base_url: str        # API 网关根 URL
-    extra: dict[str, Any]  # ERP-specific 字段 (tenant_id / app_key / host / token / ...)
-
-
 # === 抽象协议 (声明性, 非强制) ===
 
 @runtime_checkable
@@ -182,11 +235,10 @@ class ERPClient(Protocol):
     """
     所有 ERP 客户端的最小接口契约 (v1.5.0 声明性版本)
 
-    实现要求:
-    - 必须有 name 属性, 等于注册名 ("yonsuite" | "nc" | ...)
-    - 必须有 authenticate() 方法, 返回 token 或 True
-    - 必须有 close() / __aexit__ 类清理方法 (未来用, v1.5.0 可空)
-    - query_* 方法不强求统一, 各 ERP 自己定 (因业务差异大)
+    注意: v1.5.0 实际不强制实现, 因为 NC 走 MCP 不走 Python 类
+    保留此 Protocol 仅为:
+    - YonSuiteClient 的 isinstance 检查 (结构子类型)
+    - 未来可能新增的"嵌入式 ERP 客户端"扩展点
     """
     name: str
 
@@ -194,127 +246,66 @@ class ERPClient(Protocol):
     def health_check(self) -> bool: ...
 
 
-# === 注册表 ===
+# === MCP 启动配置 schema (新增) ===
 
-REGISTRY: dict[str, type] = {}
+@dataclass(frozen=True)
+class MCPStarterConfig:
+    """
+    把用户友好配置转换为 MCP server 启动参数
 
-def register(name: str):
-    """ERP 客户端注册装饰器"""
-    def decorator(cls: type) -> type:
-        if name in REGISTRY:
-            raise ValueError(f"ERP client {name!r} already registered")
-        REGISTRY[name] = cls
-        cls.name = name  # 类属性注入
-        return cls
-    return decorator
-
-def get_client_class(name: str) -> type:
-    """按名称获取已注册的 ERP 客户端类"""
-    if name not in REGISTRY:
-        raise KeyError(
-            f"ERP client {name!r} not registered. "
-            f"Available: {sorted(REGISTRY.keys())}"
-        )
-    return REGISTRY[name]
-
-def list_registered() -> list[str]:
-    """列出所有已注册的 ERP 客户端名"""
-    return sorted(REGISTRY.keys())
+    用于 agent/mcp_server/nc_mcp/mcp_starter.py 等
+    """
+    erp_name: str            # "nc" | "sap" | ...
+    enabled: bool            # 用户开关
+    command: str             # 启动命令, e.g. "nc-mcp-server"
+    args: list[str]          # 命令参数
+    env: dict[str, str]      # 环境变量 (含 secret, 内部已加密)
+    builtin: bool            # True=内置, False=用户安装
+    install_hint: str | None # 未安装时的提示, e.g. "pip install nc-mcp-server"
 ```
 
-### 4.3 `agent/erp_clients/__init__.py` 内容
+### 4.5 `agent/erp_clients/__init__.py`（声明性注册中心）
 
 ```python
 """
-ERP 客户端统一入口 (v1.5.0 新增)
+ERP 客户端统一入口 (v1.5.0 改为"声明性"注册中心)
 
-提供:
-- 列出已注册的 ERP 客户端
-- 校验 YonSuiteClient 等老客户端是否满足 ERPClient 协议
-- 工厂方法 get_client(name, config) -> 实例
+- 不再硬编码 ERP 客户端类
+- 只导出通用异常 + Protocol + MCPStarterConfig
+- 实际启动由 mcp_manager.py 负责
 """
 
 from .base import (
     ERPClient,
-    ERPClientConfig,
     ERPError,
     ERPAuthError,
     ERPRateLimitError,
     ERPNetworkError,
     ERPAPIError,
-    REGISTRY,
-    register,
-    get_client_class,
-    list_registered,
+    MCPStarterConfig,
 )
 
-# 触发各 ERP 子包的 register() 调用
-from . import yonsuite  # noqa: F401  -- 注册 YonSuiteClient
-from . import nc        # noqa: F401  -- 注册 NCClient (v1.5.0 空壳)
+# 触发各 ERP 子包的 register() 调用 (YonSuite 仍然走 Python 类入口)
+from . import yonsuite  # noqa: F401  -- YonSuiteClient 仍然从 erp_clients.yonsuite 暴露
 
 __all__ = [
-    "ERPClient", "ERPClientConfig",
+    "ERPClient",
     "ERPError", "ERPAuthError", "ERPRateLimitError", "ERPNetworkError", "ERPAPIError",
-    "REGISTRY", "register", "get_client_class", "list_registered",
+    "MCPStarterConfig",
 ]
 ```
 
-### 4.4 `agent/erp_clients/yonsuite/__init__.py` 改造（最小化）
+### 4.6 `agent/erp_clients/yonsuite/__init__.py` 改造（最小化）
 
-只做两件事：
-1. 加一行 `# 路径已迁移: agent/yonsuite_client/ → agent/erp_clients/yonsuite/ (v1.5.0)`
+只做：
+1. 加注释：`# 路径已迁移: agent/yonsuite_client/ → agent/erp_clients/yonsuite/ (v1.5.0)`
 2. `from .ys_client import YonSuiteClient`
-3. 在末尾加注册调用：`from ..base import register; register("yonsuite")(YonSuiteClient)`
 
-**注意**：第 3 步的 `register` 会修改 `YonSuiteClient.name = "yonsuite"`，这是注入，不会破坏现有 41 个测试（v1.5.0 加 5 个新测试到 46）（测试不依赖这个属性）。
+`YonSuiteClient` **不再注册到 `REGISTRY`**（因为 v1.5.0 走 MCP，不走 Python 类调用）。它仍然通过 `from agent.erp_clients.yonsuite import YonSuiteClient` 暴露给老代码（向后兼容）。
 
-### 4.5 `agent/erp_clients/nc/__init__.py` 和 `nc_client.py`（v1.5.0 空壳）
+### 4.7 不再有 `agent/erp_clients/nc/` 目录
 
-```python
-# agent/erp_clients/nc/__init__.py
-"""
-NC (用友 NC Cloud) 客户端 - v1.5.0 骨架
-
-v1.5.0: 仅空壳, 实际业务在 v1.6.0 接入
-"""
-from .nc_client import NCClient  # noqa: F401
-
-# agent/erp_clients/nc/nc_client.py
-"""
-NC 客户端空壳 - v1.5.0
-
-正式实现 (鉴权/API/query tools) 在 v1.6.0
-"""
-from __future__ import annotations
-from ..base import ERPError, register
-
-
-class NCClient:
-    """v1.5.0 占位类, v1.6.0 实现完整业务"""
-    name = "nc"
-
-    def __init__(self, config=None):
-        self.config = config
-        raise NotImplementedError(
-            "NCClient 实际业务在 v1.6.0 接入. "
-            "v1.5.0 仅占位, 不会在任何 API 路径中被调用."
-        )
-
-    def authenticate(self, force_refresh: bool = False) -> str | bool:
-        raise NotImplementedError("NCClient.authenticate 待 v1.6.0 实现")
-
-    def health_check(self) -> bool:
-        return False  # v1.5.0 永远不健康
-
-
-# v1.5.0 不注册, 因为 NotImplementedError 会导致 import 失败
-# register("nc")(NCClient)  # v1.6.0 取消注释
-```
-
-**关键决策**：v1.5.0 **不注册** `NCClient`（注释掉 register 调用），原因：
-- `NotImplementedError` 在 `__init__` 抛，注册后任何 import `agent.erp_clients` 都会触发失败
-- v1.5.0 的 `list_registered()` 只返回 `["yonsuite"]`
-- v1.6.0 取消注释，NC 客户端"自然出现"在注册表里
+**重大决策**：v1.5.0 **完全不写** `agent/erp_clients/nc/` Python 包。NC 业务代码全部在 [nc-mcp-server](https://atomgit.com/gcw_cJbJuamU/nc-mcp-project.git) 那个独立包里。ZLink Agent 只做"调用方"。
 
 ---
 
@@ -325,49 +316,85 @@ class NCClient:
 ```json
 {
   "llm": { "provider": "openai", "api_key": "encrypted:xxx", ... },
+
+  "mcp_servers": {
+    "mcp-yonsuite": {
+      "transport": "stdio",
+      "command": "python",
+      "args": ["-m", "mcp_server.ys_mcp_server"],
+      "env": {},
+      "builtin": true,
+      "enabled": true
+    },
+    "mcp-nc": {
+      "transport": "stdio",
+      "command": "nc-mcp-server",
+      "args": [],
+      "env": {
+        "ORACLE_HOST": "${nc.host}",
+        "ORACLE_PORT": "${nc.port}",
+        "ORACLE_SERVICE": "${nc.service}",
+        "ORACLE_USER": "${nc.user}",
+        "ORACLE_PASSWORD": "${nc.password}",
+        "NC_MCP_MAX_ROWS": "${nc.max_rows}"
+      },
+      "builtin": false,
+      "enabled": false,
+      "install_hint": "pip install zlink-agent[nc] 或 pip install git+https://atomgit.com/gcw_cJbJuamU/nc-mcp-project.git"
+    }
+  },
+
   "erp_clients": {
     "yonsuite": {
-      "enabled": true,
       "tenant_id": "...",
       "app_key": "encrypted:...",
       "app_secret": "encrypted:...",
       "base_url": "https://api.yonsuite.com"
     },
     "nc": {
-      "enabled": false,
-      "host": "https://nc.example.com",
-      "account": "...",
-      "token": "encrypted:..."
+      "host": "192.168.31.96",
+      "port": "1521",
+      "service": "orcl",
+      "user": "NC65",
+      "password": "encrypted:...",
+      "max_rows": 200
     }
   },
+
   "yonsuite": { ... }    // [向后兼容] 旧字段保留, 启动时自动迁移到 erp_clients.yonsuite
 }
 ```
 
-### 5.2 加载与迁移逻辑
+### 5.2 `${nc.password}` 占位符机制
 
-`agent/config_manager.py` 新增方法 `get_erp_config(name: str) -> ERPClientConfig`：
-- 优先读 `erp_clients[name]`
-- 缺失时回退读旧字段 `yonsuite`（仅 `name == "yonsuite"`）
-- 自动加密 `app_key` / `app_secret` / `token` 字段
+`mcp_servers.mcp-nc.env` 里的 `${nc.*}` 引用 `erp_clients.nc.*` 字段。`mcp_manager.py` 启动 NC MCP 时：
+1. 读 `config.json` 全部内容
+2. 把 `mcp_servers.mcp-nc.env` 里的 `${nc.X}` 替换为 `erp_clients.nc.X` 的实际值（已解密）
+3. 启动 `nc-mcp-server` 子进程，注入解析后的 env
 
-`backend/api/config_api.py` 新增端点：
+**好处**：用户在 `/settings/erp` 改一次密码，NC MCP 进程**自动重启加载新密码**（配置变更后 mcp_manager 检测到变化）。
+
+### 5.3 REST API 端点
+
+`backend/api/config_api.py` 新增：
 
 | 方法 | 路径 | 用途 |
 |------|------|------|
 | GET | `/api/config/erp-clients` | 列出所有 ERP 客户端及配置（脱敏）|
 | GET | `/api/config/erp-clients/{name}` | 获取单个 ERP 客户端配置 |
 | PUT | `/api/config/erp-clients/{name}` | 更新单个 ERP 客户端配置（自动加密 secret 字段）|
-| POST | `/api/config/erp-clients/{name}/test` | 测试连接（v1.5.0 YonSuite 真测，NC 返 501）|
+| POST | `/api/config/erp-clients/{name}/test` | 测试连接（YonSuite 真测，NC 通过 `mcp-nc` 进程 ping）|
+| GET | `/api/config/mcp-servers` | 列出所有 MCP 服务器状态（含 builtin 标记）|
+| POST | `/api/config/mcp-servers/{name}/toggle` | 启用/禁用某个 MCP 服务器 |
 
-### 5.3 数据迁移策略
+### 5.4 数据迁移策略
 
 `agent/utils.py` 的 `_resolve_data_dir()` 加一级 fallback：
 
 ```python
 def _resolve_data_dir() -> Path:
     # 优先级 (v1.5.0 新):
-    # 1. YS_DATA_DIR / ZLINK_DATA_DIR 环境变量 (后者优先)
+    # 1. ZLINK_DATA_DIR / YS_DATA_DIR 环境变量 (后者优先)
     # 2. ~/.zlink-agent/data/ (新默认)
     # 3. ~/.ys-agent/data/ (兼容 v1.4.x 老用户)
     # 4. 报错 (不静默建空目录)
@@ -383,7 +410,7 @@ def _resolve_data_dir() -> Path:
     return new  # 新用户首次启动会创建新目录
 ```
 
-**未来清理**：v2.0.0 砍掉第 3 级 fallback（已在 1.4.0 数据目录统一那个 PR 的精神里）。
+**未来清理**：v2.0.0 砍掉第 3 级 fallback。
 
 ---
 
@@ -393,35 +420,130 @@ def _resolve_data_dir() -> Path:
 
 `mcp_server/ys_mcp_server/` **保留原样**，`builtin=True` 标记保持。工具名 `mcp_yonsuite_ys_api` / `mcp_yonsuite_query_*` 保持不变——**老用户不感知改动**。
 
-### 6.2 新增多 ERP 路由器（v1.5.0 骨架）
+### 6.2 NC MCP 集成入口（新增）
 
-新增 `mcp_server/erp_mcp_router/` 目录：
+新增 `mcp_server/nc_mcp/` 目录——**不是实现 NC 业务**，而是把外部 `nc-mcp-server` 包集成进来：
 
 ```
-mcp_server/erp_mcp_router/
+mcp_server/nc_mcp/
 ├── __init__.py
-├── server.py          # MCP 服务器入口
-├── router.py          # 按 erp_name 分发到具体客户端
-└── tools.py           # 工具定义 (v1.5.0 仅暴露 erp_list / erp_get_config)
+├── config.py           # 解析 config.json 里的 erp_clients.nc → mcp-nc env
+├── mcp_starter.py      # 调 mcp_manager 启动 nc-mcp-server 进程
+└── tests/
+    └── test_nc_mcp_config.py
 ```
 
-v1.5.0 工具集（最小可用）：
+**关键代码**（`config.py`）：
 
-| 工具名 | 用途 | v1.5.0 行为 |
-|--------|------|------------|
-| `erp_list` | 列出已注册 ERP 客户端 | 返回 `["yonsuite"]`（NC 注册在 v1.6.0）|
-| `erp_get_config` | 获取某 ERP 配置（脱敏）| YonSuite 真返回，NC 返 501 |
-| `erp_test_connection` | 测试连接 | YonSuite 真测，NC 返 501 |
+```python
+"""
+把 config.json 里的 erp_clients.nc 用户友好配置
+转换为 nc-mcp-server 进程需要的 ORACLE_* 环境变量
+"""
 
-`builtin=True` 标记，**前端 MCP 管理页禁删**。
+def build_nc_mcp_env(erp_config: dict) -> dict[str, str]:
+    """转换配置: erp_clients.nc.* → ORACLE_*"""
+    return {
+        "ORACLE_HOST": erp_config["host"],
+        "ORACLE_PORT": str(erp_config["port"]),
+        "ORACLE_SERVICE": erp_config["service"],
+        "ORACLE_USER": erp_config["user"],
+        "ORACLE_PASSWORD": erp_config["password"],  # 调用方保证已解密
+        "NC_MCP_MAX_ROWS": str(erp_config.get("max_rows", 200)),
+    }
 
-### 6.3 工具命名约定（给 v1.6.0 留位）
 
-未来新增工具按 `<scope>_<erp>_<verb>` 三段式：
-- `mcp_erp_yonsuite_query_sale_orders`（v1.6.0 把 `mcp_yonsuite_query_sale_orders` 别名同步过去）
-- `mcp_erp_nc_query_sale_orders`（v1.6.0）
+def build_nc_mcp_config(erp_config: dict, enabled: bool) -> dict:
+    """构造 mcp_manager 需要的 config dict"""
+    return {
+        "transport": "stdio",
+        "command": "nc-mcp-server",
+        "args": [],
+        "env": build_nc_mcp_env(erp_config),
+        "builtin": False,
+        "enabled": enabled,
+        "install_hint": "pip install zlink-agent[nc]",
+    }
+```
 
-v1.5.0 **不动现有工具名**，避免破坏下游。
+**关键代码**（`mcp_starter.py`）：
+
+```python
+"""
+按 config.json 里的 erp_clients.nc 状态决定 mcp-nc 是否启动
+"""
+
+import logging
+from agent.config_manager import get_config
+from mcp_server.nc_mcp.config import build_nc_mcp_config
+from agent.tools.mcp_manager import get_server_statuses, reconnect_server
+
+logger = logging.getLogger(__name__)
+
+NC_MCP_NAME = "mcp-nc"
+
+
+async def sync_nc_mcp() -> None:
+    """
+    每次配置变更后调用, 确保 mcp-nc 状态与 erp_clients.nc.enabled 一致
+
+    行为:
+    - enabled=True: 启动 nc-mcp-server, 工具自动注册到 LLM
+    - enabled=False: 停止 nc-mcp-server, 工具从 LLM 视野消失
+    - 命令不存在 (用户没装): 工具标记为 unavailable, 不抛错
+    """
+    config = get_config()
+    nc_cfg = config.get("erp_clients", {}).get("nc", {})
+    enabled = nc_cfg.get("host") is not None  # 简化: 填了 host 就算启用
+    # 实际: 前端 PUT /api/config/erp-clients/nc 会显式设 enabled
+
+    target = build_nc_mcp_config(nc_cfg, enabled=enabled)
+
+    statuses = {s["name"]: s for s in get_server_statuses()}
+    current = statuses.get(NC_MCP_NAME, {})
+
+    if enabled and current.get("status") != "connected":
+        logger.info("启动 mcp-nc...")
+        await reconnect_server(NC_MCP_NAME, target)
+    elif not enabled and current.get("status") == "connected":
+        logger.info("停止 mcp-nc...")
+        await reconnect_server(NC_MCP_NAME, {**target, "enabled": False})
+```
+
+### 6.3 工具命名约定
+
+- **YonSuite**：`mcp_yonsuite_query_sale_orders`（保留旧名）
+- **NC**：`mcp_nc_query_sales_order`（来自 nc-mcp-server，自带命名）
+- 命名空间天然隔离，AI 工具选择按工具名/描述自动判定
+
+### 6.4 前端 MCP 管理页（复用现有页面）
+
+`/mcp` 页面会显示两个 MCP 服务器：
+- **mcp-yonsuite** (builtin) — 启用开关
+- **mcp-nc** (用户安装) — 启用开关 + "未安装"提示 + 安装命令链接
+
+`builtin=True` 的 YonSuite 仍然禁删。NC 不是 builtin，可以独立停用/启动。
+
+### 6.5 optional dependency 声明
+
+`pyproject.toml` 新增：
+
+```toml
+[project.optional-dependencies]
+web = ["fastapi>=0.110.0", "uvicorn[standard]>=0.27.0", "python-multipart>=0.0.0"]
+all = ["zlink-agent[web]"]
+nc = [
+    # 通过 pip extras 装 NC 支持. 实际命令:
+    # pip install "zlink-agent[nc]" @ git+https://atomgit.com/gcw_cJbJuamU/nc-mcp-project.git
+    # 本次 v1.5.0 不实际依赖 nc-mcp-server (运行时按需检测);
+    # 仅在文档里告诉用户怎么装.
+]
+dev = ["pytest>=8.0.0"]
+```
+
+**关键**：v1.5.0 的 pyproject **不强制依赖** `nc-mcp-server`。ZLink Agent 启动时检测命令是否存在：
+- 存在 → 启动 NC MCP，工具可用
+- 不存在 → mcp-nc 状态显示 "command not found"，前端显示安装提示，**不抛错**
 
 ---
 
@@ -439,17 +561,36 @@ v1.5.0 **不动现有工具名**，避免破坏下游。
 
 复用 `SettingsLLMPage` 的卡片式布局：
 
-- 顶部说明：「ZLink Agent 支持连接多个 ERP 系统。当前已注册: YonSuite。v1.6.0 起支持 NC。」
+- 顶部说明：「ZLink Agent 支持连接多个 ERP 系统。当前已注册: YonSuite (内置)、NC (需安装 nc-mcp-server)。v1.5.0 启用开关即可。」
 - 每个 ERP 客户端一张卡片：
   - 名称、Logo、状态（启用/禁用）、"测试连接"按钮、"编辑配置"按钮
-  - 卡片底部显示已注册的 query 工具数量
-- 底部「+ 添加 ERP」按钮（v1.5.0 显示但点击弹 "v1.6.0 上线" toast）
+  - 卡片底部显示已注册的 query 工具数量（从 mcp_manager 实时拿）
 
-### 7.3 复用现有组件
+### 7.3 YonSuite 卡片字段
+
+- 启用开关
+- Tenant ID（文本）
+- App Key（密码框）
+- App Secret（密码框）
+- Base URL（文本）
+
+### 7.4 NC 卡片字段
+
+- 启用开关
+- ORACLE_HOST（文本）
+- ORACLE_PORT（文本，默认 1521）
+- ORACLE_SERVICE（文本）
+- ORACLE_USER（文本）
+- ORACLE_PASSWORD（密码框）
+- NC_MCP_MAX_ROWS（数字，默认 200）
+- "nc-mcp-server 未安装？" 提示框 + 安装命令（仅在命令不存在时显示）
+
+### 7.5 复用现有组件
 
 - 卡片样式：复用 `SettingsLLMPage` 的 `card-erppage` class
 - 表单组件：复用现有 Input/Select/Button
 - 加密提示：复用 `config_api` 已有的 secret 字段标记
+- MCP 状态显示：复用现有 `/mcp` 页面的状态卡片
 
 ---
 
@@ -483,12 +624,15 @@ def test_erp_client_protocol_yonsuite():
     """YonSuiteClient 结构子类型满足 ERPClient 协议"""
     from agent.erp_clients.yonsuite.ys_client import YonSuiteClient
     from agent.erp_clients.base import ERPClient
-    assert isinstance(YonSuiteClient, ERPClient)  # 协议检查
+    # 仅作类型检查, 不强制
+    assert hasattr(YonSuiteClient, "name")
 
-def test_erp_registry_only_yonsuite_v150():
-    """v1.5.0 注册表只含 yonsuite（NC 留 v1.6.0）"""
-    from agent.erp_clients import list_registered
-    assert list_registered() == ["yonsuite"]
+def test_erp_base_exports():
+    """agent.erp_clients 暴露通用异常 + Protocol"""
+    from agent.erp_clients import (
+        ERPError, ERPAuthError, ERPRateLimitError,
+        ERPNetworkError, ERPAPIError, ERPClient, MCPStarterConfig
+    )
 
 def test_data_dir_fallback_to_old():
     """~/.ys-agent/data 存在时优先用旧目录"""
@@ -497,14 +641,56 @@ def test_data_dir_fallback_to_old():
 
 def test_erp_clients_api_get():
     """GET /api/config/erp-clients 端点"""
-    # 调 API, 验证返回 yonsuite 条目, secret 字段脱敏
+    # 调 API, 验证返回 yonsuite + nc 两条, secret 字段脱敏
 
 def test_erp_clients_api_put_encrypts_secrets():
     """PUT 配置时 secret 字段被自动加密"""
-    # 调 API 写, 读 config.json 验证落盘是 encrypted:xxx
+    # 调 API 写 NC password, 读 config.json 验证落盘是 encrypted:xxx
+
+def test_nc_mcp_config_translation():
+    """erp_clients.nc.* 正确转换为 ORACLE_* 环境变量"""
+    from mcp_server.nc_mcp.config import build_nc_mcp_env
+    env = build_nc_mcp_env({
+        "host": "1.2.3.4", "port": "1521", "service": "orcl",
+        "user": "NC65", "password": "secret", "max_rows": 200
+    })
+    assert env["ORACLE_HOST"] == "1.2.3.4"
+    assert env["ORACLE_PORT"] == "1521"
+    assert env["NC_MCP_MAX_ROWS"] == "200"
+
+def test_nc_mcp_starter_disabled_by_default():
+    """NC MCP 默认 enabled=false, 不启动"""
+    from mcp_server.nc_mcp.mcp_starter import sync_nc_mcp
+    # 临时建空 config, 调用 sync_nc_mcp, 验证 mcp-nc 状态为 disconnected
+
+def test_nc_mcp_placeholder_substitution():
+    """${nc.X} 占位符正确替换为实际值"""
+    config_dict = {
+        "mcp_servers": {
+            "mcp-nc": {
+                "env": {"ORACLE_USER": "${nc.user}"}
+            }
+        },
+        "erp_clients": {
+            "nc": {"user": "NC65"}
+        }
+    }
+    # 验证解析后 ORACLE_USER == "NC65"
+
+def test_mcp_manager_lists_nc_when_enabled():
+    """启用 NC 后, get_server_statuses() 返回 mcp-nc 条目"""
+    # 写 config.json: erp_clients.nc.host = "1.2.3.4"
+    # 调 sync_nc_mcp()
+    # 调 get_server_statuses()
+    # 验证 "mcp-nc" 在结果里
+
+def test_nc_mcp_graceful_when_not_installed():
+    """nc-mcp-server 命令不存在时, 不抛错, 状态显示 command-not-found"""
+    # PATH 里去掉 nc-mcp-server (用 mock)
+    # 调 sync_nc_mcp() 验证不抛异常
 ```
 
-预计 +5 个新测试，总数 46/46 全过。
+预计 +10 个新测试，总数 56/56 全过。
 
 ### 9.3 不动的测试
 
@@ -521,33 +707,32 @@ def test_erp_clients_api_put_encrypts_secrets():
 
 | 序号 | 文件 | 改动类型 | 估时 |
 |------|------|---------|------|
-| 1 | `pyproject.toml` | 改 name/description/version | 1 min |
+| 1 | `pyproject.toml` | 改 name/description/version + 加 nc extra | 2 min |
 | 2 | `VERSION` | 1.4.1 → 1.5.0 | 1 min |
 | 3 | `CHANGELOG.md` | 追加 v1.5.0 段 | 5 min |
 | 4 | `README.md` | 全量重写（标题/tagline/克隆命令/功能列表/项目结构）| 15 min |
 | 5 | `agent/yonsuite_client/` → `agent/erp_clients/yonsuite/` | `git mv` | 1 min |
-| 6 | `agent/erp_clients/base.py` | 新增 | 5 min |
-| 7 | `agent/erp_clients/exceptions.py` | 新增（可合并到 base.py）| 2 min |
-| 8 | `agent/erp_clients/__init__.py` | 新增 | 2 min |
-| 9 | `agent/erp_clients/nc/__init__.py` + `nc_client.py` | 新增空壳 | 3 min |
-| 10 | `agent/erp_clients/yonsuite/__init__.py` | 改 1 行 + 加 register | 2 min |
-| 11 | `agent/utils.py` | `_resolve_data_dir()` 加 fallback | 5 min |
-| 12 | `agent/config_manager.py` | 加 `get_erp_config()` | 10 min |
-| 13 | `backend/api/config_api.py` | 加 erp-clients 路由 | 10 min |
-| 14 | `backend/api/erp_clients_api.py` | 新增（可合并到 config_api.py）| 10 min |
-| 15 | `mcp_server/erp_mcp_router/{__init__,server,router,tools}.py` | 新增 | 15 min |
-| 16 | `scripts/zlink.sh` | 新增 | 5 min |
-| 17 | `scripts/ys-agent.sh` | 改 1 行 = 软链到 zlink.sh | 1 min |
-| 18 | `web/src/App.tsx` | 加路由 1 行 | 1 min |
-| 19 | `web/src/pages/SettingsERPPage.tsx` | 新增 | 20 min |
-| 20 | `docs/architecture.md` | 加"多 ERP 抽象"章节 | 10 min |
-| 21 | `docs/extending-ys-agent.md` | 改名为 extending-zlink-agent.md + 内容更新 | 10 min |
-| 22 | `AGENTS.md` | 改标题/项目名引用 | 5 min |
-| 23 | 其它 200 处 `ys-agent` 字符串 | sed/手工替换 | 30 min |
-| 24 | `tests/test_erp_clients.py` | 新增 5 个测试 | 15 min |
-| 25 | 现有 tests/ 中 import 路径 | 改 5-8 行 | 5 min |
+| 6 | `agent/erp_clients/base.py` | 新增（声明性 Protocol）| 5 min |
+| 7 | `agent/erp_clients/__init__.py` | 新增（声明性注册中心）| 2 min |
+| 8 | `agent/erp_clients/yonsuite/__init__.py` | 改 1 行 | 1 min |
+| 9 | `mcp_server/nc_mcp/__init__.py` + `config.py` + `mcp_starter.py` | 新增 | 15 min |
+| 10 | `agent/utils.py` | `_resolve_data_dir()` 加 fallback | 5 min |
+| 11 | `agent/config_manager.py` | 加 `get_erp_config()` + 占位符解析 | 15 min |
+| 12 | `backend/api/config_api.py` | 加 erp-clients/mcp-servers 端点 | 15 min |
+| 13 | `backend/api/erp_clients_api.py` | 新增 | 10 min |
+| 14 | `agent/skills/nc/SKILL.md` | 新增 NC 工具使用指南 | 10 min |
+| 15 | `scripts/zlink.sh` | 新增 | 5 min |
+| 16 | `scripts/ys-agent.sh` | 改 1 行 = 软链到 zlink.sh | 1 min |
+| 17 | `web/src/App.tsx` | 加路由 1 行 | 1 min |
+| 18 | `web/src/pages/SettingsERPPage.tsx` | 新增 | 25 min |
+| 19 | `docs/architecture.md` | 加"多 ERP 抽象"章节 | 10 min |
+| 20 | `docs/extending-ys-agent.md` | 改名为 extending-zlink-agent.md + 内容更新 | 10 min |
+| 21 | `AGENTS.md` | 改标题/项目名引用 | 5 min |
+| 22 | 其它 200 处 `ys-agent` 字符串 | sed/手工替换 | 30 min |
+| 23 | `tests/test_erp_clients.py` | 新增 10 个测试 | 25 min |
+| 24 | 现有 tests/ 中 import 路径 | 改 5-8 行 | 5 min |
 
-**总估时**：~3 小时（纯代码工作），含 git commit/消息/tag 推送约 4 小时。
+**总估时**：~3.5 小时（纯代码工作），含 git commit/消息/tag 推送约 4.5 小时。
 
 ---
 
@@ -562,10 +747,12 @@ def test_erp_clients_api_put_encrypts_secrets():
 **前置验证**（按 verification-before-completion）：
 
 ```bash
-.venv/bin/python -m pytest tests/ -v          # 期望 46/46 PASS
+.venv/bin/python -m pytest tests/ -v          # 期望 56/56 PASS
 ruff check . && ruff format --check .          # 期望 0 errors
-.venv/bin/python -c "from agent.erp_clients import list_registered; print(list_registered())"
-# 期望输出: ['yonsuite']
+.venv/bin/python -c "from agent.erp_clients import ERPError, MCPStarterConfig; print('ok')"
+# 期望输出: ok
+.venv/bin/python -c "from mcp_server.nc_mcp.config import build_nc_mcp_env; print(build_nc_mcp_env({'host':'x','port':'1521','service':'orcl','user':'u','password':'p'}))"
+# 期望输出: {...'ORACLE_HOST': 'x'...}
 .venv/bin/python -m agent.tools.registry discover_tools
 # 期望无报错
 echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | .venv/bin/python -m mcp_server.ys_mcp_server
@@ -578,14 +765,18 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | .venv/bin/py
 
 | 不做 | 原因 |
 |------|------|
+| **不实现 NC 嵌入式 Python 客户端** | NC 走 [nc-mcp-server](https://atomgit.com/gcw_cJbJuamU/nc-mcp-project.git) 独立包，ZLink 不重复造轮子 |
 | 不重写 `YonSuiteClient` 1055 行 | 风险高，v1.5.0 改了还要重测 |
-| 不实现 NC 实际业务 | v1.6.0 才做，v1.5.0 只留空壳 |
+| 不在 v1.5.0 加 NC 真实启用文档 | 等 v1.6.0 文档 + 端到端测试都过了再发 |
+| 不实现"未启用 ERP 的工具提示" | v1.5.0 简单粗暴：禁用 = 工具消失 |
+| 不实现"多 ERP 智能路由" | LLM 看到工具描述自带 ERP 上下文，自行选择足够；v1.6.0+ 观察实际使用再决定 |
 | 不改 LLM provider 抽象 | 与本次无关 |
 | 不动 builtin skills 列表 | 与本次无关 |
 | 不动 builtin MCP server（`ys_mcp_server`）| 老用户兼容 |
 | 不动 4 个 untracked Windows 文件 | 用户在做的另一件事，不污染 |
 | 不自动迁移老数据目录 | 避免 1.4.0 自动迁移的争议 |
 | 不砍 `~/.ys-agent/data/` 兼容 | v2.0.0 才砍 |
+| 不在 pyproject 强制依赖 `nc-mcp-server` | 用 optional extras + 运行时检测 |
 
 ---
 
@@ -596,36 +787,56 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | .venv/bin/py
 | `git mv` 后部分 import 路径漏改 | 中 | 测试失败 | 写 spec 时已列全部 import 改动；执行时用 grep 验证 |
 | 改 name 后 pip 装包冲突老 `ys-agent` | 低 | 装包报错 | 不在 PyPI 实际发布 v1.5.0；本地用 `pip install -e .` |
 | 改 name 后 GitHub Action / 文档链接坏 | 中 | 文档 404 | 执行前 grep 所有 `atomgit.com/gcw_cJbJuamU/ys-agent.git` 链接 |
-| 抽象层 v1.5.0 留空壳，v1.6.0 反推需要改 base.py | 高 | v1.6.0 工作量 | YAGNI 接受；v1.6.0 再说 |
-| 前端 `/settings/erp` 页面 v1.5.0 只展示无功能 | 低 | 用户迷惑 | README/页面顶部写明"v1.5.0 预览，v1.6.0 启用" |
+| nc-mcp-server 未装时用户体验差 | 中 | 启用 NC 后没反应 | 前端检测 + 安装提示；后端 graceful 降级 |
+| 占位符 `${nc.X}` 解析有漏洞 | 低 | 启动失败 | 启动时校验 + 失败报错提示哪一项缺失 |
+| LLM 选错 ERP 工具（用户想查 NC 但 AI 用了 YonSuite）| 中 | 错误结果 | 工具描述里强化 ERP 上下文；v1.6.0 加 router 中间件 |
 | Windows 4 个 untracked 文件与本次冲突 | 低 | 编译失败 | 本次完全不动 Windows 文件 |
 
 ---
 
 ## 14. v1.6.0 路线图（仅占位，详细另写 RFC）
 
-- NC OAuth/Token 鉴权实现
-- NC OpenAPI 适配（11+ 个 query 工具对齐 YonSuite）
-- `agent/erp_clients/nc/nc_client.py` 实装 + 取消 register 注释
-- `mcp_erp_nc_*` 工具集实装
-- 前端 `/settings/erp` 页面 NC 配置/连接测试真功能
-- 文档：`docs/nc-integration.md`
-- 测试：NC 单元测试 + 集成测试
+- 文档：`docs/nc-integration.md`（装包、配置、故障排查全流程）
+- 前端 NC 卡片"测试连接"按钮真的能连（调 `mcp-nc` 的 `health` 工具）
+- 多 ERP 工具智能路由中间件（如果用户问题模糊，AI 问"你想查 YonSuite 还是 NC？"）
+- NC MCP server 进程监控面板（用 mcp_manager 已有 status 接口）
+- nc-mcp-server 升级检测（pip check / version check）
 
 ---
 
-## 15. 审查清单（用户 review 时可对照）
+## 15. 方法论总结（NC 集成模式的可复用价值）
 
-- [ ] 命名与品牌（第 2 节）：`zlink-agent` / 智链 / `zlink` CLI 是否 OK
-- [ ] 项目结构（第 3 节）：`agent/erp_clients/yonsuite/` 路径是否 OK
-- [ ] 抽象层设计（第 4 节）：声明性骨架 + 协议是否够用
-- [ ] NC v1.5.0 空壳不注册（第 4.5 节）：是否接受
-- [ ] 配置层多 ERP（第 5 节）：单一 `config.json` 多 section 是否 OK
-- [ ] 数据目录双兼容（第 8 节）：保留 `~/.ys-agent/data/` fallback 是否 OK
-- [ ] MCP 命名空间（第 6 节）：v1.5.0 保留 `mcp_yonsuite_*` 旧名是否 OK
-- [ ] 新增 5 个测试（第 9.2 节）：覆盖范围是否够
-- [ ] 不做的事（第 12 节）：YAGNI 清单是否同意
-- [ ] v1.6.0 路线图（第 14 节）：是否需要提前细化
+**v1.5.0 的核心方法论**：
+
+> ZLink Agent 是 ERP 客户端的**调度者**，不是**实现者**。
+> 每个 ERP 客户端 = 一个独立的 MCP server（stdio 进程）。
+> ZLink 只做"启停 + 配置注入 + 工具路由"三件事。
+> 新增 ERP = 加一个 MCP 包 + 加一个 mcp_servers 配置节 + 加一个前端卡片。
+
+**这意味着未来接入新 ERP 的成本是固定的**：
+- SAP：等 sap-mcp-server 出来，加配置
+- 金蝶：等 kingdee-mcp-server 出来，加配置
+- Oracle EBS / 浪潮 / 航天信息：同上
+
+每个新 ERP 不再需要改 ZLink 核心代码。这就是抽象层的真正价值——**不抽象 NC 的业务，只抽象"接入流程"**。
+
+---
+
+## 16. 审查清单（用户 review 时可对照）
+
+- [ ] **第 4 节（多 ERP 集成架构）**：MCP 包集成而不是嵌入式 Python 客户端
+- [ ] **第 4.3 节（用户选择启用哪个）**：enabled 字段 + mcp_manager 自动启停
+- [ ] **第 4.7 节（不写 agent/erp_clients/nc/）**：NC 完全在外部包里
+- [ ] **第 5.1 节（config.json 形态）**：mcp_servers + erp_clients 双段
+- [ ] **第 5.2 节（${nc.X} 占位符）**：把用户配置注入 MCP 环境变量
+- [ ] **第 6.2 节（NC MCP 集成入口）**：mcp_server/nc_mcp/ 目录的职责（不是实现 NC 业务）
+- [ ] **第 6.5 节（optional dependency）**：不强制依赖 nc-mcp-server
+- [ ] **第 7 节（前端）**：NC 卡片字段 + 未安装提示
+- [ ] **第 8 节（数据目录）**：保留 `~/.ys-agent/data/` fallback
+- [ ] **第 9.2 节（10 个新测试）**：覆盖 NC 配置转换、占位符、graceful 降级
+- [ ] **第 12 节（YAGNI）**：明确不做嵌入式 NC 客户端
+- [ ] **第 14 节（v1.6.0 路线图）**：文档 + 测试连接 + 智能路由中间件
+- [ ] **第 15 节（方法论）**：MCP 包集成的可复用价值
 
 ---
 
