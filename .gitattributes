@@ -1,0 +1,4 @@
+# Releases: 标记为 binary, 禁止 git 尝试 diff/merge
+releases/**/*.dmg binary
+releases/**/*.zip binary
+releases/**/*.tar* binary
