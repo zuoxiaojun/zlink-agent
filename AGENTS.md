@@ -130,4 +130,176 @@ zlink-agent/
 
 **Legend:** ✅ = safe to modify | ⚠️ = modify with caution (has dependencies) | ❌ = do not modify (builtin protection / external contract)
 
-<!-- NEXT: SECTION_1_3 -->
+### 1.3 Module Dependency Diagram
+
+The diagram below shows the calling chain. **Bold** names are hub nodes (changing them affects many consumers). *(italic)* names are leaf nodes (safer to modify independently).
+
+```
+                                 ┌──────────────────────────┐
+                                 │    frontend (React/Vite)  │
+                                 │    port 8088             │
+                                 └──────┬───────────────────┘
+                                        │ WebSocket /api/chat
+                                        ▼
+                              ┌──────────────────────┐
+                              │  backend/api/chat.py  │
+                              │  (WebSocket endpoint) │
+                              └──────┬───────────────┘
+                                     │ run_in_executor
+                                     ▼
+╔══════════════════════════════════════════════════════════════╗
+║                    *AIAgent.run_conversation()*              ║
+║  agent/core/agent.py — Phase Machine (idle/turn/compact/   ║
+║  retry), TurnSnapshot, EventBus publishing                  ║
+╚═══════╤════════════════════════════════════════════╤════════╝
+        │   1st call (pre-turn)                      │ tool calls
+        ▼                                            ▼
+┌─────────────────────────┐             ┌──────────────────────┐
+│  *message_builder.py*   │             │ *tool_dispatcher.py* │
+│  build_system_prompt()  │             │ dispatch_tool()      │
+│  build_turn_messages()  │             └─────────┬────────────┘
+└────────────┬────────────┘                       │
+             │  reads                             ▼
+             ▼                         ┌──────────────────────┐
+┌─────────────────────────┐            │  *ToolRegistry*      │
+│  *LLMClient.chat()*     │            │  registry.py         │
+│  agent/core/llm_client  │            │  dispatch()          │
+└────────────┬────────────┘            └─────────┬────────────┘
+             │  delegates to                      │  routes to
+             ▼                                    ▼
+┌─────────────────────────┐            ┌──────────────────────┐
+│ *LLMProvider.chat()*    │            │ Tool handler (e.g.   │
+│ base.py / openai_compat │            │ terminal_tool.py)   │
+│ / anthropic.py          │            │ OR                   │
+└─────────────────────────┘            │ *mcp_manager.py*     │
+                                       │ → MCP server process │
+                                       └──────────────────────┘
+
+        ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+        EventBus (agent/events/bus.py) — published events:
+        SessionStart → UserMessage → BeforeLLMCall →
+        AfterLLMCall → BeforeToolCall → AfterToolCall →
+        SessionEnd  (+ PhaseChange, SessionBeforeCompact)
+        ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+                              │
+                              ▼
+                    ┌─────────────────────────┐
+                    │  *skill_manager.py*     │
+                    │  get_active_instructions│
+                    │  get_instructions_for_  │
+                    │    _query()→ n-gram     │
+                    │  match→ Level 1 inject  │
+                    └─────────────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────────────┐
+                    │  *config_manager.py*    │
+                    │  load() → AppConfig     │
+                    │  save()                 │
+                    │  encrypt/decrypt_secret │
+                    └─────────────────────────┘
+```
+
+**Hub nodes (change with care):**
+- `agent/core/agent.py` — AIAgent, called by chat.py, depends on every other core module
+- `agent/tools/registry.py` — all tool modules register here; dispatch central
+- `agent/tools/mcp_manager.py` — MCP server lifecycle; config_manager reads server list
+- `backend/api/chat.py` — WebSocket entry point; bridges sync agent into async FastAPI
+- `agent/config_model.py` — AppConfig schema changes affect config_manager + all consumers
+
+**Leaf nodes (safer to modify independently):**
+- `agent/core/iteration_budget.py` — standalone counter
+- `agent/tools/todo_tool.py` / `clarify_tool.py` — single-purpose tools
+- `agent/search_index.py` — SQLite FTS5, no runtime deps on other modules
+- `backend/schemas/*.py` — Pydantic models, pure data definitions
+- `mcp_server/nc_mcp/config.py` — env var conversion, pure function
+
+### 1.4 Core Data Flows
+
+#### Flow A: Chat (WebSocket → AIAgent → LLM → response)
+
+```
+frontend WS ──► chat.py (receive JSON)
+                  │
+                  ├──► parse slash command? → execute() → response
+                  │
+                  └──► AIAgent.run_conversation(message, stream_cb)
+                          │
+                          ├──► build_turn_messages()  [message_builder.py]
+                          ├──► _take_snapshot()        [freezes model/temp/tools]
+                          ├──► SessionStartEvent       [event_bus.publish]
+                          ├──► _maybe_compact()         [context_compactor.py]
+                          │
+                          ├──► _call_llm()
+                          │       └──► LLMClient.chat()
+                          │               └──► LLMProvider.chat() [openai_compat / anthropic]
+                          │
+                          ├──► [if tool_calls] _run_tool_calls()
+                          │       ├──► dispatch_tool() → registry.dispatch()
+                          │       │       └──► tool handler OR mcp_manager.call_tool()
+                          │       └──► append tool results to messages
+                          │       └──► loop back to _call_llm()
+                          │
+                          └──► SessionEndEvent → return {final_response, messages, ...}
+```
+
+Key files: `backend/api/chat.py`, `agent/core/agent.py`, `agent/core/llm_client.py`, `agent/core/llm_providers/`, `agent/core/message_builder.py`, `agent/core/tool_dispatcher.py`, `agent/tools/registry.py`
+
+#### Flow B: MCP Tool Execution
+
+```
+AIAgent._run_tool_calls()
+  └──► dispatch_tool(name, args)
+        └──► registry.dispatch(name, args)
+              └──► [if MCP tool] mcp_manager.call_tool(server_name, tool_name, args)
+                    ├──► JSON-RPC request {jsonrpc:"2.0", id, method:"tools/call", params}
+                    ├──► stdio: write to subprocess stdin → read stdout
+                    │         (asyncio.create_subprocess_exec)
+                    └──► HTTP: POST to server URL → parse JSON-RPC response
+                          (httpx, timeout from MCPServerEntry.timeout)
+```
+
+Key files: `agent/tools/mcp_manager.py`, `agent/tools/registry.py`, `agent/config_model.py` (MCPServerEntry)
+
+**Circuit breaker:** 3 consecutive failures → 60s cooldown.
+
+#### Flow C: ERP Configuration Save → MCP Server Sync
+
+```
+SettingsERPPage (React) ──PUT /api/config/erp-clients/{name}──► erp_clients_api.py
+  │
+  ├──► decrypt incoming secret fields, merge config
+  ├──► write raw dict to config.json (agent.config_manager.CONFIG_FILE)
+  │
+  └──► [if name=="nc"] mcp_starter.sync_nc_mcp()
+        ├──► reads nc config from config_manager
+        ├──► build_nc_mcp_env() → env dict
+        └──► connect_server("mcp-nc", command, args, env)
+              └──► mcp_manager.connect_server() → list tools → register to registry
+```
+
+Key files: `backend/api/erp_clients_api.py`, `agent/config_manager.py`, `mcp_server/nc_mcp/mcp_starter.py`, `mcp_server/nc_mcp/config.py`
+
+#### Flow D: Skill Injection into System Prompt
+
+```
+User input arrives
+  │
+  ├──► skill_manager.get_active_instructions()
+  │     → reads active_skills.json
+  │     → returns name+description list (Level 0 — injected into system prompt)
+  │
+  └──► skill_manager.get_instructions_for_query(user_message)
+        → n-gram matches skill name/description/tags
+        → returns full SKILL.md content for matched skills (Level 1 — loaded on-demand)
+              │
+              ▼
+        build_system_prompt(base, skill_index=..., skill_detail=...)
+              │
+              ▼
+        system prompt → LLM sees active skills + matched skill instructions
+```
+
+Key files: `agent/skill_manager.py`, `agent/core/message_builder.py`, `agent/tools/skills_tool.py`
+
+<!-- NEXT: SECTION_1_5 -->
