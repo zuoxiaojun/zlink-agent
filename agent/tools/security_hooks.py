@@ -114,14 +114,17 @@ def approval_hook(tool_name: str, args: dict) -> dict:
         }
 
     if mode == "approve" and risk == "high":
-        key = f"{tool_name}:{json.dumps(args, ensure_ascii=False, sort_keys=True)}"
         with _approval_lock:
+            # 优先检查精确匹配（tool_name + args）
+            key = f"{tool_name}:{json.dumps(args, ensure_ascii=False, sort_keys=True)}"
             ts = _APPROVED_CALLS.get(key)
-            if ts is not None:
-                if (time.monotonic() - ts) < _APPROVAL_TTL:
-                    return args  # approved within TTL
-                # Lazy purge: expired entry
-                del _APPROVED_CALLS[key]
+            if ts is not None and (time.monotonic() - ts) < _APPROVAL_TTL:
+                return args
+            # 其次检查通配匹配（仅 tool_name, 由 confirm_tool_execution 写入）
+            wild_key = f"{tool_name}:*"
+            ts = _APPROVED_CALLS.get(wild_key)
+            if ts is not None and (time.monotonic() - ts) < _APPROVAL_TTL:
+                return args
         return {
             "__block__": True,
             "__reason__": (
@@ -137,9 +140,14 @@ def approval_hook(tool_name: str, args: dict) -> dict:
 
 def record_approval(tool_name: str, args: dict) -> None:
     """Record user approval for a specific tool call."""
-    key = f"{tool_name}:{json.dumps(args, ensure_ascii=False, sort_keys=True)}"
+    now = time.monotonic()
     with _approval_lock:
-        _APPROVED_CALLS[key] = time.monotonic()
+        # 精确匹配 key
+        key = f"{tool_name}:{json.dumps(args, ensure_ascii=False, sort_keys=True)}"
+        _APPROVED_CALLS[key] = now
+        # 通配 key — 忽略 args 差异，匹配该工具任何调用
+        wild_key = f"{tool_name}:*"
+        _APPROVED_CALLS[wild_key] = now
 
 
 def clear_approvals() -> None:

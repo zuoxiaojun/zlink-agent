@@ -3,18 +3,19 @@
 When the ``approval_hook`` in ``security_hooks.py`` blocks a high-risk
 tool (approval_mode="approve"), the LLM receives a block message.  It
 should ask the user for permission, and if approved, call this tool to
-record the approval and re-execute the original operation.
+record the approval.  Then retry the original tool call — the
+``approval_hook`` will see the cached approval and let it through.
 
 Flow
 ----
 1. Agent calls a high-risk tool (e.g. ``terminal``, ``file_delete``)
 2. ``approval_hook`` blocks it → returns block message
 3. Agent explains to user: "XX 操作需要你的批准"
-4. User replies: "批准"
+4. User replies: "批准" (or clicks the Approve button)
 5. Agent calls ``confirm_tool_execution(tool_name, args)``
-6. This tool records approval in the cache (60s TTL)
-7. Then re-dispatches the original tool
-8. ``approval_hook`` sees cached approval → lets it through
+6. This records approval in the cache with a wildcard key (60s TTL)
+7. Agent retries the original tool call
+8. ``approval_hook`` sees the wildcard approval → lets it through
 """
 
 from __future__ import annotations
@@ -32,7 +33,9 @@ SCHEMA = {
         "确认执行一个被安全系统拦截的高风险操作。\n\n"
         "当你的工具调用被 approval_hook 拦截并返回「需要你的确认」消息时，"
         "你应该先向用户解释需要执行的操作，请用户批准。\n"
-        "如果用户批准，调用此工具来确认执行。\n"
+        "如果用户批准，调用此工具来记录审批。\n"
+        "注意：此工具仅记录审批，不会执行原操作。"
+        "你需要在收到成功响应后，**再次调用**原工具来执行操作。\n"
         "如果用户拒绝，回复用户操作已取消。"
     ),
     "parameters": {
@@ -87,18 +90,9 @@ def handle_confirm_tool_execution(args: dict) -> str:
         logger.exception("Failed to record approval")
         return json.dumps({"success": False, "error": f"记录审批失败: {e}"})
 
-    # Execute the original tool directly (bypass hooks to avoid re-triggering approval)
-    try:
-        entry = registry.get_entry(tool_name)
-        if entry is None:
-            return json.dumps({"success": False, "error": f"未知工具: {tool_name}"})
-        result = entry.handler(tool_args)
-        if not isinstance(result, str):
-            result = json.dumps(result, ensure_ascii=False)
-        return result
-    except Exception as e:
-        logger.exception("Re-dispatch failed after approval")
-        return json.dumps({"success": False, "error": f"重新执行 {tool_name} 失败: {e}"})
+    # 审批已记录（含通配 key），LLM 应重试原工具调用
+    # confirm_tool_execution 不执行原工具——由 LLM 在下一轮重试
+    return json.dumps({"success": True, "data": f"已批准 {tool_name}，请在下一轮重试调用"})
 
 
 # Auto-register at import time
