@@ -62,6 +62,7 @@ export default function SlashCommandPopup({
           onMouseEnter={() => onHover?.(i)}
         >
           <span className="slash-popup-name">{cmd.usage}</span>
+          {cmd.type === "skill" && <span className="slash-popup-badge">技能</span>}
           <span className="slash-popup-desc">{cmd.description}</span>
         </div>
       ))}

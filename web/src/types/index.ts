@@ -211,6 +211,7 @@ export interface SlashCommandInfo {
   name: string;
   description: string;
   usage: string;
+  type?: "command" | "skill";
 }
 
 export interface SlashCommandsResponse {

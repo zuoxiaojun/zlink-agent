@@ -874,6 +874,17 @@ body {
   font-size: 13px;
 }
 
+.slash-popup-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  color: var(--text-3);
+  margin-left: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 /* ═══════════════════════════════════════════════════════════
    Card-based pages (History, Memory, Skills, Settings)
    ═══════════════════════════════════════════════════════════ */
