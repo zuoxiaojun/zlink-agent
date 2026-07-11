@@ -7,8 +7,10 @@ export class ChatWebSocket {
   private pending: WsClientMessage[] = [];
 
   connect(sessionId: string) {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const url = `${protocol}//${window.location.host}/ws/chat/${sessionId}`;
+    const electron = (window as any).electron;
+    const url = electron
+      ? `${electron.wsUrl}/ws/chat/${sessionId}`
+      : `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws/chat/${sessionId}`;
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {

@@ -1,0 +1,49 @@
+# electron-builder configuration for ZLink Agent
+#   npx electron-builder --mac --config electron-builder.yml   # macOS .dmg
+#   npx electron-builder --win --config electron-builder.yml   # Windows .exe
+#   npx electron-builder --linux --config electron-builder.yml # Linux .AppImage
+
+appId: com.zlink.agent
+productName: ZLink Agent
+copyright: Copyright 2026
+
+directories:
+  output: dist-electron
+  buildResources: packaging
+
+files:
+  - electron/**/*
+  - web/dist/**/*
+
+extraResources:
+  # PyInstaller-built Python backend (run build:pyinstaller first)
+  - from: dist/ZLink-Agent/
+    to: .
+    filter:
+      - "**/*"
+
+mac:
+  category: public.app-category.business
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  icon: packaging/app.icns
+  hardenedRuntime: true
+  gatekeeperAssess: false
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: packaging/app-icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+  category: Office
+  icon: packaging/app-icon.png
