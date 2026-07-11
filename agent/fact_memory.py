@@ -371,7 +371,7 @@ class _FileLock:
         return self
 
     def __exit__(self, *args):
-        if self._fd is not None:
+        if self._fd is not None and _fcntl:
             _fcntl.flock(self._fd, _fcntl.LOCK_UN)
             os.close(self._fd)
             self._fd = None
