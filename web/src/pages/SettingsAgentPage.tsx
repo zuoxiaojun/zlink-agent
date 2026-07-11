@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, CircleCheck, Pencil, Save } from "lucide-react";
+import { IconArrowLeft, IconCircleCheck, IconPencil, IconDeviceFloppy } from "@tabler/icons-react";
 import { api } from "../api/http";
 import { useAppState } from "../context/AppContext";
 
@@ -40,11 +40,11 @@ export default function SettingsAgentPage() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <button className="back-btn" onClick={() => navigate("/")}><ArrowLeft size={16} /></button>
+        <button className="back-btn" onClick={() => navigate("/")}><IconArrowLeft size={16} /></button>
         <h1 className="page-title">Agent 设置</h1>
       </div>
 
-      {saved && <div className="toast toast-success"><CircleCheck size={14} /> Agent 设置已保存</div>}
+      {saved && <div className="toast toast-success"><IconCircleCheck size={14} /> Agent 设置已保存</div>}
 
       {!edit ? (
         <div className="card">
@@ -84,7 +84,7 @@ export default function SettingsAgentPage() {
             </div>
           </div>
           <div className="card-actions">
-            <button className="btn btn-secondary" onClick={() => { setEdit(true); setSaved(false); }}><Pencil size={14} /> 编辑</button>
+            <button className="btn btn-secondary" onClick={() => { setEdit(true); setSaved(false); }}><IconPencil size={14} /> 编辑</button>
           </div>
         </div>
       ) : (
@@ -242,7 +242,7 @@ export default function SettingsAgentPage() {
           </div>
 
           <div className="form-actions">
-            <button className="btn btn-primary" onClick={handleSave}><Save size={14} /> 保存</button>
+            <button className="btn btn-primary" onClick={handleSave}><IconDeviceFloppy size={14} /> 保存</button>
             <button className="btn btn-secondary" onClick={() => setEdit(false)}>取消</button>
           </div>
         </div>

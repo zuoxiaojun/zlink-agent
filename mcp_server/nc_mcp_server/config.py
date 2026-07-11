@@ -10,6 +10,7 @@ from functools import cached_property
 
 _ENV_LOADED = False
 
+
 def _ensure_dotenv():
     global _ENV_LOADED
     if _ENV_LOADED:
@@ -64,8 +65,7 @@ class Config:
         port = self.ORACLE_PORT
         if not port:
             raise ValueError(
-                "ORACLE_PORT 为空，请检查环境变量配置。\n"
-                "使用: hermes mcp add nc-mcp --env ORACLE_PORT=1521"
+                "ORACLE_PORT 为空，请检查环境变量配置。\n使用: hermes mcp add nc-mcp --env ORACLE_PORT=1521"
             )
         return {
             "user": self.ORACLE_USER,
@@ -83,15 +83,13 @@ class Config:
                 missing.append(key)
         if missing:
             raise ValueError(
-                f"缺少必需的配置项：{', '.join(missing)}\n"
-                f"请在 ~/.zshrc 设置环境变量或用 hermes mcp add --env 传入。"
+                f"缺少必需的配置项：{', '.join(missing)}\n请在 ~/.zshrc 设置环境变量或用 hermes mcp add --env 传入。"
             )
 
     @property
     def is_configured(self) -> bool:
         return bool(
-            self.ORACLE_USER and self.ORACLE_PASSWORD
-            and self.ORACLE_HOST and self.ORACLE_PORT and self.ORACLE_SERVICE
+            self.ORACLE_USER and self.ORACLE_PASSWORD and self.ORACLE_HOST and self.ORACLE_PORT and self.ORACLE_SERVICE
         )
 
 

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Hammer, ChevronDown, ChevronRight, Search } from "lucide-react";
+import { IconArrowLeft, IconHammer, IconChevronDown, IconChevronRight, IconSearch } from "@tabler/icons-react";
 import { api } from "../api/http";
 import type { ToolInfo } from "../types";
 
@@ -63,13 +63,13 @@ export default function ToolsPage() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <button className="back-btn" onClick={() => navigate("/")}><ArrowLeft size={16} /></button>
+        <button className="back-btn" onClick={() => navigate("/")}><IconArrowLeft size={16} /></button>
         <h1 className="page-title">内置工具</h1>
       </div>
 
       <div style={{ marginBottom: "16px", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
         <div className="search-input-wrap">
-          <Search size={14} className="search-input-icon" />
+          <IconSearch size={14} className="search-input-icon" />
           <input
             className="search-input"
             placeholder="搜索工具名称、描述或分类..."
@@ -87,7 +87,7 @@ export default function ToolsPage() {
 
       {tools.length === 0 ? (
         <div className="empty-state">
-          <Hammer size={40} className="empty-state-icon" style={{ opacity: 0.3 }} />
+          <IconHammer size={40} className="empty-state-icon" style={{ opacity: 0.3 }} />
           <p>暂无已注册的内置工具</p>
         </div>
       ) : (
@@ -99,7 +99,7 @@ export default function ToolsPage() {
               <div key={toolset} className="toolset-group">
                 <div className="toolset-header" onClick={() => toggle(toolset)}>
                   <span className="toolset-header-left">
-                    {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+                    {isCollapsed ? <IconChevronRight size={14} /> : <IconChevronDown size={14} />}
                     <span className="toolset-emoji">{emoji}</span>
                     <span className="toolset-name">{toolset}</span>
                     <span className="toolset-count">{items.length} 个</span>

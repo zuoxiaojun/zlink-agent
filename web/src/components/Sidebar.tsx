@@ -2,18 +2,18 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAppState, WELCOME_MESSAGE } from "../context/AppContext";
 import { api } from "../api/http";
 import type { SessionSummary } from "../types";
-import { Bot, Plus, MessageSquare, Brain, Wrench, Puzzle, Cpu, Database, Settings, Plug, Boxes } from "lucide-react";
+import { IconRobot, IconPlus, IconMessage, IconBrain, IconTool, IconPuzzle, IconCpu, IconDatabase, IconSettings, IconPlug, IconBoxMultiple } from "@tabler/icons-react";
 
 const NAV = [
-  { label: "历史对话", Icon: MessageSquare, path: "/history", section: 1 },
-  { label: "记忆管理", Icon: Brain, path: "/memory", section: 1 },
-  { label: "技能管理", Icon: Wrench, path: "/skills", section: 1 },
-  { label: "内置工具", Icon: Puzzle, path: "/tools", section: 1 },
-  { label: "MCP 服务器", Icon: Plug, path: "/mcp", section: 1 },
-  { label: "大模型配置", Icon: Cpu, path: "/settings/llm", section: 2 },
-  { label: "ERP 连接", Icon: Database, path: "/settings/erp", section: 2 },
-  { label: "Agent 设置", Icon: Settings, path: "/settings/agent", section: 2 },
-  { label: "扩展管理", Icon: Boxes, path: "/settings/extensions", section: 2 },
+  { label: "历史对话", Icon: IconMessage, path: "/history", section: 1 },
+  { label: "记忆管理", Icon: IconBrain, path: "/memory", section: 1 },
+  { label: "技能管理", Icon: IconTool, path: "/skills", section: 1 },
+  { label: "内置工具", Icon: IconPuzzle, path: "/tools", section: 1 },
+  { label: "MCP 服务器", Icon: IconPlug, path: "/mcp", section: 1 },
+  { label: "大模型配置", Icon: IconCpu, path: "/settings/llm", section: 2 },
+  { label: "ERP 连接", Icon: IconDatabase, path: "/settings/erp", section: 2 },
+  { label: "Agent 设置", Icon: IconSettings, path: "/settings/agent", section: 2 },
+  { label: "扩展管理", Icon: IconBoxMultiple, path: "/settings/extensions", section: 2 },
 ];
 
 export default function Sidebar() {
@@ -36,7 +36,7 @@ export default function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-brand">
         <div className="sidebar-brand-icon">
-          <Bot size={18} color="#fff" />
+          <IconRobot size={18} color="#fff" />
         </div>
         <div>
           <h3>ZLink Agent</h3>
@@ -45,7 +45,7 @@ export default function Sidebar() {
       </div>
 
       <button className="sidebar-new-btn" onClick={handleNewChat}>
-        <Plus size={16} /> 新建对话
+        <IconPlus size={16} /> 新建对话
       </button>
 
       <div className="sidebar-section-label">功能</div>

@@ -1,13 +1,13 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Bot, User, Wrench, FileText, Zap, BarChart3 } from "lucide-react";
+import { IconRobot, IconUser, IconTool, IconFileText, IconBolt, IconChartBar } from "@tabler/icons-react";
 import type { Message } from "../types";
 
 function ToolResult({ msg }: { msg: Message }) {
   const content = msg.content;
   return (
     <details className="tool-result-inline">
-      <summary><FileText size={12} style={{ marginRight: "4px" }} />工具返回数据</summary>
+      <summary><IconFileText size={12} style={{ marginRight: "4px" }} />工具返回数据</summary>
       <pre>{typeof content === "string" ? content : JSON.stringify(content, null, 2)}</pre>
     </details>
   );
@@ -16,7 +16,7 @@ function ToolResult({ msg }: { msg: Message }) {
 function ToolCallCard({ tc }: { tc: NonNullable<Message["tool_calls"]>[number] }) {
   return (
     <details className="tool-card">
-      <summary><Wrench size={12} style={{ marginRight: "4px" }} />调用工具: {tc.function.name}</summary>
+      <summary><IconTool size={12} style={{ marginRight: "4px" }} />调用工具: {tc.function.name}</summary>
       <div className="tool-card-content">
         <pre>{tc.function.arguments}</pre>
       </div>
@@ -80,10 +80,10 @@ function AssistantGroupContent({ msgs }: { msgs: Message[] }) {
         <div className="usage-bar" style={{ justifyContent: "flex-start", paddingTop: "6px" }}>
           {msgs.filter(m => m._agent_info).map((m, i) => (
             <span key={i} style={{ display: "inline-flex", gap: "12px" }}>
-              <span className="usage-item"><Zap size={12} /> {m._agent_info!.api_calls} 次调用</span>
+              <span className="usage-item"><IconBolt size={12} /> {m._agent_info!.api_calls} 次调用</span>
               {m._agent_info!.token_usage && (
                 <span className="usage-item">
-                  <BarChart3 size={12} /> {m._agent_info!.token_usage.total_tokens.toLocaleString()} tokens
+                  <IconChartBar size={12} /> {m._agent_info!.token_usage.total_tokens.toLocaleString()} tokens
                 </span>
               )}
             </span>
@@ -99,7 +99,7 @@ export default function ChatMessage({ msgs }: { msgs: Message[] }) {
   if (first.role === "user") {
     return (
       <div className="msg-row user">
-        <div className="msg-avatar"><User size={18} color="#fff" /></div>
+        <div className="msg-avatar"><IconUser size={18} color="#fff" /></div>
         <div className="msg-body">
           <div className="msg-bubble">
             <MessageContent content={first.content} />
@@ -111,7 +111,7 @@ export default function ChatMessage({ msgs }: { msgs: Message[] }) {
 
   return (
     <div className="msg-row assistant">
-      <div className="msg-avatar"><Bot size={18} /></div>
+      <div className="msg-avatar"><IconRobot size={18} /></div>
       <AssistantGroupContent msgs={msgs} />
     </div>
   );

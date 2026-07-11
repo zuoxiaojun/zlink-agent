@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ToggleLeft, ToggleRight, Plug, RefreshCw } from "lucide-react";
+import { IconArrowLeft, IconToggleLeft, IconToggleRight, IconPlug, IconRefresh } from "@tabler/icons-react";
 import { api } from "../api/http";
 import { getErrorMessage } from "../utils/errors";
 import type { ExtensionInfo, ExtensionReloadResult } from "../types";
@@ -77,7 +77,7 @@ export default function SettingsExtensionsPage() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <button className="back-btn" onClick={() => navigate("/")}><ArrowLeft size={16} /></button>
+        <button className="back-btn" onClick={() => navigate("/")}><IconArrowLeft size={16} /></button>
         <h1 className="page-title">扩展管理</h1>
       </div>
 
@@ -104,14 +104,14 @@ export default function SettingsExtensionsPage() {
           disabled={busy}
           style={{ marginLeft: "auto" }}
         >
-          <RefreshCw size={14} /> 从配置文件重载
+          <IconRefresh size={14} /> 从配置文件重载
         </button>
       </div>
 
       {extensions.length === 0 ? (
         <div className="card">
           <div className="empty-state">
-            <Plug size={40} className="empty-state-icon" style={{ opacity: 0.3 }} />
+            <IconPlug size={40} className="empty-state-icon" style={{ opacity: 0.3 }} />
             <p>暂无已注册的扩展。重启后端服务以触发内置扩展自动注册。</p>
           </div>
         </div>
@@ -160,9 +160,9 @@ export default function SettingsExtensionsPage() {
                     title={ext.enabled ? "停用" : "启用"}
                   >
                     {ext.enabled ? (
-                      <ToggleRight size={16} color="var(--success)" />
+                      <IconToggleRight size={16} color="var(--success)" />
                     ) : (
-                      <ToggleLeft size={16} color="var(--text-4)" />
+                      <IconToggleLeft size={16} color="var(--text-4)" />
                     )}
                   </button>
                 </div>

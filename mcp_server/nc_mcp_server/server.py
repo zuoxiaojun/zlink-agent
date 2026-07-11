@@ -61,10 +61,21 @@ def validate_select(sql: str) -> str:
 
     upper = stripped.upper()
     dangerous = [
-        "INSERT ", "UPDATE ", "DELETE ", "MERGE ",
-        "ALTER ", "DROP ", "TRUNCATE ", "CREATE ",
-        "GRANT ", "REVOKE ", "EXEC ", "EXECUTE ",
-        "CALL ", "INTO ", "COMMENT ",
+        "INSERT ",
+        "UPDATE ",
+        "DELETE ",
+        "MERGE ",
+        "ALTER ",
+        "DROP ",
+        "TRUNCATE ",
+        "CREATE ",
+        "GRANT ",
+        "REVOKE ",
+        "EXEC ",
+        "EXECUTE ",
+        "CALL ",
+        "INTO ",
+        "COMMENT ",
     ]
     for kw in dangerous:
         if kw in (" " + upper + " "):
@@ -82,47 +93,55 @@ async def handle_list_tools() -> list[types.Tool]:
     tools: list[types.Tool] = []
 
     for qname, qinfo in QUERIES.items():
-        tools.append(types.Tool(
-            name=f"query_{qname}",
-            description=qinfo["description"],
+        tools.append(
+            types.Tool(
+                name=f"query_{qname}",
+                description=qinfo["description"],
+                inputSchema={
+                    "type": "object",
+                    "properties": _query_params(qname),
+                },
+            )
+        )
+
+    tools.append(
+        types.Tool(
+            name="list_business_tables",
+            description="列出 NC-MCP 已注册的所有业务表及中文字段数",
+            inputSchema={"type": "object", "properties": {}},
+        )
+    )
+    tools.append(
+        types.Tool(
+            name="describe_business_table",
+            description="查看某张注册表的中文字段对照。输入表名，如 SO_SALEORDER",
             inputSchema={
                 "type": "object",
-                "properties": _query_params(qname),
+                "properties": {
+                    "table_name": {
+                        "type": "string",
+                        "description": "表名（大写），如 SO_SALEORDER",
+                    }
+                },
+                "required": ["table_name"],
             },
-        ))
-
-    tools.append(types.Tool(
-        name="list_business_tables",
-        description="列出 NC-MCP 已注册的所有业务表及中文字段数",
-        inputSchema={"type": "object", "properties": {}},
-    ))
-    tools.append(types.Tool(
-        name="describe_business_table",
-        description="查看某张注册表的中文字段对照。输入表名，如 SO_SALEORDER",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "table_name": {
-                    "type": "string",
-                    "description": "表名（大写），如 SO_SALEORDER",
-                }
+        )
+    )
+    tools.append(
+        types.Tool(
+            name="query_raw_sql",
+            description="执行任意只读 SELECT 查询。有安全校验，仅供高级使用。支持分页。",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "sql": {"type": "string", "description": "SELECT 语句"},
+                    "page": {"type": "integer", "description": "页码，从 1 开始（默认 1）"},
+                    "page_size": {"type": "integer", "description": "每页行数，默认 50"},
+                },
+                "required": ["sql"],
             },
-            "required": ["table_name"],
-        },
-    ))
-    tools.append(types.Tool(
-        name="query_raw_sql",
-        description="执行任意只读 SELECT 查询。有安全校验，仅供高级使用。支持分页。",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "sql": {"type": "string", "description": "SELECT 语句"},
-                "page": {"type": "integer", "description": "页码，从 1 开始（默认 1）"},
-                "page_size": {"type": "integer", "description": "每页行数，默认 50"},
-            },
-            "required": ["sql"],
-        },
-    ))
+        )
+    )
 
     return tools
 
@@ -208,10 +227,7 @@ def _paginate_sql(sql: str, page: int, page_size: int) -> tuple[str, dict[str, i
     ``offset`` and ``limit`` values for the Oracle bind variables.
     """
     stripped = sql.strip().rstrip(";").strip()
-    paginated = (
-        f"SELECT * FROM ({stripped}) "
-        f"OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY"
-    )
+    paginated = f"SELECT * FROM ({stripped}) OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY"
     offset = (page - 1) * page_size
     limit = page_size
     return paginated, {"offset": offset, "limit": limit}
@@ -219,7 +235,11 @@ def _paginate_sql(sql: str, page: int, page_size: int) -> tuple[str, dict[str, i
 
 @server.call_tool()
 async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    if not name.startswith("query_") and name not in ("list_business_tables", "describe_business_table", "query_raw_sql"):
+    if not name.startswith("query_") and name not in (
+        "list_business_tables",
+        "describe_business_table",
+        "query_raw_sql",
+    ):
         raise ValueError(f"未知工具: {name}")
 
     if name == "list_business_tables":
@@ -246,6 +266,7 @@ async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent
 
         def _q() -> str:
             import oracledb
+
             conn = oracledb.connect(**config.db_config)
             try:
                 paginated_sql, bind_params = _paginate_sql(sql, page=page, page_size=page_size + 1)
@@ -259,10 +280,7 @@ async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent
                     has_more = len(rows) > page_size
                     rows = rows[:page_size]
                     if output_format == "json":
-                        return json.dumps(
-                            [dict(zip(cols, row)) for row in rows],
-                            ensure_ascii=False, default=str
-                        )
+                        return json.dumps([dict(zip(cols, row)) for row in rows], ensure_ascii=False, default=str)
                     return _fmt_result(rows, cols, page=page, page_size=page_size, has_more=has_more)
             finally:
                 conn.close()
@@ -270,7 +288,7 @@ async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent
         result = await _run_db(_q)
         return [types.TextContent(type="text", text=result)]
 
-    qname = name[len("query_"):]
+    qname = name[len("query_") :]
     qinfo = QUERIES.get(qname)
     if not qinfo:
         raise ValueError(f"未知查询: {qname}")
@@ -281,6 +299,7 @@ async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent
 
     def _q() -> str:
         import oracledb
+
         conn = oracledb.connect(**config.db_config)
         try:
             with conn.cursor() as cur:
@@ -296,10 +315,7 @@ async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent
                 has_more = len(rows) > page_size
                 rows = rows[:page_size]
                 if output_format == "json":
-                    return json.dumps(
-                        [dict(zip(cols, row)) for row in rows],
-                        ensure_ascii=False, default=str
-                    )
+                    return json.dumps([dict(zip(cols, row)) for row in rows], ensure_ascii=False, default=str)
                 return _fmt_result(rows, cols, page=page, page_size=page_size, has_more=has_more)
         finally:
             conn.close()
@@ -308,12 +324,16 @@ async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent
     return [types.TextContent(type="text", text=result)]
 
 
-def _fmt_result(rows: list[tuple], cols: list[str], *, page: int = 1, page_size: int = 0, has_more: bool = False) -> str:
+def _fmt_result(
+    rows: list[tuple], cols: list[str], *, page: int = 1, page_size: int = 0, has_more: bool = False
+) -> str:
     if not rows:
         return "（空结果）"
 
     if has_more:
-        lines = [f"第 {page} 页，返回 {len(rows)} 行，共 {len(cols)} 列（还有更多，请使用 page={page + 1} 获取下一页）\n"]
+        lines = [
+            f"第 {page} 页，返回 {len(rows)} 行，共 {len(cols)} 列（还有更多，请使用 page={page + 1} 获取下一页）\n"
+        ]
     else:
         lines = [f"第 {page} 页，返回 {len(rows)} 行，共 {len(cols)} 列（已是最后一页）\n"]
 
@@ -333,7 +353,7 @@ def _fmt_result(rows: list[tuple], cols: list[str], *, page: int = 1, page_size:
         for i, c in enumerate(cols):
             v = str(row[i]) if row[i] is not None else ""
             if len(v) > widths[c]:
-                v = v[:widths[c] - 3] + "..."
+                v = v[: widths[c] - 3] + "..."
             vals.append(v.ljust(widths[c]))
         lines.append("| " + " | ".join(vals) + " |")
     return "\n".join(lines)
@@ -347,10 +367,7 @@ def cli():
 async def main():
     config.validate()
     async with stdio_server() as (read_stream, write_stream):
-        await server.run(
-            read_stream, write_stream,
-            server.create_initialization_options()
-        )
+        await server.run(read_stream, write_stream, server.create_initialization_options())
 
 
 if __name__ == "__main__":

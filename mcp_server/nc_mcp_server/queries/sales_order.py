@@ -35,7 +35,8 @@ h.VBILLCODE              AS "单据号",
 
 
 def _so_sql(where: str, params: dict | None = None) -> tuple[str, dict | None]:
-    return f"""
+    return (
+        f"""
 SELECT{_SO_COLS}
 FROM SO_SALEORDER h
 LEFT JOIN SO_SALEORDER_B b ON b.CSALEORDERID = h.CSALEORDERID AND b.DR = 0
@@ -47,7 +48,9 @@ LEFT JOIN BD_MEASDOC meas ON meas.PK_MEASDOC = b.CASTUNITID
 LEFT JOIN (SELECT DISTINCT PK_BILLTYPECODE, BILLTYPENAME FROM BD_BILLTYPE) btype ON btype.PK_BILLTYPECODE = h.VTRANTYPECODE
 WHERE h.DR = 0{where}
 ORDER BY h.DBILLDATE DESC, b.CROWNO
-""", params
+""",
+        params,
+    )
 
 
 def query_sales_order(start_date: str | None = None, end_date: str | None = None) -> tuple[str, dict | None]:

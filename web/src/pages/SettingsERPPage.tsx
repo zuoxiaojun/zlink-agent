@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  ArrowLeft,
-  CircleCheck,
-  CircleAlert,
-  Save,
-  Pencil,
-  ToggleLeft,
-  ToggleRight,
-  Loader2,
-} from "lucide-react";
+  IconArrowLeft,
+  IconCircleCheck,
+  IconAlertCircle,
+  IconDeviceFloppy,
+  IconPencil,
+  IconToggleLeft,
+  IconToggleRight,
+  IconLoader,
+} from "@tabler/icons-react";
 import { api } from "../api/http";
 
 type FieldDef = {
@@ -227,7 +227,7 @@ export default function SettingsERPPage() {
     <div className="page-container">
       <div className="page-header">
         <button className="back-btn" onClick={() => navigate("/")}>
-          <ArrowLeft size={16} />
+          <IconArrowLeft size={16} />
         </button>
         <h1 className="page-title">ERP 连接</h1>
       </div>
@@ -237,7 +237,7 @@ export default function SettingsERPPage() {
           className={`toast toast-${toast.kind === "warn" ? "error" : toast.kind}`}
           style={{ alignItems: "center" }}
         >
-          {toast.kind === "success" ? <CircleCheck size={14} /> : <CircleAlert size={14} />}
+          {toast.kind === "success" ? <IconCircleCheck size={14} /> : <IconAlertCircle size={14} />}
           {toast.msg}
         </div>
       )}
@@ -385,7 +385,7 @@ function TestResultBadge({ ok, message }: { ok: boolean; message: string }) {
         border: `1px solid ${ok ? "#B7EB8F" : "#FFA39E"}`,
       }}
     >
-      {ok ? <CircleCheck size={14} /> : <CircleAlert size={14} />}
+      {ok ? <IconCircleCheck size={14} /> : <IconAlertCircle size={14} />}
       {message}
     </div>
   );
@@ -454,11 +454,11 @@ function TestResultBadge({ ok, message }: { ok: boolean; message: string }) {
           title={enabled ? "点击停用（同时停用 MCP）" : "点击启用（同时启用 MCP）"}
         >
           {isToggling ? (
-            <Loader2 size={14} className="spin" />
+            <IconLoader size={14} className="spin" />
           ) : enabled ? (
-            <ToggleRight size={16} />
+            <IconToggleRight size={16} />
           ) : (
-            <ToggleLeft size={16} />
+            <IconToggleLeft size={16} />
           )}
           {enabled ? "已启用" : "已停用"}
         </button>
@@ -478,10 +478,10 @@ function TestResultBadge({ ok, message }: { ok: boolean; message: string }) {
           ))}
           <div className="card-actions">
             <button className="btn btn-primary" onClick={() => setEditing(true)}>
-              <Pencil size={14} /> 编辑
+              <IconPencil size={14} /> 编辑
             </button>
             <button className="btn btn-secondary" onClick={onTest} disabled={isTesting}>
-              {isTesting ? <Loader2 size={14} className="spin" /> : null}
+              {isTesting ? <IconLoader size={14} className="spin" /> : null}
               测试连接
             </button>
           </div>
@@ -513,7 +513,7 @@ function TestResultBadge({ ok, message }: { ok: boolean; message: string }) {
           ))}
           <div className="card-actions">
             <button className="btn btn-primary" onClick={onSave} disabled={isSaving}>
-              {isSaving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+              {isSaving ? <IconLoader size={14} className="spin" /> : <IconDeviceFloppy size={14} />}
               保存
             </button>
             <button className="btn btn-secondary" onClick={() => { setEditing(false); onCancelEdit(); }}>

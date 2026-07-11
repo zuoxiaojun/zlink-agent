@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from "react";
-import { Send, Paperclip, X } from "lucide-react";
+import { IconSend, IconPaperclip, IconX } from "@tabler/icons-react";
 import type { ContentPart } from "../types";
 
 interface AttachedFile {
@@ -120,7 +120,7 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
               <div key={f.id} className="chat-attachment-item">
                 <img src={f.dataUrl} alt={f.name} />
                 <button className="chat-attachment-remove" onClick={() => removeFile(f.id)} type="button">
-                  <X size={12} />
+                  <IconX size={12} />
                 </button>
               </div>
             ))}
@@ -149,7 +149,7 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
               disabled={disabled}
               title="添加图片"
             >
-              <Paperclip size={16} />
+              <IconPaperclip size={16} />
             </button>
             <input
               ref={fileInputRef}
@@ -160,7 +160,7 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
               style={{ display: "none" }}
             />
             <button className="chat-send-btn" type="button" onClick={handleSubmit} disabled={!canSend}>
-              <Send size={16} />
+              <IconSend size={16} />
             </button>
           </div>
         </div>

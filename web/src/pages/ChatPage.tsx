@@ -1,6 +1,6 @@
 import { useRef, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Zap, BarChart3 } from "lucide-react";
+import { IconBolt, IconChartBar } from "@tabler/icons-react";
 import { useAppState } from "../context/AppContext";
 import { useChat } from "../hooks/useChat";
 import { api } from "../api/http";
@@ -112,10 +112,10 @@ export default function ChatPage() {
 
       {state.tokenUsage && !state.agentRunning && (
         <div className="usage-bar">
-          <span className="usage-item"><Zap size={12} /> 共 {state.apiCalls} 次 API 调用</span>
+          <span className="usage-item"><IconBolt size={12} /> 共 {state.apiCalls} 次 API 调用</span>
           {state.tokenUsage.total_tokens > 0 && (
             <span className="usage-item">
-              <BarChart3 size={12} /> 输入 {state.tokenUsage.prompt_tokens.toLocaleString()} · 输出 {state.tokenUsage.completion_tokens.toLocaleString()} · 总计 {state.tokenUsage.total_tokens.toLocaleString()} tokens
+              <IconChartBar size={12} /> 输入 {state.tokenUsage.prompt_tokens.toLocaleString()} · 输出 {state.tokenUsage.completion_tokens.toLocaleString()} · 总计 {state.tokenUsage.total_tokens.toLocaleString()} tokens
             </span>
           )}
         </div>

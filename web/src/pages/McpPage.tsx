@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, ToggleLeft, ToggleRight, Play, RefreshCw, ChevronDown, ChevronRight, Server, Braces, FormInput, Edit3, Loader2 } from "lucide-react";
+import { IconArrowLeft, IconPlus, IconTrash, IconToggleLeft, IconToggleRight, IconPlayerPlay, IconRefresh, IconChevronDown, IconChevronRight, IconServer, IconCode, IconForms, IconEdit, IconLoader } from "@tabler/icons-react";
 import { api } from "../api/http";
 import { getErrorMessage } from "../utils/errors";
 import type { MCPServerStatus, MCPServerConfig, MCPTestResult } from "../types";
@@ -217,16 +217,16 @@ export default function McpPage() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <button className="back-btn" onClick={() => navigate("/")}><ArrowLeft size={16} /></button>
+        <button className="back-btn" onClick={() => navigate("/")}><IconArrowLeft size={16} /></button>
         <h1 className="page-title">MCP 服务器</h1>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
         <button className="btn btn-primary" onClick={() => setShowAdd(!showAdd)}>
-          <Plus size={14} /> 添加服务器
+          <IconPlus size={14} /> 添加服务器
         </button>
         <button className="btn btn-ghost" onClick={handleReload} disabled={reloading}>
-          <RefreshCw size={14} style={{ animation: reloading ? "spin 1s linear infinite" : undefined }} />
+          <IconRefresh size={14} style={{ animation: reloading ? "spin 1s linear infinite" : undefined }} />
           {reloading ? "重载中..." : "重载所有"}
         </button>
         <span style={{ fontSize: "13px", color: "var(--text-3)" }}>共 {servers.length} 个服务器</span>
@@ -249,14 +249,14 @@ export default function McpPage() {
                 style={{ height: "28px", padding: "0 10px", fontSize: "12px" }}
                 onClick={() => { setAddMode("form"); setError(""); }}
               >
-                <FormInput size={12} /> 表单
+                <IconForms size={12} /> 表单
               </button>
               <button
                 className={`btn ${addMode === "json" ? "btn-primary" : "btn-ghost"}`}
                 style={{ height: "28px", padding: "0 10px", fontSize: "12px" }}
                 onClick={() => { setAddMode("json"); setError(""); }}
               >
-                <Braces size={12} /> JSON
+                <IconCode size={12} /> JSON
               </button>
             </div>
           </div>
@@ -338,7 +338,7 @@ export default function McpPage() {
         </>
       ) : servers.length === 0 ? (
         <div className="empty-state">
-          <Server size={40} className="empty-state-icon" style={{ opacity: 0.3 }} />
+          <IconServer size={40} className="empty-state-icon" style={{ opacity: 0.3 }} />
           <p>暂无 MCP 服务器，点击上方按钮添加</p>
         </div>
       ) : (
@@ -371,7 +371,7 @@ export default function McpPage() {
                     onClick={() => handleTest(s.name)}
                     title="测试连接"
                   >
-                    <Play size={13} color="var(--primary)" />
+                    <IconPlayerPlay size={13} color="var(--primary)" />
                   </button>
                   {!s.builtin && (
                     <button
@@ -380,7 +380,7 @@ export default function McpPage() {
                       onClick={() => startEdit(s)}
                       title="编辑配置"
                     >
-                      <Edit3 size={13} color="var(--text-3)" />
+                      <IconEdit size={13} color="var(--text-3)" />
                     </button>
                   )}
                   <button
@@ -390,7 +390,7 @@ export default function McpPage() {
                     disabled={reconnecting[s.name]}
                     title="重新连接"
                   >
-                    {reconnecting[s.name] ? <Loader2 size={14} className="spin" /> : <RefreshCw size={13} color="var(--text-3)" />}
+                    {reconnecting[s.name] ? <IconLoader size={14} className="spin" /> : <IconRefresh size={13} color="var(--text-3)" />}
                   </button>
                   <button
                     className="btn btn-ghost"
@@ -398,7 +398,7 @@ export default function McpPage() {
                     onClick={() => handleToggle(s.name)}
                     title={s.enabled ? "停用" : "启用"}
                   >
-                    {s.enabled ? <ToggleRight size={16} color="var(--success)" /> : <ToggleLeft size={16} color="var(--text-4)" />}
+                    {s.enabled ? <IconToggleRight size={16} color="var(--success)" /> : <IconToggleLeft size={16} color="var(--text-4)" />}
                   </button>
                   {!s.builtin && (
                     <button
@@ -407,7 +407,7 @@ export default function McpPage() {
                       onClick={() => handleDelete(s.name)}
                       title="删除服务器"
                     >
-                      <Trash2 size={14} color="var(--text-3)" />
+                      <IconTrash size={14} color="var(--text-3)" />
                     </button>
                   )}
                 </div>
@@ -430,7 +430,7 @@ export default function McpPage() {
                         style={{ marginLeft: "8px" }}
                         onClick={() => toggleTools(s.name)}
                       >
-                        {expandedTools[s.name] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                        {expandedTools[s.name] ? <IconChevronDown size={12} /> : <IconChevronRight size={12} />}
                         {expandedTools[s.name] ? "收起" : "展开"}
                       </button>
                       {expandedTools[s.name] && (
@@ -457,14 +457,14 @@ export default function McpPage() {
                         style={{ height: "26px", padding: "0 8px", fontSize: "11px" }}
                         onClick={() => { setEditJsonMode("form"); setError(""); }}
                       >
-                        <FormInput size={11} /> 表单
+                        <IconForms size={11} /> 表单
                       </button>
                       <button
                         className={`btn ${editJsonMode === "json" ? "btn-primary" : "btn-ghost"}`}
                         style={{ height: "26px", padding: "0 8px", fontSize: "11px" }}
                         onClick={() => { setEditJsonMode("json"); setError(""); }}
                       >
-                        <Braces size={11} /> JSON
+                        <IconCode size={11} /> JSON
                       </button>
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, CircleCheck, Database, Pencil, Save } from "lucide-react";
+import { IconArrowLeft, IconCircleCheck, IconDatabase, IconPencil, IconDeviceFloppy } from "@tabler/icons-react";
 import { api } from "../api/http";
 import { useAppState } from "../context/AppContext";
 import type { ProviderInfo, LLMConfigPayload } from "../types";
@@ -69,14 +69,14 @@ export default function SettingsLLMPage() {
     <div className="page-container">
       <div className="page-header">
         <button className="back-btn" onClick={() => navigate("/")}>
-          <ArrowLeft size={16} />
+          <IconArrowLeft size={16} />
         </button>
         <h1 className="page-title">大模型配置</h1>
       </div>
 
       {saved && (
         <div className="toast toast-success">
-          <CircleCheck size={14} /> 大模型配置已保存
+          <IconCircleCheck size={14} /> 大模型配置已保存
         </div>
       )}
 
@@ -98,7 +98,7 @@ export default function SettingsLLMPage() {
           </div>
           <div className="card-actions">
             <button className="btn btn-secondary" onClick={handleEdit}>
-              <Pencil size={14} /> 编辑
+              <IconPencil size={14} /> 编辑
             </button>
           </div>
         </div>
@@ -167,7 +167,7 @@ export default function SettingsLLMPage() {
               </select>
               {selectedModelInfo && (
                 <div style={{ marginTop: 8, fontSize: 13, color: "var(--text-2)" }}>
-                  <Database size={13} style={{ verticalAlign: "middle", marginRight: 4 }} />
+                  <IconDatabase size={13} style={{ verticalAlign: "middle", marginRight: 4 }} />
                   上下文窗口：{formatCtx(selectedModelInfo.context_length)}
                   {selectedModelInfo.max_output != null && (
                     <> · 最大输出：{formatCtx(selectedModelInfo.max_output)}</>
@@ -195,7 +195,7 @@ export default function SettingsLLMPage() {
 
           <div className="form-actions">
             <button className="btn btn-primary" onClick={handleSave}>
-              <Save size={14} /> 保存
+              <IconDeviceFloppy size={14} /> 保存
             </button>
             <button className="btn btn-secondary" onClick={() => setEdit(false)}>
               取消

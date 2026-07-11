@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageSquare } from "lucide-react";
+import { IconMessage } from "@tabler/icons-react";
 import { api } from "../api/http";
 import { useAppState } from "../context/AppContext";
 import type { SessionSummary, SessionDetail, MemorySummary } from "../types";
@@ -56,7 +56,7 @@ export default function HistoryPage() {
         </>
       ) : sessions.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon"><MessageSquare size={48} /></div>
+          <div className="empty-state-icon"><IconMessage size={48} /></div>
           <p>暂无历史对话</p>
         </div>
       ) : (

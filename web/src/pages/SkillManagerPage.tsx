@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Upload, Package, ToggleLeft, ToggleRight, Trash2, ChevronDown, Search, Edit3, Download, X } from "lucide-react";
+import { IconArrowLeft, IconUpload, IconPackage, IconToggleLeft, IconToggleRight, IconTrash, IconChevronDown, IconSearch, IconEdit, IconDownload, IconX } from "@tabler/icons-react";
 import { api } from "../api/http";
 import { getErrorMessage } from "../utils/errors";
 import type { SkillInfo } from "../types";
@@ -114,18 +114,18 @@ export default function SkillManagerPage() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <button className="back-btn" onClick={() => navigate("/")}><ArrowLeft size={16} /></button>
+        <button className="back-btn" onClick={() => navigate("/")}><IconArrowLeft size={16} /></button>
         <h1 className="page-title">技能管理</h1>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "20px", flexWrap: "wrap" }}>
         <label className="btn btn-primary" style={{ padding: "0 16px", cursor: "pointer" }}>
-          <Upload size={14} />
+          <IconUpload size={14} />
           {uploading ? "安装中..." : "安装技能"}
           <input ref={fileRef} type="file" accept=".zip" onChange={handleUpload} style={{ display: "none" }} />
         </label>
         <div className="search-input-wrap" style={{ flex: "1", minWidth: "200px" }}>
-          <Search size={14} className="search-input-icon" />
+          <IconSearch size={14} className="search-input-icon" />
           <input
             className="search-input"
             placeholder="搜索技能名称、描述或标签..."
@@ -146,7 +146,7 @@ export default function SkillManagerPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
-          <Package size={40} className="empty-state-icon" style={{ opacity: 0.3 }} />
+          <IconPackage size={40} className="empty-state-icon" style={{ opacity: 0.3 }} />
           <p>暂无已安装的技能，点击上方按钮上传 .zip 技能包</p>
         </div>
       ) : (
@@ -174,7 +174,7 @@ export default function SkillManagerPage() {
                     onClick={() => handleEdit(s.name)}
                     title="编辑内容"
                   >
-                    <Edit3 size={13} color="var(--text-3)" />
+                    <IconEdit size={13} color="var(--text-3)" />
                   </button>
                   <button
                     className="btn btn-ghost"
@@ -182,7 +182,7 @@ export default function SkillManagerPage() {
                     onClick={() => handleExpand(s.name)}
                     title="查看详情"
                   >
-                    <ChevronDown
+                    <IconChevronDown
                       size={14}
                       style={{
                         transition: "transform 0.2s",
@@ -197,7 +197,7 @@ export default function SkillManagerPage() {
                     onClick={() => handleToggle(s.name, s.active)}
                     title={s.active ? "停用" : "启用"}
                   >
-                    {s.active ? <ToggleRight size={16} color="var(--success)" /> : <ToggleLeft size={16} color="var(--text-4)" />}
+                    {s.active ? <IconToggleRight size={16} color="var(--success)" /> : <IconToggleLeft size={16} color="var(--text-4)" />}
                   </button>
                   <button
                     className="btn btn-ghost"
@@ -205,7 +205,7 @@ export default function SkillManagerPage() {
                     onClick={() => handleDelete(s.name)}
                     title="删除技能"
                   >
-                    <Trash2 size={14} color="var(--text-3)" />
+                    <IconTrash size={14} color="var(--text-3)" />
                   </button>
                 </div>
               </div>
@@ -244,7 +244,7 @@ export default function SkillManagerPage() {
                           {saving ? "保存中..." : "保存"}
                         </button>
                         <button className="btn btn-ghost" onClick={() => setEditing(null)} disabled={saving}>
-                          <X size={14} /> 取消
+                          <IconX size={14} /> 取消
                         </button>
                       </div>
                     </div>
@@ -255,7 +255,7 @@ export default function SkillManagerPage() {
                           className="action-link"
                           onClick={() => handleExport(s.name, skillContent[s.name])}
                         >
-                          <Download size={12} /> 导出
+                          <IconDownload size={12} /> 导出
                         </button>
                       </div>
                       <pre>{skillContent[s.name]}</pre>

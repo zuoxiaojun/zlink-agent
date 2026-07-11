@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, FileText, User, ClipboardList, ChevronDown, ChevronRight } from "lucide-react";
+import { IconArrowLeft, IconFileText, IconUser, IconClipboardList, IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 import { api } from "../api/http";
 import type { MemoryFacts, MemorySummary } from "../types";
 
 const SECTIONS = [
-  { key: "notes", icon: FileText, label: "Agent 笔记" },
-  { key: "profile", icon: User, label: "用户画像" },
-  { key: "summaries", icon: ClipboardList, label: "对话摘要" },
+  { key: "notes", icon: IconFileText, label: "Agent 笔记" },
+  { key: "profile", icon: IconUser, label: "用户画像" },
+  { key: "summaries", icon: IconClipboardList, label: "对话摘要" },
 ];
 
 export default function MemoryPage() {
@@ -46,7 +46,7 @@ export default function MemoryPage() {
   return (
     <div className="page-container">
       <div className="page-header">
-        <button className="back-btn" onClick={() => navigate("/")}><ArrowLeft size={16} /></button>
+        <button className="back-btn" onClick={() => navigate("/")}><IconArrowLeft size={16} /></button>
         <h1 className="page-title">记忆管理</h1>
       </div>
 
@@ -72,8 +72,8 @@ export default function MemoryPage() {
         <div className="toolset-group">
           <div className="toolset-header" onClick={() => toggle("notes")}>
             <span className="toolset-header-left">
-              {collapsed.has("notes") ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-              <FileText size={14} />
+              {collapsed.has("notes") ? <IconChevronRight size={14} /> : <IconChevronDown size={14} />}
+              <IconFileText size={14} />
               <span className="toolset-name">Agent 笔记</span>
               <span className="toolset-count">{facts.memory.length} 条</span>
             </span>
@@ -96,8 +96,8 @@ export default function MemoryPage() {
         <div className="toolset-group">
           <div className="toolset-header" onClick={() => toggle("profile")}>
             <span className="toolset-header-left">
-              {collapsed.has("profile") ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-              <User size={14} />
+              {collapsed.has("profile") ? <IconChevronRight size={14} /> : <IconChevronDown size={14} />}
+              <IconUser size={14} />
               <span className="toolset-name">用户画像</span>
               <span className="toolset-count">{facts.user.length} 条</span>
             </span>
@@ -120,8 +120,8 @@ export default function MemoryPage() {
         <div className="toolset-group">
           <div className="toolset-header" onClick={() => toggle("summaries")}>
             <span className="toolset-header-left">
-              {collapsed.has("summaries") ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-              <ClipboardList size={14} />
+              {collapsed.has("summaries") ? <IconChevronRight size={14} /> : <IconChevronDown size={14} />}
+              <IconClipboardList size={14} />
               <span className="toolset-name">对话摘要</span>
               <span className="toolset-count">{summaries.length} 条</span>
             </span>
