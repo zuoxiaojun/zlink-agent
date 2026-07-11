@@ -631,4 +631,59 @@ To add a new blocked pattern: edit `agent/tools/security_hooks.py` or `agent/ext
 5. Add frontend API client call in `web/src/api/` (if frontend consumes it)
 6. Add page component in `web/src/pages/` + route in `App.tsx`
 
-<!-- NEXT: PART_2_SEPARATOR -->
+
+
+---
+
+## Part 2: Human Developer Guide
+
+### 2.1 Quick Start
+
+```bash
+# 1. Clone and enter
+git clone <repo-url> zlink-agent && cd zlink-agent
+
+# 2. Python virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# 3. Frontend dependencies
+cd web && npm ci && cd ..
+
+# 4. Start (development mode — backend + Vite hot-reload)
+./start.sh --dev
+
+# 5. Verify
+#   Backend:  http://localhost:8089/api/health
+#   Frontend: http://localhost:8088
+#   WebSocket chat on ws://localhost:8089/api/chat
+```
+
+Expected output on backend start:
+```
+[ZLink Agent] Data directory: /Users/<user>/.zlink-agent/data
+INFO:     Uvicorn running on http://0.0.0.0:8089
+```
+
+### 2.2 Command Reference
+
+| Command | When to use |
+|---------|-------------|
+| `source .venv/bin/activate` | Before any Python command |
+| `./start.sh` | Production mode (serves frontend from backend) |
+| `./start.sh --dev` | Development mode (backend + Vite hot-reload) |
+| `./start.sh stop` | Stop running services |
+| `.venv/bin/python -m pytest tests/ -v` | Run all tests |
+| `.venv/bin/python -m pytest tests/test_agent_loop.py -v` | Run a single test file |
+| `ruff check . && ruff format --check .` | Lint + format check |
+| `ruff check --fix . && ruff format .` | Auto-fix lint + format |
+| `.venv/bin/python -c "from agent.tools.registry import registry, discover_tools; discover_tools(); print('OK:', len(registry.get_all_tool_names()), 'tools')"` | Verify tool registration |
+| `echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \| .venv/bin/python -m mcp_server.ys_mcp_server` | Test YonSuite MCP server standalone |
+| `bash scripts/build-app.sh` | Build macOS .app (after frontend changes) |
+| `bash scripts/build-app.sh --no-frontend` | Build macOS .app (backend-only changes) |
+| `cd web && npm run dev` | Start Vite dev server standalone |
+| `cd web && npm install` | Install/update frontend deps |
+| `pip install -r requirements.txt` | Install/update Python deps |
+
+<!-- NEXT: SECTION_2_3 -->
