@@ -74,6 +74,8 @@ async def save_yonsuite_config(body: YonSuiteConfig):
         cfg.ys_app_secret = body.app_secret
     if body.tenant_id:
         cfg.ys_tenant_id = body.tenant_id
+    if body.gateway_url:
+        cfg.ys_gateway_url = body.gateway_url
     config_manager.save(cfg)
 
     # Sync updated credentials into the yonsuite MCP server and reconnect

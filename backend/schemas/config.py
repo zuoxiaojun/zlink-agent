@@ -18,6 +18,7 @@ class YonSuiteConfig(BaseModel):
     app_key: str = ""
     app_secret: str = ""
     tenant_id: str = ""
+    gateway_url: str = ""
 
 
 class AgentConfig(BaseModel):
