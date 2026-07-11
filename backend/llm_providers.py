@@ -17,6 +17,8 @@ LLM_PROVIDERS = {
     "DeepSeek": {
         "base_url": "https://api.deepseek.com",
         "models": [
+            {"id": "deepseek-chat", "context_length": 1000000, "max_output": 8192},
+            {"id": "deepseek-reasoner", "context_length": 1000000, "max_output": 8192},
             {"id": "deepseek-v4-flash", "context_length": 1000000, "max_output": 384000},
             {"id": "deepseek-v4-pro", "context_length": 1000000},
         ],
