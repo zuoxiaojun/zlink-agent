@@ -15,3 +15,8 @@ contextBridge.exposeInMainWorld("electron", {
   // Whether running inside Electron (vs plain browser)
   isElectron: true,
 });
+
+// Add CSS class to body for Electron-specific styling (title bar inset)
+window.addEventListener("DOMContentLoaded", () => {
+  document.body.classList.add("electron");
+});

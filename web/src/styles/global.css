@@ -83,6 +83,11 @@ body {
   border-right: 1px solid var(--border);
 }
 
+/* Electron: 给 macOS 红绿灯按钮留出空间 */
+.electron .sidebar {
+  padding-top: 38px;
+}
+
 .sidebar-brand {
   padding: 20px 16px 12px;
   display: flex;
