@@ -15,8 +15,12 @@ files:
   - electron/**/*
   - web/dist/**/*
 
-# Python 后端: 用户需自行安装 Python 3.11+ 和 pip install zlink-agent
-# 或通过 scripts/bundle-python.sh 打包后端（后续添加）
+extraResources:
+  # 自包含 Python 运行环境 (build by scripts/bundle-python.sh)
+  - from: build/python-bundle/
+    to: python-bundle
+    filter:
+      - "**/*"
 
 mac:
   category: public.app-category.business

@@ -2,13 +2,12 @@
  * Electron main process — wraps the ZLink Agent Python backend in a
  * desktop window.
  *
- * Development mode (Vite HMR):
- *   npm run electron:dev
- *   → expects backend running on localhost:8089, Vite on localhost:8088
+ * Development mode:
+ *   npm run dev:electron  (needs backend started separately)
  *
- * Production mode (PyInstaller + Electron):
- *   bash build-electron.sh
- *   → bundles PyInstaller binary + Electron into a single .app / .exe
+ * Production mode (self-contained):
+ *   bash scripts/build-electron.sh
+ *   → bundles Python runtime + deps + frontend into a single .app / .exe
  */
 
 const { app, BrowserWindow, dialog } = require("electron");
@@ -24,37 +23,58 @@ let backendProcess = null;
 const BACKEND_PORT = 8089;
 const BACKEND_HOST = `http://localhost:${BACKEND_PORT}`;
 
-function findBackendBinary() {
-  // In production: look for PyInstaller binary next to Electron
-  const searchPaths = [
-    path.join(process.resourcesPath, "zlink-agent"),       // macOS .app
-    path.join(process.resourcesPath, "zlink-agent.exe"),    // Windows
-    path.join(path.dirname(app.getPath("exe")), "zlink-agent"),
-    path.join(path.dirname(app.getPath("exe")), "zlink-agent.exe"),
+/** Resolve bundled Python path inside the app resources. */
+function findBundledPython() {
+  if (IS_DEV) return null;
+  const dir = process.resourcesPath;
+  const candidates = [
+    path.join(dir, "python-bundle", "bin", "python3"),
+    path.join(dir, "python-bundle", "bin", "python"),
+    path.join(dir, "python-bundle", "Scripts", "python.exe"), // Windows
   ];
-  for (const p of searchPaths) {
+  for (const p of candidates) {
     if (fs.existsSync(p)) return p;
   }
   return null;
 }
 
+/** Python startup command — uvicorn serving the FastAPI app. */
+function backendArgs(pythonBin) {
+  const modulePath = path.join(
+    path.dirname(pythonBin), "..", "lib",
+    ...fs.readdirSync(path.join(path.dirname(pythonBin), "..", "lib"))
+      .filter((n) => n.startsWith("python3")),
+    "site-packages"
+  );
+  return [
+    "-m", "uvicorn", "backend.main:app",
+    "--host", "0.0.0.0",
+    "--port", String(BACKEND_PORT),
+    "--no-access-log",
+  ];
+}
+
 function startBackend() {
   if (IS_DEV) {
-    console.log("[electron] Dev mode — backend should be started separately");
+    console.log("[electron] Dev mode — start backend separately");
     return;
   }
 
-  const binary = findBackendBinary();
-  if (!binary) {
-    dialog.showErrorBox("启动失败", "找不到后端程序 zlink-agent。请运行 build-electron.sh 重新打包。");
+  const pythonBin = findBundledPython();
+  if (!pythonBin) {
+    dialog.showErrorBox(
+      "启动失败",
+      "找不到内置 Python 运行环境。请运行 scripts/bundle-python.sh 重新构建。"
+    );
     app.quit();
     return;
   }
 
-  console.log(`[electron] Starting backend: ${binary}`);
-  backendProcess = spawn(binary, [], {
+  console.log(`[electron] Starting backend: ${pythonBin}`);
+  const args = backendArgs(pythonBin);
+  backendProcess = spawn(pythonBin, args, {
     stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, ZLINK_AGENT_PORT: String(BACKEND_PORT) },
+    env: { ...process.env },
   });
 
   backendProcess.stdout.on("data", (d) => process.stdout.write(`[backend] ${d}`));
@@ -75,23 +95,17 @@ function stopBackend() {
 // ── Window ────────────────────────────────────────────────────────
 
 function getLoadURL() {
-  if (IS_DEV) {
-    // Development: Vite dev server
-    return "http://localhost:8088";
-  }
-  // Production: built frontend files
+  if (IS_DEV) return "http://localhost:8088";
   return `file://${path.join(__dirname, "..", "web", "dist", "index.html")}`;
 }
 
-async function waitForBackend(maxRetries = 30) {
-  if (IS_DEV) return; // assume backend is already running in dev mode
+async function waitForBackend(maxRetries = 60) {
+  if (IS_DEV) return;
   for (let i = 0; i < maxRetries; i++) {
     try {
       const res = await fetch(`${BACKEND_HOST}/api/config`);
       if (res.ok) return;
-    } catch {
-      // not ready yet
-    }
+    } catch { /* not ready yet */ }
     await new Promise((r) => setTimeout(r, 1000));
   }
   console.warn("[electron] Backend did not start in time");
@@ -113,7 +127,7 @@ async function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
-    titleBarStyle: "hiddenInset", // macOS: compact title bar
+    titleBarStyle: "hiddenInset",
     show: false,
   });
 
@@ -123,9 +137,7 @@ async function createWindow() {
     mainWindow.show();
   });
 
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
+  mainWindow.on("closed", () => { mainWindow = null; });
 
   if (IS_DEV) {
     mainWindow.webContents.openDevTools({ mode: "detach" });
