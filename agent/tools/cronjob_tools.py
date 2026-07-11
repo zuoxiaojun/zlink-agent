@@ -346,12 +346,36 @@ def _execute_job_prompt(name: str, prompt: str) -> str | None:
             model=model,
             max_iterations=15,
             max_tokens=4096,
+            system_prompt=(
+                "你是 ZLink Agent，一个多 ERP 数据分析助手。\n\n"
+                "## 执行守则\n"
+                "1. 优先使用技能（Skills）中定义的指令和工具来完成任务\n"
+                "2. 其次使用内置工具（如 execute_code、vision_analyze、终端等）\n"
+                "3. 最后才使用通用 web_search / web_extract\n"
+                "4. 每个步骤都要输出思考过程，最终给出清晰结论\n"
+            ),
         )
 
         memory_store = fact_memory.init_store()
         memory_context = memory_manager.get_context()
         skill_idx = skill_manager.get_active_instructions()
-        skill_detail = skill_manager.get_instructions_for_query(prompt)
+
+        # Inject ALL active skills' full content (not n-gram filtered)
+        # so the AI sees every available skill's instructions
+        _all_active = skill_manager.get_active_skills()
+        _skill_bodies: list[str] = []
+        for _sname in _all_active:
+            _body = skill_manager.get_skill_content(_sname)
+            if _body:
+                if _body.startswith("---"):
+                    _parts = _body.split("---", 2)
+                    _body = _parts[2].strip() if len(_parts) >= 3 else _body.strip()
+                _skill_bodies.append(f"## {_sname}\n\n{_body}")
+        skill_detail = (
+            "\n\n## 已启用的技能\n\n以下是你可用的技能，请优先使用它们而不是通用搜索工具：\n\n"
+            + "\n\n".join(_skill_bodies)
+        ) if _skill_bodies else ""
+
         system_with_memory = build_system_prompt(
             base=agent.system_prompt,
             memory_store=memory_store,

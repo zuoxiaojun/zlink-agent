@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { IconPlus, IconTrash, IconPlayerPlay, IconPlayerPause, IconRefresh, IconPlayerPlayFilled, IconEdit, IconX } from "@tabler/icons-react";
+import { IconPlus, IconTrash, IconPlayerPlay, IconPlayerPause, IconRefresh, IconPlayerPlayFilled, IconEdit } from "@tabler/icons-react";
 import { api } from "../api/http";
 
 interface CronJob {
@@ -42,12 +42,6 @@ export default function CronJobPage() {
   useEffect(() => {
     loadJobs();
   }, [loadJobs]);
-
-  const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
-  const showToast = (type: "success" | "error", msg: string) => {
-    setToast({ type, msg });
-    setTimeout(() => setToast(null), 3000);
-  };
 
   const handleCreate = async () => {
     if (!form.name.trim() || !form.schedule.trim() || !form.prompt.trim()) {

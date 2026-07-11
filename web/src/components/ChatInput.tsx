@@ -24,7 +24,6 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
   const [files, setFiles] = useState<AttachedFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
-  const [cursorPos, setCursorPos] = useState(0);
   const [filterText, setFilterText] = useState("");
   const [allCommands, setAllCommands] = useState<SlashCommandInfo[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -42,17 +41,17 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
     return () => { cancelled = true; };
   }, []);
 
+  const filteredCommands = useMemo(() => {
+    if (!filterText) return allCommands;
+    return allCommands.filter((c) => c.name.startsWith(filterText));
+  }, [allCommands, filterText]);
+
   // Clamp activeIndex when filtered list shrinks
   useEffect(() => {
     if (activeIndex >= filteredCommands.length) {
       setActiveIndex(Math.max(filteredCommands.length - 1, 0));
     }
   }, [filteredCommands, activeIndex]);
-
-  const filteredCommands = useMemo(() => {
-    if (!filterText) return allCommands;
-    return allCommands.filter((c) => c.name.startsWith(filterText));
-  }, [allCommands, filterText]);
 
   const handleSubmit = () => {
     const trimmed = text.trim();
@@ -149,7 +148,6 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
     const val = e.target.value;
     const cursor = e.target.selectionStart;
     setText(val);
-    setCursorPos(cursor);
 
     // Detect if user is typing a slash command at the current cursor position
     const beforeCursor = val.slice(0, cursor);
