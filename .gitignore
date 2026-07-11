@@ -11,6 +11,7 @@ web/node_modules/
 .DS_Store
 .vite/
 AGENTS.md
+docs/superpowers/
 
 .playwright-mcp/
 
