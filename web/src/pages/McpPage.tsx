@@ -38,10 +38,13 @@ export default function McpPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadServers = useCallback(() => {
+    const start = Date.now();
     api.get<MCPServerStatus[]>("/mcp/servers").then((data) => {
       setServers(data);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+      const elapsed = Date.now() - start;
+      if (elapsed < 300) setTimeout(() => setLoading(false), 300 - elapsed);
+      else setLoading(false);
+    }).catch(() => setTimeout(() => setLoading(false), 300));
   }, []);
 
   useEffect(() => { loadServers(); }, [loadServers]);

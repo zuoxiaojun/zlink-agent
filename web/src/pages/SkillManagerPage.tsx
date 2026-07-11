@@ -18,7 +18,14 @@ export default function SkillManagerPage() {
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const loadSkills = () => api.get<SkillInfo[]>("/skills").then(setSkills).finally(() => setLoading(false));
+  const loadSkills = () => {
+    const start = Date.now();
+    api.get<SkillInfo[]>("/skills").then(setSkills).finally(() => {
+      const elapsed = Date.now() - start;
+      if (elapsed < 300) setTimeout(() => setLoading(false), 300 - elapsed);
+      else setLoading(false);
+    });
+  };
 
   useEffect(() => { loadSkills(); }, []);
 

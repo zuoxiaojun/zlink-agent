@@ -18,10 +18,15 @@ export default function MemoryPage() {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    const start = Date.now();
     Promise.all([
       api.get<MemoryFacts>("/memory/facts"),
       api.get<MemorySummary[]>("/memory/summaries"),
-    ]).then(([f, s]) => { setFacts(f); setSummaries(s); }).finally(() => setLoading(false));
+    ]).then(([f, s]) => { setFacts(f); setSummaries(s); }).finally(() => {
+      const elapsed = Date.now() - start;
+      if (elapsed < 300) setTimeout(() => setLoading(false), 300 - elapsed);
+      else setLoading(false);
+    });
   }, []);
 
   const toggle = (key: string) => {

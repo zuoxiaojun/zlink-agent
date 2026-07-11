@@ -13,10 +13,15 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const start = Date.now();
     Promise.all([
       api.get<SessionSummary[]>("/sessions"),
       api.get<MemorySummary[]>("/memory/summaries"),
-    ]).then(([s, m]) => { setSessions(s); setSummaries(m); }).finally(() => setLoading(false));
+    ]).then(([s, m]) => { setSessions(s); setSummaries(m); }).finally(() => {
+      const elapsed = Date.now() - start;
+      if (elapsed < 300) setTimeout(() => setLoading(false), 300 - elapsed);
+      else setLoading(false);
+    });
   }, []);
 
   const handleOpen = async (sid: string) => {
