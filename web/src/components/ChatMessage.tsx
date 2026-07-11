@@ -1,3 +1,4 @@
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { IconRobot, IconUser, IconTool, IconFileText, IconBolt, IconChartBar, IconCircleCheck, IconCircleX } from "@tabler/icons-react";
@@ -11,6 +12,7 @@ function _isApprovalBlock(content: Message["content"]): boolean {
 function ToolResult({ msg, onApprove, disabled }: { msg: Message; onApprove?: (approved: boolean) => void; disabled?: boolean }) {
   const content = msg.content;
   const isApproval = _isApprovalBlock(content);
+  const [resolved, setResolved] = useState(false);
 
   return (
     <div>
@@ -18,22 +20,27 @@ function ToolResult({ msg, onApprove, disabled }: { msg: Message; onApprove?: (a
         <summary><IconFileText size={12} style={{ marginRight: "4px" }} />工具返回数据</summary>
         <pre>{typeof content === "string" ? content : JSON.stringify(content, null, 2)}</pre>
       </details>
-      {isApproval && onApprove && !disabled && (
+      {isApproval && onApprove && !disabled && !resolved && (
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
           <button
             className="btn btn-primary"
             style={{ height: 32, fontSize: 13 }}
-            onClick={() => onApprove(true)}
+            onClick={() => { setResolved(true); onApprove(true); }}
           >
             <IconCircleCheck size={14} /> 批准
           </button>
           <button
             className="btn btn-secondary"
             style={{ height: 32, fontSize: 13 }}
-            onClick={() => onApprove(false)}
+            onClick={() => { setResolved(true); onApprove(false); }}
           >
             <IconCircleX size={14} /> 拒绝
           </button>
+        </div>
+      )}
+      {resolved && (
+        <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 6 }}>
+          {onApprove ? "已操作" : ""}
         </div>
       )}
     </div>
