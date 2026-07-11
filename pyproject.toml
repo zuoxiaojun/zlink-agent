@@ -25,9 +25,6 @@ web = [
     "uvicorn[standard]>=0.27.0",
     "python-multipart>=0.0.9",
 ]
-nc = [
-    "nc-mcp-server @ git+https://atomgit.com/gcw_cJbJuamU/nc-mcp-project.git@main#subdirectory=nc-mcp",
-]
 browser = [
     "playwright>=1.40.0",
 ]
@@ -50,6 +47,7 @@ select = ["E", "F", "I", "N", "W", "UP", "B"]
 "tests/*" = ["E501", "N802", "N803", "N806"]
 "agent/skills/*" = ["E501", "F841", "N806", "E402"]
 "mcp_server/*" = ["E501", "E402", "N806", "F401"]
+"mcp_server/nc_mcp_server/**/*" = ["E501", "E402", "N806", "F401", "N802", "B905"]
 "agent/erp_clients/yonsuite/*" = ["E501", "N802", "N803", "N806", "N815", "B904", "E722", "F841", "E402"]
 "agent/tools/*.py" = ["E501", "B904"]
 "agent/slash_commands.py" = ["B007"]
