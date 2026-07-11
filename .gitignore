@@ -13,6 +13,7 @@ web/node_modules/
 AGENTS.md
 docs/superpowers/
 releases/
+.codex/
 
 .playwright-mcp/
 
