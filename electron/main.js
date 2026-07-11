@@ -103,7 +103,8 @@ function stopBackend() {
 
 function getLoadURL() {
   if (IS_DEV) return "http://localhost:8088";
-  return `file://${path.join(__dirname, "..", "web", "dist", "index.html")}`;
+  // ASAR-unpacked frontend files (see asarUnpack in electron-builder.yml)
+  return `file://${path.join(process.resourcesPath, "app.asar.unpacked", "web", "dist", "index.html")}`;
 }
 
 async function waitForBackend(maxRetries = 60) {
