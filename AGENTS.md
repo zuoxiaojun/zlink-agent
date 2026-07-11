@@ -686,4 +686,88 @@ INFO:     Uvicorn running on http://0.0.0.0:8089
 | `cd web && npm install` | Install/update frontend deps |
 | `pip install -r requirements.txt` | Install/update Python deps |
 
-<!-- NEXT: SECTION_2_3 -->
+### 2.3 Architecture Overview
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│                      React + Vite (port 8088)                     │
+│  App.tsx → ChatPage, HistoryPage, ToolsPage, SkillsPage,         │
+│            MemoryPage, McpPage, SettingsLLM, SettingsAgent,       │
+│            SettingsERP, SettingsExtensions                        │
+└────────────────────────┬──────────────────────────────────────────┘
+                         │ WebSocket (ws://localhost:8089/api/chat)
+                         │ REST     (http://localhost:8089/api/*)
+                         ▼
+┌───────────────────────────────────────────────────────────────────┐
+│                    FastAPI Backend (port 8089)                     │
+│  backend/main.py → lifespan (init search_index, connect MCP)     │
+│  backend/api/ → 11 routers (chat, tools, skills, mcp, memory,    │
+│                 config, erp-clients, extensions, metrics,         │
+│                 sessions, system)                                 │
+└────────────────────────┬──────────────────────────────────────────┘
+                         │
+                         ▼
+┌───────────────────────────────────────────────────────────────────┐
+│                      Agent Core (agent/)                          │
+│  core/agent.py   → AIAgent.run_conversation()                     │
+│  core/llm_*      → LLMClient + LLMProvider abstraction            │
+│  tools/          → ToolRegistry + 14 tool modules                 │
+│  events/         → EventBus + 8 event types + Extensions          │
+│  skill_manager   → Skill lifecycle + prompt injection             │
+│  config_manager  → Config load/save + fernet encryption           │
+│  context_compactor → M6 three-level compaction                    │
+│  session_manager, memory_manager, fact_memory, search_index       │
+└──────┬────────────────────────────────────────────────────────────┘
+       │
+       ▼
+┌───────────────────────────────────────────────────────────────────┐
+│  MCP Servers (mcp_server/)       │  Runtime Data (~/.zlink-agent) │
+│  ├─ ys_mcp_server (YonSuite)    │  ├─ config.json                │
+│  └─ nc_mcp/ (NC, dynamic)       │  ├─ active_skills.json         │
+│  (User-installed MCP servers)   │  ├─ sessions/                  │
+│                                  │  ├─ memory/                   │
+│                                  │  ├─ skills/                   │
+│                                  │  └─ logs/                     │
+└──────────────────────────────────┴────────────────────────────────┘
+```
+
+**Key design decisions:**
+- **Synchronous agent loop** runs in a `ThreadPoolExecutor` via `run_in_executor` — avoids async rewrite of the 719-line agent loop
+- **SSE parsing** in `openai_compat.py` handles both `data: {json}` (standard) and `data:{json}` (custom gateway) formats
+- **Reasoning pipe** is a separate channel (`reasoning_callback`), not mixed with the content stream — frontend displays it in grey italic via `.reasoning-content` CSS class
+- **ERP isolation**: only `enabled=true` ERP MCP tools are registered in the LLM's tool list; disabled systems are invisible to the LLM
+- **Version number** must be synced across 5 locations (see section 2.5)
+
+### 2.4 ERP Access Guide
+
+Both YonSuite and NC are configured via the unified ERP settings page at `/settings/erp?tab=yonsuite` or `/settings/erp?tab=nc`.
+
+#### YonSuite Setup
+
+1. Go to **Settings → ERP** → **YonSuite** tab
+2. Fill in:
+   - **App Key** — from YonSuite developer console
+   - **App Secret** — from YonSuite developer console
+   - **Tenant ID** — your organization's tenant ID
+3. Click **Save** — secrets are auto-encrypted with `encrypted:` prefix in config.json
+4. Click **Test Connection** — backend calls YonSuite SDK directly to verify
+5. Toggle **Enable** — when enabled, the YonSuite MCP server starts and its 11 tools become available to the LLM
+
+#### NC Setup
+
+1. Go to **Settings → ERP** → **NC** tab
+2. Fill in:
+   - **Host** (IP or domain), **Port** (default: 1521), **Service** (Oracle SID)
+   - **User**, **Password**
+   - Optionally set **Max Rows** (default: 100)
+3. Click **Save** — password is auto-encrypted; on save, `mcp_starter.sync_nc_mcp()` dynamically registers and starts the `mcp-nc` server
+4. Click **Test Connection** — backend checks if the mcp-nc server process is running
+5. Toggle **Enable** — when enabled, the NC MCP server's tools are available to the LLM
+
+**Troubleshooting:**
+- If tools don't appear after enabling an ERP, check `GET /api/config/mcp-servers` to verify server status
+- Check `~/.zlink-agent/data/logs/app.log` for MCP server connection errors
+- NC uses environment variables (`ORACLE_HOST`, `ORACLE_PORT`, `ORACLE_SERVICE`, `ORACLE_USER`, `ORACLE_PASSWORD`) — verify in `mcp_server/nc_mcp/config.py`
+- YonSuite credentials are injected into the MCP subprocess's environment (`YONSUITE_APP_KEY`, `YONSUITE_APP_SECRET`, `YONSUITE_TENANT_ID`)
+
+<!-- NEXT: SECTION_2_5 -->
