@@ -45,7 +45,7 @@ import logging
 import sys
 import threading
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from agent import fact_memory
@@ -68,6 +68,24 @@ from agent.events import (
 from agent.tools.registry import discover_tools, registry
 
 logger = logging.getLogger(__name__)
+
+
+# ── ApprovalRequest ───────────────────────────────────────────────
+
+
+@dataclass
+class ApprovalRequest:
+    """Carries an approval request from the agent loop to the WebSocket layer.
+
+    The agent thread creates one of these when ``ApprovalBlockedError`` is
+    raised, stores it where the WebSocket layer can find it, and blocks on
+    ``event.wait()``.
+    """
+
+    tool_name: str
+    reason: str
+    event: threading.Event = field(default_factory=threading.Event)
+    result: str | None = None  # "approved" | "denied" | None (pending)
 
 
 # ── Phase Machine ─────────────────────────────────────────────────
@@ -232,6 +250,7 @@ class AIAgent:
         compaction_settings: CompactionSettings | None = None,
         max_retries: int = 3,
         max_retry_delay: float = 30.0,
+        approval_callback: Callable[[ApprovalRequest], None] | None = None,
     ):
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
@@ -247,6 +266,7 @@ class AIAgent:
         self.compaction_settings = compaction_settings or CompactionSettings()
         self.max_retries = max_retries
         self.max_retry_delay = max_retry_delay
+        self.approval_callback = approval_callback
 
         self._llm = LLMClient(
             api_key=api_key,
@@ -482,11 +502,42 @@ class AIAgent:
                     )
                 else:
                     args = pre_event.args
-                    result, _ = dispatch_tool(
-                        tc.name,
-                        args,
-                        max_result_length=max_result_length,
-                    )
+                    try:
+                        result, _ = dispatch_tool(
+                            tc.name,
+                            args,
+                            max_result_length=max_result_length,
+                        )
+                    except Exception as _ex:
+                        if type(_ex).__name__ == "ApprovalBlockedError":
+                            self._report(f"⚠️ 工具 {tc.name} 需要你的批准")
+                            approval = self._handle_approval_block(
+                                tool_name=tc.name,
+                                reason=str(_ex),
+                            )
+                            if approval == "approved":
+                                # User approved - retry with the original tool, bypassing hooks
+                                from agent.tools.registry import registry
+
+                                entry = registry.get_entry(tc.name)
+                                if entry:
+                                    try:
+                                        raw_result = entry.handler(args)
+                                        result = (
+                                            raw_result
+                                            if isinstance(raw_result, str)
+                                            else json.dumps(raw_result, ensure_ascii=False)
+                                        )
+                                        if len(result) > max_result_length:
+                                            result = result[:max_result_length] + "\n\n..."
+                                    except Exception as e:
+                                        result = json.dumps({"success": False, "error": f"执行失败: {e}"})
+                                else:
+                                    result = json.dumps({"success": False, "error": f"未知工具: {tc.name}"})
+                            else:
+                                result = json.dumps({"success": False, "error": "用户拒绝了操作"})
+                        else:
+                            raise
 
             if stream_callback:
                 try:
@@ -516,6 +567,28 @@ class AIAgent:
                     "content": result,
                 }
             )
+
+    def _handle_approval_block(self, tool_name: str, reason: str) -> str | None:
+        """Called when ApprovalBlockedError is caught.
+
+        Creates an ApprovalRequest, notifies the caller via approval_callback,
+        and blocks until the user responds or times out.
+
+        Returns:
+            "approved" if the user approved
+            None if denied or timeout
+        """
+        req = ApprovalRequest(tool_name=tool_name, reason=reason)
+
+        if self.approval_callback:
+            self.approval_callback(req)
+
+        # Wait for user response with 120s timeout
+        timed_out = not req.event.wait(timeout=120)
+
+        if timed_out or req.result != "approved":
+            return None
+        return "approved"
 
     def run_conversation(
         self,
