@@ -53,8 +53,8 @@ export default function ChatPage() {
   // Auto-send prompt from cronjob (param ?auto=)
   useEffect(() => {
     const autoPrompt = searchParams.get("auto");
-    if (!autoPrompt || autoSent) return;
-    if (!state.currentSessionId) return; // session not loaded yet
+    const sid = searchParams.get("s");
+    if (!autoPrompt || autoSent || !sid) return;
 
     // Clean URL first to prevent re-trigger
     const newParams = new URLSearchParams(searchParams);
@@ -62,8 +62,9 @@ export default function ChatPage() {
     setSearchParams(newParams, { replace: true });
 
     setAutoSent(true);
-    sendMessage(autoPrompt);
-  }, [searchParams, state.currentSessionId, autoSent, sendMessage, setSearchParams]);
+    // Pass session_id from URL directly to avoid using stale state.currentSessionId
+    sendMessage(autoPrompt, sid);
+  }, [searchParams, autoSent, sendMessage, setSearchParams]);
 
   // Sync URL when session changes (e.g. after first message creates session)
   useEffect(() => {

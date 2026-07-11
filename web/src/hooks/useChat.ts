@@ -16,8 +16,8 @@ export function useChat(options?: UseChatOptions) {
   onApprovalRequestRef.current = options?.onApprovalRequest;
 
   const sendMessage = useCallback(
-    (content: string | import("../types").ContentPart[]) => {
-      const sessionId = state.currentSessionId || "_new";
+    (content: string | import("../types").ContentPart[], sessionOverride?: string) => {
+      const sessionId = sessionOverride || state.currentSessionId || "_new";
 
       dispatch({ type: "SET_RUNNING", running: true });
       runningRef.current = true;
