@@ -141,12 +141,26 @@ async def lifespan(application: FastAPI):
 
         asyncio.ensure_future(connect_all_servers(servers_cfg))
 
+    # Start cron job scheduler
+    try:
+        from agent.tools.cronjob_tools import start_scheduler
+
+        start_scheduler()
+    except Exception as e:
+        _logger.warning("无法启动定时任务调度器: %s", e)
+
     yield
 
     # Shutdown
     from agent.tools.mcp_manager import disconnect_all_servers
 
     await disconnect_all_servers()
+    try:
+        from agent.tools.cronjob_tools import stop_scheduler
+
+        stop_scheduler()
+    except Exception:
+        pass
 
 
 from backend.api.system_api import _get_version  # noqa: E402
@@ -174,6 +188,7 @@ from backend.api.skills_api import router as skills_router
 from backend.api.system_api import router as system_router
 from backend.api.tools_api import router as tools_router
 from backend.api.slash_commands_api import router as slash_commands_router
+from backend.api.cronjob_api import router as cronjob_router
 
 app.include_router(sessions_router)
 app.include_router(config_router)
@@ -182,6 +197,7 @@ app.include_router(metrics_router)
 app.include_router(skills_router)
 app.include_router(tools_router)
 app.include_router(slash_commands_router)
+app.include_router(cronjob_router)
 app.include_router(chat_router)
 app.include_router(mcp_router)
 app.include_router(extensions_router)
