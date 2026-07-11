@@ -74,6 +74,7 @@ class ToolEntry:
         "check_fn",
         "description",
         "emoji",
+        "risk_level",
     )
 
     def __init__(
@@ -85,6 +86,7 @@ class ToolEntry:
         check_fn: Callable | None = None,
         description: str = "",
         emoji: str = "",
+        risk_level: str = "low",
     ):
         self.name = name
         self.toolset = toolset
@@ -93,6 +95,7 @@ class ToolEntry:
         self.check_fn = check_fn
         self.description = description
         self.emoji = emoji
+        self.risk_level = risk_level
 
 
 class ToolRegistry:
@@ -112,6 +115,7 @@ class ToolRegistry:
         check_fn: Callable | None = None,
         description: str = "",
         emoji: str = "",
+        risk_level: str = "low",
     ) -> None:
         """Register a tool."""
         self._entries[name] = ToolEntry(
@@ -122,6 +126,7 @@ class ToolRegistry:
             check_fn=check_fn,
             description=description,
             emoji=emoji,
+            risk_level=risk_level,
         )
 
     def deregister(self, name: str) -> None:
