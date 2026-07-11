@@ -10,6 +10,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/settings/llm": "大模型配置",
   "/settings/erp": "ERP 连接",
   "/settings/agent": "Agent 设置",
+  "/cronjobs": "定时任务",
   "/mcp": "MCP 服务器",
 };
 

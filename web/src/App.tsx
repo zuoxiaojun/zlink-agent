@@ -12,6 +12,7 @@ import SettingsLLMPage from "./pages/SettingsLLMPage";
 import SettingsERPPage from "./pages/SettingsERPPage";
 import SettingsAgentPage from "./pages/SettingsAgentPage";
 import SettingsExtensionsPage from "./pages/SettingsExtensionsPage";
+import CronJobPage from "./pages/CronJobPage";
 import McpPage from "./pages/McpPage";
 import type { ConfigResponse } from "./types";
 
@@ -61,6 +62,7 @@ export default function App() {
               <Route path="/settings/erp" element={<SettingsERPPage />} />
               <Route path="/settings/agent" element={<SettingsAgentPage />} />
               <Route path="/settings/extensions" element={<SettingsExtensionsPage />} />
+              <Route path="/cronjobs" element={<CronJobPage />} />
               <Route path="/mcp" element={<McpPage />} />
             </Route>
           </Routes>

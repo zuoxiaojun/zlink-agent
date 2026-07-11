@@ -2,13 +2,14 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAppState, WELCOME_MESSAGE } from "../context/AppContext";
 import { api } from "../api/http";
 import type { SessionSummary } from "../types";
-import { IconRobot, IconPlus, IconMessage, IconBrain, IconTool, IconPuzzle, IconCpu, IconDatabase, IconSettings, IconPlug, IconBoxMultiple } from "@tabler/icons-react";
+import { IconRobot, IconPlus, IconMessage, IconBrain, IconTool, IconPuzzle, IconCpu, IconDatabase, IconSettings, IconPlug, IconBoxMultiple, IconClock } from "@tabler/icons-react";
 
 const NAV = [
   { label: "历史对话", Icon: IconMessage, path: "/history", section: 1 },
   { label: "记忆管理", Icon: IconBrain, path: "/memory", section: 1 },
   { label: "技能管理", Icon: IconTool, path: "/skills", section: 1 },
   { label: "内置工具", Icon: IconPuzzle, path: "/tools", section: 1 },
+  { label: "定时任务", Icon: IconClock, path: "/cronjobs", section: 1 },
   { label: "MCP 服务器", Icon: IconPlug, path: "/mcp", section: 1 },
   { label: "大模型配置", Icon: IconCpu, path: "/settings/llm", section: 2 },
   { label: "ERP 连接", Icon: IconDatabase, path: "/settings/erp", section: 2 },
