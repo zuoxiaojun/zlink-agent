@@ -1,0 +1,16 @@
+{
+  "ownerId": "kn7amrtkn0tjk2r2yxf3hjgp0s7zn6g4",
+  "slug": "agent-browser-clawdbot",
+  "version": "0.1.0",
+  "publishedAt": 1769032854381,
+  "owner": "subaru0573",
+  "displayName": "Super Agent Browser",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1782798183927,
+    "commit": null
+  },
+  "history": [],
+  "updatedAt": "2026-06-30T05:43:03.927Z",
+  "createdAt": "2026-06-30T05:43:03.927Z"
+}
