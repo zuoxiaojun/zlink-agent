@@ -12,6 +12,7 @@ web/node_modules/
 .vite/
 AGENTS.md
 docs/superpowers/
+releases/
 
 .playwright-mcp/
 
