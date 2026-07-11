@@ -135,11 +135,12 @@ async def put_erp_client(name: str, body: ERPPutRequest) -> dict:
     for k, v in updates.items():
         if k in secret_fields:
             if v == "***":
-                continue
+                continue  # 前端脱敏占位符，跳过
             if v and not v.startswith("encrypted:"):
                 cfg[k] = config_manager.encrypt_secret(v)
-            else:
-                cfg[k] = v
+            elif v:
+                cfg[k] = v  # 已经是 encrypted: 前缀，原样保留
+            # else: v 为空字符串，跳过更新（保留已有值）
         else:
             cfg[k] = v
 
