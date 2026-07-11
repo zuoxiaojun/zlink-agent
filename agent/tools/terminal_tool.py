@@ -275,4 +275,5 @@ registry.register(
     schema=TERMINAL_SCHEMA,
     handler=_handle_terminal,
     emoji="💻",
+    risk_level="high",
 )

@@ -148,4 +148,5 @@ registry.register(
     schema=WEB_EXTRACT_SCHEMA,
     handler=_handle_web_extract,
     emoji="📄",
+    risk_level="medium",
 )
