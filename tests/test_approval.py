@@ -13,7 +13,6 @@ import time
 import pytest
 
 from agent.tools.registry import registry
-from agent.tools.security_hooks import _APPROVAL_TTL, _APPROVED_CALLS
 
 
 @pytest.fixture(autouse=True)
@@ -48,11 +47,10 @@ def _register_test_tool(name: str, risk_level: str = "low"):
 
 
 def _make_approval_hook():
-    """Import and return a fresh approval_hook with clean state."""
-    from agent.tools.security_hooks import approval_hook, clear_approvals, record_approval
+    """Import and return a fresh approval_hook (cache removed in new design)."""
+    from agent.tools.security_hooks import approval_hook
 
-    clear_approvals()
-    return approval_hook, record_approval, clear_approvals
+    return approval_hook, None, None
 
 
 def test_allow_all_mode_passes_all_tools(monkeypatch):
@@ -105,10 +103,12 @@ def test_reject_all_blocks_medium_and_high(monkeypatch):
 
 
 def test_approve_mode_blocks_high_risk(monkeypatch):
-    """When approval_mode='approve', high-risk tools are blocked unless pre-approved."""
+    """When approval_mode='approve', high-risk tools raise ApprovalBlockedError."""
+    from agent.tools.security_hooks import ApprovalBlockedError
+
     _register_test_tool("test_low", risk_level="low")
     _register_test_tool("test_high", risk_level="high")
-    hook, record, _ = _make_approval_hook()
+    hook, _, _ = _make_approval_hook()
 
     from agent.config_model import AppConfig
 
@@ -121,10 +121,10 @@ def test_approve_mode_blocks_high_risk(monkeypatch):
     result = hook("test_low", {})
     assert "__block__" not in result
 
-    # High risk blocked without approval
-    result = hook("test_high", {"path": "/tmp/test"})
-    assert "__block__" in result
-    assert "需要你的确认" in result.get("__reason__", "")
+    # High risk blocked without approval → raises ApprovalBlockedError
+    with pytest.raises(ApprovalBlockedError) as exc_info:
+        hook("test_high", {"path": "/tmp/test"})
+    assert "需要你的确认" in exc_info.value.reason
 
 
 def test_approve_mode_passes_pre_approved_calls(monkeypatch):
@@ -214,3 +214,23 @@ def test_approval_integration_with_dispatch(monkeypatch):
         assert payload["success"] is True
     finally:
         registry.remove_before_hook(hook)
+
+
+def test_approval_hook_raises_approval_blocked_error(monkeypatch):
+    """In approve mode, high-risk tools cause approval_hook to raise ApprovalBlockedError."""
+    from agent.config_model import AppConfig
+    from agent.tools.security_hooks import ApprovalBlockedError, approval_hook
+
+    _register_test_tool("test_high", risk_level="high")
+
+    monkeypatch.setattr(
+        "agent.config_manager.load",
+        lambda: AppConfig(approval_mode="approve"),
+    )
+
+    with pytest.raises(ApprovalBlockedError) as exc_info:
+        approval_hook("test_high", {"path": "/tmp/test"})
+
+    assert exc_info.value.tool_name == "test_high"
+    assert exc_info.value.tool_args == {"path": "/tmp/test"}
+    assert "需要你的确认" in exc_info.value.reason

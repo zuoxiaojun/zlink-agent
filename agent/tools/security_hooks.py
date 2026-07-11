@@ -6,13 +6,27 @@ layer on top of each tool's own input validation.
 
 import json
 import logging
-import threading
-import time
 
 from agent import config_manager as _cm
 from agent.tools.registry import registry
 
 logger = logging.getLogger(__name__)
+
+
+class ApprovalBlockedError(Exception):
+    """Raised by approval_hook when a high-risk tool is blocked in approve mode.
+
+    The exception propagates through registry.dispatch() as a tool error.
+    Future tasks in the approval redesign will integrate this with agent-level
+    thread blocking and frontend approval prompts.
+    """
+
+    def __init__(self, tool_name: str, tool_args: dict, reason: str):
+        self.tool_name = tool_name
+        self.tool_args = tool_args
+        self.reason = reason
+        super().__init__(reason)
+
 
 # Paths that no tool should write to under any circumstances
 _DENY_WRITE_PATHS = [
@@ -74,11 +88,6 @@ def _security_after_hook(tool_name: str, args: dict, result: str) -> str:
 
 # ── Approval system ─────────────────────────────────────────────
 
-# Cache of approved tool calls: key="tool_name:json_args" → timestamp
-_APPROVED_CALLS: dict[str, float] = {}
-_APPROVAL_TTL = 60.0  # seconds before an approval expires
-_approval_lock = threading.Lock()
-
 
 def _get_tool_risk_level(tool_name: str) -> str:
     """Get the risk_level of a registered tool. Defaults to 'low'."""
@@ -94,7 +103,7 @@ def approval_hook(tool_name: str, args: dict) -> dict:
     Three modes:
     - ``allow_all`` (default): pass through, no blocking.
     - ``reject_all``: block all medium and high risk tools.
-    - ``approve``: block high-risk tools unless pre-approved via ``record_approval()``.
+    - ``approve``: raise ``ApprovalBlockedError`` for high-risk tools.
     """
     try:
         config = _cm.load()
@@ -114,48 +123,15 @@ def approval_hook(tool_name: str, args: dict) -> dict:
         }
 
     if mode == "approve" and risk == "high":
-        with _approval_lock:
-            # 优先检查精确匹配（tool_name + args）
-            key = f"{tool_name}:{json.dumps(args, ensure_ascii=False, sort_keys=True)}"
-            ts = _APPROVED_CALLS.get(key)
-            if ts is not None and (time.monotonic() - ts) < _APPROVAL_TTL:
-                return args
-            # 其次检查通配匹配（仅 tool_name, 由 confirm_tool_execution 写入）
-            wild_key = f"{tool_name}:*"
-            ts = _APPROVED_CALLS.get(wild_key)
-            if ts is not None and (time.monotonic() - ts) < _APPROVAL_TTL:
-                # 通配 key 使用后立即消耗，防止同一审批重复执行
-                del _APPROVED_CALLS[wild_key]
-                return args
-        return {
-            "__block__": True,
-            "__reason__": (
-                f"⚠️ 需要你的确认才能执行以下操作：\n"
-                f"工具: {tool_name}\n"
-                f"参数: {json.dumps(dict(args), ensure_ascii=False)}\n"
-                f"请在聊天中回复「批准」或「拒绝」。"
+        raise ApprovalBlockedError(
+            tool_name=tool_name,
+            tool_args=dict(args),
+            reason=(
+                f"需要你的确认才能执行以下操作：\n工具: {tool_name}\n参数: {json.dumps(dict(args), ensure_ascii=False)}"
             ),
-        }
+        )
 
     return args
-
-
-def record_approval(tool_name: str, args: dict) -> None:
-    """Record user approval for a specific tool call."""
-    now = time.monotonic()
-    with _approval_lock:
-        # 精确匹配 key
-        key = f"{tool_name}:{json.dumps(args, ensure_ascii=False, sort_keys=True)}"
-        _APPROVED_CALLS[key] = now
-        # 通配 key — 忽略 args 差异，匹配该工具任何调用
-        wild_key = f"{tool_name}:*"
-        _APPROVED_CALLS[wild_key] = now
-
-
-def clear_approvals() -> None:
-    """Clear all recorded approvals (e.g. on session end)."""
-    with _approval_lock:
-        _APPROVED_CALLS.clear()
 
 
 def register_default_hooks():
