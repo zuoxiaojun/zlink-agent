@@ -104,6 +104,7 @@ export interface SkillInfo {
   version: string;
   tags: string[];
   active: boolean;
+  builtin?: boolean;
 }
 
 export interface SkillDetail {

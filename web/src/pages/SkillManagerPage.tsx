@@ -166,16 +166,21 @@ export default function SkillManagerPage() {
                   {s.version && (
                     <span style={{ fontSize: "11px", color: "var(--text-4)" }}>v{s.version}</span>
                   )}
+                  {s.builtin && (
+                    <span className="badge badge-primary" style={{ fontSize: 11 }}>内置</span>
+                  )}
                 </div>
                 <div className="skill-card-actions">
-                  <button
-                    className="btn btn-ghost"
-                    style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
-                    onClick={() => handleEdit(s.name)}
-                    title="编辑内容"
-                  >
-                    <IconEdit size={13} color="var(--text-3)" />
-                  </button>
+                  {!s.builtin && (
+                    <button
+                      className="btn btn-ghost"
+                      style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
+                      onClick={() => handleEdit(s.name)}
+                      title="编辑内容"
+                    >
+                      <IconEdit size={13} color="var(--text-3)" />
+                    </button>
+                  )}
                   <button
                     className="btn btn-ghost"
                     style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
@@ -199,14 +204,16 @@ export default function SkillManagerPage() {
                   >
                     {s.active ? <IconToggleRight size={16} color="var(--success)" /> : <IconToggleLeft size={16} color="var(--text-4)" />}
                   </button>
-                  <button
-                    className="btn btn-ghost"
-                    style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
-                    onClick={() => handleDelete(s.name)}
-                    title="删除技能"
-                  >
-                    <IconTrash size={14} color="var(--text-3)" />
-                  </button>
+                  {!s.builtin && (
+                    <button
+                      className="btn btn-ghost"
+                      style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
+                      onClick={() => handleDelete(s.name)}
+                      title="删除技能"
+                    >
+                      <IconTrash size={14} color="var(--text-3)" />
+                    </button>
+                  )}
                 </div>
               </div>
 
