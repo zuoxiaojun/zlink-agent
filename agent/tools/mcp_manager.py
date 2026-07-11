@@ -122,7 +122,7 @@ def _make_mcp_tool_handler(server_name: str, tool_name: str):
             return json.dumps({"error": breaker_msg}, ensure_ascii=False)
 
         conn = _connections.get(server_name)
-        if not conn or not conn.connected:
+        if conn is None or not conn.connected:
             _bump_server_error(server_name)
             return json.dumps(
                 {"error": f"MCP server '{server_name}' not connected"},
@@ -297,15 +297,15 @@ class MCPServerConnection:
                 try:
                     self._process.stdin.close()
                 except Exception:
-                    pass
+                    logger.debug("MCP server '%s' stdin close error during disconnect", self.name)
             try:
                 self._process.kill()
             except Exception:
-                pass
+                logger.debug("MCP server '%s' kill error during disconnect", self.name)
             try:
                 await asyncio.wait_for(self._process.wait(), timeout=3)
             except (TimeoutError, Exception):
-                pass
+                logger.debug("MCP server '%s' wait error during disconnect", self.name)
             self._process = None
 
         # Close HTTP client
@@ -313,7 +313,7 @@ class MCPServerConnection:
             try:
                 await self._http_client.aclose()
             except Exception:
-                pass
+                logger.debug("MCP server '%s' HTTP close error during disconnect", self.name)
             self._http_client = None
 
         self._reader_lock = None
@@ -373,7 +373,7 @@ class MCPServerConnection:
             user_env = resolve_placeholders(user_env, full_config)
         except Exception:
             # config 不可用时保持原样, 启动时报错定位更明确
-            pass
+            logger.warning("MCP server '%s': failed to resolve config placeholders", self.name)
 
         # Filter safe env vars + user-specified env
         safe_env = {
@@ -411,7 +411,7 @@ class MCPServerConnection:
         except asyncio.CancelledError:
             raise
         except Exception:
-            pass
+            logger.warning("MCP server '%s' stdio reader exception", self.name)
         finally:
             if self._ready:
                 self._ready = False
@@ -434,7 +434,7 @@ class MCPServerConnection:
         except asyncio.CancelledError:
             raise
         except Exception:
-            pass
+            logger.warning("MCP server '%s' stderr reader exception", self.name)
 
     def _handle_line(self, line: str):
         try:
