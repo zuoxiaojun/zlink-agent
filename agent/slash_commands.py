@@ -187,3 +187,78 @@ def _cmd_cost(_args: str, ctx: dict) -> str:
         f"| 输出 | {usage.get('completion_tokens', 0):,} |\n"
         f"| 合计 | {usage.get('total_tokens', 0):,} |\n"
     )
+
+
+@register_command("skills", "列出所有技能及启用状态", "/skills")
+def _cmd_skills(_args: str, _ctx: dict) -> str:
+    from agent.skill_manager import get_active_skills, get_all_skills
+
+    all_skills = get_all_skills()
+    active = set(get_active_skills())
+    if not all_skills:
+        return "暂无可用技能。"
+    lines = ["## 可用技能\n"]
+    for s in all_skills:
+        name = s["name"]
+        desc = s.get("description", "")
+        status = "🟢 已启用" if name in active else "⚪ 未启用"
+        tags = f" `[{', '.join(s.get('tags', []))}]`" if s.get("tags") else ""
+        lines.append(f"- **{name}** {tags} {status}")
+        if desc:
+            lines.append(f"  {desc[:80]}")
+    lines.append("\n---\n用法：`/skill <名称>` 查看详情；`/skill <名称> on|off` 启用/停用")
+    return "\n".join(lines)
+
+
+@register_command("skill", "查看/启用/停用技能", "/skill <名称> [on|off]")
+def _cmd_skill(args: str, _ctx: dict) -> str:
+    from agent.skill_manager import get_active_skills, get_all_skills, get_skill_content, set_skill_active
+
+    parts = args.strip().split(maxsplit=1)
+    if not parts:
+        return (
+            "用法：`/skill <名称>` 查看技能详情\n"
+            "      `/skill <名称> on`  启用技能\n"
+            "      `/skill <名称> off` 停用技能\n\n"
+            "可用技能列表请用 `/skills` 查看。"
+        )
+
+    name = parts[0]
+    action = parts[1].lower() if len(parts) > 1 else ""
+
+    all_skills = get_all_skills()
+    skill_names = {s["name"] for s in all_skills}
+    if name not in skill_names:
+        return f"未找到技能 `{name}`。用 `/skills` 查看所有可用技能。"
+
+    if action == "on":
+        set_skill_active(name, True)
+        return f"🟢 技能 `{name}` 已启用。"
+    elif action == "off":
+        set_skill_active(name, False)
+        return f"⚪ 技能 `{name}` 已停用。"
+
+    # Show skill detail
+    active = set(get_active_skills())
+    content = get_skill_content(name)
+    if content is None:
+        return f"无法读取技能 `{name}` 的内容。"
+
+    status = "🟢 已启用" if name in active else "⚪ 未启用"
+    # Extract frontmatter description if available
+    desc = ""
+    if content.startswith("---"):
+        parts_fm = content.split("---", 2)
+        if len(parts_fm) >= 3:
+            for line in parts_fm[1].strip().split("\n"):
+                if line.startswith("description:"):
+                    desc = line.split(":", 1)[1].strip()
+                    break
+
+    result = [f"## 技能: {name}  {status}"]
+    if desc:
+        result.append(f"\n{desc}")
+    result.append(f"\n**名称:** {name}")
+    result.append(f"**状态:** {status}")
+    result.append(f"**用法:** `/skill {name} on|off`")
+    return "\n".join(result)
