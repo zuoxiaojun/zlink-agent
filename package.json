@@ -11,6 +11,9 @@
     "build:frontend": "cd web && npm run build",
     "build:pyinstaller": "pyinstaller packaging/zlink-agent.spec --clean --noconfirm",
     "build:electron": "npx electron-builder --mac --config electron-builder.yml",
+    "build:electron:win": "npx electron-builder --win --config electron-builder.yml",
+    "build:electron:linux": "npx electron-builder --linux --config electron-builder.yml",
+    "build:electron:all": "npx electron-builder --mac --win --linux --config electron-builder.yml",
     "build:mac": "bash scripts/build-mac.sh",
     "build:mac:quick": "bash scripts/build-mac.sh --no-pyinstaller"
   },
