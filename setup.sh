@@ -263,18 +263,12 @@ PYTHONPATH="" source "$VENV_ACTIVATE"
 info "升级 pip..."
 pip_install_robust --upgrade pip || warn "pip 升级失败, 继续用现有版本"
 
-# 装 requirements.txt (核心依赖, 失败即终止)
-info "安装 requirements.txt..."
+# 安装项目依赖 (requirements.txt -> pyproject.toml 单一源)
+info "安装项目依赖..."
 if ! pip_install_robust -r requirements.txt; then
     err "Python 依赖安装失败"
     err "请检查上方 pip 错误信息, 修复后重新运行本脚本"
     exit 1
-fi
-
-# 装 pyproject extras (开发/打包用, 失败仅警告)
-if [ -f "pyproject.toml" ]; then
-    info "安装 pyproject extras (.[all])..."
-    pip_install_robust -e ".[all]" --no-deps || warn "pyproject extras 安装失败 (非阻塞, 核心依赖已在 requirements.txt 安装)"
 fi
 
 # 验证依赖图一致性

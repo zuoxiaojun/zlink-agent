@@ -150,20 +150,14 @@ call .venv\Scripts\activate.bat
 echo   升级 pip...
 call :pip_install_robust --upgrade pip || echo   [WARN] pip 升级失败, 继续
 
-:: 装 requirements.txt (核心依赖, 失败终止)
-echo   安装 requirements.txt...
+:: 安装项目依赖 (requirements.txt -> pyproject.toml 单一源)
+echo   安装项目依赖...
 call :pip_install_robust -r requirements.txt
 if errorlevel 1 (
   echo [ERROR] Python 依赖安装失败
   echo   请检查上方 pip 错误信息, 修复后重新运行本脚本
   pause
   exit /b 1
-)
-
-:: 装 pyproject extras (开发用, 失败仅警告)
-if exist "pyproject.toml" (
-  echo   安装 pyproject extras ^(. [all]^)...
-  call :pip_install_robust -e ".[all]" --no-deps || echo   [WARN] pyproject extras 安装失败 ^(非阻塞^)
 )
 
 :: 验证依赖图

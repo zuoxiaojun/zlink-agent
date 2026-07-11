@@ -1,13 +1,7 @@
-openai>=1.0.0
-httpx>=0.27.0
-python-dotenv>=1.0.0
-pydantic>=2.0.0
-pyyaml>=6.0
-fastapi>=0.110.0
-uvicorn[standard]>=0.27.0
-python-multipart>=0.0.9
-tiktoken>=0.9.0
-prometheus-client>=0.21.0
-cryptography>=42.0.0
-pytest>=8.0.0
-anthropic>=0.40.0
+# ZLink Agent dependencies — single source of truth is pyproject.toml
+# This file is kept for setup.sh compatibility and CI.
+# Install the project in editable mode to pull all deps from pyproject.toml:
+#
+#   pip install -e .
+#
+-e .
