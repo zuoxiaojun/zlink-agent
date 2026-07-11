@@ -419,7 +419,7 @@ def _execute_job_prompt(name: str, prompt: str,
 
 
 def cronjob_run(job_id: str) -> str:
-    """Immediately trigger a cron job — creates a session at once, executes AI in background."""
+    """Immediately trigger a cron job — waits for AI execution, then returns session_id."""
     from agent import session_manager
 
     jobs = _load_jobs()
@@ -429,17 +429,17 @@ def cronjob_run(job_id: str) -> str:
             name = job.get("name", "")
             prompt = job.get("prompt", "")
 
-            # Step 1: Create session immediately with user message
+            # Create session + title upfront
             time_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
             session_title = f"{name} - {time_str}"
             session_id = session_manager.create_session()
-            session_manager.save_session(session_id, [
-                {"role": "user", "content": prompt},
-            ], title=session_title)
 
-            # Step 2: Record in job
+            # Run AI synchronously — updates the session with full results
+            result_sid = _execute_job_prompt(name, prompt, session_id=session_id, session_title=session_title)
+
+            # Update job record
             job["last_run_at"] = now
-            job["last_status"] = "running"
+            job["last_status"] = "completed" if result_sid else "failed"
             job["last_session_id"] = session_id
             schedule = job.get("schedule", "")
             if schedule.startswith("every") or schedule.startswith("daily"):
@@ -450,24 +450,8 @@ def cronjob_run(job_id: str) -> str:
                 job["next_run_at"] = None
             _save_jobs(jobs)
 
-            # Step 3: Launch AI execution in background thread, reusing the session
-            def _run_and_update(sid: str, nm: str, pr: str, st: str):
-                result_sid = _execute_job_prompt(nm, pr, session_id=sid, session_title=st)
-                if result_sid:
-                    jbs = _load_jobs()
-                    for j in jbs:
-                        if j.get("id") == jid:
-                            j["last_status"] = "completed"
-                            break
-                    _save_jobs(jbs)
-
-            jid = job_id  # capture for closure
-            t = threading.Thread(target=_run_and_update, args=(session_id, name, prompt, session_title),
-                                 daemon=True, name=f"cron-{job_id[:8]}")
-            t.start()
-
             return json.dumps({
-                "success": True,
+                "success": result_sid is not None,
                 "session_id": session_id,
                 "last_run_at": now,
                 "next_run_at": job.get("next_run_at"),

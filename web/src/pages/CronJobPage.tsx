@@ -24,6 +24,7 @@ export default function CronJobPage() {
   const [form, setForm] = useState({ name: "", schedule: "", prompt: "" });
   const [error, setError] = useState("");
   const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const [runLoading, setRunLoading] = useState(false);
 
   const showToast = (type: "success" | "error", msg: string) => {
     setToast({ type, msg });
@@ -73,6 +74,7 @@ export default function CronJobPage() {
   };
 
   const handleRun = async (id: string) => {
+    setRunLoading(true);
     try {
       const res = await api.post<{ success: boolean; session_id?: string }>(`/cronjobs/${id}/run`, {});
       await loadJobs();
@@ -82,6 +84,7 @@ export default function CronJobPage() {
         showToast("success", "任务已触发执行");
       }
     } catch {
+      setRunLoading(false);
       showToast("error", "执行失败");
     }
   };
@@ -255,7 +258,7 @@ export default function CronJobPage() {
                   </td>
                   <td>
                     <div className="table-actions">
-                      <button className="btn-icon" title="立即执行" onClick={() => handleRun(job.id)}>
+                      <button className="btn-icon" title="立即执行" disabled={runLoading} onClick={() => handleRun(job.id)}>
                         <IconPlayerPlayFilled size={14} />
                       </button>
                       <button className="btn-icon" title="编辑" onClick={() => startEdit(job)}>
