@@ -52,6 +52,19 @@ SCHEMA = {
 }
 
 
+def _normalize_args(raw: object) -> dict:
+    """Normalize tool args to a dict, handling JSON strings from the LLM."""
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+            return parsed if isinstance(parsed, dict) else {"_value": parsed}
+        except json.JSONDecodeError:
+            return {"_raw": raw}
+    return {"_raw": str(raw)}
+
+
 def handle_confirm_tool_execution(args: dict) -> str:
     """Handle a ``confirm_tool_execution`` tool call.
 
@@ -59,7 +72,7 @@ def handle_confirm_tool_execution(args: dict) -> str:
     2. Re-dispatch the original tool.
     """
     tool_name = args.get("tool_name", "")
-    tool_args = args.get("args", {})
+    tool_args = _normalize_args(args.get("args", {}))
 
     if not tool_name:
         return json.dumps({"success": False, "error": "tool_name 参数是必需的"})
