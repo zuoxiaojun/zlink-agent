@@ -2,8 +2,13 @@
 
 Cross-platform shell execution with timeout and dangerous-command detection.
 Supports bash (Unix) and cmd.exe / PowerShell (Windows).
+
+Also provides:
+- read_terminal: read recent command execution history
+- close_terminal: kill running processes started by the terminal tool
 """
 
+import json
 import logging
 import os
 import re
@@ -11,12 +16,23 @@ import shutil
 import signal
 import subprocess
 import sys
+import threading
+from collections import deque
 
 from agent.tools.registry import registry, tool_error, tool_result
 
 logger = logging.getLogger(__name__)
 
 _IS_WINDOWS = sys.platform == "win32"
+
+# ── Terminal execution history (for read_terminal) ───────────────────────
+_MAX_HISTORY = 50
+_terminal_history: deque[dict] = deque(maxlen=_MAX_HISTORY)
+_history_lock = threading.Lock()
+
+# Track running processes (for close_terminal)
+_running_procs: dict[int, subprocess.Popen] = {}
+_running_lock = threading.Lock()
 
 # ── Dangerous command patterns (simplified from Hermes approval.py) ──────
 
@@ -105,17 +121,49 @@ def _kill_process_tree(proc: subprocess.Popen) -> None:
             proc.kill()
 
 
+def _record_history(command: str, result: dict):
+    """Record a terminal execution result in the history buffer."""
+    with _history_lock:
+        _terminal_history.append({
+            "command": command,
+            "timestamp": __import__("datetime").datetime.now().isoformat(),
+            "stdout": result.get("stdout", ""),
+            "stderr": result.get("stderr", ""),
+            "exit_code": result.get("exit_code", -1),
+            "success": result.get("success", False),
+        })
+
+
+def _track_process(proc: subprocess.Popen) -> int:
+    """Track a running process so close_terminal can kill it later."""
+    pid = proc.pid
+    with _running_lock:
+        _running_procs[pid] = proc
+    return pid
+
+
+def _untrack_process(pid: int):
+    """Remove a finished process from the tracking dict."""
+    with _running_lock:
+        _running_procs.pop(pid, None)
+
+
 def _execute(command: str, timeout: int, workdir: str | None) -> dict:
     """Execute a shell command and return result dict."""
+    # Result accumulator — always passed through _record_history before return
+    res: dict = {}
+
     danger = _check_dangerous(command)
     if danger:
-        return {
+        res = {
             "success": False,
             "error": f"命令被拒绝: {danger}。如需执行，请手动在终端中运行。",
             "stdout": "",
             "stderr": "",
             "exit_code": -1,
         }
+        _record_history(command, res)
+        return res
 
     shell_args = _make_popen_args(command)
     cwd = workdir or os.getcwd()
@@ -135,37 +183,59 @@ def _execute(command: str, timeout: int, workdir: str | None) -> dict:
             popen_kwargs["preexec_fn"] = os.setsid
         proc = subprocess.Popen(shell_args, **popen_kwargs)
     except FileNotFoundError:
-        return {
+        res = {
             "success": False,
             "error": f"Shell not found: {shell_args[0]}",
             "stdout": "",
             "stderr": "",
             "exit_code": -1,
         }
+        _record_history(command, res)
+        return res
     except Exception as e:
-        return {
+        res = {
             "success": False,
             "error": f"Failed to start process: {e}",
             "stdout": "",
             "stderr": "",
             "exit_code": -1,
         }
+        _record_history(command, res)
+        return res
+
+    _track_process(proc)
 
     try:
         stdout, stderr = proc.communicate(timeout=timeout)
         exit_code = proc.returncode
+        _untrack_process(proc.pid)
+
+        # Truncate output
+        if stdout and len(stdout) > MAX_OUTPUT_CHARS:
+            stdout = stdout[:MAX_OUTPUT_CHARS] + f"\n\n...（已截断 {len(stdout) - MAX_OUTPUT_CHARS} 字符）"
+        if stderr and len(stderr) > MAX_OUTPUT_CHARS:
+            stderr = stderr[:MAX_OUTPUT_CHARS] + f"\n\n...（已截断 {len(stderr) - MAX_OUTPUT_CHARS} 字符）"
+
+        res = {
+            "success": exit_code == 0,
+            "stdout": stdout or "",
+            "stderr": stderr or "",
+            "exit_code": exit_code,
+        }
     except subprocess.TimeoutExpired:
         _kill_process_tree(proc)
-        stdout, stderr = proc.communicate(timeout=5)
-        return {
+        _out, _err = proc.communicate(timeout=5)
+        _untrack_process(proc.pid)
+        res = {
             "success": False,
             "error": f"命令执行超时（{timeout}秒）",
-            "stdout": stdout[:MAX_OUTPUT_CHARS] if stdout else "",
-            "stderr": stderr[:MAX_OUTPUT_CHARS] if stderr else "",
+            "stdout": (_out or "")[:MAX_OUTPUT_CHARS],
+            "stderr": (_err or "")[:MAX_OUTPUT_CHARS],
             "exit_code": -1,
         }
     except Exception as e:
-        return {
+        _untrack_process(proc.pid)
+        res = {
             "success": False,
             "error": f"执行异常: {e}",
             "stdout": "",
@@ -173,18 +243,8 @@ def _execute(command: str, timeout: int, workdir: str | None) -> dict:
             "exit_code": -1,
         }
 
-    # Truncate output
-    if stdout and len(stdout) > MAX_OUTPUT_CHARS:
-        stdout = stdout[:MAX_OUTPUT_CHARS] + f"\n\n...（已截断 {len(stdout) - MAX_OUTPUT_CHARS} 字符）"
-    if stderr and len(stderr) > MAX_OUTPUT_CHARS:
-        stderr = stderr[:MAX_OUTPUT_CHARS] + f"\n\n...（已截断 {len(stderr) - MAX_OUTPUT_CHARS} 字符）"
-
-    return {
-        "success": exit_code == 0,
-        "stdout": stdout or "",
-        "stderr": stderr or "",
-        "exit_code": exit_code,
-    }
+    _record_history(command, res)
+    return res
 
 
 def _handle_terminal(args: dict) -> str:
@@ -235,7 +295,43 @@ def _handle_terminal(args: dict) -> str:
     )
 
 
-# ── Schema ──────────────────────────────────────────────────────────────
+def _handle_read_terminal(args: dict) -> str:
+    """Handle read_terminal tool call — read recent terminal history."""
+    count = int(args.get("count", 10))
+    count = max(1, min(count, _MAX_HISTORY))
+
+    with _history_lock:
+        recent = list(_terminal_history)[-count:]
+
+    return json.dumps({"entries": recent, "total": len(recent)}, ensure_ascii=False)
+
+
+def _handle_close_terminal(args: dict) -> str:
+    """Handle close_terminal tool call — kill running processes."""
+    pid = args.get("pid")
+    killed = []
+
+    with _running_lock:
+        if pid is not None:
+            # Kill specific process
+            procs = {pid: _running_procs.get(int(pid))} if int(pid) in _running_procs else {}
+        else:
+            # Kill all running processes
+            procs = dict(_running_procs)
+
+    for p, proc in procs.items():
+        if proc and proc.poll() is None:
+            try:
+                _kill_process_tree(proc)
+                killed.append(p)
+            except Exception:
+                pass
+            _untrack_process(p)
+
+    return json.dumps({"killed": killed, "count": len(killed)}, ensure_ascii=False)
+
+
+# ── Schemas ─────────────────────────────────────────────────────────────
 
 TERMINAL_SCHEMA = {
     "name": "terminal",
@@ -269,6 +365,40 @@ TERMINAL_SCHEMA = {
     },
 }
 
+READ_TERMINAL_SCHEMA = {
+    "name": "read_terminal",
+    "description": (
+        "读取最近的终端命令执行历史。返回最近 N 条命令的输出结果。"
+        "可用于查看之前执行的命令的完整输出。"
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "count": {
+                "type": "integer",
+                "description": "要读取的最近执行记录数量（1-50，默认 10）",
+                "default": 10,
+            },
+        },
+    },
+}
+
+CLOSE_TERMINAL_SCHEMA = {
+    "name": "close_terminal",
+    "description": (
+        "终止正在运行的终端进程。不传 pid 则终止所有由 terminal 工具启动的进程。"
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "pid": {
+                "type": "integer",
+                "description": "要终止的进程 PID（不传则终止所有）",
+            },
+        },
+    },
+}
+
 registry.register(
     name="terminal",
     toolset="terminal",
@@ -276,4 +406,23 @@ registry.register(
     handler=_handle_terminal,
     emoji="💻",
     risk_level="high",
+)
+
+registry.register(
+    name="read_terminal",
+    toolset="terminal",
+    schema=READ_TERMINAL_SCHEMA,
+    handler=_handle_read_terminal,
+    description="读取最近的终端命令执行历史",
+    emoji="📜",
+)
+
+registry.register(
+    name="close_terminal",
+    toolset="terminal",
+    schema=CLOSE_TERMINAL_SCHEMA,
+    handler=_handle_close_terminal,
+    description="终止正在运行的终端进程",
+    emoji="⏹️",
+    risk_level="medium",
 )
