@@ -22,11 +22,12 @@ logger = logging.getLogger(__name__)
 
 
 def _built_in_classes() -> list[type[Extension]]:
+    from agent.extensions.audit_log import AuditLogExtension
     from agent.extensions.log_everything import LogEverythingExtension
     from agent.extensions.monitoring import MonitoringExtension
     from agent.extensions.security_event import SecurityEventExtension
 
-    return [LogEverythingExtension, MonitoringExtension, SecurityEventExtension]
+    return [LogEverythingExtension, MonitoringExtension, SecurityEventExtension, AuditLogExtension]
 
 
 _INSTANCES: list[Extension] = []
