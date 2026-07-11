@@ -33,10 +33,14 @@ logger = logging.getLogger("migrate")
 SCHEMA_VERSION = 0
 
 # ── 获取数据目录 ────────────────────────────────────────────────────────────
-# 复用 agent.utils.DATA_DIR 的逻辑
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent
-_DATA_DIR_ENV = __import__("os").environ.get("ZLINK_DATA_DIR")
-DATA_DIR = Path(_DATA_DIR_ENV) if _DATA_DIR_ENV else (_PROJECT_ROOT / "data")
+# 复用 agent.utils._resolve_data_dir 的逻辑，保持一致
+def _resolve_data_dir() -> Path:
+    env = __import__("os").environ.get("ZLINK_DATA_DIR")
+    if env:
+        return Path(env).expanduser().resolve()
+    return Path.home() / ".zlink-agent" / "data"
+
+DATA_DIR = _resolve_data_dir()
 VERSION_FILE = DATA_DIR / ".schema_version"
 
 

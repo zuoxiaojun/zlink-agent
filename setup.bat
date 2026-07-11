@@ -229,13 +229,14 @@ if not exist ".env" (
 echo.
 
 :: ── 6. 数据目录 ──────────────────────────────────────────────────────
+:: 运行时数据存放在 ~/.zlink-agent/data/ (由 agent.utils._resolve_data_dir 决定)
 echo [6/8] 创建数据目录...
-if not exist "data" mkdir data
-if not exist "data\logs" mkdir data\logs
-if not exist "data\sessions" mkdir data\sessions
-if not exist "data\memory" mkdir data\memory
-if not exist "data\backups" mkdir data\backups
-echo [OK] 数据目录就绪
+if not exist "%USERPROFILE%\.zlink-agent\data" mkdir "%USERPROFILE%\.zlink-agent\data"
+if not exist "%USERPROFILE%\.zlink-agent\data\logs" mkdir "%USERPROFILE%\.zlink-agent\data\logs"
+if not exist "%USERPROFILE%\.zlink-agent\data\sessions" mkdir "%USERPROFILE%\.zlink-agent\data\sessions"
+if not exist "%USERPROFILE%\.zlink-agent\data\memory" mkdir "%USERPROFILE%\.zlink-agent\data\memory"
+if not exist "%USERPROFILE%\.zlink-agent\data\backups" mkdir "%USERPROFILE%\.zlink-agent\data\backups"
+echo [OK] 数据目录就绪: %USERPROFILE%\.zlink-agent\data\
 echo.
 
 :: ── 7. 前端构建 ──────────────────────────────────────────────────────
@@ -246,7 +247,7 @@ if "%USE_MIRROR%"=="true" (
   call npm config set registry "%NPM_MIRROR%" 2>nul
 )
 
-call npm install --silent
+call npm install
 if errorlevel 1 (
   echo [ERROR] 前端依赖安装失败
   cd "%PROJECT_DIR%"
@@ -309,7 +310,7 @@ echo   安装路径: %PROJECT_DIR%
 if "%IS_UPGRADE%"=="true" (
   echo   用户数据: 已保留
 ) else (
-  echo   数据目录: %PROJECT_DIR%\data\
+  echo   数据目录: %USERPROFILE%\.zlink-agent\data\
 )
 echo.
 echo   启动方式：

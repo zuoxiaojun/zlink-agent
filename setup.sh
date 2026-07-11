@@ -96,6 +96,18 @@ fi
 ok "Python: $($PY_CMD --version)"
 
 if command -v node &>/dev/null; then
+    NODE_VER=$(node --version 2>&1 | sed 's/^v//' | cut -d. -f1)
+    if [ "$NODE_VER" -lt 18 ] 2>/dev/null; then
+        err "Node.js 版本过低: $(node --version)（需要 >= 18）"
+        echo ""
+        echo "  请升级 Node.js 后重新运行："
+        echo "    macOS:   brew upgrade node"
+        echo "             或 https://nodejs.org/"
+        echo "    Linux:   apt install nodejs npm"
+        echo "    Windows: https://nodejs.org/"
+        echo ""
+        exit 1
+    fi
     ok "Node.js: $(node --version)"
 else
     err "需要 Node.js >= 18，未在系统中找到。"
@@ -296,9 +308,11 @@ fi
 echo ""
 
 # ── 6. 数据目录 ────────────────────────────────────────────────────────────
+# 运行时数据存放在 ~/.zlink-agent/data/ (由 agent.utils._resolve_data_dir 决定)
 echo -e "${GREEN}[6/8] 创建数据目录...${NC}"
-mkdir -p data/logs data/sessions data/memory data/backups
-ok "数据目录就绪"
+mkdir -p "$HOME/.zlink-agent/data/logs" "$HOME/.zlink-agent/data/sessions" \
+         "$HOME/.zlink-agent/data/memory" "$HOME/.zlink-agent/data/backups"
+ok "数据目录就绪: $HOME/.zlink-agent/data/"
 echo ""
 
 # ── 7. 前端构建 ────────────────────────────────────────────────────────────
@@ -310,7 +324,13 @@ if [ -n "$NPM_MIRROR" ]; then
     info "npm 镜像已设置: $NPM_MIRROR"
 fi
 
-npm ci --silent 2>/dev/null || npm install --silent
+if ! npm ci 2>&1; then
+    warn "npm ci 失败，回退到 npm install..."
+    if ! npm install 2>&1; then
+        err "前端依赖安装失败，请检查网络或手动运行: cd web && npm install"
+        exit 1
+    fi
+fi
 ok "前端依赖安装完成"
 
 npm run build
@@ -387,7 +407,7 @@ else
     echo -e "${CYAN}╠══════════════════════════════════════════════╣${NC}"
     echo -e "${CYAN}║  安装路径: $PROJECT_DIR${NC}"
     echo -e "${CYAN}║  快捷命令: zlink                           ║${NC}"
-    echo -e "${CYAN}║  数据目录: $PROJECT_DIR/data/${NC}"
+    echo -e "${CYAN}║  数据目录: $HOME/.zlink-agent/data/${NC}"
     echo -e "${CYAN}╚══════════════════════════════════════════════╝${NC}"
 fi
 echo ""
