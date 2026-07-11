@@ -318,7 +318,7 @@ def estimate_tokens(text: str, model: str = "") -> int:
         enc = _get_encoding(model)
         if enc is not None:
             try:
-                return len(enc.encode(text, disallowed_special=()))
+                return len(enc.encode(text, disallowed_special=()))  # type: ignore[attr-defined]
             except Exception:
                 pass
 
