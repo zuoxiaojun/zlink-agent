@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppProvider, useAppState } from "./context/AppContext";
 import { api } from "./api/http";
 import Layout from "./components/Layout";
@@ -46,7 +46,7 @@ function AppInit({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <AppProvider>
         <AppInit>
           <Routes>
@@ -66,6 +66,6 @@ export default function App() {
           </Routes>
         </AppInit>
       </AppProvider>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
