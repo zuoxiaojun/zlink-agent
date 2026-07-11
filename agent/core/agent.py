@@ -262,6 +262,11 @@ class AIAgent:
         self._snapshot: TurnSnapshot | None = None
         self._envelope_seq: int = 0
 
+        # Expose LLM config for child sub-agents (delegate_task tool)
+        from agent.tools.delegate_tool import set_parent_config
+
+        set_parent_config(api_key=api_key, base_url=base_url, model=model, temperature=temperature)
+
     # ── Envelope helper ──
 
     def _enveloped(self, payload_type: str, payload: dict) -> dict:
