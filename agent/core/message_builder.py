@@ -71,6 +71,7 @@ def build_system_prompt(
     # 6. Sub-agent delegation guidance (if delegate_task tool is available)
     try:
         from agent.tools.registry import registry
+
         if "delegate_task" in registry.get_all_tool_names():
             parts.append(
                 "## 子代理委托\n"

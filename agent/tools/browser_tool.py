@@ -208,7 +208,9 @@ def handle_browser_navigate(args: dict) -> str:
     try:
         page = _BrowserSession.get_page()
         page.goto(url, wait_until="domcontentloaded")
-        return json.dumps({"success": True, "data": f"已导航到 {url}，当前页面标题: {page.title()}"}, ensure_ascii=False)
+        return json.dumps(
+            {"success": True, "data": f"已导航到 {url}，当前页面标题: {page.title()}"}, ensure_ascii=False
+        )
     except Exception as e:
         return json.dumps({"success": False, "error": f"导航失败: {e}"})
 
@@ -219,7 +221,10 @@ def handle_browser_screenshot(args: dict) -> str:
         page = _BrowserSession.get_page()
         screenshot_bytes = page.screenshot(full_page=True)
         b64 = base64.b64encode(screenshot_bytes).decode("utf-8")
-        return json.dumps({"success": True, "data": "截图已生成", "screenshot_base64": b64, "mime_type": "image/png"}, ensure_ascii=False)
+        return json.dumps(
+            {"success": True, "data": "截图已生成", "screenshot_base64": b64, "mime_type": "image/png"},
+            ensure_ascii=False,
+        )
     except Exception as e:
         return json.dumps({"success": False, "error": f"截图失败: {e}"})
 
@@ -323,18 +328,21 @@ def _make_schema(name: str, description: str, properties: dict, required: list |
 
 
 _NAVIGATE_SCHEMA = _make_schema(
-    "browser_navigate", "导航到指定 URL",
+    "browser_navigate",
+    "导航到指定 URL",
     {"url": {"type": "string", "description": "目标 URL"}},
     ["url"],
 )
 
 _SCREENSHOT_SCHEMA = _make_schema(
-    "browser_screenshot", "截取当前页面的全页截图（返回 base64 图片）",
+    "browser_screenshot",
+    "截取当前页面的全页截图（返回 base64 图片）",
     {},
 )
 
 _CLICK_SCHEMA = _make_schema(
-    "browser_click", "点击页面上的元素",
+    "browser_click",
+    "点击页面上的元素",
     {
         "selector": {"type": "string", "description": "CSS 选择器"},
         "wait_after": {"type": "number", "description": "点击后等待时间（毫秒，默认 500）"},
@@ -343,7 +351,8 @@ _CLICK_SCHEMA = _make_schema(
 )
 
 _FILL_SCHEMA = _make_schema(
-    "browser_fill", "在输入框中填写文本",
+    "browser_fill",
+    "在输入框中填写文本",
     {
         "selector": {"type": "string", "description": "CSS 选择器"},
         "value": {"type": "string", "description": "要填写的文本"},
@@ -352,35 +361,103 @@ _FILL_SCHEMA = _make_schema(
 )
 
 _GET_TEXT_SCHEMA = _make_schema(
-    "browser_get_text", "获取页面元素的文本内容",
+    "browser_get_text",
+    "获取页面元素的文本内容",
     {"selector": {"type": "string", "description": "CSS 选择器"}},
     ["selector"],
 )
 
 _GET_HTML_SCHEMA = _make_schema(
-    "browser_get_html", "获取当前页面的完整 HTML 内容",
+    "browser_get_html",
+    "获取当前页面的完整 HTML 内容",
     {},
 )
 
 _EVALUATE_SCHEMA = _make_schema(
-    "browser_evaluate", "在浏览器中执行 JavaScript 并返回结果",
+    "browser_evaluate",
+    "在浏览器中执行 JavaScript 并返回结果",
     {"code": {"type": "string", "description": "要执行的 JavaScript 代码"}},
     ["code"],
 )
 
 _CLOSE_SCHEMA = _make_schema(
-    "browser_close", "关闭浏览器实例，释放资源",
+    "browser_close",
+    "关闭浏览器实例，释放资源",
     {},
 )
 
 
 # ── Auto-registration ────────────────────────────────────────────
 
-registry.register(name="browser_navigate", toolset="browser", schema=_NAVIGATE_SCHEMA, handler=handle_browser_navigate, description="导航到指定 URL", emoji="🌐", risk_level="medium")
-registry.register(name="browser_screenshot", toolset="browser", schema=_SCREENSHOT_SCHEMA, handler=handle_browser_screenshot, description="截取当前页面截图", emoji="📸", risk_level="low")
-registry.register(name="browser_click", toolset="browser", schema=_CLICK_SCHEMA, handler=handle_browser_click, description="点击页面元素", emoji="👆", risk_level="medium")
-registry.register(name="browser_fill", toolset="browser", schema=_FILL_SCHEMA, handler=handle_browser_fill, description="填写表单输入框", emoji="✏️", risk_level="medium")
-registry.register(name="browser_get_text", toolset="browser", schema=_GET_TEXT_SCHEMA, handler=handle_browser_get_text, description="获取页面元素文本", emoji="📝", risk_level="low")
-registry.register(name="browser_get_html", toolset="browser", schema=_GET_HTML_SCHEMA, handler=handle_browser_get_html, description="获取当前页面完整 HTML", emoji="📄", risk_level="low")
-registry.register(name="browser_evaluate", toolset="browser", schema=_EVALUATE_SCHEMA, handler=handle_browser_evaluate, description="执行 JavaScript 代码", emoji="⚡", risk_level="medium")
-registry.register(name="browser_close", toolset="browser", schema=_CLOSE_SCHEMA, handler=handle_browser_close, description="关闭浏览器释放资源", emoji="🚫", risk_level="low")
+registry.register(
+    name="browser_navigate",
+    toolset="browser",
+    schema=_NAVIGATE_SCHEMA,
+    handler=handle_browser_navigate,
+    description="导航到指定 URL",
+    emoji="🌐",
+    risk_level="medium",
+)
+registry.register(
+    name="browser_screenshot",
+    toolset="browser",
+    schema=_SCREENSHOT_SCHEMA,
+    handler=handle_browser_screenshot,
+    description="截取当前页面截图",
+    emoji="📸",
+    risk_level="low",
+)
+registry.register(
+    name="browser_click",
+    toolset="browser",
+    schema=_CLICK_SCHEMA,
+    handler=handle_browser_click,
+    description="点击页面元素",
+    emoji="👆",
+    risk_level="medium",
+)
+registry.register(
+    name="browser_fill",
+    toolset="browser",
+    schema=_FILL_SCHEMA,
+    handler=handle_browser_fill,
+    description="填写表单输入框",
+    emoji="✏️",
+    risk_level="medium",
+)
+registry.register(
+    name="browser_get_text",
+    toolset="browser",
+    schema=_GET_TEXT_SCHEMA,
+    handler=handle_browser_get_text,
+    description="获取页面元素文本",
+    emoji="📝",
+    risk_level="low",
+)
+registry.register(
+    name="browser_get_html",
+    toolset="browser",
+    schema=_GET_HTML_SCHEMA,
+    handler=handle_browser_get_html,
+    description="获取当前页面完整 HTML",
+    emoji="📄",
+    risk_level="low",
+)
+registry.register(
+    name="browser_evaluate",
+    toolset="browser",
+    schema=_EVALUATE_SCHEMA,
+    handler=handle_browser_evaluate,
+    description="执行 JavaScript 代码",
+    emoji="⚡",
+    risk_level="medium",
+)
+registry.register(
+    name="browser_close",
+    toolset="browser",
+    schema=_CLOSE_SCHEMA,
+    handler=handle_browser_close,
+    description="关闭浏览器释放资源",
+    emoji="🚫",
+    risk_level="low",
+)

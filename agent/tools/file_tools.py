@@ -430,7 +430,9 @@ registry.register(
     emoji="✏️",
     risk_level="medium",
 )
-registry.register(name="patch", toolset="file", schema=PATCH_SCHEMA, handler=_handle_patch_queued, emoji="🔧", risk_level="medium")
+registry.register(
+    name="patch", toolset="file", schema=PATCH_SCHEMA, handler=_handle_patch_queued, emoji="🔧", risk_level="medium"
+)
 registry.register(
     name="search_files",
     toolset="file",

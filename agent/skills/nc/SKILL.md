@@ -1,3 +1,9 @@
+---
+name: nc
+title: NC 技能
+description: NC系统业务数据查询技能（销售/采购订单、物料、客户、供应商、库存、组织架构）
+---
+
 # NC (用友 NC Cloud) 工具使用指南
 
 > 自 v1.5.0 起，ZLink Agent 通过 [nc-mcp-server](https://atomgit.com/gcw_cJbJuamU/nc-mcp-project) 集成 NC。

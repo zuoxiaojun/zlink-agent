@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import socket
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -42,8 +42,9 @@ def _decrypt(cipher: str) -> str:
     return Fernet(key).decrypt(cipher.encode()).decode()
 
 
-class ApprovalMode(str, Enum):
+class ApprovalMode(StrEnum):
     """Command approval mode for tool execution security."""
+
     ALLOW_ALL = "allow_all"
     APPROVE_HIGH_RISK = "approve"
     REJECT_ALL = "reject_all"
