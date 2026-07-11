@@ -20,6 +20,12 @@ export default function CronJobPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ name: "", schedule: "", prompt: "" });
   const [error, setError] = useState("");
+  const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+
+  const showToast = (type: "success" | "error", msg: string) => {
+    setToast({ type, msg });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const loadJobs = useCallback(async () => {
     try {
@@ -36,9 +42,15 @@ export default function CronJobPage() {
     loadJobs();
   }, [loadJobs]);
 
+  const [toast, setToast] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+  const showToast = (type: "success" | "error", msg: string) => {
+    setToast({ type, msg });
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const handleCreate = async () => {
     if (!form.name.trim() || !form.schedule.trim() || !form.prompt.trim()) {
-      setError("请填写所有字段");
+      showToast("error", "请填写所有字段");
       return;
     }
     setError("");
@@ -46,26 +58,31 @@ export default function CronJobPage() {
       await api.post("/cronjobs", form);
       setForm({ name: "", schedule: "", prompt: "" });
       setShowCreate(false);
+      showToast("success", "任务已创建");
       await loadJobs();
     } catch (e: any) {
-      setError(e.message || "创建失败");
+      showToast("error", e.message || "创建失败");
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
       await api.del(`/cronjobs/${id}`);
+      showToast("success", "任务已删除");
       await loadJobs();
     } catch {
-      /* silent */
+      showToast("error", "删除失败");
     }
   };
 
   const handleRun = async (id: string) => {
     try {
       await api.post(`/cronjobs/${id}/run`, {});
+      showToast("success", "任务已触发执行，状态已更新");
       await loadJobs();
-    } catch { /* silent */ }
+    } catch {
+      showToast("error", "执行失败");
+    }
   };
 
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -78,23 +95,25 @@ export default function CronJobPage() {
 
   const handleSaveEdit = async () => {
     if (!editingId) return;
-    if (!editForm.name.trim()) { setError("名称不能为空"); return; }
+    if (!editForm.name.trim()) { showToast("error", "名称不能为空"); return; }
     setError("");
     try {
       await api.put(`/cronjobs/${editingId}`, editForm);
       setEditingId(null);
+      showToast("success", "任务已更新");
       await loadJobs();
     } catch (e: any) {
-      setError(e.message || "更新失败");
+      showToast("error", e.message || "更新失败");
     }
   };
 
   const handleToggle = async (id: string, enabled: boolean) => {
     try {
       await api.put(`/cronjobs/${id}/toggle`, { enabled });
+      showToast("success", enabled ? "任务已启用" : "任务已停用");
       await loadJobs();
     } catch {
-      /* silent */
+      showToast("error", "操作失败");
     }
   };
 
@@ -121,6 +140,11 @@ export default function CronJobPage() {
         </button>
       </div>
 
+      {toast && (
+        <div className={`toast toast-${toast.type}`} style={{ marginBottom: 12 }}>
+          {toast.msg}
+        </div>
+      )}
       {error && <div className="form-error" style={{ color: "var(--danger)", marginBottom: 12 }}>{error}</div>}
 
       {showCreate && (
