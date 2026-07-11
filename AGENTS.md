@@ -770,4 +770,107 @@ Both YonSuite and NC are configured via the unified ERP settings page at `/setti
 - NC uses environment variables (`ORACLE_HOST`, `ORACLE_PORT`, `ORACLE_SERVICE`, `ORACLE_USER`, `ORACLE_PASSWORD`) — verify in `mcp_server/nc_mcp/config.py`
 - YonSuite credentials are injected into the MCP subprocess's environment (`YONSUITE_APP_KEY`, `YONSUITE_APP_SECRET`, `YONSUITE_TENANT_ID`)
 
-<!-- NEXT: SECTION_2_5 -->
+### 2.5 Build & Release
+
+#### Version Number Update (5-step, all required)
+
+When bumping version:
+
+```bash
+# Step 1: pyproject.toml — update version field
+# Step 2: VERSION — update version string
+# Step 3: CHANGELOG.md — add release notes
+# Step 4: README.md — update version + feature list + project structure
+# Step 5: Git tag
+git tag vX.Y.Z && git push origin vX.Y.Z
+```
+
+Always do all five steps. Missing one causes version mismatch between displays.
+
+#### Build macOS .app
+
+```bash
+# Full build (frontend + backend)
+bash scripts/build-app.sh
+
+# Backend-only (skip frontend rebuild)
+bash scripts/build-app.sh --no-frontend
+
+# Open result
+open dist/ZLink-Agent.app
+```
+
+The build script does: build frontend → pre-cache MCP npx packages → PyInstaller → package as .app.
+
+### 2.6 Debugging Tips
+
+#### Logs
+
+| Log source | Location | Content |
+|------------|----------|---------|
+| Backend runtime | `~/.zlink-agent/data/logs/app.log` | All log levels, stderr mirror |
+| Backend startup | Terminal stderr | `[ZLink Agent] Data directory: ...` |
+| MCP server stderr | Backend logs (app.log) | MCP subprocess stderr captured by `_connect_stdio` |
+| Frontend console | Browser DevTools → Console | React errors, API call failures |
+| Frontend network | Browser DevTools → Network | API request/response payloads |
+
+#### WebSocket Debugging
+
+The chat WebSocket at `ws://localhost:8089/api/chat` sends typed JSON messages. Message types:
+
+```json
+{"seq": 1, "phase": "turn", "type": "token", "payload": {"text": "思考中..."}}
+{"seq": 2, "phase": "turn", "type": "reasoning_token", "payload": {"text": "..."}}
+{"seq": 3, "phase": "turn", "type": "tool_call", "payload": {"name": "web_search", ...}}
+{"seq": 4, "phase": "idle", "type": "final", "payload": {"text": "回答完毕", ...}}
+```
+
+WebSocket frames use the `Envelope` format defined in `agent/core/agent.py:110-123`:
+- `seq` — monotonically incrementing sequence number
+- `phase` — agent lifecycle phase (`idle` / `turn` / `compaction` / `retry`)
+- `type` — payload type (`token` / `reasoning_token` / `tool_call` / `final` / `error`)
+- `payload` — message-specific data
+
+Use browser DevTools to inspect WebSocket frames: **Network → WS → Messages**.
+
+#### MCP Server Debugging
+
+- Check `GET /api/config/mcp-servers` for server status (connected/disconnected/error)
+- Circuit breaker state: 3 consecutive failures → 60s cooldown; see `_circuit_breaker_blocks()`
+- Test a standalone MCP server:
+  ```bash
+  echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | .venv/bin/python -m mcp_server.ys_mcp_server
+  ```
+  Expected response: JSON-RPC response with server capabilities
+
+#### Config Direct Edit
+
+In emergencies, config can be edited directly:
+
+```bash
+# View decrypted config
+python -c "from agent import config_manager; cfg = config_manager.load(); print(cfg.model_dump_json(indent=2))"
+
+# Edit raw file, then reload backend
+vim ~/.zlink-agent/data/config.json
+```
+
+Warning: Editing `encrypted:` fields by hand will break decryption. Use the Settings UI for secret fields, or use `config_manager.encrypt_secret()` to generate new encrypted values.
+
+#### Checking Tool Registration
+
+```bash
+python -c "from agent.tools.registry import discover_tools, registry; discover_tools(); tools = registry.get_all_tool_names(); print(f'{len(tools)} tools registered:'); print('\n'.join(sorted(tools)))"
+```
+
+Expected: ~27 tool names printed (terminal, file, web, skills, MCP, todo, clarify, memory, session_search).
+
+#### Test Coverage
+
+```bash
+.venv/bin/python -m pytest tests/ --cov=agent --cov=backend --cov-report=term-missing
+```
+
+Target: 70%+ coverage overall.
+
+<!-- END_DOCUMENT -->
