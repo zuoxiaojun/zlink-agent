@@ -10,7 +10,6 @@ web/dist/
 web/node_modules/
 .DS_Store
 .vite/
-AGENTS.md
 docs/superpowers/
 releases/
 .codex/
@@ -23,6 +22,7 @@ releases/
 # Electron + PyInstaller 构建产物
 dist/
 build/
+dist-electron/
 
 CLAUDE.md
 
