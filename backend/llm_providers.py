@@ -17,10 +17,12 @@ LLM_PROVIDERS = {
     "DeepSeek": {
         "base_url": "https://api.deepseek.com",
         "models": [
-            {"id": "deepseek-chat", "context_length": 1000000, "max_output": 8192},
-            {"id": "deepseek-reasoner", "context_length": 1000000, "max_output": 8192},
+            # deepseek-chat 和 deepseek-reasoner 将于 2026/07/24 弃用，
+            # 分别对应 deepseek-v4-flash 的非思考与思考模式。
+            {"id": "deepseek-chat", "context_length": 1000000, "max_output": 384000},
+            {"id": "deepseek-reasoner", "context_length": 1000000, "max_output": 384000},
             {"id": "deepseek-v4-flash", "context_length": 1000000, "max_output": 384000},
-            {"id": "deepseek-v4-pro", "context_length": 1000000},
+            {"id": "deepseek-v4-pro", "context_length": 1000000, "max_output": 384000},
         ],
         "api_key_label": "DeepSeek API Key",
         "api_key_placeholder": "sk-...",
@@ -40,7 +42,8 @@ LLM_PROVIDERS = {
         "base_url": "https://api.moonshot.cn/v1",
         "models": [
             {"id": "kimi-k2.5", "context_length": 128000},
-            {"id": "kimi-latest", "context_length": 128000},
+            {"id": "kimi-k2.6", "context_length": 128000},
+            {"id": "kimi-k2.7-code", "context_length": 128000},
         ],
         "api_key_label": "Kimi API Key",
         "api_key_placeholder": "sk-kimi-...",

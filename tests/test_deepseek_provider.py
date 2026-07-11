@@ -26,3 +26,10 @@ def test_deepseek_models_have_context_length():
     for model in LLM_PROVIDERS["DeepSeek"]["models"]:
         assert "context_length" in model
         assert model["context_length"] > 0
+
+
+def test_deepseek_models_have_max_output():
+    """Each DeepSeek model must specify max_output (384K for v4-flash family)."""
+    for model in LLM_PROVIDERS["DeepSeek"]["models"]:
+        assert "max_output" in model, f"{model['id']} missing max_output"
+        assert model["max_output"] > 0
