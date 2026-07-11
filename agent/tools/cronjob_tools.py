@@ -414,7 +414,9 @@ def _execute_job_prompt(name: str, prompt: str) -> str | None:
 
 
 def cronjob_run(job_id: str) -> str:
-    """Immediately trigger a cron job — runs the prompt through the AI and creates a session."""
+    """Immediately trigger a cron job — creates a session at once, executes AI in background."""
+    from agent import session_manager
+
     jobs = _load_jobs()
     for job in jobs:
         if job.get("id") == job_id:
@@ -422,28 +424,45 @@ def cronjob_run(job_id: str) -> str:
             name = job.get("name", "")
             prompt = job.get("prompt", "")
 
-            # Execute the actual job
-            session_id = _execute_job_prompt(name, prompt)
-            job["last_run_at"] = now
-            job["last_status"] = "completed" if session_id else "failed"
-            job["last_session_id"] = session_id
+            # Step 1: Create session immediately with user message
+            time_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+            session_title = f"{name} - {time_str}"
+            session_id = session_manager.create_session()
+            session_manager.save_session(session_id, [
+                {"role": "user", "content": prompt},
+            ], title=session_title)
 
-            # Recalculate next run for recurring schedules
+            # Step 2: Record in job
+            job["last_run_at"] = now
+            job["last_status"] = "running"
+            job["last_session_id"] = session_id
             schedule = job.get("schedule", "")
             if schedule.startswith("every") or schedule.startswith("daily"):
                 next_nr = _next_run(schedule)
-                if next_nr:
-                    job["next_run_at"] = next_nr
-                else:
-                    job["next_run_at"] = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+                job["next_run_at"] = next_nr or (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
             else:
-                # One-shot: disable after manual trigger
                 job["enabled"] = False
                 job["next_run_at"] = None
-
             _save_jobs(jobs)
+
+            # Step 3: Launch AI execution in background thread
+            def _run_and_update(sid: str, nm: str, pr: str, st: str):
+                result_sid = _execute_job_prompt(nm, pr)
+                if result_sid:
+                    jbs = _load_jobs()
+                    for j in jbs:
+                        if j.get("id") == jid:
+                            j["last_status"] = "completed"
+                            break
+                    _save_jobs(jbs)
+
+            jid = job_id  # capture for closure
+            t = threading.Thread(target=_run_and_update, args=(session_id, name, prompt, session_title),
+                                 daemon=True, name=f"cron-{job_id[:8]}")
+            t.start()
+
             return json.dumps({
-                "success": session_id is not None,
+                "success": True,
                 "session_id": session_id,
                 "last_run_at": now,
                 "next_run_at": job.get("next_run_at"),
