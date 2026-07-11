@@ -40,7 +40,7 @@ def _lock():
             return self
 
         def __exit__(self, *args):
-            if hasattr(self, "_fd") and self._fd is not None:
+            if hasattr(self, "_fd") and self._fd is not None and _fcntl:
                 _fcntl.flock(self._fd, _fcntl.LOCK_UN)
                 os.close(self._fd)
                 self._fd = None
