@@ -313,11 +313,15 @@ def cronjob_update(job_id: str, name: str, schedule: str, prompt: str) -> str:
     return json.dumps({"success": False, "error": f"未找到任务: {job_id}"})
 
 
-def _execute_job_prompt(name: str, prompt: str) -> str | None:
+def _execute_job_prompt(name: str, prompt: str,
+                        session_id: str | None = None,
+                        session_title: str | None = None) -> str | None:
     """Run the job's prompt through the AI agent and save as a session.
 
-    Returns the session_id if successful, None on failure.
-    The session title is '{name} - {execution_time}' so it's findable in history.
+    If *session_id* is provided, updates that existing session instead of creating
+    a new one (used for manual "run now" where the session was pre-created).
+
+    Returns the session_id (existing or new) if successful, None on failure.
     """
     try:
         from agent import config_manager
@@ -333,11 +337,12 @@ def _execute_job_prompt(name: str, prompt: str) -> str | None:
             logger.warning("Cron job '%s': no LLM API key configured, skipping execution", name)
             return None
 
-        # Create a session
+        # Use existing session or create new one
         now = datetime.now(timezone.utc)
-        time_str = now.strftime("%Y-%m-%d %H:%M")
-        session_title = f"{name} - {time_str}"
-        session_id = session_manager.create_session()
+        if not session_id:
+            time_str = now.strftime("%Y-%m-%d %H:%M")
+            session_title = session_title or f"{name} - {time_str}"
+            session_id = session_manager.create_session()
 
         # Build agent with compaction disabled (one-shot execution)
         agent = AIAgent(
@@ -404,8 +409,8 @@ def _execute_job_prompt(name: str, prompt: str) -> str | None:
         ):
             messages.append({"role": "assistant", "content": final})
 
-        session_manager.save_session(session_id, messages, title=session_title)
-        logger.info("Cron job '%s' session saved: %s (%s)", name, session_id, session_title)
+        session_manager.save_session(session_id, messages, title=session_title or name)
+        logger.info("Cron job '%s' session saved: %s (%s)", name, session_id, session_title or name)
         return session_id
 
     except Exception as e:
@@ -445,9 +450,9 @@ def cronjob_run(job_id: str) -> str:
                 job["next_run_at"] = None
             _save_jobs(jobs)
 
-            # Step 3: Launch AI execution in background thread
+            # Step 3: Launch AI execution in background thread, reusing the session
             def _run_and_update(sid: str, nm: str, pr: str, st: str):
-                result_sid = _execute_job_prompt(nm, pr)
+                result_sid = _execute_job_prompt(nm, pr, session_id=sid, session_title=st)
                 if result_sid:
                     jbs = _load_jobs()
                     for j in jbs:
