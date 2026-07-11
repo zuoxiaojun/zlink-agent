@@ -48,7 +48,7 @@ class MonitoringExtension(Extension):
             self._metrics.errors_total.labels(type="session_error").inc()
         else:
             self._metrics.sessions_total.labels(status="completed").inc()
-        self._metrics.active_sessions.dec()
+        self._metrics.active_sessions.dec()  # type: ignore[attr-defined]
 
     def on_before_llm_call(self, event: BeforeLLMCallEvent) -> None:
         self._llm_start = time.monotonic()
