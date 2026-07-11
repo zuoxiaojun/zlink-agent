@@ -429,13 +429,11 @@ def cronjob_run(job_id: str) -> str:
             name = job.get("name", "")
             prompt = job.get("prompt", "")
 
-            # Create session with user message so the chat page can find it
+            # Create empty session — WebSocket auto-send will populate it
             time_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
             session_title = f"{name} - {time_str}"
             session_id = session_manager.create_session()
-            session_manager.save_session(session_id, [
-                {"role": "user", "content": prompt},
-            ], title=session_title)
+            session_manager.save_session(session_id, [], title=session_title)
 
             # Update job record
             job["last_run_at"] = now
