@@ -80,6 +80,7 @@ export interface AgentConfigPayload {
   max_context_tokens_auto: boolean;
   reserve_tokens: number;
   keep_recent_tokens: number;
+  approval_mode: string;
 }
 
 export interface ConfigResponse {

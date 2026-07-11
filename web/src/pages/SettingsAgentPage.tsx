@@ -15,6 +15,7 @@ export default function SettingsAgentPage() {
   const [maxContextTokens, setMaxContextTokens] = useState(cfg?.max_context_tokens || 128000);
   const [reserveTokens, setReserveTokens] = useState(cfg?.reserve_tokens || 4000);
   const [keepRecentTokens, setKeepRecentTokens] = useState(cfg?.keep_recent_tokens || 8000);
+  const [approvalMode, setApprovalMode] = useState(cfg?.approval_mode || "allow_all");
   const [saved, setSaved] = useState(false);
 
   const handleSave = async () => {
@@ -25,6 +26,7 @@ export default function SettingsAgentPage() {
       max_context_tokens_auto: ctxAuto,
       reserve_tokens: reserveTokens,
       keep_recent_tokens: keepRecentTokens,
+      approval_mode: approvalMode,
     };
     await api.put("/config/agent", payload);
     dispatch({ type: "SET_CONFIG", config: { ...state.config!, agent: payload } });
@@ -71,6 +73,15 @@ export default function SettingsAgentPage() {
           <div className="form-group">
             <span className="form-label">保留最近对话量</span>
             <div className="card-body">{fmt(cfg?.keep_recent_tokens || 8000)} tokens</div>
+          </div>
+          <div className="form-group">
+            <span className="form-label">命令审批模式</span>
+            <div className="card-body">
+              {cfg?.approval_mode === "allow_all" && "自动放行"}
+              {cfg?.approval_mode === "approve" && "高风险需审批"}
+              {cfg?.approval_mode === "reject_all" && "全部拒绝"}
+              {!cfg?.approval_mode && "自动放行"}
+            </div>
           </div>
           <div className="card-actions">
             <button className="btn btn-secondary" onClick={() => { setEdit(true); setSaved(false); }}><Pencil size={14} /> 编辑</button>
@@ -187,6 +198,47 @@ export default function SettingsAgentPage() {
               onChange={(e) => setKeepRecentTokens(Number(e.target.value))}
             />
             <div style={{ fontSize: "12px", color: "var(--text-3)" }}>压缩时保留最近多少 tokens 的对话不被压缩</div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">命令审批模式</label>
+            <div style={{ display: "flex", gap: "12px" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "14px" }}>
+                <input
+                  type="radio"
+                  name="approvalMode"
+                  value="allow_all"
+                  checked={approvalMode === "allow_all"}
+                  onChange={(e) => setApprovalMode(e.target.value)}
+                />
+                自动放行
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "14px" }}>
+                <input
+                  type="radio"
+                  name="approvalMode"
+                  value="approve"
+                  checked={approvalMode === "approve"}
+                  onChange={(e) => setApprovalMode(e.target.value)}
+                />
+                高风险需审批
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "14px" }}>
+                <input
+                  type="radio"
+                  name="approvalMode"
+                  value="reject_all"
+                  checked={approvalMode === "reject_all"}
+                  onChange={(e) => setApprovalMode(e.target.value)}
+                />
+                全部拒绝
+              </label>
+            </div>
+            <div style={{ fontSize: "12px", color: "var(--text-3)", marginTop: "4px" }}>
+              {approvalMode === "allow_all" && "所有工具直接执行，无需审批（默认）"}
+              {approvalMode === "approve" && "高风险操作（终端命令、文件删除等）需要用户批准后才能执行"}
+              {approvalMode === "reject_all" && "拒绝所有中高风险操作，仅允许低风险工具执行"}
+            </div>
           </div>
 
           <div className="form-actions">
