@@ -1,4 +1,4 @@
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import { useAppState } from "../context/AppContext";
 import { ChatWebSocket } from "../api/ws";
 import type { WsServerMessage } from "../types";
@@ -13,7 +13,9 @@ export function useChat(options?: UseChatOptions) {
   const stopRequestedRef = useRef(false);
   const runningRef = useRef(false);
   const onApprovalRequestRef = useRef(options?.onApprovalRequest);
-  onApprovalRequestRef.current = options?.onApprovalRequest;
+  useEffect(() => {
+    onApprovalRequestRef.current = options?.onApprovalRequest;
+  }, [options?.onApprovalRequest]);
 
   const sendMessage = useCallback(
     (content: string | import("../types").ContentPart[], sessionOverride?: string) => {
