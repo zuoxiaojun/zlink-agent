@@ -276,6 +276,41 @@ def cronjob_toggle(job_id: str, enabled: bool) -> str:
     return json.dumps({"success": False, "error": f"未找到任务: {job_id}"})
 
 
+def cronjob_update(job_id: str, name: str, schedule: str, prompt: str) -> str:
+    """Update a cron job's name, schedule, and/or prompt."""
+    name = (name or "").strip()
+    schedule = (schedule or "").strip()
+    prompt = (prompt or "").strip()
+
+    if not name:
+        return json.dumps({"success": False, "error": "任务名称不能为空"})
+
+    jobs = _load_jobs()
+    for job in jobs:
+        if job.get("id") == job_id:
+            job["name"] = name
+            if schedule:
+                # Validate new schedule
+                next_nr = _next_run(schedule)
+                if next_nr is None:
+                    return json.dumps({
+                        "success": False,
+                        "error": f"无法解析调度表达式: '{schedule}'",
+                    })
+                job["schedule"] = schedule
+                job["next_run_at"] = next_nr
+            if prompt:
+                job["prompt"] = prompt
+            _save_jobs(jobs)
+            return json.dumps({
+                "success": True,
+                "id": job_id,
+                "name": name,
+                "next_run_at": job.get("next_run_at"),
+            }, ensure_ascii=False)
+    return json.dumps({"success": False, "error": f"未找到任务: {job_id}"})
+
+
 def cronjob_run(job_id: str) -> str:
     """Immediately trigger a cron job (mark as fired now)."""
     jobs = _load_jobs()
@@ -335,6 +370,21 @@ CRONJOB_DELETE_SCHEMA = {
             "job_id": {"type": "string", "description": "任务 ID"},
         },
         "required": ["job_id"],
+    },
+}
+
+CRONJOB_UPDATE_SCHEMA = {
+    "name": "cronjob_update",
+    "description": "修改定时任务的名称、调度表达式和/或提示词。不传的字段保持不变。",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "job_id": {"type": "string", "description": "任务 ID"},
+            "name": {"type": "string", "description": "新名称"},
+            "schedule": {"type": "string", "description": "新调度表达式（可选）"},
+            "prompt": {"type": "string", "description": "新提示词（可选）"},
+        },
+        "required": ["job_id", "name"],
     },
 }
 
@@ -407,6 +457,21 @@ registry.register(
     ),
     description="立即执行定时任务",
     emoji="▶️",
+    risk_level="medium",
+)
+
+registry.register(
+    name="cronjob_update",
+    toolset="cron",
+    schema=CRONJOB_UPDATE_SCHEMA,
+    handler=lambda args, **kw: cronjob_update(
+        job_id=args.get("job_id", ""),
+        name=args.get("name", ""),
+        schedule=args.get("schedule", ""),
+        prompt=args.get("prompt", ""),
+    ),
+    description="修改定时任务",
+    emoji="✏️",
     risk_level="medium",
 )
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { IconPlus, IconTrash, IconPlayerPlay, IconPlayerPause, IconRefresh, IconPlayerPlayFilled } from "@tabler/icons-react";
+import { IconPlus, IconTrash, IconPlayerPlay, IconPlayerPause, IconRefresh, IconPlayerPlayFilled, IconEdit, IconX } from "@tabler/icons-react";
 import { api } from "../api/http";
 
 interface CronJob {
@@ -66,6 +66,27 @@ export default function CronJobPage() {
       await api.post(`/cronjobs/${id}/run`, {});
       await loadJobs();
     } catch { /* silent */ }
+  };
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", schedule: "", prompt: "" });
+
+  const startEdit = (job: CronJob) => {
+    setEditingId(job.id);
+    setEditForm({ name: job.name, schedule: job.schedule, prompt: job.prompt });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingId) return;
+    if (!editForm.name.trim()) { setError("名称不能为空"); return; }
+    setError("");
+    try {
+      await api.put(`/cronjobs/${editingId}`, editForm);
+      setEditingId(null);
+      await loadJobs();
+    } catch (e: any) {
+      setError(e.message || "更新失败");
+    }
   };
 
   const handleToggle = async (id: string, enabled: boolean) => {
@@ -161,42 +182,62 @@ export default function CronJobPage() {
           </thead>
           <tbody>
             {jobs.map((job) => (
-              <tr key={job.id}>
-                <td><strong>{job.name}</strong></td>
-                <td><code>{job.schedule}</code></td>
-                <td>{formatTime(job.last_run_at)}</td>
-                <td>{formatTime(job.next_run_at)}</td>
-                <td>
-                  <span className={`badge ${job.enabled ? "badge-active" : "badge-inactive"}`}>
-                    {job.enabled ? "运行中" : "已停用"}
-                  </span>
-                </td>
-                <td>
-                  <div className="table-actions">
-                    <button
-                      className="btn-icon"
-                      title="立即执行"
-                      onClick={() => handleRun(job.id)}
-                    >
-                      <IconPlayerPlayFilled size={14} />
-                    </button>
-                    <button
-                      className="btn-icon"
-                      title={job.enabled ? "停用" : "启用"}
-                      onClick={() => handleToggle(job.id, !job.enabled)}
-                    >
-                      {job.enabled ? <IconPlayerPause size={14} /> : <IconPlayerPlay size={14} />}
-                    </button>
-                    <button
-                      className="btn-icon"
-                      title="删除"
-                      onClick={() => handleDelete(job.id)}
-                    >
-                      <IconTrash size={14} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
+              editingId === job.id ? (
+                <tr key={job.id}>
+                  <td colSpan={6} style={{ padding: 0 }}>
+                    <div className="card" style={{ margin: 8, padding: 16 }}>
+                      <div className="form-group">
+                        <label>任务名称</label>
+                        <input className="form-input" value={editForm.name}
+                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+                      </div>
+                      <div className="form-group">
+                        <label>调度表达式</label>
+                        <input className="form-input" value={editForm.schedule}
+                          onChange={(e) => setEditForm({ ...editForm, schedule: e.target.value })} />
+                      </div>
+                      <div className="form-group">
+                        <label>执行提示词</label>
+                        <textarea className="form-input" value={editForm.prompt} rows={2}
+                          onChange={(e) => setEditForm({ ...editForm, prompt: e.target.value })} />
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button className="btn btn-primary" onClick={handleSaveEdit}>保存</button>
+                        <button className="btn" onClick={() => setEditingId(null)}>取消</button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={job.id}>
+                  <td><strong>{job.name}</strong></td>
+                  <td><code>{job.schedule}</code></td>
+                  <td>{formatTime(job.last_run_at)}</td>
+                  <td>{formatTime(job.next_run_at)}</td>
+                  <td>
+                    <span className={`badge ${job.enabled ? "badge-active" : "badge-inactive"}`}>
+                      {job.enabled ? "运行中" : "已停用"}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="table-actions">
+                      <button className="btn-icon" title="立即执行" onClick={() => handleRun(job.id)}>
+                        <IconPlayerPlayFilled size={14} />
+                      </button>
+                      <button className="btn-icon" title="编辑" onClick={() => startEdit(job)}>
+                        <IconEdit size={14} />
+                      </button>
+                      <button className="btn-icon" title={job.enabled ? "停用" : "启用"}
+                        onClick={() => handleToggle(job.id, !job.enabled)}>
+                        {job.enabled ? <IconPlayerPause size={14} /> : <IconPlayerPlay size={14} />}
+                      </button>
+                      <button className="btn-icon" title="删除" onClick={() => handleDelete(job.id)}>
+                        <IconTrash size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
             ))}
           </tbody>
         </table>
