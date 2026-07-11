@@ -245,7 +245,7 @@ export default function CronJobPage() {
                   <td>{formatTime(job.next_run_at)}</td>
                   <td>
                     <span className={`badge ${job.enabled ? "badge-active" : "badge-inactive"}`}>
-                      {job.enabled ? "运行中" : "已停用"}
+                      {job.enabled ? "生效中" : "已停用"}
                     </span>
                   </td>
                   <td>
