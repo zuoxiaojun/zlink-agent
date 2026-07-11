@@ -264,10 +264,10 @@ class AnthropicProvider(LLMProvider):
                 resp = client.messages.create(
                     model=model,
                     system=system_text or "",
-                    messages=anth_messages,
+                    messages=anth_messages,  # type: ignore[arg-type]
                     temperature=temperature,
                     max_tokens=anth_max,
-                    tools=anth_tools,
+                    tools=anth_tools,  # type: ignore[arg-type]
                 )
                 return _anthropic_response_to_llm(resp)
             except Exception as e:

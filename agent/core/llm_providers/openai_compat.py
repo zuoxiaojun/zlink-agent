@@ -17,7 +17,7 @@ import json
 import logging
 import threading
 from collections.abc import Callable
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import httpx
 
@@ -28,6 +28,9 @@ from agent.core.llm_providers.base import (
     ToolCallPayload,
     chat_with_retry,
 )
+
+if TYPE_CHECKING:
+    import openai
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +74,7 @@ class OpenAICompatProvider(LLMProvider):
         self.max_retry_delay = max_retry_delay
 
     @property
-    def client(self) -> openai.OpenAI:
+    def client(self) -> "openai.OpenAI":
         """Lazy HTTP client.  Exposed for M4 compaction."""
         import openai
 

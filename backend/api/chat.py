@@ -54,7 +54,7 @@ def _generate_summary(messages: list[dict], api_key: str, base_url: str, model: 
         client = OpenAI(api_key=api_key, base_url=base_url.rstrip("/"), timeout=15.0)
         resp = client.chat.completions.create(
             model=model,
-            messages=[
+            messages=[  # type: ignore[arg-type]
                 {
                     "role": "system",
                     "content": "生成一段中文对话摘要，概括用户的核心需求和助手提供的关键信息。控制在100字以内。",
