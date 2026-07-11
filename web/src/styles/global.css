@@ -605,6 +605,7 @@ body {
 }
 
 .chat-input-wrapper {
+  position: relative;
   display: flex;
   flex-direction: column;
   background: var(--bg-card);
@@ -815,6 +816,62 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Slash Command Popup
+   ═══════════════════════════════════════════════════════════ */
+
+.slash-popup {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 4px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+}
+
+.slash-popup-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.1s;
+}
+
+.slash-popup-item:hover,
+.slash-popup-item.active {
+  background: var(--bg-hover);
+}
+
+.slash-popup-name {
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  font-size: 13px;
+  color: var(--text-1);
+}
+
+.slash-popup-desc {
+  font-size: 0.85em;
+  color: var(--text-3);
+  margin-left: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.slash-popup-empty {
+  padding: 12px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 13px;
 }
 
 /* ═══════════════════════════════════════════════════════════

@@ -1,6 +1,8 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { IconSend, IconPaperclip, IconX } from "@tabler/icons-react";
-import type { ContentPart } from "../types";
+import { api } from "../api/http";
+import type { ContentPart, SlashCommandInfo, SlashCommandsResponse } from "../types";
+import SlashCommandPopup from "./SlashCommandPopup";
 
 interface AttachedFile {
   id: string;
@@ -21,10 +23,27 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<AttachedFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
+  const [cursorPos, setCursorPos] = useState(0);
+  const [filterText, setFilterText] = useState("");
+  const [allCommands, setAllCommands] = useState<SlashCommandInfo[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
     if (!disabled) textareaRef.current?.focus();
   }, [disabled]);
+
+  // Fetch available slash commands once on mount
+  useEffect(() => {
+    api.get<SlashCommandsResponse>("/slash-commands")
+      .then((res) => setAllCommands(res.commands))
+      .catch(() => { /* fail silently — popup simply won't appear */ });
+  }, []);
+
+  const filteredCommands = useMemo(() => {
+    if (!filterText) return allCommands;
+    return allCommands.filter((c) => c.name.startsWith(filterText));
+  }, [allCommands, filterText]);
 
   const handleSubmit = () => {
     const trimmed = text.trim();
@@ -47,6 +66,35 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (showPopup) {
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          if (filteredCommands.length > 0) {
+            setActiveIndex((i) => Math.min(i + 1, filteredCommands.length - 1));
+          }
+          return;
+        case "ArrowUp":
+          e.preventDefault();
+          if (filteredCommands.length > 0) {
+            setActiveIndex((i) => Math.max(i - 1, 0));
+          }
+          return;
+        case "Enter":
+          if (!e.shiftKey && !isComposingRef.current) {
+            e.preventDefault();
+            if (filteredCommands.length > 0 && filteredCommands[activeIndex]) {
+              handleCommandSelect(filteredCommands[activeIndex].name);
+            }
+          }
+          return;
+        case "Escape":
+          e.preventDefault();
+          setShowPopup(false);
+          return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey && !isComposingRef.current) {
       e.preventDefault();
       handleSubmit();
@@ -88,6 +136,56 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
     }
   };
 
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    const cursor = e.target.selectionStart;
+    setText(val);
+    setCursorPos(cursor);
+
+    // Detect if user is typing a slash command at the current cursor position
+    const beforeCursor = val.slice(0, cursor);
+    const lastWord = beforeCursor.split(/[\s\n]/).pop() || "";
+    const isSlashTyping = lastWord.startsWith("/") && lastWord.length > 0;
+
+    if (isSlashTyping) {
+      const filter = lastWord.slice(1); // text after "/"
+      setShowPopup(true);
+      setFilterText(filter);
+      setActiveIndex(0);
+    } else {
+      setShowPopup(false);
+    }
+  };
+
+  const handleCommandSelect = (name: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const curCursor = ta.selectionStart;
+    const beforeCursor = text.slice(0, curCursor);
+    const lastSlashIndex = beforeCursor.lastIndexOf("/");
+    if (lastSlashIndex === -1) return;
+
+    const cmd = allCommands.find((c) => c.name === name);
+    const replacement = cmd ? cmd.usage : `/${name}`;
+
+    // Find the end of the current slash-word (stop at whitespace or end of string)
+    const afterCursor = text.slice(curCursor);
+    const endMatch = afterCursor.search(/[\s\n]/);
+    const wordEnd = endMatch >= 0 ? curCursor + endMatch : text.length;
+
+    const newText =
+      text.slice(0, lastSlashIndex) + replacement + text.slice(wordEnd);
+    setText(newText);
+    setShowPopup(false);
+
+    // Move cursor to end of the inserted command usage
+    setTimeout(() => {
+      ta.focus();
+      const newCursor = lastSlashIndex + replacement.length;
+      ta.setSelectionRange(newCursor, newCursor);
+    }, 0);
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(true);
@@ -114,6 +212,15 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
+        {showPopup && (
+          <SlashCommandPopup
+            commands={filteredCommands}
+            activeIndex={activeIndex}
+            onSelect={handleCommandSelect}
+            onClose={() => setShowPopup(false)}
+            onHover={setActiveIndex}
+          />
+        )}
         {files.length > 0 && (
           <div className="chat-attachments">
             {files.map((f) => (
@@ -132,7 +239,7 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
             ref={textareaRef}
             className="chat-textarea"
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={handleTextChange}
             onKeyDown={handleKeyDown}
             onCompositionStart={() => { isComposingRef.current = true; }}
             onCompositionEnd={() => { isComposingRef.current = false; }}
