@@ -4,23 +4,23 @@
 
 from __future__ import annotations
 
+import json
 import logging
 
+from agent import config_manager
+from agent.tools.mcp_manager import connect_server, disconnect_server, get_server_statuses
 from mcp_server.nc_mcp.config import build_nc_mcp_config
 
 logger = logging.getLogger(__name__)
 
 NC_MCP_NAME = "mcp-nc"
 
-# 顶层导入, 便于测试 mock; 真实场景下避免循环依赖
-try:
-    from agent.config_manager import get_config
-    from agent.tools.mcp_manager import get_server_statuses, reconnect_server
-except ImportError:
-    # 避免硬依赖 (e.g. nc_mcp 作为独立包被 import 时)
-    get_config = None
-    get_server_statuses = None
-    reconnect_server = None
+
+def _persist_mcp_nc_config(target: dict) -> None:
+    """把 mcp-nc 配置写进 config.json 的 mcp_servers 字段, 确保 get_server_statuses 能发现它"""
+    raw = json.loads(config_manager.CONFIG_FILE.read_text(encoding="utf-8"))
+    raw.setdefault("mcp_servers", {})[NC_MCP_NAME] = target
+    config_manager.atomic_json_write(config_manager.CONFIG_FILE, raw)
 
 
 async def sync_nc_mcp() -> None:
@@ -28,11 +28,11 @@ async def sync_nc_mcp() -> None:
     每次配置变更后调用, 确保 mcp-nc 状态与 erp_clients.nc.enabled 一致
 
     行为:
-    - enabled=True: 启动 nc-mcp-server, 工具自动注册到 LLM
-    - enabled=False: 停止 nc-mcp-server, 工具从 LLM 视野消失
+    - enabled=True: 把 mcp-nc 注册到 config.json + 启动进程
+    - enabled=False: 停止进程 + 保留配置 (启用时可用)
     - 配置不存在: no-op
     """
-    config = get_config()
+    config = config_manager.get_config()
     nc_cfg = config.get("erp_clients", {}).get("nc")
 
     if nc_cfg is None:
@@ -42,15 +42,18 @@ async def sync_nc_mcp() -> None:
     enabled = bool(nc_cfg.get("enabled", False))
     target = build_nc_mcp_config(nc_cfg, enabled=enabled)
 
+    # 先持久化, 确保 get_server_statuses 能找到 mcp-nc
+    _persist_mcp_nc_config(target)
+
     statuses = {s["name"]: s for s in get_server_statuses()}
     current = statuses.get(NC_MCP_NAME, {})
     current_status = current.get("status", "disconnected")
 
     if enabled and current_status != "connected":
         logger.info("启动 mcp-nc (host=%s)", nc_cfg.get("host"))
-        await reconnect_server(NC_MCP_NAME, target)
+        await connect_server(NC_MCP_NAME, target)
     elif not enabled and current_status == "connected":
         logger.info("停止 mcp-nc")
-        await reconnect_server(NC_MCP_NAME, {**target, "enabled": False})
+        await disconnect_server(NC_MCP_NAME)
     else:
         logger.debug("mcp-nc 状态已同步 (enabled=%s, current=%s)", enabled, current_status)

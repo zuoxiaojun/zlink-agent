@@ -71,12 +71,12 @@ export default function SettingsLLMPage() {
         <button className="back-btn" onClick={() => navigate("/")}>
           <ArrowLeft size={16} />
         </button>
-        <h1 className="page-title">LLM 配置</h1>
+        <h1 className="page-title">大模型配置</h1>
       </div>
 
       {saved && (
         <div className="toast toast-success">
-          <CircleCheck size={14} /> LLM 配置已保存
+          <CircleCheck size={14} /> 大模型配置已保存
         </div>
       )}
 

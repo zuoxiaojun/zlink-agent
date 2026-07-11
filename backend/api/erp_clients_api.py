@@ -71,6 +71,25 @@ def _mask_secrets(name: str, cfg: dict) -> dict:
     return masked
 
 
+def _mcp_env_to_erp_config(mcp_cfg: dict) -> dict:
+    """从 mcp_servers.mcp-nc.env 反向构造 erp_clients.nc 样式的配置"""
+    env = mcp_cfg.get("env", {})
+    max_rows_raw = env.get("NC_MCP_MAX_ROWS", "200")
+    try:
+        max_rows = int(max_rows_raw)
+    except (ValueError, TypeError):
+        max_rows = 200
+    return {
+        "enabled": bool(mcp_cfg.get("enabled", False)),
+        "host": env.get("ORACLE_HOST", ""),
+        "port": env.get("ORACLE_PORT", ""),
+        "service": env.get("ORACLE_SERVICE", ""),
+        "user": env.get("ORACLE_USER", ""),
+        "password": env.get("ORACLE_PASSWORD", ""),
+        "max_rows": max_rows,
+    }
+
+
 @router.get("/api/config/erp-clients")
 async def list_erp_clients() -> dict:
     raw = _read_raw_config()
@@ -83,6 +102,22 @@ async def get_erp_client(name: str) -> dict:
     raw = _read_raw_config()
     erp_clients = raw.get("erp_clients", {})
     if name not in erp_clients:
+        # 尝试从 mcp_servers 反向回读（兼容旧 MCP 管理页保存的配置）
+        mcp_cfg = raw.get("mcp_servers", {}).get(f"mcp-{name}")
+        if name == "yonsuite":
+            return {"enabled": False, "tenant_id": "", "app_key": "", "app_secret": "", "base_url": ""}
+        if name == "nc":
+            if mcp_cfg:
+                return _mcp_env_to_erp_config(mcp_cfg)
+            return {
+                "enabled": False,
+                "host": "",
+                "port": "",
+                "service": "",
+                "user": "",
+                "password": "",
+                "max_rows": 200,
+            }
         raise HTTPException(404, f"ERP client {name!r} not found")
     return _mask_secrets(name, erp_clients[name])
 
@@ -131,9 +166,16 @@ async def test_erp_client(name: str) -> dict:
             from agent.erp_clients.yonsuite import YonSuiteClient
 
             cfg = get_erp_config("yonsuite")
-            client = YonSuiteClient(cfg)
-            ok = client.health_check()
-            return {"ok": bool(ok)}
+            # cfg keys: tenant_id, app_key, app_secret, base_url
+            # YonSuiteClient 参数: app_key, app_secret, tenant_id, gateway_url
+            client = YonSuiteClient(
+                app_key=cfg.get("app_key"),
+                app_secret=cfg.get("app_secret"),
+                tenant_id=cfg.get("tenant_id"),
+                gateway_url=cfg.get("base_url") or cfg.get("gateway_url"),
+            )
+            token = client.get_access_token()
+            return {"ok": bool(token)}
         except Exception as e:
             return {"ok": False, "error": str(e)}
     elif name == "nc":
@@ -144,7 +186,7 @@ async def test_erp_client(name: str) -> dict:
             nc_status = statuses.get("mcp-nc", {}).get("status", "disconnected")
             if nc_status == "connected":
                 return {"ok": True}
-            return {"ok": False, "error": f"mcp-nc 状态: {nc_status}, 确认已装 nc-mcp-server 包"}
+            return {"ok": False, "error": f"mcp-nc 状态: {nc_status}，请先在 ERP 连接页启用 NC"}
         except Exception as e:
             return {"ok": False, "error": str(e)}
     raise HTTPException(404, f"Unknown ERP {name!r}")
@@ -160,14 +202,28 @@ async def list_mcp_servers() -> list:
 @router.post("/api/config/mcp-servers/{name}/toggle")
 async def toggle_mcp_server(name: str) -> dict:
     """启用/禁用某个 MCP server"""
-    from agent.tools.mcp_manager import get_server_statuses, reconnect_server
+    import json
+
+    from agent import config_manager
+    from agent.tools.mcp_manager import connect_server, disconnect_server, get_server_statuses
 
     statuses = {s["name"]: s for s in get_server_statuses()}
     if name not in statuses:
         raise HTTPException(404, f"MCP server {name!r} not found")
     current = statuses[name]
     new_enabled = current.get("status") != "connected"
-    cfg = current.get("config", {})
-    cfg["enabled"] = new_enabled
-    await reconnect_server(name, cfg)
+
+    # 持久化到 config.json
+    raw = json.loads(config_manager.CONFIG_FILE.read_text(encoding="utf-8"))
+    servers = raw.setdefault("mcp_servers", {})
+    servers.setdefault(name, {})["enabled"] = new_enabled
+    config_manager.atomic_json_write(config_manager.CONFIG_FILE, raw)
+
+    # 启停
+    if new_enabled:
+        cfg = servers[name]
+        await connect_server(name, cfg)
+    else:
+        await disconnect_server(name)
+
     return {"name": name, "enabled": new_enabled}

@@ -8,14 +8,28 @@ from __future__ import annotations
 from typing import Any
 
 
+def _decrypt_password(value: str | None) -> str:
+    """解密密码 (config_manager 已解密的明文直接返回; 否则再次尝试解密)"""
+    if not value:
+        return ""
+    if value.startswith("encrypted:"):
+        try:
+            from agent.config_manager import decrypt_secret
+
+            return decrypt_secret(value)
+        except Exception:
+            return ""
+    return value
+
+
 def build_nc_mcp_env(erp_config: dict[str, Any]) -> dict[str, str]:
     """转换配置: erp_clients.nc.* → ORACLE_*"""
     return {
-        "ORACLE_HOST": str(erp_config["host"]),
-        "ORACLE_PORT": str(erp_config["port"]),
-        "ORACLE_SERVICE": str(erp_config["service"]),
-        "ORACLE_USER": str(erp_config["user"]),
-        "ORACLE_PASSWORD": str(erp_config["password"]),
+        "ORACLE_HOST": str(erp_config.get("host", "")),
+        "ORACLE_PORT": str(erp_config.get("port", "")),
+        "ORACLE_SERVICE": str(erp_config.get("service", "")),
+        "ORACLE_USER": str(erp_config.get("user", "")),
+        "ORACLE_PASSWORD": _decrypt_password(erp_config.get("password")),
         "NC_MCP_MAX_ROWS": str(erp_config.get("max_rows", 200)),
     }
 

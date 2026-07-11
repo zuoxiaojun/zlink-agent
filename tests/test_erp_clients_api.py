@@ -66,3 +66,45 @@ def test_put_erp_client_nc_encrypts_password(client):
     # 读落盘 config.json, 验证 password 已加密
     cfg = json.loads(config_manager.CONFIG_FILE.read_text())
     assert cfg["erp_clients"]["nc"]["password"].startswith("encrypted:")
+
+
+def test_get_erp_client_nc_fallback_mcp_env(tmp_path, monkeypatch):
+    """erp_clients.nc 不存在但 mcp_servers.mcp-nc 存在时, 能从 env 反向回读"""
+    from agent import config_manager
+
+    monkeypatch.setattr(config_manager, "CONFIG_FILE", tmp_path / "config.json")
+    cfg_file = tmp_path / "config.json"
+    cfg_file.write_text(
+        json.dumps(
+            {
+                "mcp_servers": {
+                    "mcp-nc": {
+                        "enabled": True,
+                        "env": {
+                            "ORACLE_HOST": "10.0.0.1",
+                            "ORACLE_PORT": "1521",
+                            "ORACLE_SERVICE": "xe",
+                            "ORACLE_USER": "test_user",
+                            "ORACLE_PASSWORD": "test_pass",
+                            "NC_MCP_MAX_ROWS": "500",
+                        },
+                    }
+                }
+            }
+        )
+    )
+    monkeypatch.setenv("ZLINK_DATA_DIR", str(tmp_path))
+
+    from backend.main import app
+
+    c = TestClient(app)
+    r = c.get("/api/config/erp-clients/nc")
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["host"] == "10.0.0.1"
+    assert data["port"] == "1521"
+    assert data["service"] == "xe"
+    assert data["user"] == "test_user"
+    assert data["password"] == "test_pass"
+    assert data["max_rows"] == 500
+    assert data["enabled"] is True

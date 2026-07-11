@@ -7,8 +7,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/history": "历史对话",
   "/memory": "记忆管理",
   "/skills": "技能管理",
-  "/settings/llm": "LLM 配置",
-  "/settings/yonsuite": "YonSuite 配置",
+  "/settings/llm": "大模型配置",
+  "/settings/erp": "ERP 连接",
   "/settings/agent": "Agent 设置",
   "/mcp": "MCP 服务器",
 };

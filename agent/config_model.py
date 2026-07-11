@@ -11,6 +11,12 @@ from pydantic import BaseModel, Field
 
 _ENCRYPTED_FIELDS = {"llm_api_key", "ys_app_key", "ys_app_secret"}
 
+# Known ERP secret sub-fields stored under erp_clients.<name>
+_ERP_SECRET_FIELDS: dict[str, tuple[str, ...]] = {
+    "yonsuite": ("app_key", "app_secret"),
+    "nc": ("password",),
+}
+
 
 def _derive_key() -> bytes:
     raw = socket.gethostname() + "::zlink-agent::salt_v1"
@@ -62,6 +68,7 @@ class AppConfig(BaseModel):
     reserve_tokens: int = Field(default=4000, ge=1000, le=32000)
     keep_recent_tokens: int = Field(default=8000, ge=2000, le=128000)
     mcp_servers: dict[str, MCPServerEntry] = {}
+    erp_clients: dict[str, dict[str, Any]] = {}
     disabled_extensions: list[str] = []
 
     def model_dump_encrypted(self, **kwargs) -> dict[str, Any]:
@@ -71,6 +78,16 @@ class AppConfig(BaseModel):
             val = data.get(field, "")
             if val:
                 data[field] = _encrypt(val)
+        # 加密 erp_clients 中的 secret 字段
+        erp = data.get("erp_clients")
+        if isinstance(erp, dict):
+            for name, cfg in erp.items():
+                if not isinstance(cfg, dict):
+                    continue
+                for secret_field in _ERP_SECRET_FIELDS.get(name, ()):
+                    val = cfg.get(secret_field)
+                    if val and not val.startswith("encrypted:"):
+                        cfg[secret_field] = "encrypted:" + _encrypt(val)
         return data
 
     @classmethod
@@ -83,4 +100,18 @@ class AppConfig(BaseModel):
                     decrypted[field] = _decrypt(val)
                 except Exception:
                     decrypted[field] = ""
+        # 解密 erp_clients 中的 secret 字段
+        erp = decrypted.get("erp_clients")
+        if isinstance(erp, dict):
+            for name, cfg in erp.items():
+                if not isinstance(cfg, dict):
+                    continue
+                for secret_field in _ERP_SECRET_FIELDS.get(name, ()):
+                    val = cfg.get(secret_field)
+                    if isinstance(val, str) and val.startswith("encrypted:"):
+                        token = val.split(":", 1)[1]
+                        try:
+                            cfg[secret_field] = _decrypt(token)
+                        except Exception:
+                            cfg[secret_field] = ""
         return cls.model_validate(decrypted)

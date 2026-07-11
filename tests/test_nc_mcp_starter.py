@@ -14,13 +14,15 @@ def test_sync_nc_mcp_disabled_when_no_config():
 
     async def go():
         with (
-            patch.object(mcp_starter, "get_config") as mock_cfg,
-            patch.object(mcp_starter, "reconnect_server", new=AsyncMock()) as mock_reconnect,
+            patch.object(mcp_starter.config_manager, "get_config") as mock_cfg,
+            patch.object(mcp_starter, "connect_server", new=AsyncMock()) as mock_connect,
+            patch.object(mcp_starter, "disconnect_server", new=AsyncMock()) as mock_disconnect,
             patch.object(mcp_starter, "get_server_statuses", return_value=[]),
         ):
             mock_cfg.return_value = {}  # 没有 erp_clients
             await mcp_starter.sync_nc_mcp()
-            mock_reconnect.assert_not_called()
+            mock_connect.assert_not_called()
+            mock_disconnect.assert_not_called()
 
     _run(go())
 
@@ -40,18 +42,21 @@ def test_sync_nc_mcp_enabled_starts_server():
 
     async def go():
         with (
-            patch.object(mcp_starter, "get_config") as mock_cfg,
-            patch.object(mcp_starter, "reconnect_server", new=AsyncMock()) as mock_reconnect,
+            patch.object(mcp_starter.config_manager, "get_config") as mock_cfg,
+            patch.object(mcp_starter, "connect_server", new=AsyncMock()) as mock_connect,
+            patch.object(mcp_starter, "disconnect_server", new=AsyncMock()) as mock_disconnect,
             patch.object(mcp_starter, "get_server_statuses", return_value=[]),
+            patch.object(mcp_starter, "_persist_mcp_nc_config"),
         ):
             mock_cfg.return_value = {"erp_clients": {"nc": nc_config}}
             await mcp_starter.sync_nc_mcp()
-            mock_reconnect.assert_called_once()
-            args, kwargs = mock_reconnect.call_args
+            mock_connect.assert_called_once()
+            args, _ = mock_connect.call_args
             assert args[0] == "mcp-nc"
             target_config = args[1]
-            assert target_config["enabled"] is True
-            assert target_config["env"]["ORACLE_HOST"] == "1.2.3.4"
+            assert target_config.get("enabled") is True
+            assert target_config.get("env", {}).get("ORACLE_HOST") == "1.2.3.4"
+            mock_disconnect.assert_not_called()
 
     _run(go())
 
@@ -71,15 +76,19 @@ def test_sync_nc_mcp_disabled_stops_server():
 
     async def go():
         with (
-            patch.object(mcp_starter, "get_config") as mock_cfg,
-            patch.object(mcp_starter, "reconnect_server", new=AsyncMock()) as mock_reconnect,
-            patch.object(mcp_starter, "get_server_statuses", return_value=[{"name": "mcp-nc", "status": "connected"}]),
+            patch.object(mcp_starter.config_manager, "get_config") as mock_cfg,
+            patch.object(mcp_starter, "connect_server", new=AsyncMock()) as mock_connect,
+            patch.object(mcp_starter, "disconnect_server", new=AsyncMock()) as mock_disconnect,
+            patch.object(
+                mcp_starter,
+                "get_server_statuses",
+                return_value=[{"name": "mcp-nc", "status": "connected"}],
+            ),
+            patch.object(mcp_starter, "_persist_mcp_nc_config"),
         ):
             mock_cfg.return_value = {"erp_clients": {"nc": nc_config}}
             await mcp_starter.sync_nc_mcp()
-            mock_reconnect.assert_called_once()
-            args, kwargs = mock_reconnect.call_args
-            target_config = args[1]
-            assert target_config["enabled"] is False
+            mock_disconnect.assert_called_once()
+            mock_connect.assert_not_called()
 
     _run(go())

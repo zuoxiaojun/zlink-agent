@@ -10,9 +10,8 @@ const NAV = [
   { label: "技能管理", Icon: Wrench, path: "/skills", section: 1 },
   { label: "内置工具", Icon: Puzzle, path: "/tools", section: 1 },
   { label: "MCP 服务器", Icon: Plug, path: "/mcp", section: 1 },
-  { label: "LLM 配置", Icon: Cpu, path: "/settings/llm", section: 2 },
-  { label: "YonSuite 配置", Icon: Database, path: "/settings/yonsuite", section: 2 },
-  { label: "ERP 客户端", Icon: Database, path: "/settings/erp", section: 2 },
+  { label: "大模型配置", Icon: Cpu, path: "/settings/llm", section: 2 },
+  { label: "ERP 连接", Icon: Database, path: "/settings/erp", section: 2 },
   { label: "Agent 设置", Icon: Settings, path: "/settings/agent", section: 2 },
   { label: "扩展管理", Icon: Boxes, path: "/settings/extensions", section: 2 },
 ];
@@ -69,7 +68,7 @@ export default function Sidebar() {
 
       <div className="sidebar-footer">
         <div className="sidebar-footer-dot" />
-        ZLink Agent v1.5.0
+        ZLink Agent v1.5.3
       </div>
     </aside>
   );

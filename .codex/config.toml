@@ -74,3 +74,9 @@ profile = "reviewer"
 
 [agents.docs-researcher]
 profile = "docs-researcher"
+
+[mcp_servers.chrome-devtools]
+command = "npx"
+args = ["-y", "chrome-devtools-mcp@latest"]
+# description: Anthropic Chrome DevTools MCP — browser automation via CDP
+# (navigate, click, screenshot, evaluate JS, console logs, network)
