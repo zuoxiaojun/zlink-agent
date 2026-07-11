@@ -276,6 +276,34 @@ def cronjob_toggle(job_id: str, enabled: bool) -> str:
     return json.dumps({"success": False, "error": f"未找到任务: {job_id}"})
 
 
+def cronjob_run(job_id: str) -> str:
+    """Immediately trigger a cron job (mark as fired now)."""
+    jobs = _load_jobs()
+    for job in jobs:
+        if job.get("id") == job_id:
+            now = datetime.now(timezone.utc).isoformat()
+            job["last_run_at"] = now
+            job["last_status"] = "triggered"
+
+            # Recalculate next run for recurring schedules
+            schedule = job.get("schedule", "")
+            if schedule.startswith("every") or schedule.startswith("daily"):
+                next_nr = _next_run(schedule)
+                if next_nr:
+                    job["next_run_at"] = next_nr
+                else:
+                    job["next_run_at"] = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+            else:
+                # One-shot: disable after manual trigger
+                job["enabled"] = False
+                job["next_run_at"] = None
+
+            _save_jobs(jobs)
+            return json.dumps({"success": True, "last_run_at": now, "next_run_at": job.get("next_run_at")},
+                              ensure_ascii=False)
+    return json.dumps({"success": False, "error": f"未找到任务: {job_id}"})
+
+
 # ── Schemas & registration ──────────────────────────────────────────────
 
 CRONJOB_LIST_SCHEMA = {
@@ -301,6 +329,18 @@ CRONJOB_CREATE_SCHEMA = {
 CRONJOB_DELETE_SCHEMA = {
     "name": "cronjob_delete",
     "description": "删除一个定时任务。",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "job_id": {"type": "string", "description": "任务 ID"},
+        },
+        "required": ["job_id"],
+    },
+}
+
+CRONJOB_RUN_SCHEMA = {
+    "name": "cronjob_run",
+    "description": "立即触发一个定时任务（手动执行）。",
     "parameters": {
         "type": "object",
         "properties": {
@@ -355,6 +395,18 @@ registry.register(
     ),
     description="删除定时任务",
     emoji="🗑️",
+    risk_level="medium",
+)
+
+registry.register(
+    name="cronjob_run",
+    toolset="cron",
+    schema=CRONJOB_RUN_SCHEMA,
+    handler=lambda args, **kw: cronjob_run(
+        job_id=args.get("job_id", ""),
+    ),
+    description="立即执行定时任务",
+    emoji="▶️",
     risk_level="medium",
 )
 

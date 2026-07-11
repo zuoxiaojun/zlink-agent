@@ -4,7 +4,7 @@ import json
 
 from fastapi import APIRouter
 
-from agent.tools.cronjob_tools import cronjob_create, cronjob_delete, cronjob_list, cronjob_toggle
+from agent.tools.cronjob_tools import cronjob_create, cronjob_delete, cronjob_list, cronjob_run, cronjob_toggle
 
 router = APIRouter(prefix="/api/cronjobs", tags=["cronjobs"])
 
@@ -36,6 +36,16 @@ def create_cronjob(body: dict):
 def delete_cronjob(job_id: str):
     """Delete a cron job."""
     result = json.loads(cronjob_delete(job_id=job_id))
+    if not result.get("success"):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=result.get("error", "未找到"))
+    return result
+
+
+@router.post("/{job_id}/run")
+def run_cronjob(job_id: str):
+    """Immediately trigger a cron job."""
+    result = json.loads(cronjob_run(job_id=job_id))
     if not result.get("success"):
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail=result.get("error", "未找到"))

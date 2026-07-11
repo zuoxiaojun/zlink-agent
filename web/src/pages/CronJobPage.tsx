@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { IconPlus, IconTrash, IconPlayerPlay, IconPlayerPause, IconRefresh } from "@tabler/icons-react";
+import { IconPlus, IconTrash, IconPlayerPlay, IconPlayerPause, IconRefresh, IconPlayerPlayFilled } from "@tabler/icons-react";
 import { api } from "../api/http";
 
 interface CronJob {
@@ -59,6 +59,13 @@ export default function CronJobPage() {
     } catch {
       /* silent */
     }
+  };
+
+  const handleRun = async (id: string) => {
+    try {
+      await api.post(`/cronjobs/${id}/run`, {});
+      await loadJobs();
+    } catch { /* silent */ }
   };
 
   const handleToggle = async (id: string, enabled: boolean) => {
@@ -166,6 +173,13 @@ export default function CronJobPage() {
                 </td>
                 <td>
                   <div className="table-actions">
+                    <button
+                      className="btn-icon"
+                      title="立即执行"
+                      onClick={() => handleRun(job.id)}
+                    >
+                      <IconPlayerPlayFilled size={14} />
+                    </button>
                     <button
                       className="btn-icon"
                       title={job.enabled ? "停用" : "启用"}
