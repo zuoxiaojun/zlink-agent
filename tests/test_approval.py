@@ -188,8 +188,10 @@ def test_unknown_tool_defaults_to_low(monkeypatch):
 
 def test_approval_integration_with_dispatch(monkeypatch):
     """End-to-end: approval_hook integrated via registry.dispatch()."""
+    from agent.tools.security_hooks import ApprovalBlockedError
+
     _register_test_tool("test_high", risk_level="high")
-    hook, record, _ = _make_approval_hook()
+    hook, _, _ = _make_approval_hook()
 
     from agent.config_model import AppConfig
 
@@ -201,17 +203,12 @@ def test_approval_integration_with_dispatch(monkeypatch):
     # Register the hook
     registry.add_before_hook(hook)
     try:
-        # Without approval → blocked
-        result = registry.dispatch("test_high", {"x": "y"})
-        payload = json.loads(result)
-        assert payload["success"] is False
-        assert "需要你的确认" in payload["error"]
-
-        # With approval → passes
-        record("test_high", {"x": "y"})
-        result = registry.dispatch("test_high", {"x": "y"})
-        payload = json.loads(result)
-        assert payload["success"] is True
+        # Without approval → blocked → ApprovalBlockedError propagates
+        with pytest.raises(ApprovalBlockedError) as exc_info:
+            registry.dispatch("test_high", {"x": "y"})
+        assert "需要你的确认" in exc_info.value.reason
+        assert exc_info.value.tool_name == "test_high"
+        assert exc_info.value.tool_args == {"x": "y"}
     finally:
         registry.remove_before_hook(hook)
 

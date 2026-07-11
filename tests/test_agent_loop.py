@@ -72,9 +72,13 @@ def test_run_conversation_plain_text_reply():
 # ────────────────────────────────────────────────────────────────────
 
 
-def test_run_conversation_with_one_tool_call():
+def test_run_conversation_with_one_tool_call(monkeypatch):
     """Tool-call → tool result → text reply.  Message list should be
     [user, assistant(tool_call), tool(result), assistant(text)]."""
+    from agent.config_model import AppConfig
+
+    monkeypatch.setattr("agent.config_manager.load", lambda: AppConfig(approval_mode="allow_all"))
+
     provider = MockLLMProvider(
         responses=[
             make_tool_call_response("terminal", {"command": "echo hi"}),
@@ -102,8 +106,12 @@ def test_run_conversation_with_one_tool_call():
 # ────────────────────────────────────────────────────────────────────
 
 
-def test_run_conversation_publishes_full_event_sequence():
+def test_run_conversation_publishes_full_event_sequence(monkeypatch):
     """The M7+ event types are all reachable from a normal turn."""
+    from agent.config_model import AppConfig
+
+    monkeypatch.setattr("agent.config_manager.load", lambda: AppConfig(approval_mode="allow_all"))
+
     from agent.events import (
         Event,
     )
@@ -258,8 +266,12 @@ def test_phase_machine_records_phase_change_events():
 # ────────────────────────────────────────────────────────────────────
 
 
-def test_turn_snapshot_isolates_config_changes():
+def test_turn_snapshot_isolates_config_changes(monkeypatch):
     """Changes to agent config mid-turn must not affect the running turn."""
+    from agent.config_model import AppConfig
+
+    monkeypatch.setattr("agent.config_manager.load", lambda: AppConfig(approval_mode="allow_all"))
+
     provider = MockLLMProvider(
         responses=[
             make_tool_call_response("terminal", {"command": "echo a"}),

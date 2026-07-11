@@ -211,6 +211,9 @@ class ToolRegistry:
                 if args.get("__block__"):
                     return tool_error(args.get("__reason__", "Blocked by hook"))
             except Exception as e:
+                # Let ApprovalBlockedError propagate through
+                if type(e).__name__ == "ApprovalBlockedError":
+                    raise
                 logger.warning("Before-hook failed for tool %s: %s", name, e)
                 return tool_error(f"Hook blocked execution: {e}")
 
@@ -220,6 +223,8 @@ class ToolRegistry:
             if not isinstance(result, str):
                 result = json.dumps(result, ensure_ascii=False)
         except Exception as e:
+            if type(e).__name__ == "ApprovalBlockedError":
+                raise
             logger.exception("Tool %s failed", name)
             return tool_error(str(e))
 
