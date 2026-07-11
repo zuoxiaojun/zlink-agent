@@ -215,7 +215,7 @@ def parse_pdf(pdf_path: str) -> list:
     Best-effort: detects headings by font size heuristics if available,
     otherwise falls back to paragraph splitting.
     """
-    from pypdf import PdfReader
+    from pypdf import PdfReader  # type: ignore
 
     reader = PdfReader(pdf_path)
     all_text = []

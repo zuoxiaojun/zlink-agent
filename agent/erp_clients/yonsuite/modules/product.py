@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class ProductModule(BaseAPIClient):
     """物料档案查询模块"""
 
-    def __init__(self, gateway_url: str = None):
+    def __init__(self, gateway_url: str | None = None):
         super().__init__(gateway_url=gateway_url)
         self.base_path = "/yonbip/digitalModel/product"
 

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class CrmModule(BaseAPIClient):
     """CRM 商机管理模块"""
 
-    def __init__(self, gateway_url: str = None):
+    def __init__(self, gateway_url: str | None = None):
         super().__init__(gateway_url=gateway_url)
         self.base_path = "/yonbip/crm/oppt"
 
@@ -29,13 +29,13 @@ class CrmModule(BaseAPIClient):
         access_token: str,
         page_index: int = 1,
         page_size: int = 500,
-        code: str = None,
-        name: str = None,
-        oppt_state: str = None,
-        win_lose_state: str = None,
+        code: str | None = None,
+        name: str | None = None,
+        oppt_state: str | None = None,
+        win_lose_state: str | None = None,
         is_sum: bool = True,
-        date_from: str = None,
-        date_to: str = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
     ) -> dict:
         """
         查询商机列表

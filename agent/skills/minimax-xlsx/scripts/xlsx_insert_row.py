@@ -85,7 +85,7 @@ def find_ws_path(work_dir: str, sheet_name: str | None) -> str:
     rels_tree = ET.parse(os.path.join(work_dir, "xl", "_rels", "workbook.xml.rels"))
     for rel in rels_tree.getroot():
         if rel.get("Id") == rid:
-            return os.path.join(work_dir, "xl", rel.get("Target"))
+            return os.path.join(work_dir, "xl", rel.get("Target"))  # type: ignore[arg-type]
 
     print(f"ERROR: Relationship not found: {rid}")
     sys.exit(1)
@@ -111,14 +111,14 @@ def add_shared_string(work_dir: str, text: str) -> int:
     root.set("count", str(int(root.get("count", "0")) + 1))
     root.set("uniqueCount", str(int(root.get("uniqueCount", "0")) + 1))
 
-    _write_tree(tree, ss_path)
+    _write_tree(tree, ss_path)  # type: ignore[arg-type]
     return idx
 
 
 def get_row_styles(ws_tree: ET.ElementTree, row_num: int) -> dict[str, int]:
     """Get {col_letter: style_index} for all cells in a row."""
     styles = {}
-    for row_el in ws_tree.getroot().iter(_tag("row")):
+    for row_el in ws_tree.getroot().iter(_tag("row")):  # type: ignore[attr-defined]
         if row_el.get("r") == str(row_num):
             for c in row_el:
                 ref = c.get("r", "")
@@ -178,7 +178,7 @@ def main() -> None:
 
     ref_styles = {}
     if args.copy_style_from is not None:
-        ref_styles = get_row_styles(ws_tree, args.copy_style_from)
+        ref_styles = get_row_styles(ws_tree, args.copy_style_from)  # type: ignore[arg-type]
         print(f"Step 2: Copied styles from row {args.copy_style_from}: {ref_styles}")
 
     # Step 3: Add text values to sharedStrings
@@ -227,14 +227,14 @@ def main() -> None:
 
     # Insert new row at the correct position in sheetData (sorted by row number)
     insert_idx = 0
-    for i, row_el in enumerate(list(sheet_data)):
+    for i, row_el in enumerate(list(sheet_data)):  # type: ignore[arg-type]
         r = row_el.get("r")
         if r and int(r) > at:
             insert_idx = i
             break
         insert_idx = i + 1
 
-    sheet_data.insert(insert_idx, new_row)
+    sheet_data.insert(insert_idx, new_row)  # type: ignore[attr-defined]
 
     print(f"\nStep 3: Inserted row {at} with {len(all_cols)} cells:")
     for col in all_cols:
@@ -251,17 +251,17 @@ def main() -> None:
         old_ref = dim.get("ref", "")
         if ":" in old_ref:
             start_ref, end_ref = old_ref.split(":")
-            end_row = int(re.search(r"(\d+)", end_ref).group(1))
-            end_col = re.match(r"([A-Z]+)", end_ref).group(1)
+            end_row = int(re.search(r"(\d+)", end_ref).group(1))  # type: ignore[attr-defined]
+            end_col = re.match(r"([A-Z]+)", end_ref).group(1)  # type: ignore[attr-defined]
             # Dimension was already shifted by shift_rows, just verify
             max_col = max(col_number(end_col), max(col_number(c) for c in all_cols))
-            max_col_letter = end_col if col_number(end_col) >= max_col else col
+            max_col_letter = end_col if col_number(end_col) >= max_col else col  # type: ignore[possibly-unbound]
             new_ref = f"{start_ref}:{max_col_letter}{end_row}"
             if new_ref != old_ref:
                 dim.set("ref", new_ref)
                 print(f"\n  Dimension: {old_ref} → {new_ref}")
 
-    _write_tree(ws_tree, ws_path)
+    _write_tree(ws_tree, ws_path)  # type: ignore[arg-type]
 
     print(f"\nDone. Row {at} inserted successfully.")
     print(f"\nNext: python3 xlsx_pack.py {args.work_dir} output.xlsx")

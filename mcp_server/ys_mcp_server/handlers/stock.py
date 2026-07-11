@@ -39,6 +39,7 @@ def handle(client, arguments: dict) -> dict:
 
     result = paginate(arguments, 500, fetch)
 
+    records = result.records
     if warehouse:
         records = [r for r in result.records if warehouse in str(r.get("warehouse_name", ""))]
     if sku and not product_param:

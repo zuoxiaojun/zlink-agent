@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 
 
-def retry_on_failure(max_attempts: int = None, delay: float = None):
+def retry_on_failure(max_attempts: int | None = None, delay: float | None = None):
     """
     重试装饰器
 
@@ -87,7 +87,7 @@ def retry_on_failure(max_attempts: int = None, delay: float = None):
 class BaseAPIClient:
     """基础 API 客户端"""
 
-    def __init__(self, gateway_url: str = None, token_url: str = None):
+    def __init__(self, gateway_url: str | None = None, token_url: str | None = None):
         """
         初始化客户端
 
@@ -112,7 +112,7 @@ class BaseAPIClient:
             JSON 响应
         """
         if USE_REQUESTS:
-            response = requests.get(url, params=params, headers=headers, timeout=self.timeout)
+            response = requests.get(url, params=params, headers=headers, timeout=self.timeout)  # type: ignore[possibly-unbound]
             response.raise_for_status()
             return response.json()
         else:
@@ -144,7 +144,7 @@ class BaseAPIClient:
             JSON 响应
         """
         if USE_REQUESTS:
-            response = requests.post(
+            response = requests.post(  # type: ignore[possibly-unbound]
                 url,
                 params=params,
                 json=json_data,
@@ -210,6 +210,8 @@ class BaseAPIClient:
                 raise YonSuiteNetworkError(f"HTTP {e.code}: {error_body}", e)
         except urllib.error.URLError as e:
             raise YonSuiteNetworkError(f"网络错误：{e.reason}", e)
+
+        return {}  # unreachable, but satisfies pyright
 
     def check_response(self, result: dict, operation: str = "") -> dict:
         """

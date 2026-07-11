@@ -39,8 +39,8 @@ def ensure_deps():
 
 
 ensure_deps()
-from pypdf import PdfReader, PdfWriter
-from pypdf.generic import BooleanObject, NameObject, TextStringObject
+from pypdf import PdfReader, PdfWriter  # type: ignore
+from pypdf.generic import BooleanObject, NameObject, TextStringObject  # type: ignore
 
 
 # ── Field helpers ─────────────────────────────────────────────────────────────
@@ -74,7 +74,7 @@ def _get_dropdown_values(field) -> list[str]:
     values = []
     for item in opt:
         try:
-            from pypdf.generic import ArrayObject
+            from pypdf.generic import ArrayObject  # type: ignore
 
             if isinstance(item, (list, ArrayObject)) and len(item) >= 1:
                 values.append(str(item[0]))

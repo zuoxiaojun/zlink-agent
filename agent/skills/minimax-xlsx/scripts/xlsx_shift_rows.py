@@ -227,7 +227,7 @@ def process_worksheet(path: str, at: int, delta: int) -> int:
             changes += 1
 
     if changes > 0:
-        _write_tree(tree, path)
+        _write_tree(tree, path)  # type: ignore[arg-type]
     return changes
 
 
@@ -265,7 +265,7 @@ def process_table(path: str, at: int, delta: int) -> int:
     if new == old:
         return 0
     root.set("ref", new)
-    _write_tree(tree, path)
+    _write_tree(tree, path)  # type: ignore[arg-type]
     return 1
 
 
@@ -284,7 +284,7 @@ def process_pivot_cache(path: str, at: int, delta: int) -> int:
                     ws.set("ref", new)
                     changes += 1
     if changes:
-        _write_tree(tree, path)
+        _write_tree(tree, path)  # type: ignore[arg-type]
     return changes
 
 

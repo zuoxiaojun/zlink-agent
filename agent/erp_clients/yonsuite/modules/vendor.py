@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class VendorModule(BaseAPIClient):
     """供应商档案管理模块"""
 
-    def __init__(self, gateway_url: str = None):
+    def __init__(self, gateway_url: str | None = None):
         super().__init__(gateway_url=gateway_url)
         self.base_path = "/yonbip/digitalModel/vendor"
 
@@ -235,7 +235,7 @@ class VendorModule(BaseAPIClient):
             "ids": vendor_ids[:100],  # 限制单次最多 100 个
         }
         if org_id:
-            body["orgId"] = org_id
+            body["orgId"] = org_id  # type: ignore[assignment]
 
         logger.info(f"批量查询供应商详情：共{len(vendor_ids)}个供应商")
         result = self._http_post_raw(url, body)
@@ -356,11 +356,11 @@ class VendorModule(BaseAPIClient):
         }
 
         if ids:
-            body["ids"] = ids
+            body["ids"] = ids  # type: ignore[assignment]
         if code:
-            body["code"] = code
+            body["code"] = code  # type: ignore[assignment]
         if name:
-            body["name"] = name
+            body["name"] = name  # type: ignore[assignment]
 
         # 子表查询选项
         body["vendorcontactssNeedQuery"] = vendorcontactss_need_query

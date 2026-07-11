@@ -23,7 +23,7 @@ def main():
 
     # ============== 1. 查询销售订单 ==============
     print("\n📋 查询销售订单...")
-    orders = client.query_sale_orders(customer_name="测试", page_size=5)
+    orders = client.query_sale_orders(customer_name="测试", page_size=5)  # type: ignore[call-arg]
     print(f"找到 {len(orders.get('data', []))} 个订单")
 
     # ============== 2. 查询订单详情 ==============
@@ -35,7 +35,7 @@ def main():
 
     # ============== 3. 查询库存 ==============
     print("\n📦 查询库存...")
-    stock = client.query_current_stock(product_code="A010100003")
+    stock = client.query_current_stock(product_code="A010100003")  # type: ignore[call-arg]
     if stock.get("data"):
         for item in stock["data"][:3]:
             print(f"  - {item.get('product_name')}: {item.get('currentqty')} 件")
@@ -54,7 +54,7 @@ def main():
     print("\n🏭 查询生产订单（近 7 天）...")
     end_date = datetime.now().strftime("%Y-%m-%d")
     start_date = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
-    production = client.query_production_orders(start_date=start_date, end_date=end_date, page_size=5)
+    production = client.query_production_orders(start_date=start_date, end_date=end_date, page_size=5)  # type: ignore[call-arg]
     print(f"找到 {len(production.get('data', []))} 个生产订单")
 
     # ============== 7. 查询采购订单 ==============

@@ -36,6 +36,8 @@ def handle(client, arguments: dict) -> dict:
                 and (not date_to or str(r.get("vouchdate", ""))[:10] <= date_to)
             )
         ]
+    else:
+        records = result.records
 
     SKIP_CODES = {"合计", "物料SKU编码", "物料SKU名称", "自由项特征组"}
     parsed = []

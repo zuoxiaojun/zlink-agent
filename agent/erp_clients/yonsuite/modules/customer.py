@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class CustomerModule(BaseAPIClient):
     """客户档案管理模块"""
 
-    def __init__(self, gateway_url: str = None):
+    def __init__(self, gateway_url: str | None = None):
         super().__init__(gateway_url=gateway_url)
         self.base_path = "/yonbip/digitalModel/merchant"
 
@@ -149,7 +149,7 @@ class CustomerModule(BaseAPIClient):
             raise YonSuiteAPIError("批量查询参数不能为空", error_code="INVALID_PARAMS")
 
         logger.info(f"批量查询客户详情：共{len(batch_params)}个客户")
-        result = self._http_post_raw(url, batch_params)
+        result = self._http_post_raw(url, batch_params)  # type: ignore[arg-type]
         return self.check_response(result, "批量查询客户详情")
 
     def query_customer_detail_single(
@@ -218,7 +218,7 @@ class CustomerModule(BaseAPIClient):
             4: "护照",
             5: "其他身份证件",
         }
-        lines.append(f"  证照类型：{license_types.get(detail.get('licenseType'), 'N/A')}")
+        lines.append(f"  证照类型：{license_types.get(detail.get('licenseType'), 'N/A')}")  # type: ignore[arg-type]
         lines.append(f"  证照号码：{detail.get('creditCode', 'N/A')}")
         lines.append(f"  法人代表：{detail.get('leaderName', 'N/A')}")
         lines.append(f"  成立时间：{detail.get('buildTime', 'N/A')}")

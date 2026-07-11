@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class PurchaseModule(BaseAPIClient):
     """采购订单管理模块"""
 
-    def __init__(self, gateway_url: str = None):
+    def __init__(self, gateway_url: str | None = None):
         super().__init__(gateway_url=gateway_url)
         self.base_path = "/yonbip/scm/purchaseorder"
 
@@ -89,8 +89,8 @@ class PurchaseModule(BaseAPIClient):
             lines.append(f"\n【订单 {i}】")
             lines.append(f"   订单编号：{order.code}")
             lines.append(f"   订单 ID: {order.id}")
-            lines.append(f"   供应商：{order.supplier_name}")
-            lines.append(f"   订单金额：¥{order.amount:,.2f}")
+            lines.append(f"   供应商：{order.supplier_name}")  # type: ignore[attr-defined]
+            lines.append(f"   订单金额：¥{order.amount:,.2f}")  # type: ignore[attr-defined]
             lines.append(f"   状态：{order.status}")
             lines.append(f"   单据日期：{order.vouchdate}")
 
@@ -171,8 +171,8 @@ class PurchaseModule(BaseAPIClient):
         lines.append("\n📊 状态信息")
         status_map = {"0": "开立", "1": "已审核", "2": "已关闭", "3": "审核中"}
         bizstatus_map = {"0": "未提交", "1": "已提交", "2": "已关闭", "3": "待入库", "4": "已完成"}
-        lines.append(f"  单据状态：{bizstatus_map.get(detail.get('bizstatus'), detail.get('bizstatus', 'N/A'))}")
-        lines.append(f"  审核状态：{status_map.get(detail.get('status'), detail.get('status', 'N/A'))}")
+        lines.append(f"  单据状态：{bizstatus_map.get(detail.get('bizstatus'), detail.get('bizstatus', 'N/A'))}")  # type: ignore[arg-type]
+        lines.append(f"  审核状态：{status_map.get(detail.get('status'), detail.get('status', 'N/A'))}")  # type: ignore[arg-type]
         lines.append(f"  变更状态：{detail.get('modifyStatus', 'N/A')}")
         lines.append(f"  审核人：{detail.get('auditor', 'N/A')}")
         lines.append(f"  审核时间：{detail.get('auditTime', 'N/A')}")

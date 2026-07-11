@@ -35,7 +35,7 @@ def round2(v):
 class VoucherModule(BaseAPIClient):
     """凭证管理模块"""
 
-    def __init__(self, gateway_url: str = None):
+    def __init__(self, gateway_url: str | None = None):
         super().__init__(gateway_url=gateway_url)
         self.base_path = "/yonbip/fi/ficloud/openapi/voucher"
         self.accbook_base = "/yonbip/fi/fipub/basedoc/querybd/accbook"

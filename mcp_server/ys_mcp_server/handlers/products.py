@@ -43,6 +43,7 @@ def handle(client, arguments: dict) -> dict:
             records = [r for r in result.records if r.get("code") == product_code]
     else:
         result = paginate(arguments, 500, fetch)
+        records = result.records
 
     parsed = []
     for r in records:

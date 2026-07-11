@@ -52,7 +52,7 @@ class TestModels(unittest.TestCase):
         self.assertEqual(order.id, "123456")
         self.assertEqual(order.code, "SO20260320-001")
         self.assertEqual(order.customer_name, "测试客户")
-        self.assertAlmostEqual(order.amount, 1000.50)
+        self.assertAlmostEqual(order.amount, 1000.50)  # type: ignore[attr-defined]
 
     def test_stock_item_from_dict(self):
         """测试库存项目模型转换"""

@@ -152,7 +152,7 @@ def audit_quality(sheets: dict) -> dict:
         # Mixed-type object columns (numeric data stored as text)
         for col in df.select_dtypes(include="object").columns:
             numeric_converted = pd.to_numeric(df[col], errors="coerce")
-            convertible = int(numeric_converted.notna().sum())
+            convertible = int(numeric_converted.notna().sum())  # type: ignore[attr-defined]
             non_null_total = int(df[col].notna().sum())
             if 0 < convertible < non_null_total:
                 sheet_findings.append(

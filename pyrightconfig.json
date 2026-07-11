@@ -1,12 +1,6 @@
 {
   "include": ["agent", "backend", "mcp_server"],
-  "exclude": [
-    "agent/erp_clients/yonsuite",
-    "agent/skills",
-    "mcp_server/ys_mcp_server",
-    "**/node_modules",
-    "**/__pycache__"
-  ],
+  "exclude": ["**/node_modules", "**/__pycache__", "**/.venv"],
   "typeCheckingMode": "standard",
   "reportMissingImports": "warning",
   "reportMissingModuleSource": "warning",

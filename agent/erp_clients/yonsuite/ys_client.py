@@ -47,6 +47,7 @@ import hmac
 import logging
 import sys
 import time
+import urllib.parse
 from typing import Any
 
 from .cache import TokenCache, get_cache
@@ -161,7 +162,7 @@ class YonSuiteClient:
     def _http_get(self, url: str, params: dict | None = None) -> dict:
         """HTTP GET 请求(兼容旧接口)"""
         import json
-        import urllib.error
+        import urllib.parse
         import urllib.request
 
         if params:
@@ -247,6 +248,7 @@ class YonSuiteClient:
 
         signature_bytes = hmac.new(self.app_secret.encode("utf-8"), sign_str.encode("utf-8"), hashlib.sha256).digest()
 
+        import urllib.parse
         import urllib.request
 
         signature_base64 = base64.b64encode(signature_bytes).decode("utf-8")
@@ -269,10 +271,10 @@ class YonSuiteClient:
 
             # 保存到缓存
             if self.use_cache:
-                self.cache.set(self.tenant_id, self._access_token, data["expire"])
+                self.cache.set(self.tenant_id, self._access_token or "", data["expire"])
 
             logger.info(f"Token 获取成功,过期时间:{data['expire']}秒")
-            return self._access_token
+            return self._access_token or ""
         else:
             raise YonSuiteAuthError(f"获取 token 失败:{result.get('message')}")
 
@@ -283,8 +285,8 @@ class YonSuiteClient:
         page_index: int = 1,
         page_size: int = 500,
         isSum: bool = False,
-        date_from: str = None,
-        date_to: str = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
     ) -> dict:
         """
         查询销售订单列表
@@ -736,6 +738,7 @@ class YonSuiteClient:
         Returns:
             格式化的文本
         """
+        return ""
 
     # ============== 商机查询 ==============
 
@@ -743,13 +746,13 @@ class YonSuiteClient:
         self,
         page_index: int = 1,
         page_size: int = 500,
-        code: str = None,
-        name: str = None,
-        oppt_state: str = None,
-        win_lose_state: str = None,
+        code: str | None = None,
+        name: str | None = None,
+        oppt_state: str | None = None,
+        win_lose_state: str | None = None,
         is_sum: bool = True,
-        date_from: str = None,
-        date_to: str = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
     ) -> dict:
         """
         查询商机列表
@@ -786,13 +789,13 @@ class YonSuiteClient:
         self,
         page_index: int = 1,
         page_size: int = 500,
-        code: str = None,
-        name: str = None,
-        oppt_state: str = None,
-        win_lose_state: str = None,
+        code: str | None = None,
+        name: str | None = None,
+        oppt_state: str | None = None,
+        win_lose_state: str | None = None,
         is_sum: bool = True,
-        date_from: str = None,
-        date_to: str = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
     ) -> list[Opportunity]:
         """
         查询商机列表（解析为 Opportunity 对象）

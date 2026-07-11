@@ -28,7 +28,7 @@ def ensure_deps():
 
 ensure_deps()
 
-from pypdf import PdfReader, PdfWriter
+from pypdf import PdfReader, PdfWriter  # type: ignore
 
 
 def merge(cover_path: str, body_path: str, out_path: str, title: str = "") -> dict:

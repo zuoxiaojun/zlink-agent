@@ -30,8 +30,8 @@ def ensure_deps():
 
 
 ensure_deps()
-from pypdf import PdfReader
-from pypdf.generic import ArrayObject
+from pypdf import PdfReader  # type: ignore
+from pypdf.generic import ArrayObject  # type: ignore
 
 
 # ── Field type resolution ──────────────────────────────────────────────────────

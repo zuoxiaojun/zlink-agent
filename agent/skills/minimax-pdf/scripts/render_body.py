@@ -49,13 +49,13 @@ def ensure_deps():
 
 ensure_deps()
 
-from reportlab.lib.colors import HexColor
-from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import (
+from reportlab.lib.colors import HexColor  # type: ignore
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY  # type: ignore
+from reportlab.lib.pagesizes import A4  # type: ignore
+from reportlab.lib.styles import ParagraphStyle  # type: ignore
+from reportlab.pdfbase import pdfmetrics  # type: ignore
+from reportlab.pdfbase.ttfonts import TTFont  # type: ignore
+from reportlab.platypus import (  # type: ignore
     BaseDocTemplate,
     Flowable,
     Frame,
@@ -69,7 +69,7 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
-from reportlab.platypus import (
+from reportlab.platypus import (  # type: ignore
     Image as RLImage,
 )
 
@@ -99,7 +99,7 @@ class CalloutBox(Flowable):
         self._accent = HexColor(accent)
         self._bg = HexColor(bg)
 
-    def wrap(self, aw, ah):
+    def wrap(self, aw, ah):  # type: ignore[override]
         self._w = aw
         _, ph = self._para.wrap(aw - 36, ah)
         self._h = ph + 22
@@ -126,7 +126,7 @@ class BibliographyItem(Flowable):
         self._style = style
         self._dark = HexColor(dark)
 
-    def wrap(self, aw, ah):
+    def wrap(self, aw, ah):  # type: ignore[override]
         self._w = aw
         self._para = Paragraph(self._text, self._style)
         _, ph = self._para.wrap(aw - self.LABEL_W, ah)
@@ -387,7 +387,7 @@ def _render_math_png(expr: str, dpi: int = 180) -> bytes | None:
 
         fig = plt.figure(figsize=(8, 1.2))
         fig.patch.set_facecolor("white")
-        ax = fig.add_axes([0, 0, 1, 1])
+        ax = fig.add_axes([0, 0, 1, 1])  # type: ignore[call-overload, arg-type]
         ax.set_axis_off()
         ax.set_facecolor("white")
         ax.text(0.5, 0.5, f"${expr}$", fontsize=16, ha="center", va="center", transform=ax.transAxes)
@@ -638,7 +638,7 @@ def _render_flowchart_png(item: dict, accent: str, dark: str, muted: str, dpi: i
 
             elif shape == "diamond":
                 d = BOX_W * 0.44
-                diamond = plt.Polygon(
+                diamond = plt.Polygon(  # type: ignore[attr-defined]
                     [(cx, cy - d * 0.72), (cx + d, cy), (cx, cy + d * 0.72), (cx - d, cy)],
                     facecolor="#FFFCF0",
                     edgecolor=accent,
@@ -649,7 +649,7 @@ def _render_flowchart_png(item: dict, accent: str, dark: str, muted: str, dpi: i
 
             elif shape == "parallelogram":
                 skew = 0.30
-                para = plt.Polygon(
+                para = plt.Polygon(  # type: ignore[attr-defined]
                     [(left + skew, bot), (left + BOX_W + skew, bot), (left + BOX_W, bot + BOX_H), (left, bot + BOX_H)],
                     facecolor="white",
                     edgecolor=accent,

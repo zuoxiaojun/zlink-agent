@@ -23,13 +23,13 @@ def example_module_usage():
     token = client.get_access_token()
 
     # 直接使用销售模块
-    orders = client.sales.query_orders_parsed(token, customer_name="测试", page_size=3)
+    orders = client.sales.query_orders_parsed(token, customer_name="测试", page_size=3)  # type: ignore[call-arg]
     print(f"📋 销售订单（模型对象）：{len(orders)} 个")
     for order in orders:
-        print(f"  - {order.code}: ¥{order.amount:,.2f}")
+        print(f"  - {order.code}: ¥{order.amount:,.2f}")  # type: ignore[attr-defined]
 
     # 直接使用库存模块
-    stock_items = client.stock.query_stock_parsed(token, product_code="A010100003")
+    stock_items = client.stock.query_stock_parsed(token, product_code="A010100003")  # type: ignore[call-arg]
     print(f"\n📦 库存记录（模型对象）：{len(stock_items)} 条")
     for item in stock_items:
         print(f"  - {item.product_name}: {item.current_qty} 件 (可用：{item.available_qty})")
@@ -65,7 +65,7 @@ def example_formatted_output():
         print(client.sales.format_orders_list(orders))
 
     # 查询并格式化库存
-    result = client.query_current_stock(product_name="测试")
+    result = client.query_current_stock(product_name="测试")  # type: ignore[call-arg]
     if result.get("data"):
         items = [StockItem.from_api(item) for item in result["data"]]
         print(client.stock.format_stock_info(items))
@@ -83,7 +83,7 @@ def example_production_order():
     end = datetime.now().strftime("%Y-%m-%d")
     start = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
-    result = client.query_production_orders(start_date=start, end_date=end, page_size=5)
+    result = client.query_production_orders(start_date=start, end_date=end, page_size=5)  # type: ignore[call-arg]
 
     if result.get("data"):
         orders = [ProductionOrder.from_api(item) for item in result["data"]]

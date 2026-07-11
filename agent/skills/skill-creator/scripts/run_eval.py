@@ -102,16 +102,16 @@ def run_single_query(
         try:
             while time.time() - start_time < timeout:
                 if process.poll() is not None:
-                    remaining = process.stdout.read()
+                    remaining = process.stdout.read()  # type: ignore[attr-defined]
                     if remaining:
                         buffer += remaining.decode("utf-8", errors="replace")
                     break
 
-                ready, _, _ = select.select([process.stdout], [], [], 1.0)
+                ready, _, _ = select.select([process.stdout], [], [], 1.0)  # type: ignore[arg-type]
                 if not ready:
                     continue
 
-                chunk = os.read(process.stdout.fileno(), 8192)
+                chunk = os.read(process.stdout.fileno(), 8192)  # type: ignore[attr-defined]
                 if not chunk:
                     break
                 buffer += chunk.decode("utf-8", errors="replace")

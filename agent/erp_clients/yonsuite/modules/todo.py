@@ -101,7 +101,7 @@ class TodoItem:
 class TodoModule(BaseAPIClient):
     """用户待办查询模块"""
 
-    def __init__(self, gateway_url: str = None):
+    def __init__(self, gateway_url: str | None = None):
         super().__init__(gateway_url=gateway_url)
         self.base_path = "/yonbip/uspace/rest/open/yhttoken/todo/query/list"
 

@@ -91,7 +91,7 @@ def find_ws_path(work_dir: str, sheet_name: str | None) -> str:
     rels_tree = ET.parse(os.path.join(work_dir, "xl", "_rels", "workbook.xml.rels"))
     for rel in rels_tree.getroot():
         if rel.get("Id") == rid:
-            return os.path.join(work_dir, "xl", rel.get("Target"))
+            return os.path.join(work_dir, "xl", rel.get("Target"))  # type: ignore[arg-type]
 
     print(f"ERROR: Relationship not found: {rid}")
     sys.exit(1)
@@ -117,13 +117,13 @@ def add_shared_string(work_dir: str, text: str) -> int:
     root.set("count", str(int(root.get("count", "0")) + 1))
     root.set("uniqueCount", str(int(root.get("uniqueCount", "0")) + 1))
 
-    _write_tree(tree, ss_path)
+    _write_tree(tree, ss_path)  # type: ignore[arg-type]
     return idx
 
 
 def get_cell_style(ws_tree: ET.ElementTree, col: str, row: int) -> int:
     ref = f"{col}{row}"
-    for row_el in ws_tree.getroot().iter(_tag("row")):
+    for row_el in ws_tree.getroot().iter(_tag("row")):  # type: ignore[attr-defined]
         if row_el.get("r") == str(row):
             for c in row_el:
                 if c.get("r") == ref:
@@ -143,7 +143,7 @@ def ensure_numfmt_style(work_dir: str, ref_style_idx: int, numfmt_code: str) -> 
     if numfmts is not None:
         for nf in numfmts:
             if nf.get("formatCode") == numfmt_code:
-                numfmt_id = int(nf.get("numFmtId"))
+                numfmt_id = int(nf.get("numFmtId"))  # type: ignore[arg-type]
                 break
 
     if numfmt_id is None:
@@ -165,7 +165,7 @@ def ensure_numfmt_style(work_dir: str, ref_style_idx: int, numfmt_code: str) -> 
 
     # Find or create cellXfs entry
     cellxfs = root.find(_tag("cellXfs"))
-    xf_list = list(cellxfs)
+    xf_list = list(cellxfs)  # type: ignore[arg-type]
     ref_xf = xf_list[min(ref_style_idx, len(xf_list) - 1)]
 
     for i, xf in enumerate(xf_list):
@@ -180,11 +180,11 @@ def ensure_numfmt_style(work_dir: str, ref_style_idx: int, numfmt_code: str) -> 
     new_xf = copy.deepcopy(ref_xf)
     new_xf.set("numFmtId", str(numfmt_id))
     new_xf.set("applyNumberFormat", "true")
-    cellxfs.append(new_xf)
-    cellxfs.set("count", str(len(list(cellxfs))))
+    cellxfs.append(new_xf)  # type: ignore[attr-defined]
+    cellxfs.set("count", str(len(list(cellxfs))))  # type: ignore[attr-defined, arg-type]
 
-    _write_tree(tree, styles_path)
-    return len(list(cellxfs)) - 1
+    _write_tree(tree, styles_path)  # type: ignore[arg-type]
+    return len(list(cellxfs)) - 1  # type: ignore[arg-type]
 
 
 def _apply_border_to_row(
@@ -204,15 +204,15 @@ def _apply_border_to_row(
 
     # 1. Create a new border entry with the specified top style
     borders = st_root.find(_tag("borders"))
-    new_border = ET.SubElement(borders, _tag("border"))
+    new_border = ET.SubElement(borders, _tag("border"))  # type: ignore[arg-type]
     for side in ("left", "right"):
         ET.SubElement(new_border, _tag(side))
     top_el = ET.SubElement(new_border, _tag("top"))
     top_el.set("style", border_style)
     ET.SubElement(new_border, _tag("bottom"))
     ET.SubElement(new_border, _tag("diagonal"))
-    borders.set("count", str(len(list(borders))))
-    new_border_id = len(list(borders)) - 1
+    borders.set("count", str(len(list(borders))))  # type: ignore[attr-defined, arg-type]
+    new_border_id = len(list(borders)) - 1  # type: ignore[arg-type]
 
     # 2. For each existing style used in the row, create a clone with the new borderId
     cellxfs = st_root.find(_tag("cellXfs"))
@@ -226,14 +226,14 @@ def _apply_border_to_row(
     for c in row_el:
         old_s = int(c.get("s", "0"))
         if old_s not in style_remap:
-            xf_list = list(cellxfs)
+            xf_list = list(cellxfs)  # type: ignore[arg-type]
             ref_xf = xf_list[min(old_s, len(xf_list) - 1)]
             new_xf = copy.deepcopy(ref_xf)
             new_xf.set("borderId", str(new_border_id))
             new_xf.set("applyBorder", "true")
-            cellxfs.append(new_xf)
-            cellxfs.set("count", str(len(list(cellxfs))))
-            style_remap[old_s] = len(list(cellxfs)) - 1
+            cellxfs.append(new_xf)  # type: ignore[attr-defined]
+            cellxfs.set("count", str(len(list(cellxfs))))  # type: ignore[attr-defined, arg-type]
+            style_remap[old_s] = len(list(cellxfs)) - 1  # type: ignore[arg-type]
 
     # 3. Apply remapped styles to all cells in the row
     for c in row_el:
@@ -241,7 +241,7 @@ def _apply_border_to_row(
         if old_s in style_remap:
             c.set("s", str(style_remap[old_s]))
 
-    _write_tree(st_tree, styles_path)
+    _write_tree(st_tree, styles_path)  # type: ignore[arg-type]
     last_col_num = col_number(new_col)
     print(
         f"  Applied {border_style} top border to all cells in row {border_row} "
@@ -276,17 +276,17 @@ def main() -> None:
     print(f"Adding column {col} to {os.path.basename(ws_path)}")
 
     # Resolve styles from previous column
-    header_style = get_cell_style(ws_tree, prev_col, 1) if args.header else 0
+    header_style = get_cell_style(ws_tree, prev_col, 1) if args.header else 0  # type: ignore[arg-type]
 
     data_style = None
     if args.formula_rows:
         start_row = int(args.formula_rows.split(":")[0])
-        ref = get_cell_style(ws_tree, prev_col, start_row)
+        ref = get_cell_style(ws_tree, prev_col, start_row)  # type: ignore[arg-type]
         data_style = ensure_numfmt_style(args.work_dir, ref, args.numfmt) if args.numfmt else ref
 
     total_style = None
     if args.total_row:
-        ref = get_cell_style(ws_tree, prev_col, args.total_row)
+        ref = get_cell_style(ws_tree, prev_col, args.total_row)  # type: ignore[arg-type]
         total_style = ensure_numfmt_style(args.work_dir, ref, args.numfmt) if args.numfmt else ref
 
     # Add header to sharedStrings
@@ -298,7 +298,7 @@ def main() -> None:
     sheet_data = root.find(_tag("sheetData"))
 
     row_map = {}
-    for row_el in sheet_data:
+    for row_el in sheet_data:  # type: ignore[arg-type]
         r = row_el.get("r")
         if r:
             row_map[int(r)] = row_el
@@ -319,7 +319,7 @@ def main() -> None:
         start, end = map(int, args.formula_rows.split(":"))
         for row_num in range(start, end + 1):
             if row_num not in row_map:
-                row_el = ET.SubElement(sheet_data, _tag("row"))
+                row_el = ET.SubElement(sheet_data, _tag("row"))  # type: ignore[arg-type]
                 row_el.set("r", str(row_num))
                 row_map[row_num] = row_el
 
@@ -338,7 +338,7 @@ def main() -> None:
     # Add total formula
     if args.total_row and args.total_formula:
         if args.total_row not in row_map:
-            row_el = ET.SubElement(sheet_data, _tag("row"))
+            row_el = ET.SubElement(sheet_data, _tag("row"))  # type: ignore[arg-type]
             row_el.set("r", str(args.total_row))
             row_map[args.total_row] = row_el
 
@@ -357,8 +357,8 @@ def main() -> None:
         old_ref = dim.get("ref", "")
         if ":" in old_ref:
             start_ref, end_ref = old_ref.split(":")
-            end_col_str = re.match(r"([A-Z]+)", end_ref).group(1)
-            end_row_str = re.search(r"(\d+)", end_ref).group(1)
+            end_col_str = re.match(r"([A-Z]+)", end_ref).group(1)  # type: ignore[attr-defined]
+            end_row_str = re.search(r"(\d+)", end_ref).group(1)  # type: ignore[attr-defined]
             if col_number(col) > col_number(end_col_str):
                 new_ref = f"{start_ref}:{col}{end_row_str}"
                 dim.set("ref", new_ref)
@@ -382,9 +382,9 @@ def main() -> None:
 
     # Apply border to entire row if requested
     if args.border_row:
-        _apply_border_to_row(args.work_dir, ws_path, ws_tree, root, row_map, args.border_row, args.border_style, col)
+        _apply_border_to_row(args.work_dir, ws_path, ws_tree, root, row_map, args.border_row, args.border_style, col)  # type: ignore[arg-type]
 
-    _write_tree(ws_tree, ws_path)
+    _write_tree(ws_tree, ws_path)  # type: ignore[arg-type]
     print(f"\nDone. {changes} cells added.")
     print(f"\nNext: python3 xlsx_pack.py {args.work_dir} output.xlsx")
 

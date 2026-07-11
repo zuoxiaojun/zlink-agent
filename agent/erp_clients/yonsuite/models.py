@@ -280,9 +280,9 @@ class SaleOrderDetail(SaleOrder):
     def from_api(cls, data: dict[str, Any]) -> "SaleOrderDetail":
         """从 API 响应创建实例"""
         instance = super().from_api(data)
-        instance.items = data.get("entries", [])
-        instance.status_tracking = data.get("statusTracking", [])
-        return instance
+        instance.items = data.get("entries", [])  # type: ignore[assignment]
+        instance.status_tracking = data.get("statusTracking", [])  # type: ignore[assignment]
+        return instance  # type: ignore[return-type]
 
 
 # ============== 采购订单相关 ==============
@@ -573,11 +573,11 @@ class VendorDetail(Vendor):
     def from_api(cls, data: dict[str, Any]) -> "VendorDetail":
         """从 API 响应创建实例"""
         instance = super().from_api(data)
-        instance.qualifications = data.get("qualifications", [])
-        instance.contacts = data.get("contacts", [])
-        instance.addresses = data.get("addresses", [])
-        instance.bank_accounts = data.get("bankAccounts", [])
-        return instance
+        instance.qualifications = data.get("qualifications", [])  # type: ignore[assignment]
+        instance.contacts = data.get("contacts", [])  # type: ignore[assignment]
+        instance.addresses = data.get("addresses", [])  # type: ignore[assignment]
+        instance.bank_accounts = data.get("bankAccounts", [])  # type: ignore[assignment]
+        return instance  # type: ignore[return-type]
 
 
 # ============== 库存相关 ==============
@@ -858,10 +858,10 @@ class ProductionOrderDetail(ProductionOrder):
     def from_api(cls, data: dict[str, Any]) -> "ProductionOrderDetail":
         """从 API 响应创建实例"""
         instance = super().from_api(data)
-        instance.processes = data.get("processes", [])
-        instance.materials = data.get("materials", [])
-        instance.by_products = data.get("byProducts", [])
-        return instance
+        instance.processes = data.get("processes", [])  # type: ignore[assignment]
+        instance.materials = data.get("materials", [])  # type: ignore[assignment]
+        instance.by_products = data.get("byProducts", [])  # type: ignore[assignment]
+        return instance  # type: ignore[return-type]
 
 
 # ============== 通用响应模型 ==============

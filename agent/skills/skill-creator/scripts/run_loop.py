@@ -150,7 +150,7 @@ def run_loop(
                 "test_size": len(test_set),
                 "history": history,
             }
-            live_report_path.write_text(generate_html(partial_output, auto_refresh=True, skill_name=name))
+            live_report_path.write_text(generate_html(partial_output, auto_refresh=True, skill_name=name))  # type: ignore[index]
 
         if verbose:
 
@@ -181,7 +181,7 @@ def run_loop(
 
             print_eval_stats("Train", train_results["results"], eval_elapsed)
             if test_summary:
-                print_eval_stats("Test ", test_results["results"], 0)
+                print_eval_stats("Test ", test_results["results"], 0)  # type: ignore[index]
 
         if train_summary["failed"] == 0:
             exit_reason = f"all_passed (iteration {iteration})"
