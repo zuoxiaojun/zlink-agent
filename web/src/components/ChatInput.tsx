@@ -35,10 +35,19 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
 
   // Fetch available slash commands once on mount
   useEffect(() => {
+    let cancelled = false;
     api.get<SlashCommandsResponse>("/slash-commands")
-      .then((res) => setAllCommands(res.commands))
+      .then((res) => { if (!cancelled) setAllCommands(res.commands); })
       .catch(() => { /* fail silently — popup simply won't appear */ });
+    return () => { cancelled = true; };
   }, []);
+
+  // Clamp activeIndex when filtered list shrinks
+  useEffect(() => {
+    if (activeIndex >= filteredCommands.length) {
+      setActiveIndex(Math.max(filteredCommands.length - 1, 0));
+    }
+  }, [filteredCommands, activeIndex]);
 
   const filteredCommands = useMemo(() => {
     if (!filterText) return allCommands;
@@ -160,8 +169,9 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
   const handleCommandSelect = (name: string) => {
     const ta = textareaRef.current;
     if (!ta) return;
+    const currentText = ta.value;
     const curCursor = ta.selectionStart;
-    const beforeCursor = text.slice(0, curCursor);
+    const beforeCursor = currentText.slice(0, curCursor);
     const lastSlashIndex = beforeCursor.lastIndexOf("/");
     if (lastSlashIndex === -1) return;
 
@@ -169,12 +179,12 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
     const replacement = cmd ? cmd.usage : `/${name}`;
 
     // Find the end of the current slash-word (stop at whitespace or end of string)
-    const afterCursor = text.slice(curCursor);
+    const afterCursor = currentText.slice(curCursor);
     const endMatch = afterCursor.search(/[\s\n]/);
-    const wordEnd = endMatch >= 0 ? curCursor + endMatch : text.length;
+    const wordEnd = endMatch >= 0 ? curCursor + endMatch : currentText.length;
 
     const newText =
-      text.slice(0, lastSlashIndex) + replacement + text.slice(wordEnd);
+      currentText.slice(0, lastSlashIndex) + replacement + currentText.slice(wordEnd);
     setText(newText);
     setShowPopup(false);
 
