@@ -124,6 +124,8 @@ def approval_hook(tool_name: str, args: dict) -> dict:
             wild_key = f"{tool_name}:*"
             ts = _APPROVED_CALLS.get(wild_key)
             if ts is not None and (time.monotonic() - ts) < _APPROVAL_TTL:
+                # 通配 key 使用后立即消耗，防止同一审批重复执行
+                del _APPROVED_CALLS[wild_key]
                 return args
         return {
             "__block__": True,
