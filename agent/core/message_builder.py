@@ -87,29 +87,6 @@ def build_system_prompt(
     except ImportError:
         pass
 
-    # 7. Approval guidance (if confirm_tool_execution tool is available)
-    try:
-        from agent.tools.registry import registry
-
-        if "confirm_tool_execution" in registry.get_all_tool_names():
-            parts.append(
-                "## 高风险操作审批\n"
-                "当安全系统因审批模式（approval_mode=approve）拦截了一个高风险工具调用时，"
-                "你会收到一条包含「需要你的确认」的阻断消息。\n\n"
-                "此时你应该：\n"
-                "1. 向用户解释需要执行的操作及其影响\n"
-                "2. 如果用户批准，调用 `confirm_tool_execution` 工具来确认执行\n"
-                "3. 如果用户拒绝，告知用户操作已取消\n\n"
-                "示例：\n"
-                "用户：帮我删除 /tmp/test.sql\n"
-                "→ 你：调用 file_delete → 被拦截\n"
-                "→ 你：系统拦截了 file_delete(/tmp/test.sql)，是否批准执行？\n"
-                "用户：批准\n"
-                "→ 你：调用 confirm_tool_execution(tool_name=\"file_delete\", args={path: \"/tmp/test.sql\"})"
-            )
-    except ImportError:
-        pass
-
     if len(parts) == 1:
         return None
     return "\n\n".join(parts)

@@ -105,10 +105,6 @@ export default function ChatPage() {
             <ChatMessage
               key={i}
               msgs={g}
-              disabled={state.agentRunning}
-              onApprove={(approved) => {
-                if (!state.agentRunning) sendMessage(approved ? "批准" : "拒绝");
-              }}
             />
           ));
         })()}
