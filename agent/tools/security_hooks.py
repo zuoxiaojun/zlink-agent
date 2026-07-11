@@ -9,7 +9,7 @@ import logging
 import threading
 import time
 
-from agent.config_manager import load as load_config
+from agent import config_manager as _cm
 from agent.tools.registry import registry
 
 logger = logging.getLogger(__name__)
@@ -97,7 +97,7 @@ def approval_hook(tool_name: str, args: dict) -> dict:
     - ``approve``: block high-risk tools unless pre-approved via ``record_approval()``.
     """
     try:
-        config = load_config()
+        config = _cm.load()
         mode = getattr(config, "approval_mode", "allow_all")
     except Exception:
         return args
