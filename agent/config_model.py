@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import socket
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -41,6 +42,13 @@ def _decrypt(cipher: str) -> str:
     return Fernet(key).decrypt(cipher.encode()).decode()
 
 
+class ApprovalMode(str, Enum):
+    """Command approval mode for tool execution security."""
+    ALLOW_ALL = "allow_all"
+    APPROVE_HIGH_RISK = "approve"
+    REJECT_ALL = "reject_all"
+
+
 class MCPServerEntry(BaseModel):
     transport: str = "stdio"
     enabled: bool = True
@@ -70,6 +78,7 @@ class AppConfig(BaseModel):
     mcp_servers: dict[str, MCPServerEntry] = {}
     erp_clients: dict[str, dict[str, Any]] = {}
     disabled_extensions: list[str] = []
+    approval_mode: str = "allow_all"
 
     def model_dump_encrypted(self, **kwargs) -> dict[str, Any]:
         kwargs.setdefault("mode", "json")
