@@ -87,9 +87,12 @@ def handle_confirm_tool_execution(args: dict) -> str:
         logger.exception("Failed to record approval")
         return json.dumps({"success": False, "error": f"记录审批失败: {e}"})
 
-    # Re-dispatch the original tool
+    # Execute the original tool directly (bypass hooks to avoid re-triggering approval)
     try:
-        result = registry.dispatch(tool_name, tool_args)
+        entry = registry.get_entry(tool_name)
+        if entry is None:
+            return json.dumps({"success": False, "error": f"未知工具: {tool_name}"})
+        result = entry.handler(tool_args)
         if not isinstance(result, str):
             result = json.dumps(result, ensure_ascii=False)
         return result
