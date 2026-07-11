@@ -520,4 +520,115 @@ class MCPServerEntry(BaseModel):
     builtin: bool = False              # builtin servers cannot be deleted via API
 ```
 
-<!-- NEXT: SECTION_1_6 -->
+### 1.6 Development Constraints
+
+#### Do-Not-Modify Zones (❌)
+
+| Path | Reason |
+|------|--------|
+| `agent/skills/<name>/SKILL.md` | Built-in skills — frontend API rejects DELETE/EDIT on builtin=True |
+| `mcp_server/ys_mcp_server/` | YonSuite MCP handler contract; changing response shape breaks LLM tool parsing |
+| `agent/tools/registry.py` | Tool dispatch central hub — extend via `register()`, never edit internals |
+| `agent/tools/security_hooks.py` | Three-layer security enforcement — modifying weakens the protection model |
+| `backend/schemas/*.py` | Pydantic models consumed by frontend API responses — rename fields = breaking change |
+
+#### ⚠️ Modify-With-Caution Zones
+
+| Path | Risk |
+|------|------|
+| `agent/core/agent.py` | AIAgent constructor signature is frozen for M1; changing `run_conversation()` return dict keys breaks `chat.py` |
+| `agent/core/llm_providers/base.py` | LLMResponse field names are consumed by `agent.py` and extensions |
+| `agent/events/types.py` | Event class field names are contracts — extensions read them by name |
+| `backend/api/erp_clients_api.py` | ERP secret field list must match `config_manager.ERP_SECRET_FIELDS` |
+| `mcp_server/nc_mcp/mcp_starter.py` | `sync_nc_mcp()` is called from `erp_clients_api.py` — changing signature breaks ERP toggle |
+
+#### Naming Conventions
+
+- **MCP tool names** in config.json / tool registry: `mcp_<server_name>_<tool_name>` (e.g. `mcp_yonsuite_ys_api`)
+- **API routes**: all under `/api/*` prefix, defined in `backend/api/` routers
+- **REST endpoints**: follow RESTful pattern (`GET /api/resources`, `POST /api/resources`, etc.)
+- **Test files**: `test_<module_name>.py` in `tests/`
+- **Tool modules**: one file per toolset in `agent/tools/`
+- **ERP client modules**: named after ERP system (yonsuite, nc)
+
+#### Security Three-Layer Protection
+
+```
+Layer 1: System prompt         — Instructions telling the LLM to avoid dangerous actions
+Layer 2: Before-hook chain     — security_hooks.py intercepts tool calls, blocks rm -rf etc.
+Layer 3: SecurityEventExtension — events/security_event.py subscribes to BeforeToolCallEvent,
+                                 cancels blocked operations
+```
+
+To add a new blocked pattern: edit `agent/tools/security_hooks.py` or `agent/extensions/security_event.py`. Never disable all three layers simultaneously.
+
+#### Configuration Encryption Convention
+
+- Secrets stored in config.json with `encrypted:` prefix
+- Encryption: Fernet (symmetric), key derived from `sha256(hostname + "::zlink-agent::salt_v1")`
+- See `agent/config_model.py:_encrypt()` / `_decrypt()` / `_derive_key()`
+- ERP secret fields auto-encrypted on PUT via `erp_clients_api.py`:SECRET_FIELDS
+- When adding a new ERP with secrets: add field names to both `ERP_SECRET_FIELDS` (config_manager.py) and `SECRET_FIELDS` (erp_clients_api.py)
+
+### 1.7 Test System
+
+**Run all tests:** `.venv/bin/python -m pytest tests/ -v`
+
+**Coverage target:** 70%+ (measured by `--cov=agent --cov=backend --cov-report=term-missing`)
+
+**Zero-network policy:** All tests use `MockLLMProvider`, `FastAPI TestClient`, and temp-file config isolation. No real LLM, YonSuite, or MCP server calls.
+
+#### Test File ↔ Module Mapping
+
+| Test file | Module under test | Mock/Isolation strategy |
+|-----------|------------------|------------------------|
+| `tests/conftest.py` | Shared fixtures | `clean_extensions` (autouse, wipes event bus between tests), `isolated_config` (redirects config to tmp_path), `MockLLMProvider` (scripted LLMResponse) |
+| `tests/test_agent_loop.py` | `agent/core/agent.py` (AIAgent) | `MockLLMProvider` replaces `_llm` |
+| `tests/test_extensions.py` | `agent/events/*` + `agent/extensions/*` | `clean_extensions` autouse |
+| `tests/test_tool_registry.py` | `agent/tools/registry.py` | Clean tool registry per test (snapshot/restore) |
+| `tests/test_compactor.py` | `agent/context_compactor.py` | Pure functions, no mocks needed |
+| `tests/test_config_manager.py` | `agent/config_manager.py` | `monkeypatch` CONFIG_FILE to tmp_path |
+| `tests/test_api_extensions.py` | `backend/api/extensions_api.py` | `TestClient(app)` + `isolated_config` |
+| `tests/test_config_manager_erp.py` | `agent/config_manager.py` (ERP methods) | `monkeypatch` CONFIG_FILE |
+| `tests/test_erp_clients_api.py` | `backend/api/erp_clients_api.py` | `TestClient(app)` + tmp config.json |
+| `tests/test_erp_clients_base.py` | `agent/erp_clients/base.py` | Pure imports, no mocks |
+| `tests/test_nc_mcp_starter.py` | `mcp_server/nc_mcp/mcp_starter.py` | `patch` config_manager + asyncio.run |
+| `tests/test_nc_mcp_config.py` | `mcp_server/nc_mcp/config.py` | Pure functions |
+| `tests/test_utils_data_dir.py` | `agent/utils.py` (_resolve_data_dir) | `monkeypatch` env vars + `importlib.reload` |
+
+### 1.8 Common Modification Patterns
+
+#### Pattern A: Add a new ERP system
+
+1. Define ERP client class in `agent/erp_clients/<name>/` (if SDK needed)
+2. Add entry to `ERP_REGISTRY` in `web/src/pages/SettingsERPPage.tsx` (label, badge, fields, MCP server name)
+3. Add secret field names to both `config_manager.ERP_SECRET_FIELDS` and `erp_clients_api.SECRET_FIELDS`
+4. Write MCP server in `mcp_server/<name>_mcp/` (or reuse existing)
+5. Register MCP server entry in config.json mcp_servers (or use dynamic registration like nc)
+6. Add toggle logic in `erp_clients_api.py` PUT handler
+
+#### Pattern B: Add a new tool
+
+1. Create a new file in `agent/tools/<new_tool>.py`
+2. Define handler function that accepts `(args: dict) → str` (JSON)
+3. Call `registry.register(name, toolset, schema, handler)` at module level
+4. Tools auto-register on next import via `discover_tools()`
+
+#### Pattern C: Add a new MCP server
+
+1. Write MCP server implementing JSON-RPC over stdio or HTTP
+2. Add `MCPServerEntry` to config.json mcp_servers
+3. For builtin servers: add to `main.py` lifespan auto-registration
+4. For ERP-linked servers (like nc): use `mcp_starter.sync_nc_mcp()` pattern
+5. Frontend toggle: `builtin=True` → forbid delete; non-builtin → allow full CRUD
+
+#### Pattern D: Add a new API route
+
+1. Create new file in `backend/api/<name>_api.py` with `APIRouter`
+2. Define Pydantic schemas in `backend/schemas/<name>.py` (if needed)
+3. Mount router in `backend/main.py: app.include_router(router)`
+4. For WebSocket: add to `backend/api/chat.py` router
+5. Add frontend API client call in `web/src/api/` (if frontend consumes it)
+6. Add page component in `web/src/pages/` + route in `App.tsx`
+
+<!-- NEXT: PART_2_SEPARATOR -->
