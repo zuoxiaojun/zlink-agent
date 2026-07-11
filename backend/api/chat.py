@@ -64,7 +64,7 @@ def _generate_summary(messages: list[dict], api_key: str, base_url: str, model: 
             max_tokens=150,
             temperature=0.3,
         )
-        return resp.choices[0].message.content.strip()
+        return (resp.choices[0].message.content or "").strip()
     except Exception:
         return None
 
