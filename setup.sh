@@ -68,9 +68,94 @@ if [ -f ".venv/bin/python" ] || [ -d "data/sessions" ]; then
     echo ""
 fi
 
-# ── 1. 依赖检查 ─────────────────────────────────────────────────────────────
+# ── 辅助函数: 询问用户 ──────────────────────────────────────────────────
+# ZLINK_AUTO_INSTALL=1 可跳过询问，直接安装
+_confirm_install() {
+    local label="$1"
+    if [ "${ZLINK_AUTO_INSTALL:-}" = "1" ]; then
+        return 0
+    fi
+    echo ""
+    echo -e "  ${YELLOW}是否自动安装 ${label}？${NC}"
+    echo -e "  ${YELLOW}输入 y 安装 / n 跳过 (查看安装指南) / Enter 默认安装${NC}"
+    read -r _choice </dev/tty
+    case "$_choice" in
+        n|N) return 1 ;;
+        *) return 0 ;;
+    esac
+}
+
+_install_brew() {
+    info "正在安装 Homebrew (使用国内镜像加速)..."
+    /bin/bash -c "$(curl -fsSL https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/install/install.sh)" 2>&1 || true
+    # 尝试官方源作为备选
+    if ! command -v brew &>/dev/null; then
+        info "清华源失败，尝试 Homebrew 官方源..."
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" 2>&1 || true
+    fi
+    # 配置 brew 镜像
+    if command -v brew &>/dev/null; then
+        export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git"
+        export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/homebrew-core.git"
+        ok "Homebrew 安装完成: $(brew --version | head -1)"
+    else
+        err "Homebrew 安装失败，请手动安装后重试"
+        err "  /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+        return 1
+    fi
+}
+
+# ── 1. 依赖检查 + 自动安装 ──────────────────────────────────────────────
 echo -e "${GREEN}[1/8] 检查依赖环境...${NC}"
 
+# 1a. Xcode Command Line Tools (macOS 独占, pip 编译需要)
+if [ "$OS" = "macos" ]; then
+    if ! xcode-select -p &>/dev/null 2>&1; then
+        err "Xcode Command Line Tools 未安装 (cryptography/pydantic-core 编译需要)"
+        if _confirm_install "Xcode Command Line Tools"; then
+            info "正在安装 Xcode CLT (可能需要几分钟，请勿中断)..."
+            xcode-select --install 2>&1 || true
+            # xcode-select --install 是异步的，等待完成
+            for _i in $(seq 1 60); do
+                if xcode-select -p &>/dev/null 2>&1; then
+                    break
+                fi
+                sleep 2
+            done
+            if xcode-select -p &>/dev/null 2>&1; then
+                ok "Xcode CLT 安装完成: $(xcode-select -p)"
+            else
+                err "Xcode CLT 安装超时，请手动运行: xcode-select --install"
+                err "安装完成后重新运行本脚本"
+                exit 1
+            fi
+        else
+            err "Xcode CLT 未安装，cryptography 等包将无法编译"
+            err "请运行 xcode-select --install 后重试"
+            exit 1
+        fi
+    else
+        ok "Xcode CLT: $(xcode-select -p)"
+    fi
+fi
+
+# 1b. Homebrew (macOS, 用于安装 Python/Node)
+if [ "$OS" = "macos" ] && ! command -v brew &>/dev/null; then
+    warn "Homebrew 未安装，自动安装 Python/Node.js 需要 Homebrew"
+    if _confirm_install "Homebrew"; then
+        _install_brew || exit 1
+    else
+        info "跳过 Homebrew 安装，将使用系统自带 Python (如有)"
+    fi
+fi
+if command -v brew &>/dev/null; then
+    ok "Homebrew: $(brew --version | head -1)"
+    # 配置 brew 镜像
+    export HOMEBREW_BREW_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git"
+    export HOMEBREW_CORE_GIT_REMOTE="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/homebrew-core.git"
+fi
+
+# 1c. Python >= 3.11
 PY_CMD=""
 for cmd in python3.14 python3.13 python3.12 python3.11 python3; do
     if command -v "$cmd" &>/dev/null; then
@@ -83,49 +168,97 @@ for cmd in python3.14 python3.13 python3.12 python3.11 python3; do
 done
 
 if [ -z "$PY_CMD" ]; then
+    case "$OS" in
+        macos)
+            if command -v brew &>/dev/null; then
+                warn "需要 Python >= 3.11"
+                if _confirm_install "Python 3.12 (via Homebrew)"; then
+                    brew install python@3.12 2>&1
+                    PY_CMD="python3.12"
+                fi
+            fi
+            ;;
+        linux)
+            warn "需要 Python >= 3.11"
+            if _confirm_install "Python 3 (via apt)"; then
+                apt update -y 2>&1 && apt install -y python3 python3-venv python3-pip 2>&1
+                PY_CMD="python3"
+            fi
+            ;;
+    esac
+fi
+
+if [ -z "$PY_CMD" ]; then
     err "需要 Python >= 3.11，未在系统中找到。"
     echo ""
-    echo "  请安装 Python 后重新运行："
-    echo "    macOS:   brew install python@3.12"
-    echo "             或 https://www.python.org/downloads/"
+    echo "  手动安装："
+    echo "    macOS:   brew install python@3.12 或 https://www.python.org/downloads/"
     echo "    Linux:   apt install python3 python3-venv python3-pip"
-    echo "    Windows: https://www.python.org/downloads/"
+    echo ""
+    echo "  或用 ZLINK_AUTO_INSTALL=1 自动安装:"
+    echo "    ZLINK_AUTO_INSTALL=1 bash setup.sh"
     echo ""
     exit 1
 fi
 ok "Python: $($PY_CMD --version)"
 
+# 1d. Node.js >= 18 + npm
 if command -v node &>/dev/null; then
     NODE_VER=$(node --version 2>&1 | sed 's/^v//' | cut -d. -f1)
     if [ "$NODE_VER" -lt 18 ] 2>/dev/null; then
-        err "Node.js 版本过低: $(node --version)（需要 >= 18）"
-        echo ""
-        echo "  请升级 Node.js 后重新运行："
-        echo "    macOS:   brew upgrade node"
-        echo "             或 https://nodejs.org/"
-        echo "    Linux:   apt install nodejs npm"
-        echo "    Windows: https://nodejs.org/"
-        echo ""
-        exit 1
+        warn "Node.js 版本过低: $(node --version)（需要 >= 18）"
+        case "$OS" in
+            macos)
+                if command -v brew &>/dev/null; then
+                    if _confirm_install "Node.js upgrade (via Homebrew)"; then
+                        brew upgrade node 2>&1 || brew install node 2>&1
+                    fi
+                fi
+                ;;
+            linux)
+                if _confirm_install "Node.js (via apt)"; then
+                    apt install -y nodejs npm 2>&1
+                fi
+                ;;
+        esac
     fi
     ok "Node.js: $(node --version)"
 else
-    err "需要 Node.js >= 18，未在系统中找到。"
+    warn "需要 Node.js >= 18"
+    case "$OS" in
+        macos)
+            if command -v brew &>/dev/null; then
+                if _confirm_install "Node.js (via Homebrew)"; then
+                    brew install node 2>&1
+                fi
+            fi
+            ;;
+        linux)
+            if _confirm_install "Node.js (via apt)"; then
+                apt install -y nodejs npm 2>&1
+            fi
+            ;;
+    esac
+fi
+
+if ! command -v node &>/dev/null || [ "$(node --version 2>&1 | sed 's/^v//' | cut -d. -f1)" -lt 18 ] 2>/dev/null; then
+    err "需要 Node.js >= 18"
     echo ""
-    echo "  请安装 Node.js 后重新运行："
-    echo "    macOS:   brew install node"
-    echo "             或 https://nodejs.org/"
+    echo "  手动安装："
+    echo "    macOS:   brew install node 或 https://nodejs.org/"
     echo "    Linux:   apt install nodejs npm"
-    echo "    Windows: https://nodejs.org/"
+    echo ""
+    echo "  或用 ZLINK_AUTO_INSTALL=1 自动安装:"
+    echo "    ZLINK_AUTO_INSTALL=1 bash setup.sh"
     echo ""
     exit 1
 fi
+ok "Node.js: $(node --version)"
 
 if command -v npm &>/dev/null; then
     ok "npm: $(npm --version)"
 else
-    err "需要 npm。"
-    echo "  npm 通常随 Node.js 一起安装，请检查安装是否正确。"
+    err "需要 npm。npm 通常随 Node.js 一起安装，请检查 Node.js 安装是否正确。"
     exit 1
 fi
 
@@ -133,36 +266,6 @@ if command -v git &>/dev/null; then
     ok "git: $(git --version)"
 else
     warn "未找到 git，无法使用升级功能（zlink update）"
-fi
-
-# ── Mac 专属前置检查 (其他平台跳过) ─────────────────────────────────────
-if [ "$OS" = "macos" ]; then
-    # Homebrew 检测 (可选, 仅作提示)
-    if ! command -v brew &>/dev/null; then
-        info "Homebrew 未装 (可选, 装 Python/Node 不是必需的)"
-        info "  方案 A — 手动装 (无需 Homebrew):"
-        info "    Python 3.11+: https://www.python.org/downloads/macos/"
-        info "    Node.js 18+:  https://nodejs.org/en/download"
-        info "  方案 B — 装 Homebrew 后用 brew:"
-        info "    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)""
-    else
-        ok "Homebrew: $(brew --version | head -1) (可选)"
-    fi
-
-    # Xcode Command Line Tools 检测 (强失败, pip 装包会卡)
-    if ! command -v xcode-select &>/dev/null || ! xcode-select -p &>/dev/null 2>&1; then
-        err "Xcode Command Line Tools 未装"
-        err "  cryptography / pydantic-core 等需要它编译本地扩展"
-        err "  修复: xcode-select --install"
-        err "  跳过此检查: XCODE_CLT_SKIP=1 bash setup.sh"
-        if [ "${XCODE_CLT_SKIP:-}" != "1" ]; then
-            exit 1
-        else
-            warn "XCODE_CLT_SKIP=1 已设置, 跳过 (后续装包可能失败)"
-        fi
-    else
-        ok "Xcode CLT: $(xcode-select -p)"
-    fi
 fi
 
 echo ""
@@ -320,20 +423,23 @@ echo -e "${GREEN}[7/8] 安装前端依赖并构建...${NC}"
 cd "$PROJECT_DIR/web"
 
 if [ -n "$NPM_MIRROR" ]; then
-    npm config set registry "$NPM_MIRROR" 2>/dev/null || true
-    info "npm 镜像已设置: $NPM_MIRROR"
+    # 使用 --registry 临时切换，不修改用户全局 npm 配置
+    info "npm 镜像: $NPM_MIRROR"
+    NPM_FLAGS="--registry $NPM_MIRROR"
+else
+    NPM_FLAGS=""
 fi
 
-if ! npm ci 2>&1; then
+if ! npm $NPM_FLAGS ci 2>&1; then
     warn "npm ci 失败，回退到 npm install..."
-    if ! npm install 2>&1; then
+    if ! npm $NPM_FLAGS install 2>&1; then
         err "前端依赖安装失败，请检查网络或手动运行: cd web && npm install"
         exit 1
     fi
 fi
 ok "前端依赖安装完成"
 
-npm run build
+npm $NPM_FLAGS run build
 ok "前端构建完成"
 
 cd "$PROJECT_DIR"
