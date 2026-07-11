@@ -10,12 +10,13 @@ export default function HistoryPage() {
   const { state, dispatch } = useAppState();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [summaries, setSummaries] = useState<MemorySummary[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       api.get<SessionSummary[]>("/sessions"),
       api.get<MemorySummary[]>("/memory/summaries"),
-    ]).then(([s, m]) => { setSessions(s); setSummaries(m); });
+    ]).then(([s, m]) => { setSessions(s); setSummaries(m); }).finally(() => setLoading(false));
   }, []);
 
   const handleOpen = async (sid: string) => {
@@ -41,7 +42,14 @@ export default function HistoryPage() {
         <h1 className="page-title">历史对话</h1>
       </div>
 
-      {sessions.length === 0 ? (
+      {loading ? (
+        <>
+          <div className="skeleton skeleton-title" />
+          <div className="skeleton skeleton-card" />
+          <div className="skeleton skeleton-card" />
+          <div className="skeleton skeleton-card" />
+        </>
+      ) : sessions.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><MessageSquare size={48} /></div>
           <p>暂无历史对话</p>

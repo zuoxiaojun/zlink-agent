@@ -14,13 +14,14 @@ export default function MemoryPage() {
   const navigate = useNavigate();
   const [facts, setFacts] = useState<MemoryFacts>({ memory: [], user: [] });
   const [summaries, setSummaries] = useState<MemorySummary[]>([]);
+  const [loading, setLoading] = useState(true);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     Promise.all([
       api.get<MemoryFacts>("/memory/facts"),
       api.get<MemorySummary[]>("/memory/summaries"),
-    ]).then(([f, s]) => { setFacts(f); setSummaries(s); });
+    ]).then(([f, s]) => { setFacts(f); setSummaries(s); }).finally(() => setLoading(false));
   }, []);
 
   const toggle = (key: string) => {
@@ -44,6 +45,15 @@ export default function MemoryPage() {
         <h1 className="page-title">记忆管理</h1>
       </div>
 
+      {loading ? (
+        <>
+          <div className="skeleton skeleton-title" />
+          <div className="skeleton skeleton-card" style={{ height: 60 }} />
+          <div className="skeleton skeleton-card" style={{ height: 60 }} />
+          <div className="skeleton skeleton-card" style={{ height: 200 }} />
+        </>
+      ) : (
+        <>
       <div style={{ marginBottom: "16px", display: "flex", alignItems: "center", gap: "12px" }}>
         <span style={{ fontSize: "13px", color: "var(--text-3)" }}>
           共 {total} 条记忆，{SECTIONS.length} 个分类
@@ -54,7 +64,6 @@ export default function MemoryPage() {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-        {/* Agent 笔记 */}
         <div className="toolset-group">
           <div className="toolset-header" onClick={() => toggle("notes")}>
             <span className="toolset-header-left">
@@ -71,9 +80,7 @@ export default function MemoryPage() {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {facts.memory.map((e, i) => (
-                    <div key={i} style={{ padding: "8px 12px", background: "var(--bg-hover)", borderRadius: "var(--radius-sm)", fontSize: "13px", color: "var(--text-2)" }}>
-                      {e}
-                    </div>
+                    <div key={i} style={{ padding: "8px 12px", background: "var(--bg-hover)", borderRadius: "var(--radius-sm)", fontSize: "13px", color: "var(--text-2)" }}>{e}</div>
                   ))}
                 </div>
               )}
@@ -81,7 +88,6 @@ export default function MemoryPage() {
           )}
         </div>
 
-        {/* 用户画像 */}
         <div className="toolset-group">
           <div className="toolset-header" onClick={() => toggle("profile")}>
             <span className="toolset-header-left">
@@ -98,9 +104,7 @@ export default function MemoryPage() {
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                   {facts.user.map((e, i) => (
-                    <div key={i} style={{ padding: "8px 12px", background: "var(--bg-hover)", borderRadius: "var(--radius-sm)", fontSize: "13px", color: "var(--text-2)" }}>
-                      {e}
-                    </div>
+                    <div key={i} style={{ padding: "8px 12px", background: "var(--bg-hover)", borderRadius: "var(--radius-sm)", fontSize: "13px", color: "var(--text-2)" }}>{e}</div>
                   ))}
                 </div>
               )}
@@ -108,7 +112,6 @@ export default function MemoryPage() {
           )}
         </div>
 
-        {/* 对话摘要 */}
         <div className="toolset-group">
           <div className="toolset-header" onClick={() => toggle("summaries")}>
             <span className="toolset-header-left">
@@ -134,6 +137,8 @@ export default function MemoryPage() {
           )}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

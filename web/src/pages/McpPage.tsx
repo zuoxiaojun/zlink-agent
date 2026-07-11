@@ -327,10 +327,12 @@ export default function McpPage() {
       )}
 
       {loading ? (
-        <div className="empty-state">
-          <Loader2 size={40} className="empty-state-icon spin" style={{ opacity: 0.3 }} />
-          <p>加载中...</p>
-        </div>
+        <>
+          <div className="skeleton skeleton-title" />
+          <div className="skeleton skeleton-text" style={{ width: "60%", marginBottom: 24 }} />
+          <div className="skeleton skeleton-card" />
+          <div className="skeleton skeleton-card" />
+        </>
       ) : servers.length === 0 ? (
         <div className="empty-state">
           <Server size={40} className="empty-state-icon" style={{ opacity: 0.3 }} />

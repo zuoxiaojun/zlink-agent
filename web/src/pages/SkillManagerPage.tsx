@@ -8,6 +8,7 @@ import type { SkillInfo } from "../types";
 export default function SkillManagerPage() {
   const navigate = useNavigate();
   const [skills, setSkills] = useState<SkillInfo[]>([]);
+  const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [skillContent, setSkillContent] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
@@ -17,7 +18,7 @@ export default function SkillManagerPage() {
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const loadSkills = () => api.get<SkillInfo[]>("/skills").then(setSkills);
+  const loadSkills = () => api.get<SkillInfo[]>("/skills").then(setSkills).finally(() => setLoading(false));
 
   useEffect(() => { loadSkills(); }, []);
 
@@ -130,7 +131,13 @@ export default function SkillManagerPage() {
         </span>
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="skill-grid">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="skeleton" style={{ height: 140, borderRadius: "var(--radius-lg)" }} />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="empty-state">
           <Package size={40} className="empty-state-icon" style={{ opacity: 0.3 }} />
           <p>暂无已安装的技能，点击上方按钮上传 .zip 技能包</p>

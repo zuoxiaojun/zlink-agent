@@ -344,12 +344,10 @@ function ErpTabPanel({
   if (!config) {
     return (
       <div className="card">
-        <div
-          className="card-body"
-          style={{ color: "var(--text-3)", textAlign: "center", padding: 40 }}
-        >
-          <Loader2 size={20} className="spin" style={{ marginRight: 8 }} />
-          加载 {meta.label} 配置中…
+        <div className="card-body" style={{ padding: 24 }}>
+          <div className="skeleton skeleton-title" />
+          <div className="skeleton skeleton-text" />
+          <div className="skeleton skeleton-text" />
         </div>
       </div>
     );
