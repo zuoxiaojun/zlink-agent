@@ -11,6 +11,7 @@ export function useChat(options?: UseChatOptions) {
   const { state, dispatch } = useAppState();
   const wsRef = useRef<ChatWebSocket | null>(null);
   const stopRequestedRef = useRef(false);
+  const runningRef = useRef(false);
   const onApprovalRequestRef = useRef(options?.onApprovalRequest);
   onApprovalRequestRef.current = options?.onApprovalRequest;
 
@@ -19,6 +20,7 @@ export function useChat(options?: UseChatOptions) {
       const sessionId = state.currentSessionId || "_new";
 
       dispatch({ type: "SET_RUNNING", running: true });
+      runningRef.current = true;
       stopRequestedRef.current = false;
 
       // Add user message to display immediately
@@ -42,6 +44,7 @@ export function useChat(options?: UseChatOptions) {
             dispatch({ type: "SET_PROGRESS", message: msg.message });
             break;
           case "done":
+            runningRef.current = false;
             dispatch({
               type: "SET_RESULT",
               messages: msg.messages.length > 0
@@ -53,6 +56,8 @@ export function useChat(options?: UseChatOptions) {
               apiCalls: msg.api_calls,
               error: msg.error,
             });
+            // Ensure running state is off (SET_RESULT also does this, but double-safety)
+            dispatch({ type: "SET_RUNNING", running: false });
             if (msg.session_id && msg.session_id !== "_new") {
               sessionStorage.setItem("zlink_agent_last_session", msg.session_id);
               dispatch({
@@ -68,6 +73,7 @@ export function useChat(options?: UseChatOptions) {
             onApprovalRequestRef.current?.(msg.payload);
             break;
           case "error":
+            runningRef.current = false;
             dispatch({ type: "SET_ERROR", error: msg.message });
             ws.close();
             wsRef.current = null;
@@ -76,7 +82,8 @@ export function useChat(options?: UseChatOptions) {
       });
 
       ws.onClose(() => {
-        if (state.agentRunning) {
+        if (runningRef.current) {
+          runningRef.current = false;
           dispatch({ type: "SET_RUNNING", running: false });
         }
       });
@@ -84,7 +91,7 @@ export function useChat(options?: UseChatOptions) {
       ws.connect(sessionId);
       ws.send({ type: "send_message", content });
     },
-    [state.currentSessionId, state.messages, state.agentRunning, dispatch]
+    [state.currentSessionId, state.messages, dispatch]
   );
 
   const stopAgent = useCallback(() => {
