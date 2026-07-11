@@ -28,7 +28,10 @@ web = [
 nc = [
     "nc-mcp-server @ git+https://atomgit.com/gcw_cJbJuamU/nc-mcp-project.git@main#subdirectory=nc-mcp",
 ]
-all = ["zlink-agent[web]"]
+browser = [
+    "playwright>=1.40.0",
+]
+all = ["zlink-agent[web]", "zlink-agent[browser]"]
 dev = ["pytest>=8.0.0"]
 
 [tool.setuptools.packages.find]
