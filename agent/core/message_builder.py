@@ -9,6 +9,7 @@ inline logic.  The system prompt is the result of concatenating:
   4. Memory manager context
   5. Active skills index
   6. Skill detail (if user query matches a skill)
+  7. Sub-agent delegation guidance (if delegate_task tool is available)
 
 This module is intentionally side-effect-free — given a list of
 ``(label, content)`` fragments, it concatenates them.  The agent loop
@@ -66,6 +67,24 @@ def build_system_prompt(
     # 5. Skill detail (specific instructions for a matched skill)
     if skill_detail:
         parts.append(skill_detail)
+
+    # 6. Sub-agent delegation guidance (if delegate_task tool is available)
+    try:
+        from agent.tools.registry import registry
+        if "delegate_task" in registry.get_all_tool_names():
+            parts.append(
+                "## 子代理委托\n"
+                "当用户问题涉及多个独立数据源或多个可以并行的子任务时，"
+                "考虑使用 `delegate_task` 工具将子任务委托给子代理并行执行。\n\n"
+                "适用场景举例：\n"
+                "- 同时查询多个不同系统的数据（如 YonSuite 和 NC）\n"
+                "- 同时搜索多个不同领域的信息\n"
+                "- 将一个复杂任务拆成可以独立处理的子步骤\n\n"
+                "注意：每个子代理有独立的对话上下文和 15 轮迭代上限。"
+                "主代理在收到所有结果后进行合并呈现。"
+            )
+    except ImportError:
+        pass
 
     if len(parts) == 1:
         return None
