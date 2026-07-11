@@ -1,4 +1,3 @@
-# -*- mode: python ; coding: utf-8 -*-
 """PyInstaller spec for ZLink Agent desktop app.
 
 Build:  pyinstaller packaging/zlink-agent.spec --clean --noconfirm
@@ -60,6 +59,21 @@ a = Analysis(
         "agent.tools.file_mutation_queue",
         "agent.tools.mcp_manager",
         "agent.tools.security_hooks",
+        "agent.tools.delegate_tool",
+        "agent.tools.browser_tool",
+
+        # ── MCP server (NC) ──
+        "mcp_server.nc_mcp_server",
+        "mcp_server.nc_mcp_server.server",
+        "mcp_server.nc_mcp_server.config",
+        "mcp_server.nc_mcp_server.data_dictionary",
+        "mcp_server.nc_mcp_server.queries.sales_order",
+        "mcp_server.nc_mcp_server.queries.purchase_order",
+        "mcp_server.nc_mcp_server.queries.customer",
+        "mcp_server.nc_mcp_server.queries.supplier",
+        "mcp_server.nc_mcp_server.queries.material",
+        "mcp_server.nc_mcp_server.queries.organization",
+        "mcp_server.nc_mcp_server.queries.stock",
 
         # ── MCP server (YonSuite) ──
         "mcp_server.ys_mcp_server",
@@ -149,9 +163,7 @@ a = Analysis(
         "cv2",
         "tensorflow",
         "torch",
-        "playwright",  # v1.3.1+ 移除内置 browser 工具, 改用 @playwright/mcp 自装
-        "playwright.sync_api",
-        "playwright._impl",
+        # playwright 是 browser_tool 的可选依赖, 不打包进 exe
     ],
 
     hookspath=[],
