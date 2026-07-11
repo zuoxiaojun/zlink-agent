@@ -88,7 +88,16 @@ export default function ChatPage() {
               groups.push([streamingMsg]);
             }
           }
-          return groups.map((g, i) => <ChatMessage key={i} msgs={g} />);
+          return groups.map((g, i) => (
+            <ChatMessage
+              key={i}
+              msgs={g}
+              disabled={state.agentRunning}
+              onApprove={(approved) => {
+                if (!state.agentRunning) sendMessage(approved ? "批准" : "拒绝");
+              }}
+            />
+          ));
         })()}
 
 
