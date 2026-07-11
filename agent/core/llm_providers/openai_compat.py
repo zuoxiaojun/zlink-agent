@@ -71,7 +71,7 @@ class OpenAICompatProvider(LLMProvider):
         self.max_retry_delay = max_retry_delay
 
     @property
-    def client(self) -> httpx.Client:
+    def client(self) -> openai.OpenAI:
         """Lazy HTTP client.  Exposed for M4 compaction."""
         import openai
 
