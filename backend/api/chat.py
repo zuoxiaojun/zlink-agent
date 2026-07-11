@@ -162,7 +162,7 @@ async def ws_chat(websocket: WebSocket, session_id: str):
                     continue
 
                 # --- slash command interception ---
-                skill_detail: str | None = None  # may be set by skill match below
+                _skill_override: dict[str, str] = {}
                 parsed = parse_command(content)
                 if parsed:
                     cmd_name, cmd_args = parsed
@@ -175,10 +175,9 @@ async def ws_chat(websocket: WebSocket, session_id: str):
 
                     # result is None → unknown command, check skill match
                     if result is None:
-                        skill_content = skill_manager.get_skill_content(cmd_name)
-                        if skill_content is not None:
-                            # Direct skill execution: inject skill + forward args to agent
-                            skill_detail = skill_content
+                        _skill_body = skill_manager.get_skill_content(cmd_name)
+                        if _skill_body is not None:
+                            _skill_override["detail"] = _skill_body
                             content = cmd_args or f"请帮我使用 {cmd_name} 技能"
                         else:
                             await websocket.send_json(
@@ -250,7 +249,7 @@ async def ws_chat(websocket: WebSocket, session_id: str):
                     max_iterations,
                     existing_msgs,
                     compaction_settings,
-                    skill_detail=skill_detail,
+                    skill_detail=_skill_override.get("detail"),
                 )
                 # After agent finishes, update history with new messages
                 updated = session_manager.load_session(session_id) or []
