@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { IconPlus, IconTrash, IconPlayerPlay, IconPlayerPause, IconRefresh, IconPlayerPlayFilled, IconEdit } from "@tabler/icons-react";
 import { api } from "../api/http";
 
@@ -16,6 +17,7 @@ interface CronJob {
 }
 
 export default function CronJobPage() {
+  const navigate = useNavigate();
   const [jobs, setJobs] = useState<CronJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -72,9 +74,13 @@ export default function CronJobPage() {
 
   const handleRun = async (id: string) => {
     try {
-      await api.post(`/cronjobs/${id}/run`, {});
-      showToast("success", "任务已触发执行，状态已更新");
+      const res = await api.post<{ success: boolean; session_id?: string }>(`/cronjobs/${id}/run`, {});
       await loadJobs();
+      if (res.session_id) {
+        navigate(`/?s=${res.session_id}`);
+      } else {
+        showToast("success", "任务已触发执行");
+      }
     } catch {
       showToast("error", "执行失败");
     }
