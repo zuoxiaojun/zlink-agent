@@ -108,7 +108,7 @@ def _scheduler_loop():
 
 
 def _check_and_fire_jobs():
-    """Find due jobs, mark them as running, log the event."""
+    """Find due jobs, execute them through the AI, and save results as sessions."""
     now = datetime.now(timezone.utc)
     jobs = _load_jobs()
     changed = False
@@ -122,15 +122,17 @@ def _check_and_fire_jobs():
         try:
             run_at = datetime.fromisoformat(next_run)
             if run_at <= now:
-                # Job is due — fire it (log + recalculate next run)
-                logger.info(
-                    "Cron job '%s' (id=%s) fired at %s",
-                    job.get("name", ""),
-                    job.get("id", ""),
-                    now.isoformat(),
-                )
+                name = job.get("name", "")
+                prompt = job.get("prompt", "")
+                job_id = job.get("id", "")
+
+                logger.info("Cron job '%s' (id=%s) fired at %s", name, job_id, now.isoformat())
+
+                # Execute the actual job
+                session_id = _execute_job_prompt(name, prompt)
                 job["last_run_at"] = now.isoformat()
-                job["last_status"] = "fired"
+                job["last_status"] = "completed" if session_id else "failed"
+                job["last_session_id"] = session_id
 
                 # Calculate next run
                 schedule = job.get("schedule", "")
@@ -141,7 +143,6 @@ def _check_and_fire_jobs():
                     else:
                         job["next_run_at"] = (now + timedelta(days=1)).isoformat()
                 else:
-                    # One-shot or unknown: disable after fire
                     job["enabled"] = False
                     job["next_run_at"] = None
 
@@ -191,6 +192,7 @@ def cronjob_list() -> str:
                     "enabled": j.get("enabled", True),
                     "last_run_at": j.get("last_run_at"),
                     "last_status": j.get("last_status"),
+                    "last_session_id": j.get("last_session_id"),
                     "next_run_at": j.get("next_run_at"),
                     "created_at": j.get("created_at"),
                 }
@@ -311,14 +313,96 @@ def cronjob_update(job_id: str, name: str, schedule: str, prompt: str) -> str:
     return json.dumps({"success": False, "error": f"未找到任务: {job_id}"})
 
 
+def _execute_job_prompt(name: str, prompt: str) -> str | None:
+    """Run the job's prompt through the AI agent and save as a session.
+
+    Returns the session_id if successful, None on failure.
+    The session title is '{name} - {execution_time}' so it's findable in history.
+    """
+    try:
+        from agent import config_manager
+        from agent.agent import AIAgent
+        from agent.core.message_builder import build_system_prompt
+        from agent import session_manager, skill_manager, fact_memory, memory_manager
+
+        cfg = config_manager.load()
+        api_key = cfg.llm_api_key
+        base_url = cfg.llm_base_url
+        model = cfg.llm_model
+        if not api_key:
+            logger.warning("Cron job '%s': no LLM API key configured, skipping execution", name)
+            return None
+
+        # Create a session
+        now = datetime.now(timezone.utc)
+        time_str = now.strftime("%Y-%m-%d %H:%M")
+        session_title = f"{name} - {time_str}"
+        session_id = session_manager.create_session()
+
+        # Build agent with compaction disabled (one-shot execution)
+        agent = AIAgent(
+            api_key=api_key,
+            base_url=base_url,
+            model=model,
+            max_iterations=15,
+            max_tokens=4096,
+        )
+
+        memory_store = fact_memory.init_store()
+        memory_context = memory_manager.get_context()
+        skill_idx = skill_manager.get_active_instructions()
+        skill_detail = skill_manager.get_instructions_for_query(prompt)
+        system_with_memory = build_system_prompt(
+            base=agent.system_prompt,
+            memory_store=memory_store,
+            memory_context=memory_context,
+            skill_index=skill_idx,
+            skill_detail=skill_detail,
+        )
+
+        result = agent.run_conversation(
+            user_message=prompt,
+            system_message=system_with_memory,
+        )
+
+        # Build message list for saving
+        messages: list[dict] = [
+            {"role": "user", "content": prompt},
+        ]
+        for msg in result.get("messages", []):
+            role = msg.get("role", "")
+            if role in ("assistant", "tool"):
+                messages.append(msg)
+
+        final = result.get("final_response", "")
+        if final and not any(
+            m.get("role") == "assistant" and m.get("content") == final for m in messages
+        ):
+            messages.append({"role": "assistant", "content": final})
+
+        session_manager.save_session(session_id, messages, title=session_title)
+        logger.info("Cron job '%s' session saved: %s (%s)", name, session_id, session_title)
+        return session_id
+
+    except Exception as e:
+        logger.exception("Cron job '%s' execution failed: %s", name, e)
+        return None
+
+
 def cronjob_run(job_id: str) -> str:
-    """Immediately trigger a cron job (mark as fired now)."""
+    """Immediately trigger a cron job — runs the prompt through the AI and creates a session."""
     jobs = _load_jobs()
     for job in jobs:
         if job.get("id") == job_id:
             now = datetime.now(timezone.utc).isoformat()
+            name = job.get("name", "")
+            prompt = job.get("prompt", "")
+
+            # Execute the actual job
+            session_id = _execute_job_prompt(name, prompt)
             job["last_run_at"] = now
-            job["last_status"] = "triggered"
+            job["last_status"] = "completed" if session_id else "failed"
+            job["last_session_id"] = session_id
 
             # Recalculate next run for recurring schedules
             schedule = job.get("schedule", "")
@@ -334,8 +418,12 @@ def cronjob_run(job_id: str) -> str:
                 job["next_run_at"] = None
 
             _save_jobs(jobs)
-            return json.dumps({"success": True, "last_run_at": now, "next_run_at": job.get("next_run_at")},
-                              ensure_ascii=False)
+            return json.dumps({
+                "success": session_id is not None,
+                "session_id": session_id,
+                "last_run_at": now,
+                "next_run_at": job.get("next_run_at"),
+            }, ensure_ascii=False)
     return json.dumps({"success": False, "error": f"未找到任务: {job_id}"})
 
 

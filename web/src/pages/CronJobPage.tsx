@@ -10,6 +10,7 @@ interface CronJob {
   enabled: boolean;
   last_run_at: string | null;
   last_status: string | null;
+  last_session_id: string | null;
   next_run_at: string | null;
   created_at: string;
 }
@@ -236,7 +237,17 @@ export default function CronJobPage() {
                 <tr key={job.id}>
                   <td><strong>{job.name}</strong></td>
                   <td><code>{job.schedule}</code></td>
-                  <td>{formatTime(job.last_run_at)}</td>
+                  <td>
+                  {job.last_run_at ? formatTime(job.last_run_at) : "-"}
+                  {job.last_session_id && (
+                    <a href={`/#/?s=${job.last_session_id}`}
+                       style={{ marginLeft: 6, fontSize: 12, color: "var(--primary)", textDecoration: "none" }}
+                       title="查看执行结果"
+                       target="_blank" rel="noopener">
+                      查看
+                    </a>
+                  )}
+                </td>
                   <td>{formatTime(job.next_run_at)}</td>
                   <td>
                     <span className={`badge ${job.enabled ? "badge-active" : "badge-inactive"}`}>
