@@ -47,7 +47,6 @@ import hmac
 import logging
 import sys
 import time
-import urllib.parse
 from typing import Any
 
 from .cache import TokenCache, get_cache
