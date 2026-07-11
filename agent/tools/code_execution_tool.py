@@ -16,6 +16,8 @@ import textwrap
 import threading
 from datetime import datetime, timedelta, timezone
 
+from agent.tools.registry import registry
+
 logger = logging.getLogger(__name__)
 
 _SAFE_MODULES = {
@@ -191,7 +193,6 @@ CODE_EXECUTION_SCHEMA = {
 }
 
 
-from agent.tools.registry import registry
 
 registry.register(
     name="execute_code",

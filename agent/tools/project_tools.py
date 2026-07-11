@@ -8,9 +8,7 @@ scope session context and organize related work.
 
 import json
 import logging
-import os
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -77,7 +75,7 @@ def project_create(name: str, description: str = "") -> str:
             return json.dumps({"success": False, "error": f"项目 '{name}' 已存在"})
 
     project_id = uuid4().hex[:12]
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     project = {
         "id": project_id,
         "name": name,

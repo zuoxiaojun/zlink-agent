@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
-from agent.slash_commands import list_commands
 from agent.skill_manager import get_all_skills
+from agent.slash_commands import list_commands
 from backend.schemas.slash_command import SlashCommandInfo, SlashCommandsResponse
 
 router = APIRouter(prefix="/api/slash-commands", tags=["slash-commands"])

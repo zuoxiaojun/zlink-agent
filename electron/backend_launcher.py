@@ -5,8 +5,8 @@ project source directory to sys.path so that backend.main can be
 imported, then starts uvicorn.
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # When running from Electron.app/Contents/Resources/

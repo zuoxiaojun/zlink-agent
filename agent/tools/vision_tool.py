@@ -10,7 +10,6 @@ Requires the LLM provider to support vision (multi-modal) inputs.
 import base64
 import json
 import logging
-import re
 
 import httpx
 

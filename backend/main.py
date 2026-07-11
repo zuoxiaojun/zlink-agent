@@ -179,16 +179,16 @@ app.add_middleware(
 # Register routers
 from backend.api.chat import router as chat_router
 from backend.api.config_api import router as config_router
+from backend.api.cronjob_api import router as cronjob_router
 from backend.api.extensions_api import router as extensions_router
 from backend.api.mcp_api import router as mcp_router
 from backend.api.memory_api import router as memory_router
 from backend.api.metrics_api import router as metrics_router
 from backend.api.sessions import router as sessions_router
 from backend.api.skills_api import router as skills_router
+from backend.api.slash_commands_api import router as slash_commands_router
 from backend.api.system_api import router as system_router
 from backend.api.tools_api import router as tools_router
-from backend.api.slash_commands_api import router as slash_commands_router
-from backend.api.cronjob_api import router as cronjob_router
 
 app.include_router(sessions_router)
 app.include_router(config_router)

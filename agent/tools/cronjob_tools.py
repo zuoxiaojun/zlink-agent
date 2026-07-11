@@ -10,13 +10,11 @@ import json
 import logging
 import re
 import threading
-import time
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
-from agent.tools.registry import registry, tool_error, tool_result
+from agent.tools.registry import registry
 from agent.utils import DATA_DIR
 
 logger = logging.getLogger(__name__)
@@ -65,7 +63,7 @@ def _next_run(schedule: str) -> str | None:
     # ISO 8601 one-shot
     try:
         dt = datetime.fromisoformat(s)
-        if dt > datetime.now(timezone.utc):
+        if dt > datetime.now(UTC):
             return dt.isoformat()
     except ValueError:
         pass
@@ -75,7 +73,7 @@ def _next_run(schedule: str) -> str | None:
     if m:
         num = int(m.group(1))
         unit = m.group(2)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if unit.startswith("min"):
             next_dt = now + timedelta(minutes=num)
         elif unit.startswith("hour"):
@@ -88,7 +86,7 @@ def _next_run(schedule: str) -> str | None:
     m = re.match(r"(?:every\s+day|daily)\s+at\s+(\d{1,2}):(\d{2})", s)
     if m:
         hour, minute = int(m.group(1)), int(m.group(2))
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         next_dt = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
         if next_dt <= now:
             next_dt += timedelta(days=1)
@@ -109,7 +107,7 @@ def _scheduler_loop():
 
 def _check_and_fire_jobs():
     """Find due jobs, execute them through the AI, and save results as sessions."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     jobs = _load_jobs()
     changed = False
 
@@ -226,7 +224,7 @@ def cronjob_create(name: str, schedule: str, prompt: str) -> str:
         })
 
     job_id = uuid4().hex[:12]
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     job = {
         "id": job_id,
         "name": name,
@@ -324,10 +322,9 @@ def _execute_job_prompt(name: str, prompt: str,
     Returns the session_id (existing or new) if successful, None on failure.
     """
     try:
-        from agent import config_manager
+        from agent import config_manager, fact_memory, memory_manager, session_manager, skill_manager
         from agent.agent import AIAgent
         from agent.core.message_builder import build_system_prompt
-        from agent import session_manager, skill_manager, fact_memory, memory_manager
 
         cfg = config_manager.load()
         api_key = cfg.llm_api_key
@@ -338,7 +335,7 @@ def _execute_job_prompt(name: str, prompt: str,
             return None
 
         # Use existing session or create new one
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if not session_id:
             time_str = now.strftime("%Y-%m-%d %H:%M")
             session_title = session_title or f"{name} - {time_str}"
@@ -425,12 +422,12 @@ def cronjob_run(job_id: str) -> str:
     jobs = _load_jobs()
     for job in jobs:
         if job.get("id") == job_id:
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
             name = job.get("name", "")
             prompt = job.get("prompt", "")
 
             # Create empty session — WebSocket auto-send will populate it
-            time_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+            time_str = datetime.now(UTC).strftime("%Y-%m-%d %H:%M")
             session_title = f"{name} - {time_str}"
             session_id = session_manager.create_session()
             session_manager.save_session(session_id, [], title=session_title)
@@ -442,7 +439,7 @@ def cronjob_run(job_id: str) -> str:
             schedule = job.get("schedule", "")
             if schedule.startswith("every") or schedule.startswith("daily"):
                 next_nr = _next_run(schedule)
-                job["next_run_at"] = next_nr or (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+                job["next_run_at"] = next_nr or (datetime.now(UTC) + timedelta(days=1)).isoformat()
             else:
                 job["enabled"] = False
                 job["next_run_at"] = None
