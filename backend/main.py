@@ -94,45 +94,37 @@ async def lifespan(application: FastAPI):
         cfg.mcp_servers = servers_cfg
         config_manager.save(cfg)
 
-    # Chart MCP server (npx-based) — skip if npx unavailable in frozen mode
-    _chart_enabled = True
-    if getattr(sys, "frozen", False):
+    # Chart MCP server — 使用本地的 @antv/mcp-server-chart (node_modules)
+    _chart_entry = _PROJECT_ROOT / "node_modules" / "@antv" / "mcp-server-chart" / "build" / "index.js"
+    if _chart_entry.exists():
+        # 尝试找 node 可执行文件
         import shutil
 
-        if not shutil.which("npx"):
-            # .app 用户预期没装 Node.js, 静默跳过 chart MCP
-            _logger.info("未检测到 npx, MCP chart 服务器已跳过 (用户可通过 MCP 管理页自装 @antv/mcp-server-chart)")
-            _chart_enabled = False
-    else:
-        # 开发模式: npx 缺失是异常, 提醒
-        import shutil
-
-        if not shutil.which("npx"):
-            _logger.warning("npx 未安装, MCP chart 服务器已跳过 (运行 npm i -g npx 修复)")
-
-    if _chart_enabled:
-        if "mcp-server-chart" not in servers_cfg:
-            servers_cfg["mcp-server-chart"] = MCPServerEntry(
-                transport="stdio",
-                enabled=True,
-                timeout=120,
-                command="npx",
-                # --prefer-offline: 已缓存的包不走网络，加速启动
-                args=["--prefer-offline", "-y", "@antv/mcp-server-chart"],
-                env={},
-                builtin=True,
-            )
+        _node_path = shutil.which("node")
+        if _node_path:
+            if "mcp-server-chart" not in servers_cfg:
+                servers_cfg["mcp-server-chart"] = MCPServerEntry(
+                    transport="stdio",
+                    enabled=True,
+                    timeout=120,
+                    command=_node_path,
+                    args=[str(_chart_entry)],
+                    env={},
+                    builtin=True,
+                )
+            else:
+                servers_cfg["mcp-server-chart"].builtin = True
+            _logger.info("Chart MCP 服务器已就绪 (node=%s)", _node_path)
         else:
-            # Ensure existing entry has builtin flag (migration from older configs)
-            servers_cfg["mcp-server-chart"].builtin = True
-            # Also patch args to add --prefer-offline if missing (migration)
-            if "mcp-server-chart" in servers_cfg:
-                chart = servers_cfg["mcp-server-chart"]
-                if chart.args and "-y" in chart.args and "--prefer-offline" not in chart.args:
-                    chart.args = ["--prefer-offline"] + chart.args
+            _logger.warning("node 未安装, Chart MCP 服务器已跳过")
+    elif not getattr(sys, "frozen", False):
+        _logger.warning(
+            "@antv/mcp-server-chart 未安装 (node_modules/@antv/mcp-server-chart 不存在), "
+            "Chart MCP 服务器已跳过。运行 cd web && npm ci 安装。"
+        )
 
-    # Guard: ensure both builtin servers have builtin=True even if loaded from old config
-    builtin_names = {"yonsuite", "mcp-server-chart"}
+    # Guard: ensure local builtin servers have builtin=True even if loaded from old config
+    builtin_names = {"yonsuite", "mcp-server-chart", "mcp-nc"}
     _builtin_fixed = False
     for name in builtin_names:
         entry = servers_cfg.get(name)
