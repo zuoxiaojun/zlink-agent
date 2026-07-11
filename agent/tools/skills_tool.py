@@ -3,6 +3,7 @@
 Port of Hermes skill system — loads SKILL.md files from the skills directory.
 """
 
+import json
 import logging
 import re
 from pathlib import Path
@@ -122,8 +123,6 @@ def _load_active_skills() -> list[str]:
     if not path.exists():
         return []
     try:
-        import json
-
         return json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return []
