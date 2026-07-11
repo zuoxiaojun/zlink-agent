@@ -34,19 +34,34 @@ export default function ChatPage() {
     const sid = searchParams.get("s");
     if (!sid) return;
     if (state.currentSessionId === sid) return; // already loaded
-    api.get<SessionDetail>(`/sessions/${sid}`)
-      .then((s) => {
-        const msgs = s.messages || [];
-        dispatch({
-          type: "SET_SESSION",
-          sessionId: s.id,
-          title: s.title || "",
-          messages: msgs.length > 0 ? msgs : undefined,
+
+    let pollTimer: ReturnType<typeof setTimeout>;
+    let pollCount = 0;
+    const MAX_POLL = 20; // ~60s max
+
+    const loadSession = () => {
+      api.get<SessionDetail>(`/sessions/${sid}`)
+        .then((s) => {
+          const msgs = s.messages || [];
+          dispatch({
+            type: "SET_SESSION",
+            sessionId: s.id,
+            title: s.title || "",
+            messages: msgs.length > 0 ? msgs : undefined,
+          });
+          // Poll while waiting for AI response (session has only user msg)
+          if (msgs.length <= 1 && pollCount < MAX_POLL) {
+            pollCount++;
+            pollTimer = setTimeout(loadSession, 3000);
+          }
+        })
+        .catch(() => {
+          setSearchParams({}, { replace: true });
         });
-      })
-      .catch(() => {
-        setSearchParams({}, { replace: true });
-      });
+    };
+
+    loadSession();
+    return () => { clearTimeout(pollTimer); };
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync URL when session changes (e.g. after first message creates session)
