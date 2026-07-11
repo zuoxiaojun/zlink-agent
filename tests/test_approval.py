@@ -8,7 +8,6 @@ or WebSocket connection — they test the hook function directly.
 from __future__ import annotations
 
 import json
-import time
 
 import pytest
 
@@ -127,10 +126,12 @@ def test_approve_mode_blocks_high_risk(monkeypatch):
     assert "需要你的确认" in exc_info.value.reason
 
 
-def test_approve_mode_passes_pre_approved_calls(monkeypatch):
-    """High-risk tools pass when pre-approved via record_approval()."""
+def test_approve_mode_raises_error_for_high_risk(monkeypatch):
+    """High-risk tools raise ApprovalBlockedError in approve mode."""
+    from agent.tools.security_hooks import ApprovalBlockedError
+
     _register_test_tool("test_high", risk_level="high")
-    hook, record, _ = _make_approval_hook()
+    hook, _, _ = _make_approval_hook()
 
     from agent.config_model import AppConfig
 
@@ -140,35 +141,27 @@ def test_approve_mode_passes_pre_approved_calls(monkeypatch):
     )
 
     args = {"path": "/tmp/test", "content": "data"}
-    record("test_high", args)
-
-    # Same tool + args passes now
-    result = hook("test_high", dict(args))
-    assert "__block__" not in result
-    assert result.get("path") == "/tmp/test"
+    with pytest.raises(ApprovalBlockedError) as exc_info:
+        hook("test_high", dict(args))
+    assert exc_info.value.tool_name == "test_high"
 
 
-def test_approval_cache_expires(monkeypatch):
-    """Pre-approvals expire after _APPROVAL_TTL seconds."""
+def test_allow_all_does_not_raise(monkeypatch):
+    """In allow_all mode, approval_hook passes through without raising."""
+
     _register_test_tool("test_high", risk_level="high")
-    hook, record, _ = _make_approval_hook()
+    hook, _, _ = _make_approval_hook()
 
     from agent.config_model import AppConfig
 
     monkeypatch.setattr(
         "agent.config_manager.load",
-        lambda: AppConfig(approval_mode="approve"),
+        lambda: AppConfig(approval_mode="allow_all"),
     )
 
-    # Manually set an old approval timestamp using the same key format
-    # that approval_hook uses internally.
-    args = {"action": "delete"}
-    key = f"test_high:{json.dumps(args, ensure_ascii=False, sort_keys=True)}"
-    _APPROVED_CALLS[key] = time.monotonic() - _APPROVAL_TTL - 1
-
-    # Should be blocked because cache entry expired
-    result = hook("test_high", args)
-    assert "__block__" in result
+    # Should not raise
+    result = hook("test_high", {"path": "/tmp/test"})
+    assert "__block__" not in result
 
 
 def test_unknown_tool_defaults_to_low(monkeypatch):
