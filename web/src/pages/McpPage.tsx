@@ -355,6 +355,9 @@ export default function McpPage() {
                     flexShrink: 0,
                   }} />
                   <span style={{ fontSize: "14px", fontWeight: 600 }}>{s.name}</span>
+                  {s.builtin && (
+                    <span className="badge badge-primary" style={{ fontSize: 11 }}>内置</span>
+                  )}
                   <span style={{ fontSize: "11px", color: "var(--text-4)" }}>{s.transport}</span>
                   <span style={{ fontSize: "12px", color: statusColor(s.status) }}>{statusText(s.status)}</span>
                   {s.status === "connected" && (
@@ -370,14 +373,16 @@ export default function McpPage() {
                   >
                     <Play size={13} color="var(--primary)" />
                   </button>
-                  <button
-                    className="btn btn-ghost"
-                    style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
-                    onClick={() => startEdit(s)}
-                    title="编辑配置"
-                  >
-                    <Edit3 size={13} color="var(--text-3)" />
-                  </button>
+                  {!s.builtin && (
+                    <button
+                      className="btn btn-ghost"
+                      style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
+                      onClick={() => startEdit(s)}
+                      title="编辑配置"
+                    >
+                      <Edit3 size={13} color="var(--text-3)" />
+                    </button>
+                  )}
                   <button
                     className="btn btn-ghost"
                     style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
@@ -395,14 +400,16 @@ export default function McpPage() {
                   >
                     {s.enabled ? <ToggleRight size={16} color="var(--success)" /> : <ToggleLeft size={16} color="var(--text-4)" />}
                   </button>
-                  <button
-                    className="btn btn-ghost"
-                    style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
-                    onClick={() => handleDelete(s.name)}
-                    title="删除服务器"
-                  >
-                    <Trash2 size={14} color="var(--text-3)" />
-                  </button>
+                  {!s.builtin && (
+                    <button
+                      className="btn btn-ghost"
+                      style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
+                      onClick={() => handleDelete(s.name)}
+                      title="删除服务器"
+                    >
+                      <Trash2 size={14} color="var(--text-3)" />
+                    </button>
+                  )}
                 </div>
               </div>
 

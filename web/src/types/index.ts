@@ -144,6 +144,7 @@ export interface MCPServerStatus {
   name: string;
   transport: string;
   enabled: boolean;
+  builtin?: boolean;
   status: "connected" | "disconnected" | "error";
   tool_count: number;
   error_message: string | null;
