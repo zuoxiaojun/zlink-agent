@@ -87,6 +87,7 @@ export default function SettingsERPPage() {
   const [togglingName, setTogglingName] = useState<ErpName | null>(null);
   const [savingName, setSavingName] = useState<ErpName | null>(null);
   const [testingName, setTestingName] = useState<ErpName | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string } | null>>({});
   const [driftWarned, setDriftWarned] = useState<Record<ErpName, boolean>>({
     yonsuite: false,
     nc: false,
@@ -201,16 +202,22 @@ export default function SettingsERPPage() {
   const handleTest = async (name: ErpName) => {
     const meta = ERP_REGISTRY[name];
     setTestingName(name);
+    setTestResults((prev) => ({ ...prev, [name]: null }));
     try {
       const res = await api.post<{ ok: boolean; error?: string }>(
         `/config/erp-clients/${name}/test`,
       );
-      showToast(
-        res.ok ? "success" : "error",
-        res.ok ? `${meta.label} 连接成功` : `连接失败：${res.error}`,
-      );
+      setTestResults((prev) => ({
+        ...prev,
+        [name]: res.ok
+          ? { ok: true, message: `${meta.label} 连接成功` }
+          : { ok: false, message: `连接失败：${res.error}` },
+      }));
     } catch (e: any) {
-      showToast("error", `测试失败：${e.message}`);
+      setTestResults((prev) => ({
+        ...prev,
+        [name]: { ok: false, message: `测试失败：${e.message}` },
+      }));
     } finally {
       setTestingName(null);
     }
@@ -306,6 +313,7 @@ export default function SettingsERPPage() {
             isToggling={togglingName === name}
             isSaving={savingName === name}
             isTesting={testingName === name}
+            testResult={testResults[name] ?? null}
             onUpdateField={(k, v) => updateField(name, k, v)}
             onToggle={() => handleToggle(name)}
             onSave={() => handleSave(name)}
@@ -325,6 +333,7 @@ type TabProps = {
   isToggling: boolean;
   isSaving: boolean;
   isTesting: boolean;
+  testResult: { ok: boolean; message: string } | null;
   onUpdateField: (key: string, value: any) => void;
   onToggle: () => void;
   onSave: () => void;
@@ -339,6 +348,7 @@ function ErpTabPanel({
   isToggling,
   isSaving,
   isTesting,
+  testResult,
   onUpdateField,
   onToggle,
   onSave,
@@ -355,9 +365,31 @@ function ErpTabPanel({
           <div className="skeleton skeleton-text" />
           <div className="skeleton skeleton-text" />
         </div>
-      </div>
-    );
-  }
+    </div>
+  );
+}
+
+function TestResultBadge({ ok, message }: { ok: boolean; message: string }) {
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        padding: "10px 14px",
+        borderRadius: "var(--radius)",
+        fontSize: 13,
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        background: ok ? "var(--success-bg)" : "var(--danger-bg)",
+        color: ok ? "var(--success)" : "var(--danger)",
+        border: `1px solid ${ok ? "#B7EB8F" : "#FFA39E"}`,
+      }}
+    >
+      {ok ? <CircleCheck size={14} /> : <CircleAlert size={14} />}
+      {message}
+    </div>
+  );
+}
 
   const enabled = !!config.enabled;
   const mcpExists = !!mcpStatus;
@@ -453,6 +485,9 @@ function ErpTabPanel({
               测试连接
             </button>
           </div>
+          {testResult && (
+            <TestResultBadge ok={testResult.ok} message={testResult.message} />
+          )}
         </>
       ) : (
         <>
