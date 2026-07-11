@@ -42,3 +42,4 @@ agent/skills/*/*.token
 zlink_agent.egg-info/
 
 .opencode/
+.agents/
