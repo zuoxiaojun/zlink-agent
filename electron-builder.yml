@@ -15,12 +15,8 @@ files:
   - electron/**/*
   - web/dist/**/*
 
-extraResources:
-  # PyInstaller-built Python backend (run build:pyinstaller first)
-  - from: dist/ZLink-Agent/
-    to: .
-    filter:
-      - "**/*"
+# Python 后端: 用户需自行安装 Python 3.11+ 和 pip install zlink-agent
+# 或通过 scripts/bundle-python.sh 打包后端（后续添加）
 
 mac:
   category: public.app-category.business
