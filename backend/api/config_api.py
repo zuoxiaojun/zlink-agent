@@ -57,7 +57,9 @@ def get_config():
 @router.put("/llm")
 def save_llm_config(body: LLMConfig):
     cfg = config_manager.load()
-    cfg.llm_api_key = body.api_key
+    # 只有非空且不是脱敏占位符时才更新（防前端编辑时误清空）
+    if body.api_key and not body.api_key.startswith("***"):
+        cfg.llm_api_key = body.api_key
     cfg.llm_base_url = body.base_url
     cfg.llm_model = body.model
     cfg.llm_provider = body.provider

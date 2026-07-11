@@ -75,16 +75,21 @@ async def lifespan(application: FastAPI):
         cfg.mcp_servers = servers_cfg
         config_manager.save(cfg)
 
-    # Inject YonSuite credentials into yonsuite MCP server's env so its subprocess
-    # can read YONSUITE_APP_KEY / YONSUITE_APP_SECRET / YONSUITE_TENANT_ID.
-    # Otherwise _connect_stdio's safe_env whitelist drops them.
+    # Inject YonSuite credentials into yonsuite MCP server's env
+    # 优先从 erp_clients.yonsuite 读取（新 ERP 页），其次从旧字段读取（向后兼容）
+    ys_cfg_erp = cfg.erp_clients.get("yonsuite", {})
+    ys_app_key = ys_cfg_erp.get("app_key") or cfg.ys_app_key or ""
+    ys_app_secret = ys_cfg_erp.get("app_secret") or cfg.ys_app_secret or ""
+    ys_tenant_id = ys_cfg_erp.get("tenant_id") or cfg.ys_tenant_id or ""
+    ys_gateway_url = ys_cfg_erp.get("base_url") or cfg.ys_gateway_url or "https://c2.yonyoucloud.com/iuap-api-gateway"
+
     yonsuite_cfg = servers_cfg.get("yonsuite")
     if yonsuite_cfg:
         yonsuite_cfg.env = {
-            "YONSUITE_APP_KEY": cfg.ys_app_key or "",
-            "YONSUITE_APP_SECRET": cfg.ys_app_secret or "",
-            "YONSUITE_TENANT_ID": cfg.ys_tenant_id or "",
-            "YONSUITE_GATEWAY_URL": cfg.ys_gateway_url or "https://c2.yonyoucloud.com/iuap-api-gateway",
+            "YONSUITE_APP_KEY": ys_app_key,
+            "YONSUITE_APP_SECRET": ys_app_secret,
+            "YONSUITE_TENANT_ID": ys_tenant_id,
+            "YONSUITE_GATEWAY_URL": ys_gateway_url,
         }
         cfg.mcp_servers = servers_cfg
         config_manager.save(cfg)

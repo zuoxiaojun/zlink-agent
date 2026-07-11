@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=75.0"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "zlink-agent"
@@ -30,6 +30,10 @@ nc = [
 ]
 all = ["zlink-agent[web]"]
 dev = ["pytest>=8.0.0"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agent*", "backend*", "mcp_server*"]
 
 [tool.ruff]
 target-version = "py311"

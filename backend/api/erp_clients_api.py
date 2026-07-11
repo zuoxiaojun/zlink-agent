@@ -145,14 +145,40 @@ async def put_erp_client(name: str, body: ERPPutRequest) -> dict:
 
     _write_raw_config(raw)
 
-    # 触发 NC MCP 同步 (如果改了 nc)
-    if name == "nc":
-        try:
+    # 触发 MCP 同步
+    try:
+        if name == "nc":
             from mcp_server.nc_mcp.mcp_starter import sync_nc_mcp
 
             await sync_nc_mcp()
-        except Exception as e:
-            logger.warning("sync_nc_mcp 失败: %s", e)
+        elif name == "yonsuite":
+            # 同步 YonSuite 凭证到 MCP server 环境变量（立即生效，无需重启）
+            from agent.config_manager import get_erp_config
+            from agent.tools.mcp_manager import connect_server, disconnect_server, get_server_statuses
+
+            ys_cfg = get_erp_config("yonsuite")
+            statuses = {s["name"]: s for s in get_server_statuses()}
+            ys_mcp = statuses.get("yonsuite")
+            if ys_mcp and ys_mcp.get("status") == "connected":
+                from agent.config_model import MCPServerEntry
+
+                ys_mcp_cfg = MCPServerEntry(
+                    transport="stdio",
+                    command=ys_mcp.get("command", ""),
+                    args=ys_mcp.get("args", []),
+                    enabled=bool(ys_cfg.get("enabled", False)),
+                    env={
+                        "YONSUITE_APP_KEY": ys_cfg.get("app_key", ""),
+                        "YONSUITE_APP_SECRET": ys_cfg.get("app_secret", ""),
+                        "YONSUITE_TENANT_ID": ys_cfg.get("tenant_id", ""),
+                        "YONSUITE_GATEWAY_URL": ys_cfg.get("base_url") or "https://c2.yonyoucloud.com/iuap-api-gateway",
+                    },
+                    builtin=True,
+                )
+                await disconnect_server("yonsuite")
+                await connect_server("yonsuite", ys_mcp_cfg.model_dump())
+    except Exception as e:
+        logger.warning("MCP 同步失败 (%s): %s", name, e)
 
     return _mask_secrets(name, cfg)
 
