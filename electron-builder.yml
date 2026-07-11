@@ -21,6 +21,24 @@ extraResources:
     to: python-bundle
     filter:
       - "**/*"
+  # 项目源码 (backend/ agent/ mcp_server/ 等) — filter 用正向 glob 包含
+  - from: .
+    to: app
+    filter:
+      - "backend/**/*.py"
+      - "agent/**/*.py"
+      - "mcp_server/**/*.py"
+      - "scripts/**/*.py"
+      - "packaging/**/*"
+      - "VERSION"
+      - "requirements.txt"
+      - "pyproject.toml"
+      - "LICENSE"
+  # 后端启动脚本
+  - from: electron/
+    to: .
+    filter:
+      - "backend_launcher.py"
 
 mac:
   category: public.app-category.business

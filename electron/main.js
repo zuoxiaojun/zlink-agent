@@ -7,7 +7,6 @@
  *
  * Production mode (self-contained):
  *   bash scripts/build-electron.sh
- *   → bundles Python runtime + deps + frontend into a single .app / .exe
  */
 
 const { app, BrowserWindow, dialog } = require("electron");
@@ -30,7 +29,6 @@ function findBundledPython() {
   const candidates = [
     path.join(dir, "python-bundle", "bin", "python3"),
     path.join(dir, "python-bundle", "bin", "python"),
-    path.join(dir, "python-bundle", "Scripts", "python.exe"), // Windows
   ];
   for (const p of candidates) {
     if (fs.existsSync(p)) return p;
@@ -38,20 +36,20 @@ function findBundledPython() {
   return null;
 }
 
-/** Python startup command — uvicorn serving the FastAPI app. */
-function backendArgs(pythonBin) {
-  const modulePath = path.join(
-    path.dirname(pythonBin), "..", "lib",
-    ...fs.readdirSync(path.join(path.dirname(pythonBin), "..", "lib"))
-      .filter((n) => n.startsWith("python3")),
-    "site-packages"
-  );
-  return [
-    "-m", "uvicorn", "backend.main:app",
-    "--host", "0.0.0.0",
-    "--port", String(BACKEND_PORT),
-    "--no-access-log",
-  ];
+function findBackendLauncher() {
+  if (IS_DEV) return null;
+  const dir = process.resourcesPath;
+  const launcher = path.join(dir, "backend_launcher.py");
+  return fs.existsSync(launcher) ? launcher : null;
+}
+
+function findProjectRoot() {
+  // In production: resourcesPath/app/ contains the project source
+  if (!IS_DEV) {
+    const p = path.join(process.resourcesPath, "app");
+    if (fs.existsSync(path.join(p, "backend", "main.py"))) return p;
+  }
+  return null;
 }
 
 function startBackend() {
@@ -62,19 +60,24 @@ function startBackend() {
 
   const pythonBin = findBundledPython();
   if (!pythonBin) {
-    dialog.showErrorBox(
-      "启动失败",
-      "找不到内置 Python 运行环境。请运行 scripts/bundle-python.sh 重新构建。"
-    );
+    dialog.showErrorBox("启动失败", "找不到内置 Python 运行环境。请运行 scripts/bundle-python.sh 重新构建。");
+    app.quit();
+    return;
+  }
+
+  // Use the launcher script so Python can import backend.main
+  const launcher = findBackendLauncher();
+  if (!launcher) {
+    dialog.showErrorBox("启动失败", "找不到后端启动脚本 (backend_launcher.py)");
     app.quit();
     return;
   }
 
   console.log(`[electron] Starting backend: ${pythonBin}`);
-  const args = backendArgs(pythonBin);
-  backendProcess = spawn(pythonBin, args, {
+  console.log(`[electron] Launcher: ${launcher}`);
+  backendProcess = spawn(pythonBin, [launcher], {
     stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env },
+    env: { ...process.env, ZLINK_AGENT_PORT: String(BACKEND_PORT) },
   });
 
   backendProcess.stdout.on("data", (d) => process.stdout.write(`[backend] ${d}`));
@@ -132,16 +135,10 @@ async function createWindow() {
   });
 
   mainWindow.loadURL(getLoadURL());
-
-  mainWindow.once("ready-to-show", () => {
-    mainWindow.show();
-  });
-
+  mainWindow.once("ready-to-show", () => mainWindow.show());
   mainWindow.on("closed", () => { mainWindow = null; });
 
-  if (IS_DEV) {
-    mainWindow.webContents.openDevTools({ mode: "detach" });
-  }
+  if (IS_DEV) mainWindow.webContents.openDevTools({ mode: "detach" });
 }
 
 // ── App lifecycle ─────────────────────────────────────────────────
