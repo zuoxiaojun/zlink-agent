@@ -342,15 +342,14 @@ async def _run_agent(
             memory_store = fact_memory.init_store()
             memory_context = memory_manager.get_context()
             skill_idx = skill_manager.get_active_instructions()
-            if skill_detail is None:
-                skill_detail = skill_manager.get_instructions_for_query(content)
+            resolved_skill = skill_detail if skill_detail is not None else skill_manager.get_instructions_for_query(content)
 
             system_with_memory = build_system_prompt(
                 base=agent.system_prompt,
                 memory_store=memory_store,
                 memory_context=memory_context,
                 skill_index=skill_idx,
-                skill_detail=skill_detail,
+                skill_detail=resolved_skill,
             )
 
             result = agent.run_conversation(
