@@ -205,3 +205,14 @@ export type WsServerMessage =
     }
   | { type: "error"; message: string; session_id?: string }
   | { type: "approval_request"; payload: { tool_name: string; reason: string } };
+
+// Slash command popup types
+export interface SlashCommandInfo {
+  name: string;
+  description: string;
+  usage: string;
+}
+
+export interface SlashCommandsResponse {
+  commands: SlashCommandInfo[];
+}
