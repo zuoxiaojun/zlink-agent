@@ -263,7 +263,7 @@ class AnthropicProvider(LLMProvider):
                     )
                 resp = client.messages.create(
                     model=model,
-                    system=system_text or None,
+                    system=system_text or "",
                     messages=anth_messages,
                     temperature=temperature,
                     max_tokens=anth_max,
