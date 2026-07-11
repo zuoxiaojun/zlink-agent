@@ -35,13 +35,15 @@ def build_nc_mcp_env(erp_config: dict[str, Any]) -> dict[str, str]:
 
 
 def build_nc_mcp_config(erp_config: dict[str, Any], enabled: bool) -> dict[str, Any]:
-    """构造 mcp_manager 需要的 config dict"""
+    """构造 mcp_manager 需要的 config dict（使用本地 nc_mcp_server 模块）"""
+    import sys
+
+    py_path = sys.executable
     return {
         "transport": "stdio",
-        "command": "nc-mcp-server",
-        "args": [],
+        "command": py_path,
+        "args": ["-m", "mcp_server.nc_mcp_server"],
         "env": build_nc_mcp_env(erp_config),
-        "builtin": False,
+        "builtin": True,
         "enabled": enabled,
-        "install_hint": "pip install zlink-agent[nc]",
     }

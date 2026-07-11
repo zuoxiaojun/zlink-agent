@@ -52,6 +52,8 @@ def test_build_nc_mcp_env_default_max_rows():
 
 
 def test_build_nc_mcp_config():
+    import sys
+
     from mcp_server.nc_mcp.config import build_nc_mcp_config
 
     cfg = build_nc_mcp_config(
@@ -59,9 +61,8 @@ def test_build_nc_mcp_config():
         enabled=True,
     )
     assert cfg["transport"] == "stdio"
-    assert cfg["command"] == "nc-mcp-server"
-    assert cfg["args"] == []
-    assert cfg["builtin"] is False
+    assert cfg["command"] == sys.executable
+    assert cfg["args"] == ["-m", "mcp_server.nc_mcp_server"]
+    assert cfg["builtin"] is True
     assert cfg["enabled"] is True
     assert cfg["env"]["ORACLE_HOST"] == "h"
-    assert "pip install" in cfg["install_hint"]
