@@ -419,7 +419,7 @@ def _execute_job_prompt(name: str, prompt: str,
 
 
 def cronjob_run(job_id: str) -> str:
-    """Immediately trigger a cron job — waits for AI execution, then returns session_id."""
+    """Immediately trigger a cron job — creates session, returns for real-time streaming."""
     from agent import session_manager
 
     jobs = _load_jobs()
@@ -429,17 +429,17 @@ def cronjob_run(job_id: str) -> str:
             name = job.get("name", "")
             prompt = job.get("prompt", "")
 
-            # Create session + title upfront
+            # Create session with user message so the chat page can find it
             time_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
             session_title = f"{name} - {time_str}"
             session_id = session_manager.create_session()
-
-            # Run AI synchronously — updates the session with full results
-            result_sid = _execute_job_prompt(name, prompt, session_id=session_id, session_title=session_title)
+            session_manager.save_session(session_id, [
+                {"role": "user", "content": prompt},
+            ], title=session_title)
 
             # Update job record
             job["last_run_at"] = now
-            job["last_status"] = "completed" if result_sid else "failed"
+            job["last_status"] = "pending"
             job["last_session_id"] = session_id
             schedule = job.get("schedule", "")
             if schedule.startswith("every") or schedule.startswith("daily"):
@@ -450,11 +450,12 @@ def cronjob_run(job_id: str) -> str:
                 job["next_run_at"] = None
             _save_jobs(jobs)
 
+            logger.info("Cron job '%s' session created: %s, prompting: %s", name, session_id, prompt[:60])
+
             return json.dumps({
-                "success": result_sid is not None,
+                "success": True,
                 "session_id": session_id,
-                "last_run_at": now,
-                "next_run_at": job.get("next_run_at"),
+                "prompt": prompt,
             }, ensure_ascii=False)
     return json.dumps({"success": False, "error": f"未找到任务: {job_id}"})
 

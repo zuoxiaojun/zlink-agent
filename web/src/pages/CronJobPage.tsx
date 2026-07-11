@@ -76,12 +76,15 @@ export default function CronJobPage() {
   const handleRun = async (id: string) => {
     setRunLoading(true);
     try {
-      const res = await api.post<{ success: boolean; session_id?: string }>(`/cronjobs/${id}/run`, {});
+      const res = await api.post<{ success: boolean; session_id?: string; prompt?: string }>(`/cronjobs/${id}/run`, {});
       await loadJobs();
-      if (res.session_id) {
+      if (res.session_id && res.prompt) {
+        navigate(`/?s=${res.session_id}&auto=${encodeURIComponent(res.prompt)}`);
+      } else if (res.session_id) {
         navigate(`/?s=${res.session_id}`);
       } else {
         showToast("success", "任务已触发执行");
+        setRunLoading(false);
       }
     } catch {
       setRunLoading(false);
