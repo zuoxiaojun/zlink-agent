@@ -10,6 +10,7 @@ export default defineConfig(({ mode }) => {
   const backendPort = env.ZLINK_AGENT_PORT || '8089'
 
   return {
+    base: './',
     plugins: [react()],
     server: {
       port: frontendPort,

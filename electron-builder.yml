@@ -15,6 +15,11 @@ files:
   - electron/**/*
   - web/dist/**/*
 
+asarUnpack:
+  - web/dist/**
+
+asar: true
+
 extraResources:
   # 自包含 Python 运行环境 (build by scripts/bundle-python.sh)
   - from: build/python-bundle/

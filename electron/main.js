@@ -77,7 +77,11 @@ function startBackend() {
   console.log(`[electron] Launcher: ${launcher}`);
   backendProcess = spawn(pythonBin, [launcher], {
     stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, ZLINK_AGENT_PORT: String(BACKEND_PORT) },
+    env: {
+      ...process.env,
+      ZLINK_AGENT_PORT: String(BACKEND_PORT),
+      ZLINK_AGENT_CORS: "*",  // allow file:// origin in Electron
+    },
   });
 
   backendProcess.stdout.on("data", (d) => process.stdout.write(`[backend] ${d}`));
