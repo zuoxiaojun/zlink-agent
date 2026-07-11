@@ -17,7 +17,7 @@ import json
 import logging
 import threading
 from collections.abc import Callable
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import httpx
 
@@ -74,7 +74,7 @@ class OpenAICompatProvider(LLMProvider):
         self.max_retry_delay = max_retry_delay
 
     @property
-    def client(self) -> "openai.OpenAI":
+    def client(self) -> openai.OpenAI:
         """Lazy HTTP client.  Exposed for M4 compaction."""
         import openai
 
