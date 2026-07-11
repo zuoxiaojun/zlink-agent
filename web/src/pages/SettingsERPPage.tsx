@@ -88,14 +88,14 @@ export default function SettingsERPPage() {
   const [savingName, setSavingName] = useState<ErpName | null>(null);
   const [testingName, setTestingName] = useState<ErpName | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string } | null>>({});
-  const [driftWarned, setDriftWarned] = useState<Record<ErpName, boolean>>({
+  const [, setDriftWarned] = useState<Record<ErpName, boolean>>({
     yonsuite: false,
     nc: false,
   });
 
   useEffect(() => {
     void loadAll();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     (Object.keys(ERP_REGISTRY) as ErpName[]).forEach((name) => {
@@ -106,12 +106,15 @@ export default function SettingsERPPage() {
       if (!mcp) return;
       const erpEnabled = !!cfg.enabled;
       const mcpEnabled = mcp.enabled && mcp.status === "connected";
-      if (erpEnabled !== mcpEnabled && !driftWarned[name]) {
-        showToast(
-          "warn",
-          `${meta.label} 配置与 MCP server 状态不一致（ERP ${erpEnabled ? "启用" : "停用"} ↔ MCP ${mcpEnabled ? "连接中" : "未连接"}），请点上方开关同步`,
-        );
-        setDriftWarned((d) => ({ ...d, [name]: true }));
+      if (erpEnabled !== mcpEnabled) {
+        setDriftWarned((prev) => {
+          if (prev[name]) return prev; // already warned
+          showToast(
+            "warn",
+            `${meta.label} 配置与 MCP server 状态不一致（ERP ${erpEnabled ? "启用" : "停用"} ↔ MCP ${mcpEnabled ? "连接中" : "未连接"}），请点上方开关同步`,
+          );
+          return { ...prev, [name]: true };
+        });
       }
     });
   }, [configs, mcpStatuses]);
@@ -369,28 +372,6 @@ function ErpTabPanel({
   );
 }
 
-function TestResultBadge({ ok, message }: { ok: boolean; message: string }) {
-  return (
-    <div
-      style={{
-        marginTop: 12,
-        padding: "10px 14px",
-        borderRadius: "var(--radius)",
-        fontSize: 13,
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        background: ok ? "var(--success-bg)" : "var(--danger-bg)",
-        color: ok ? "var(--success)" : "var(--danger)",
-        border: `1px solid ${ok ? "#B7EB8F" : "#FFA39E"}`,
-      }}
-    >
-      {ok ? <IconCircleCheck size={14} /> : <IconAlertCircle size={14} />}
-      {message}
-    </div>
-  );
-}
-
   const enabled = !!config.enabled;
   const mcpExists = !!mcpStatus;
   const mcpConnected = mcpStatus?.status === "connected";
@@ -486,7 +467,16 @@ function TestResultBadge({ ok, message }: { ok: boolean; message: string }) {
             </button>
           </div>
           {testResult && (
-            <TestResultBadge ok={testResult.ok} message={testResult.message} />
+            <div style={{
+              marginTop: 12, padding: "10px 14px", borderRadius: "var(--radius)", fontSize: 13,
+              display: "flex", alignItems: "center", gap: 8,
+              background: testResult.ok ? "var(--success-bg)" : "var(--danger-bg)",
+              color: testResult.ok ? "var(--success)" : "var(--danger)",
+              border: `1px solid ${testResult.ok ? "#B7EB8F" : "#FFA39E"}`,
+            }}>
+              {testResult.ok ? <IconCircleCheck size={14} /> : <IconAlertCircle size={14} />}
+              {testResult.message}
+            </div>
           )}
         </>
       ) : (

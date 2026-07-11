@@ -13,7 +13,7 @@ import StopButton from "../components/StopButton";
 export default function ChatPage() {
   const { state, dispatch } = useAppState();
   const [approval, setApproval] = useState<ApprovalState | null>(null);
-  const [autoSent, setAutoSent] = useState(false);
+  const autoSentRef = useRef(false);
   const { sendMessage, stopAgent, sendApproval } = useChat({
     onApprovalRequest: (payload) => {
       setApproval({ ...payload, resolved: false });
@@ -53,17 +53,17 @@ export default function ChatPage() {
   useEffect(() => {
     const autoPrompt = searchParams.get("auto");
     const sid = searchParams.get("s");
-    if (!autoPrompt || autoSent || !sid) return;
+    if (!autoPrompt || autoSentRef.current || !sid) return;
 
     // Clean URL first to prevent re-trigger
     const newParams = new URLSearchParams(searchParams);
     newParams.delete("auto");
     setSearchParams(newParams, { replace: true });
 
-    setAutoSent(true);
+    autoSentRef.current = true;
     // Pass session_id from URL directly to avoid using stale state.currentSessionId
     sendMessage(autoPrompt, sid);
-  }, [searchParams, autoSent, sendMessage, setSearchParams]);
+  }, [searchParams, sendMessage, setSearchParams]);
 
   // Sync URL when session changes (e.g. after first message creates session)
   useEffect(() => {

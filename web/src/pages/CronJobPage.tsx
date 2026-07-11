@@ -42,9 +42,17 @@ export default function CronJobPage() {
     }
   }, []);
 
+  // Initial data load
   useEffect(() => {
-    loadJobs();
-  }, [loadJobs]);
+    const fetchData = async () => {
+      try {
+        const res = await api.get<{ jobs: CronJob[] }>("/cronjobs");
+        setJobs(res.jobs || []);
+      } catch { /* silent */
+      } finally { setLoading(false); }
+    };
+    fetchData();
+  }, []);
 
   const handleCreate = async () => {
     if (!form.name.trim() || !form.schedule.trim() || !form.prompt.trim()) {
