@@ -240,12 +240,11 @@ export default function CronJobPage() {
                   <td>
                   {job.last_run_at ? formatTime(job.last_run_at) : "-"}
                   {job.last_session_id && (
-                    <a href={`/#/?s=${job.last_session_id}`}
-                       style={{ marginLeft: 6, fontSize: 12, color: "var(--primary)", textDecoration: "none" }}
-                       title="查看执行结果"
-                       target="_blank" rel="noopener">
+                    <button onClick={() => navigate(`/?s=${job.last_session_id}`)}
+                       style={{ marginLeft: 6, fontSize: 12, color: "var(--primary)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0 }}
+                       title="查看执行结果">
                       查看
-                    </a>
+                    </button>
                   )}
                 </td>
                   <td>{formatTime(job.next_run_at)}</td>
