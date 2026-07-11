@@ -162,6 +162,7 @@ async def ws_chat(websocket: WebSocket, session_id: str):
                     continue
 
                 # --- slash command interception ---
+                skill_detail: str | None = None  # may be set by skill match below
                 parsed = parse_command(content)
                 if parsed:
                     cmd_name, cmd_args = parsed
@@ -171,22 +172,32 @@ async def ws_chat(websocket: WebSocket, session_id: str):
                         "token_usage": _session_usage.get(session_id),
                     }
                     result = execute(cmd_name, cmd_args, ctx)
+
+                    # result is None → unknown command, check skill match
                     if result is None:
-                        await websocket.send_json(
-                            {
-                                "type": "done",
-                                "final_response": f"未知命令: /{cmd_name}\n\n输入 **/help** 查看所有可用命令。",
-                                "messages": [],
-                                "api_calls": 0,
-                                "token_usage": None,
-                                "completed": True,
-                                "error": None,
-                                "session_id": session_id,
-                                "session_title": "",
-                            }
-                        )
+                        skill_content = skill_manager.get_skill_content(cmd_name)
+                        if skill_content is not None:
+                            # Direct skill execution: inject skill + forward args to agent
+                            skill_detail = skill_content
+                            content = cmd_args or f"请帮我使用 {cmd_name} 技能"
+                        else:
+                            await websocket.send_json(
+                                {
+                                    "type": "done",
+                                    "final_response": f"未知命令: /{cmd_name}\n\n输入 **/help** 查看所有可用命令。",
+                                    "messages": [],
+                                    "api_calls": 0,
+                                    "token_usage": None,
+                                    "completed": True,
+                                    "error": None,
+                                    "session_id": session_id,
+                                    "session_title": "",
+                                }
+                            )
+                            continue
+
+                    # result is a sentinel → clear session
                     elif result == "__YS_CLEAR_SESSION__":
-                        # Start a new session
                         sid = session_manager.create_session()
                         old_id = session_id
                         session_id = sid
@@ -206,6 +217,9 @@ async def ws_chat(websocket: WebSocket, session_id: str):
                                 "session_title": "",
                             }
                         )
+                        continue
+
+                    # result is a string → normal command output
                     else:
                         await websocket.send_json(
                             {
@@ -220,7 +234,9 @@ async def ws_chat(websocket: WebSocket, session_id: str):
                                 "session_title": "",
                             }
                         )
-                    continue
+                        continue
+
+                    # Skill match: fall through to _run_agent (no continue)
                 # --- end slash command ---
 
                 await _run_agent(
@@ -234,6 +250,7 @@ async def ws_chat(websocket: WebSocket, session_id: str):
                     max_iterations,
                     existing_msgs,
                     compaction_settings,
+                    skill_detail=skill_detail,
                 )
                 # After agent finishes, update history with new messages
                 updated = session_manager.load_session(session_id) or []
@@ -275,6 +292,7 @@ async def _run_agent(
     max_iterations: int,
     existing_msgs: list[dict],
     compaction_settings: CompactionSettings | None = None,
+    skill_detail: str | None = None,
 ):
     """Run the agent in a thread pool and stream results via WebSocket."""
 
@@ -325,7 +343,8 @@ async def _run_agent(
             memory_store = fact_memory.init_store()
             memory_context = memory_manager.get_context()
             skill_idx = skill_manager.get_active_instructions()
-            skill_detail = skill_manager.get_instructions_for_query(content)
+            if skill_detail is None:
+                skill_detail = skill_manager.get_instructions_for_query(content)
 
             system_with_memory = build_system_prompt(
                 base=agent.system_prompt,
