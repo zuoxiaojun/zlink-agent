@@ -302,4 +302,222 @@ User input arrives
 
 Key files: `agent/skill_manager.py`, `agent/core/message_builder.py`, `agent/tools/skills_tool.py`
 
-<!-- NEXT: SECTION_1_5 -->
+### 1.5 Key Class / Method Signature Reference
+
+#### AIAgent (`agent/core/agent.py:196`)
+
+```python
+class AIAgent:
+    def __init__(
+        self,
+        api_key: str = "",
+        base_url: str = "https://api.openai.com/v1",
+        model: str = "gpt-4o",
+        max_iterations: int = 30,
+        max_tokens: int | None = None,
+        max_tool_result_length: int = sys.maxsize,
+        system_prompt: str | None = None,
+        enabled_tools: list[str] | None = None,
+        disabled_tools: set[str] | None = None,
+        temperature: float = 0.7,
+        progress_callback: Callable | None = None,
+        compaction_settings: CompactionSettings | None = None,
+        max_retries: int = 3,
+        max_retry_delay: float = 30.0,
+    )
+
+    def run_conversation(
+        self,
+        user_message: str | list,
+        system_message: str | None = None,
+        conversation_history: list[dict] | None = None,
+        stream_callback: Callable[[str], None] | None = None,
+        reasoning_callback: Callable[[str], None] | None = None,
+        stop_event: threading.Event | None = None,
+    ) -> dict[str, Any]:
+        """Returns {final_response, messages, api_calls, token_usage, completed, error}."""
+
+    def _take_snapshot(self) -> TurnSnapshot:
+        """Freeze (model, temperature, max_tokens, system_prompt, tool_defs, compaction_settings)."""
+
+    # Phase machine: self.phase ∈ {"idle", "turn", "compaction", "retry"}
+    # Published events: SessionStart, UserMessage, BeforeLLMCall, AfterLLMCall,
+    #                   BeforeToolCall, AfterToolCall, SessionEnd, PhaseChange
+```
+
+M7 contract: `run_conversation()` rejects if `self.phase != "idle"`. Call `run_conversation` once per turn; the phase resets to `"idle"` on completion.
+
+#### LLMClient (`agent/core/llm_client.py:74`)
+
+```python
+class LLMClient:
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str = "https://api.openai.com/v1",
+        timeout: float = 30.0,
+        max_retries: int = 3,
+        max_retry_delay: float = 30.0,
+        provider: LLMProvider | None = None,  # default: OpenAICompatProvider
+    )
+
+    def chat(
+        self,
+        *,
+        model: str,
+        messages: list[dict],
+        temperature: float = 0.7,
+        max_tokens: int | None = None,
+        tools: list[dict] | None = None,
+        tool_choice: str | None = "auto",
+        stream: bool = False,
+        stream_callback: Callable[[str], None] | None = None,
+        reasoning_callback: Callable[[str], None] | None = None,
+        stop_event: threading.Event | None = None,
+    ) -> LLMResponse:
+        """Never-throws — errors returned as LLMResponse with .error set and .failed==True."""
+```
+
+#### LLMResponse & ToolCallPayload (`agent/core/llm_providers/base.py:33`)
+
+```python
+@dataclass
+class ToolCallPayload:
+    id: str
+    name: str
+    arguments: str  # raw JSON string
+
+@dataclass
+class LLMResponse:
+    content: str = ""
+    reasoning: str | None = None
+    tool_calls: list[ToolCallPayload] | None = None
+    usage: dict | None = field(default_factory=dict)  # {prompt_tokens, completion_tokens, total_tokens}
+    error: str = ""
+    stop_reason: str | None = None
+
+    @property
+    def failed(self) -> bool: ...
+```
+
+#### ToolRegistry (`agent/tools/registry.py:66`)
+
+```python
+class ToolEntry:
+    __slots__ = ("name", "toolset", "schema", "handler", "check_fn", "description", "emoji")
+
+class ToolRegistry:
+    def register(self, name: str, toolset: str, schema: dict, handler: Callable, ...) -> None
+    def deregister(self, name: str) -> None
+    def dispatch(self, name: str, args: dict) -> str  # returns JSON string
+    def get_definitions(
+        self,
+        tool_names: list[str] | None = None,
+        disabled_tools: set[str] | None = None,
+    ) -> list[dict]  # OpenAI-format tools
+    def get_all_tool_names(self) -> list[str]
+    # Hooks:
+    def add_before_hook(self, hook: BeforeHook) -> None  # BeforeHook = Callable[[str, dict], dict]
+    def add_after_hook(self, hook: AfterHook) -> None    # AfterHook = Callable[[str, dict, str], str]
+    def remove_before_hook(self, hook: BeforeHook) -> None
+    def remove_after_hook(self, hook: AfterHook) -> None
+
+# Singleton (module-level):
+registry = ToolRegistry()
+discover_tools()  # imports all tool modules → each calls registry.register()
+```
+
+**Before-hook protocol:** To block execution, return `{"__block__": True, "__reason__": "..."}`. Modified args are passed to the handler.
+
+#### MCPServerConnection (`agent/tools/mcp_manager.py`)
+
+```python
+class MCPServerConnection:
+    async def connect(self) -> None: ...
+    async def disconnect(self) -> None: ...
+    async def call_tool(self, tool_name: str, arguments: dict) -> dict: ...
+
+    # Properties:
+    #   connected -> bool
+    #   status -> str          # "connected", "error", or "disconnected"
+    #   tool_count -> int
+
+# Module-level helpers (called by main.py lifespan):
+async def connect_all_servers(servers_config: dict) -> dict[str, str]: ...
+async def connect_server(name: str, config: dict) -> None: ...
+async def disconnect_server(name: str) -> None: ...
+def get_server_statuses() -> list[dict]: ...
+async def reload_all_servers() -> dict: ...
+async def test_server_connection(name: str, config: dict) -> dict: ...
+```
+
+**Circuit breaker constants:** `_CIRCUIT_BREAKER_THRESHOLD = 3`, `_CIRCUIT_BREAKER_COOLDOWN_SEC = 60.0`
+
+#### config_manager (`agent/config_manager.py`)
+
+```python
+def load() -> AppConfig: ...                            # Load from data/config.json
+def save(cfg: AppConfig) -> None: ...                    # Persist (encrypts secrets)
+def encrypt_secret(plain: str) -> str: ...                # → "encrypted:<fernet_token>"
+def decrypt_secret(value: str) -> str: ...                # → plaintext
+def get_erp_config(name: str) -> dict: ...                # ERP-specific config dict
+
+# Known ERP secret fields (for encrypt/decrypt routing):
+ERP_SECRET_FIELDS = {"yonsuite": ("app_key", "app_secret"), "nc": ("password",)}
+```
+
+#### AppConfig (`agent/config_model.py:56`)
+
+```python
+class AppConfig(BaseModel):
+    llm_api_key: str = ""
+    llm_base_url: str = "https://api.openai.com/v1"
+    llm_model: str = "gpt-4o"
+    llm_provider: str = "OpenAI"
+    ys_app_key: str = ""
+    ys_app_secret: str = ""
+    ys_tenant_id: str = ""
+    ys_gateway_url: str = "https://c2.yonyoucloud.com/iuap-api-gateway"
+    max_iterations: int = Field(default=30, ge=5, le=50)
+    compaction_enabled: bool = True
+    max_context_tokens: int = Field(default=0, ge=0)       # 0 = auto-detect
+    reserve_tokens: int = Field(default=4000, ge=1000)
+    keep_recent_tokens: int = Field(default=8000, ge=2000)
+    mcp_servers: dict[str, MCPServerEntry] = {}
+    erp_clients: dict[str, dict[str, Any]] = {}
+    disabled_extensions: list[str] = []
+
+    def model_dump_encrypted(self) -> dict: ...             # Encrypts secrets before serialization
+    @classmethod
+    def model_validate_decrypted(cls, data: dict) -> AppConfig: ...  # Decrypts on load
+```
+
+#### build_system_prompt (`agent/core/message_builder.py:32`)
+
+```python
+def build_system_prompt(
+    base: str,
+    memory_store: object | None = None,
+    memory_context: str = "",
+    skill_index: str = "",
+    skill_detail: str = "",
+) -> str | None:
+    """Concatenate fragments: base + memory + time + skill_index + skill_detail."""
+```
+
+#### MCPServerEntry (`agent/config_model.py:44`)
+
+```python
+class MCPServerEntry(BaseModel):
+    transport: str = "stdio"           # "stdio" or "http"
+    enabled: bool = True
+    timeout: int = 120
+    command: str | None = None
+    args: list[str] = []
+    url: str | None = None             # for http transport
+    headers: dict[str, str] = {}
+    env: dict[str, str] = {}
+    builtin: bool = False              # builtin servers cannot be deleted via API
+```
+
+<!-- NEXT: SECTION_1_6 -->
