@@ -46,12 +46,11 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
     return allCommands.filter((c) => c.name.startsWith(filterText));
   }, [allCommands, filterText]);
 
-  // Clamp activeIndex when filtered list shrinks
-  useEffect(() => {
-    if (activeIndex >= filteredCommands.length) {
-      setActiveIndex(Math.max(filteredCommands.length - 1, 0));
-    }
-  }, [filteredCommands, activeIndex]);
+  // Derive a safe display index (clamped to filtered list bounds)
+  const displayIndex = useMemo(
+    () => Math.min(activeIndex, Math.max(filteredCommands.length - 1, 0)),
+    [activeIndex, filteredCommands.length],
+  );
 
   const handleSubmit = () => {
     const trimmed = text.trim();
@@ -91,8 +90,8 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
         case "Enter":
           if (!e.shiftKey && !isComposingRef.current) {
             e.preventDefault();
-            if (filteredCommands.length > 0 && filteredCommands[activeIndex]) {
-              handleCommandSelect(filteredCommands[activeIndex].name);
+            if (filteredCommands.length > 0 && filteredCommands[displayIndex]) {
+              handleCommandSelect(filteredCommands[displayIndex].name);
             }
           }
           return;
@@ -223,7 +222,7 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
         {showPopup && (
           <SlashCommandPopup
             commands={filteredCommands}
-            activeIndex={activeIndex}
+            activeIndex={displayIndex}
             onSelect={handleCommandSelect}
             onClose={() => setShowPopup(false)}
             onHover={setActiveIndex}

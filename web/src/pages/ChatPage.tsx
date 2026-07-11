@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { IconBolt, IconChartBar } from "@tabler/icons-react";
 import { useAppState } from "../context/AppContext";
@@ -23,12 +23,11 @@ export default function ChatPage() {
   const userScrolledUp = useRef(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Clear pending approval when agent stops
-  useEffect(() => {
-    if (!state.agentRunning) {
-      setApproval(null);
-    }
-  }, [state.agentRunning]);
+  // Derive active approval from state — no setState in effects
+  const activeApproval: ApprovalState | null = useMemo(
+    () => (state.agentRunning ? approval : null),
+    [approval, state.agentRunning],
+  );
 
   // Restore session from URL param ?s=
   useEffect(() => {
@@ -129,9 +128,9 @@ export default function ChatPage() {
 
       </div>
 
-      {approval && (
+      {activeApproval && (
         <ApprovalCard
-          approval={approval}
+          approval={activeApproval}
           onApprove={() => {
             setApproval(null);
             sendApproval(true);
