@@ -89,7 +89,7 @@ def _try_import_tiktoken() -> bool:
 
     tk = result[0]
     try:
-        for k, v in tk.model.MODEL_TO_ENCODING.items():
+        for k, v in tk.model.MODEL_TO_ENCODING.items():  # type: ignore[attr-defined]
             _TIKTOKEN_MODEL_MAP[k.lower()] = v
         return True
     except Exception:
