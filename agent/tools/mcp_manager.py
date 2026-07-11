@@ -293,10 +293,11 @@ class MCPServerConnection:
 
         # Kill stdio process
         if self._process:
-            try:
-                self._process.stdin.close()
-            except Exception:
-                pass
+            if self._process.stdin:
+                try:
+                    self._process.stdin.close()
+                except Exception:
+                    pass
             try:
                 self._process.kill()
             except Exception:
@@ -487,6 +488,8 @@ class MCPServerConnection:
                 raise RuntimeError(f"JSON-RPC request '{method}' timed out after {self.timeout}s")
         else:
             assert self._http_client and self._http_url
+            if self._rpc_lock is None:
+                raise RuntimeError("RPC lock not initialized")
             async with self._rpc_lock:
                 resp = await self._http_client.post(
                     self._http_url,
@@ -497,7 +500,7 @@ class MCPServerConnection:
                 return _jsonrpc_result(result_msg)
 
     async def _send_notification(self, method: str, params: dict | None = None):
-        msg = {"jsonrpc": "2.0", "method": method}
+        msg: dict[str, object] = {"jsonrpc": "2.0", "method": method}
         if params is not None:
             msg["params"] = params
         if self.transport == "stdio":
@@ -515,6 +518,8 @@ class MCPServerConnection:
 
     async def call_tool(self, tool_name: str, arguments: dict) -> dict:
         """Call a tool on the MCP server. Returns the result dict."""
+        if self._rpc_lock is None:
+            raise RuntimeError("RPC lock not initialized")
         async with self._rpc_lock:
             return await self._send_request("tools/call", {"name": tool_name, "arguments": arguments})
 
