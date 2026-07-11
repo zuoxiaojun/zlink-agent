@@ -28,6 +28,7 @@ class AgentConfig(BaseModel):
     max_context_tokens_auto: bool = Field(default=True, description="True when context window is auto-detected")
     reserve_tokens: int = Field(default=4000, ge=1000, le=32000)
     keep_recent_tokens: int = Field(default=8000, ge=2000, le=128000)
+    approval_mode: str = Field(default="allow_all", description="allow_all / approve / reject_all")
 
 
 class ConfigResponse(BaseModel):

@@ -50,6 +50,7 @@ def get_config():
             max_context_tokens_auto=(raw_ctx == 0),
             reserve_tokens=cfg.reserve_tokens,
             keep_recent_tokens=cfg.keep_recent_tokens,
+            approval_mode=cfg.approval_mode,
         ),
     )
 
@@ -118,6 +119,7 @@ def save_agent_config(body: AgentConfig):
     cfg.max_context_tokens = 0 if body.max_context_tokens_auto else body.max_context_tokens
     cfg.reserve_tokens = body.reserve_tokens
     cfg.keep_recent_tokens = body.keep_recent_tokens
+    cfg.approval_mode = body.approval_mode
     config_manager.save(cfg)
     return {"ok": True}
 
