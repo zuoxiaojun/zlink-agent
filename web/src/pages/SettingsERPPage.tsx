@@ -5,6 +5,7 @@ import {
   CircleCheck,
   CircleAlert,
   Save,
+  Pencil,
   ToggleLeft,
   ToggleRight,
   Loader2,
@@ -93,7 +94,7 @@ export default function SettingsERPPage() {
 
   useEffect(() => {
     void loadAll();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     (Object.keys(ERP_REGISTRY) as ErpName[]).forEach((name) => {
@@ -309,6 +310,7 @@ export default function SettingsERPPage() {
             onToggle={() => handleToggle(name)}
             onSave={() => handleSave(name)}
             onTest={() => handleTest(name)}
+            onCancelEdit={() => loadAll()}
           />
         ) : null,
       )}
@@ -327,6 +329,7 @@ type TabProps = {
   onToggle: () => void;
   onSave: () => void;
   onTest: () => void;
+  onCancelEdit: () => void;
 };
 
 function ErpTabPanel({
@@ -340,7 +343,10 @@ function ErpTabPanel({
   onToggle,
   onSave,
   onTest,
+  onCancelEdit,
 }: TabProps) {
+  const [editing, setEditing] = useState(false);
+
   if (!config) {
     return (
       <div className="card">
@@ -426,37 +432,61 @@ function ErpTabPanel({
         </button>
       </div>
 
-      {meta.fields.map((field) => (
-        <div key={field.key} className="form-group">
-          <label className="form-label">{field.label}</label>
-          <input
-            className="form-input"
-            type={field.type}
-            value={config[field.key] ?? ""}
-            placeholder={
-              field.placeholder ??
-              (field.secret && config[field.key] ? "（已设置，留空保持原值）" : "")
-            }
-            onChange={(e) =>
-              onUpdateField(
-                field.key,
-                field.type === "number" ? Number(e.target.value) : e.target.value,
-              )
-            }
-          />
-        </div>
-      ))}
-
-      <div className="card-actions">
-        <button className="btn btn-primary" onClick={onSave} disabled={isSaving}>
-          {isSaving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
-          保存连接信息
-        </button>
-        <button className="btn btn-secondary" onClick={onTest} disabled={isTesting}>
-          {isTesting ? <Loader2 size={14} className="spin" /> : null}
-          测试连接
-        </button>
-      </div>
+      {!editing ? (
+        <>
+          {meta.fields.map((field) => (
+            <div key={field.key} className="form-group">
+              <label className="form-label">{field.label}</label>
+              <div className="card-body" style={{ padding: "8px 0", fontSize: 14 }}>
+                {field.secret && config[field.key]
+                  ? "••••••••"
+                  : (config[field.key] ?? "（未设置）")}
+              </div>
+            </div>
+          ))}
+          <div className="card-actions">
+            <button className="btn btn-primary" onClick={() => setEditing(true)}>
+              <Pencil size={14} /> 编辑
+            </button>
+            <button className="btn btn-secondary" onClick={onTest} disabled={isTesting}>
+              {isTesting ? <Loader2 size={14} className="spin" /> : null}
+              测试连接
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          {meta.fields.map((field) => (
+            <div key={field.key} className="form-group">
+              <label className="form-label">{field.label}</label>
+              <input
+                className="form-input"
+                type={field.type}
+                value={config[field.key] ?? ""}
+                placeholder={
+                  field.placeholder ??
+                  (field.secret && config[field.key] ? "（已设置，留空保持原值）" : "")
+                }
+                onChange={(e) =>
+                  onUpdateField(
+                    field.key,
+                    field.type === "number" ? Number(e.target.value) : e.target.value,
+                  )
+                }
+              />
+            </div>
+          ))}
+          <div className="card-actions">
+            <button className="btn btn-primary" onClick={onSave} disabled={isSaving}>
+              {isSaving ? <Loader2 size={14} className="spin" /> : <Save size={14} />}
+              保存
+            </button>
+            <button className="btn btn-secondary" onClick={() => { setEditing(false); onCancelEdit(); }}>
+              取消
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
