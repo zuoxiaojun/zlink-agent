@@ -18,6 +18,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from agent import fact_memory, memory_manager, session_manager, skill_manager
 from agent.agent import AIAgent
 from agent.context_compactor import CompactionSettings
+from agent.core.agent import ApprovalRequest
 from agent.core.message_builder import build_system_prompt
 from agent.slash_commands import execute, parse_command
 from agent.tools.registry import discover_tools
@@ -32,6 +33,29 @@ discover_tools()
 
 # Per-session token usage tracking (for /cost command)
 _session_usage: dict[str, dict] = {}
+
+# Pending approval requests — keyed by session_id, set by agent thread, resolved by WebSocket coroutine
+_pending_approvals: dict[str, ApprovalRequest] = {}
+_pending_lock = threading.Lock()
+
+
+def _set_pending_approval(session_id: str, req: ApprovalRequest | None) -> None:
+    with _pending_lock:
+        if req is None:
+            _pending_approvals.pop(session_id, None)
+        else:
+            _pending_approvals[session_id] = req
+
+
+def _resolve_pending_approval(session_id: str, approved: bool) -> bool:
+    """Resolve the pending approval for a session. Returns True if one was resolved."""
+    with _pending_lock:
+        req = _pending_approvals.pop(session_id, None)
+    if req is None:
+        return False
+    req.result = "approved" if approved else "denied"
+    req.event.set()
+    return True
 
 
 def _generate_summary(messages: list[dict], api_key: str, base_url: str, model: str) -> str | None:
@@ -125,6 +149,12 @@ async def ws_chat(websocket: WebSocket, session_id: str):
         while True:
             data = await websocket.receive_json()
             msg_type = data.get("type", "")
+
+            if msg_type == "approval_response":
+                payload = data.get("payload", {})
+                approved = payload.get("approved", False)
+                _resolve_pending_approval(session_id, approved)
+                continue
 
             if msg_type == "send_message":
                 content = data.get("content", "")
@@ -227,8 +257,10 @@ async def ws_chat(websocket: WebSocket, session_id: str):
                 pass
 
     except WebSocketDisconnect:
+        _resolve_pending_approval(session_id, False)
         logger.info("WebSocket disconnected: %s", session_id)
     except Exception:
+        _resolve_pending_approval(session_id, False)
         logger.exception("WebSocket error for session %s", session_id)
 
 
@@ -262,6 +294,22 @@ async def _run_agent(
     def progress_callback(msg: str):
         loop.call_soon_threadsafe(queue.put_nowait, {"type": "progress", "message": msg})
 
+    # Approval callback — called from agent thread when ApprovalBlockedError is caught
+    def _on_approval_request(req: ApprovalRequest) -> None:
+        """Called by agent thread when a high-risk tool needs approval."""
+        _set_pending_approval(session_id, req)
+        # Push approval request to the queue so the WebSocket coroutine sends it
+        loop.call_soon_threadsafe(
+            queue.put_nowait,
+            {
+                "type": "approval_request",
+                "payload": {
+                    "tool_name": req.tool_name,
+                    "reason": req.reason,
+                },
+            },
+        )
+
     def run_sync():
         try:
             agent = AIAgent(
@@ -271,6 +319,7 @@ async def _run_agent(
                 max_iterations=max_iterations,
                 progress_callback=progress_callback,
                 compaction_settings=compaction_settings,
+                approval_callback=_on_approval_request,
             )
 
             memory_store = fact_memory.init_store()
@@ -361,9 +410,14 @@ async def _run_agent(
                     if data.get("type") == "stop":
                         stop_received = True
                         stop_event.set()
+                    elif data.get("type") == "approval_response":
+                        payload = data.get("payload", {})
+                        approved = payload.get("approved", False)
+                        _resolve_pending_approval(session_id, approved)
                 except TimeoutError:
                     pass
                 except Exception:
+                    _resolve_pending_approval(session_id, False)
                     break
         except Exception:
             pass
