@@ -3,10 +3,16 @@ import { useAppState } from "../context/AppContext";
 import { ChatWebSocket } from "../api/ws";
 import type { WsServerMessage } from "../types";
 
-export function useChat() {
+interface UseChatOptions {
+  onApprovalRequest?: (payload: { tool_name: string; reason: string }) => void;
+}
+
+export function useChat(options?: UseChatOptions) {
   const { state, dispatch } = useAppState();
   const wsRef = useRef<ChatWebSocket | null>(null);
   const stopRequestedRef = useRef(false);
+  const onApprovalRequestRef = useRef(options?.onApprovalRequest);
+  onApprovalRequestRef.current = options?.onApprovalRequest;
 
   const sendMessage = useCallback(
     (content: string | import("../types").ContentPart[]) => {
@@ -58,6 +64,9 @@ export function useChat() {
             ws.close();
             wsRef.current = null;
             break;
+          case "approval_request":
+            onApprovalRequestRef.current?.(msg.payload);
+            break;
           case "error":
             dispatch({ type: "SET_ERROR", error: msg.message });
             ws.close();
@@ -83,5 +92,9 @@ export function useChat() {
     wsRef.current?.send({ type: "stop" });
   }, []);
 
-  return { sendMessage, stopAgent };
+  const sendApproval = useCallback((approved: boolean) => {
+    wsRef.current?.send({ type: "approval_response", payload: { approved } });
+  }, []);
+
+  return { sendMessage, stopAgent, sendApproval };
 }

@@ -125,7 +125,15 @@ export interface MemorySummary {
 
 // WebSocket message types
 export type WsClientMessage =
-  { type: "send_message"; content: string | ContentPart[] } | { type: "stop" };
+  | { type: "send_message"; content: string | ContentPart[] }
+  | { type: "stop" }
+  | { type: "approval_response"; payload: { approved: boolean } };
+
+export interface ApprovalState {
+  tool_name: string;
+  reason: string;
+  resolved: boolean;
+}
 
 // MCP types
 export interface MCPServerConfig {
@@ -194,4 +202,5 @@ export type WsServerMessage =
       session_id: string;
       session_title: string;
     }
-  | { type: "error"; message: string; session_id?: string };
+  | { type: "error"; message: string; session_id?: string }
+  | { type: "approval_request"; payload: { tool_name: string; reason: string } };

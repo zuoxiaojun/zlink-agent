@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { IconBolt, IconChartBar } from "@tabler/icons-react";
 import { useAppState } from "../context/AppContext";
@@ -6,15 +6,28 @@ import { useChat } from "../hooks/useChat";
 import { api } from "../api/http";
 import ChatMessage from "../components/ChatMessage";
 import ChatInput from "../components/ChatInput";
-import type { Message, SessionDetail } from "../types";
+import ApprovalCard from "../components/ApprovalCard";
+import type { Message, SessionDetail, ApprovalState } from "../types";
 import StopButton from "../components/StopButton";
 
 export default function ChatPage() {
   const { state, dispatch } = useAppState();
-  const { sendMessage, stopAgent } = useChat();
+  const [approval, setApproval] = useState<ApprovalState | null>(null);
+  const { sendMessage, stopAgent, sendApproval } = useChat({
+    onApprovalRequest: (payload) => {
+      setApproval({ ...payload, resolved: false });
+    },
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Clear pending approval when agent stops
+  useEffect(() => {
+    if (!state.agentRunning) {
+      setApproval(null);
+    }
+  }, [state.agentRunning]);
 
   // Restore session from URL param ?s=
   useEffect(() => {
@@ -103,6 +116,20 @@ export default function ChatPage() {
 
       </div>
 
+      {approval && (
+        <ApprovalCard
+          approval={approval}
+          onApprove={() => {
+            setApproval(null);
+            sendApproval(true);
+          }}
+          onDeny={() => {
+            setApproval(null);
+            sendApproval(false);
+          }}
+        />
+      )}
+
       {state.agentRunning && (
         <>
           <StopButton onStop={stopAgent} />
@@ -131,7 +158,11 @@ export default function ChatPage() {
       )}
 
       <ChatInput
-        onSubmit={(c) => { userScrolledUp.current = false; sendMessage(c); }}
+        onSubmit={(c) => {
+          setApproval(null);
+          userScrolledUp.current = false;
+          sendMessage(c);
+        }}
         disabled={state.agentRunning}
         placeholder={state.agentRunning ? "AI 正在思考中，请稍候..." : "输入你的问题，Enter 发送..."}
       />
