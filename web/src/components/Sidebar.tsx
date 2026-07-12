@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAppState, WELCOME_MESSAGE } from "../context/AppContext";
 import { api } from "../api/http";
 import type { SessionSummary } from "../types";
-import { IconRobot, IconPlus, IconMessage, IconBrain, IconTool, IconPuzzle, IconCpu, IconDatabase, IconSettings, IconPlug, IconBoxMultiple, IconClock } from "@tabler/icons-react";
+import { IconPlus, IconMessage, IconBrain, IconTool, IconPuzzle, IconCpu, IconDatabase, IconSettings, IconPlug, IconBoxMultiple, IconClock } from "@tabler/icons-react";
 
 const NAV = [
   { label: "历史对话", Icon: IconMessage, path: "/history", section: 1 },
