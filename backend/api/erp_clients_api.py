@@ -104,13 +104,14 @@ async def get_erp_client(name: str) -> dict:
     cfg = config_manager.load()
     if name == "yonsuite":
         ys_cfg = cfg.erp_clients.get("yonsuite", {})
-        ys_enabled = ys_cfg.get("enabled", False) if isinstance(ys_cfg, dict) else False
+        if not isinstance(ys_cfg, dict):
+            ys_cfg = {}
         return _mask_secrets(name, {
-            "enabled": ys_enabled,
-            "tenant_id": cfg.ys_tenant_id or "",
-            "app_key": cfg.ys_app_key or "",
-            "app_secret": cfg.ys_app_secret or "",
-            "base_url": cfg.ys_gateway_url or "",
+            "enabled": ys_cfg.get("enabled", False),
+            "tenant_id": ys_cfg.get("tenant_id") or cfg.ys_tenant_id or "",
+            "app_key": ys_cfg.get("app_key") or "",
+            "app_secret": ys_cfg.get("app_secret") or "",
+            "base_url": ys_cfg.get("base_url") or cfg.ys_gateway_url or "",
         })
     if name == "nc":
         raw = _read_raw_config()
