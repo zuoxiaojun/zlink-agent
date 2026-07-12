@@ -63,10 +63,10 @@ def _write_raw_config(raw: dict) -> None:
 
 
 def _mask_secrets(name: str, cfg: dict) -> dict:
-    """脱敏 secret 字段 (已加密的不 mask, 明文的 mask)"""
+    """脱敏 secret 字段"""
     masked = dict(cfg)
     for f in SECRET_FIELDS.get(name, []):
-        if f in masked and isinstance(masked[f], str) and not masked[f].startswith("encrypted:"):
+        if f in masked and isinstance(masked[f], str) and masked[f]:
             masked[f] = "***"
     return masked
 
@@ -136,13 +136,19 @@ async def put_erp_client(name: str, body: ERPPutRequest) -> dict:
         if k in secret_fields:
             if v == "***":
                 continue  # 前端脱敏占位符，跳过
-            if v and not v.startswith("encrypted:"):
-                cfg[k] = config_manager.encrypt_secret(v)
-            elif v:
-                cfg[k] = v  # 已经是 encrypted: 前缀，原样保留
+            if v:
+                cfg[k] = v
+                config_manager._save_erp_secret(name, k, v)
             # else: v 为空字符串，跳过更新（保留已有值）
         else:
             cfg[k] = v
+
+    # Strip secrets from raw dict before writing to config.json
+    for sf in secret_fields:
+        if name in erp_clients:
+            ecfg = erp_clients[name]
+            if sf in ecfg:
+                del ecfg[sf]
 
     _write_raw_config(raw)
 

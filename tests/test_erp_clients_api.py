@@ -44,12 +44,12 @@ def test_get_erp_client_yonsuite_secrets_masked(client):
     assert r.status_code == 200, r.text
     data = r.json()
     if "app_key" in data:
-        # 已经是 encrypted: 开头, 不再 mask
-        assert data["app_key"] == "***" or data["app_key"].startswith("encrypted:")
+        # 秘密字段应被脱敏
+        assert data["app_key"] == "***" or not data["app_key"]
 
 
-def test_put_erp_client_nc_encrypts_password(client):
-    """PUT NC 配置时 password 字段被加密 (写盘后是 encrypted: 前缀)"""
+def test_put_erp_client_nc_stores_password(client):
+    """PUT NC 配置时 password 存入 .env 而非 config.json"""
     from agent import config_manager
 
     r = client.put(
@@ -63,9 +63,12 @@ def test_put_erp_client_nc_encrypts_password(client):
         },
     )
     assert r.status_code == 200, r.text
-    # 读落盘 config.json, 验证 password 已加密
+    # config.json 不应有 password 字段
     cfg = json.loads(config_manager.CONFIG_FILE.read_text())
-    assert cfg["erp_clients"]["nc"]["password"].startswith("encrypted:")
+    assert "password" not in cfg.get("erp_clients", {}).get("nc", {})
+    # .env 文件应有 ERP_NC_PASSWORD
+    env = config_manager._load_env()
+    assert env.get("ERP_NC_PASSWORD") == "plain-password"
 
 
 def test_get_erp_client_nc_fallback_mcp_env(tmp_path, monkeypatch):

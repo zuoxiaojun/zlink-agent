@@ -32,7 +32,7 @@ async def sync_nc_mcp() -> None:
     - enabled=False: 停止进程 + 保留配置 (启用时可用)
     - 配置不存在: no-op
     """
-    config = config_manager.get_config()
+    config = config_manager.load().model_dump(mode="json")
     nc_cfg = config.get("erp_clients", {}).get("nc")
 
     if nc_cfg is None:

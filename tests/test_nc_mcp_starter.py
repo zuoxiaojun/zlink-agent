@@ -3,9 +3,19 @@
 import asyncio
 from unittest.mock import AsyncMock, patch
 
+from agent.config_model import AppConfig
+
 
 def _run(coro):
     return asyncio.run(coro)
+
+
+def _make_cfg(erp_clients: dict | None = None) -> AppConfig:
+    """Build an AppConfig with optional erp_clients."""
+    cfg = AppConfig()
+    if erp_clients:
+        cfg.erp_clients = erp_clients
+    return cfg
 
 
 def test_sync_nc_mcp_disabled_when_no_config():
@@ -14,12 +24,12 @@ def test_sync_nc_mcp_disabled_when_no_config():
 
     async def go():
         with (
-            patch.object(mcp_starter.config_manager, "get_config") as mock_cfg,
+            patch.object(mcp_starter.config_manager, "load") as mock_load,
             patch.object(mcp_starter, "connect_server", new=AsyncMock()) as mock_connect,
             patch.object(mcp_starter, "disconnect_server", new=AsyncMock()) as mock_disconnect,
             patch.object(mcp_starter, "get_server_statuses", return_value=[]),
         ):
-            mock_cfg.return_value = {}  # 没有 erp_clients
+            mock_load.return_value = _make_cfg({})
             await mcp_starter.sync_nc_mcp()
             mock_connect.assert_not_called()
             mock_disconnect.assert_not_called()
@@ -42,13 +52,13 @@ def test_sync_nc_mcp_enabled_starts_server():
 
     async def go():
         with (
-            patch.object(mcp_starter.config_manager, "get_config") as mock_cfg,
+            patch.object(mcp_starter.config_manager, "load") as mock_load,
             patch.object(mcp_starter, "connect_server", new=AsyncMock()) as mock_connect,
             patch.object(mcp_starter, "disconnect_server", new=AsyncMock()) as mock_disconnect,
             patch.object(mcp_starter, "get_server_statuses", return_value=[]),
             patch.object(mcp_starter, "_persist_mcp_nc_config"),
         ):
-            mock_cfg.return_value = {"erp_clients": {"nc": nc_config}}
+            mock_load.return_value = _make_cfg({"nc": nc_config})
             await mcp_starter.sync_nc_mcp()
             mock_connect.assert_called_once()
             args, _ = mock_connect.call_args
@@ -76,7 +86,7 @@ def test_sync_nc_mcp_disabled_stops_server():
 
     async def go():
         with (
-            patch.object(mcp_starter.config_manager, "get_config") as mock_cfg,
+            patch.object(mcp_starter.config_manager, "load") as mock_load,
             patch.object(mcp_starter, "connect_server", new=AsyncMock()) as mock_connect,
             patch.object(mcp_starter, "disconnect_server", new=AsyncMock()) as mock_disconnect,
             patch.object(
@@ -86,7 +96,7 @@ def test_sync_nc_mcp_disabled_stops_server():
             ),
             patch.object(mcp_starter, "_persist_mcp_nc_config"),
         ):
-            mock_cfg.return_value = {"erp_clients": {"nc": nc_config}}
+            mock_load.return_value = _make_cfg({"nc": nc_config})
             await mcp_starter.sync_nc_mcp()
             mock_disconnect.assert_called_once()
             mock_connect.assert_not_called()

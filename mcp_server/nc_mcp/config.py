@@ -9,17 +9,8 @@ from typing import Any
 
 
 def _decrypt_password(value: str | None) -> str:
-    """解密密码 (config_manager 已解密的明文直接返回; 否则再次尝试解密)"""
-    if not value:
-        return ""
-    if value.startswith("encrypted:"):
-        try:
-            from agent.config_manager import decrypt_secret
-
-            return decrypt_secret(value)
-        except Exception:
-            return ""
-    return value
+    """密码已由 config_manager 从 .env 加载为明文，直接返回"""
+    return value or ""
 
 
 def build_nc_mcp_env(erp_config: dict[str, Any]) -> dict[str, str]:

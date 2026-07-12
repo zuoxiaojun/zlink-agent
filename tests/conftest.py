@@ -90,8 +90,7 @@ def isolated_config(monkeypatch, tmp_path: Path):
     from agent.config_model import AppConfig
 
     fake_file = tmp_path / "config.json"
-    AppConfig().model_dump_encrypted()
-    fake_file.write_text(json.dumps(AppConfig().model_dump_encrypted()))
+    fake_file.write_text(json.dumps(AppConfig().model_dump(mode="json")))
 
     monkeypatch.setattr(config_manager, "CONFIG_FILE", fake_file)
     return fake_file
