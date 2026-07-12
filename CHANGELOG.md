@@ -1,4 +1,63 @@
 # Changelog
+## v1.6.0 — 2026-07-12 (技能工具增强 + 密钥管理重构 + 定时任务系统)
+
+**范围**: 大幅扩展技能和工具系统，重构密钥存储方式，新增定时任务管理。共计 41 个内置工具 + 19 个内置技能。
+
+### 新增
+
+- **密钥存储重构**: 移除 Fernet 加密，改为 `data/.env` 明文 + `chmod 0600`。不再依赖 hostname + salt 派生密钥，项目改名也不会导致密钥丢失
+- **8 个新工具**:
+  - `execute_code` (code): 沙箱 Python 执行（安全模块白名单）
+  - `project_*` (project): 项目管理（创建/列表/切换）
+  - `vision_analyze` (vision): 图片视觉分析
+  - `read_terminal` / `close_terminal` (terminal): 终端历史读取和进程终止
+  - `cronjob_*` (cron): 定时任务（创建/列表/删除/启停/立即执行/编辑）
+  - `process` (system): 系统进程管理（列表/终止）
+- **5 个新内置技能**: `research`、`china-hotdata`、`调研分析`、`skill-vetter`、`anysearch`、`westock-data`（共 19 个）
+- **定时任务前端管理页**: 侧边栏「定时任务」菜单，支持 CRUD、立即执行（通过 WebSocket 流式展示 AI 执行过程）、执行结果查看
+- **斜杠命令弹窗**: 输入 `/` 弹出命令 + 技能列表，支持键盘导航和自动补全
+- **可点击 clarify 选项**: clarify 工具结果渲染为按钮，点击直接发送消息
+- **开场引导词**: 重写为简洁版，覆盖全部能力分类
+
+### 改动
+
+- **`agent/config_model.py`**: 移除 `_encrypt`/`_decrypt`/`_derive_key`/`model_dump_encrypted`/`model_validate_decrypted`。所有字段改为明文
+- **`agent/config_manager.py`**: 新增 `.env` 读写，`load()`/`save()` 自动合并 `.env` 中的密钥。新增 `_load_env()`/`_save_env_value()`/`_save_env_batch()`/`_save_erp_secret()`
+- **`agent/slash_commands.py`**: 新增 `/skills`（列出所有技能）、`/skill`（查看/启用/停用技能）。未知斜杠命令自动匹配技能名
+- **`backend/api/chat.py`**: 斜杠命令未命中时自动匹配技能，加载完整指令后交给 AI 执行
+- **`backend/api/erp_clients_api.py`**: `GET` 改为从 `config_manager.load()` 读取（含 `.env` 中的密钥）。`PUT` 时密钥写入 `.env` 而非加密到 `config.json`
+- **`backend/api/cronjob_api.py`**: 新增 REST API 支持定时任务前端管理
+- **`web/src/hooks/useChat.ts`**: 重构 `sendMessage`，支持 sessionOverride 参数；`runningRef` 替代 `state.agentRunning` 避免闭包问题
+- **`web/src/api/http.ts` + `ws.ts`**: 移除 `any` 类型，使用 `Record<string, unknown>`
+- **`web/src/pages/CronJobPage.tsx`**: 新增完整定时任务管理页面
+- **`web/src/components/ChatMessage.tsx`**: clarify 选项渲染为可点击按钮
+- **`web/src/components/ChatInput.tsx`**: 集成斜杠命令弹窗组件
+
+### 修复
+
+- **密钥丢失问题**: Fernet 加密 salt 变更导致的历史密钥无法解密 → 改用 `.env` 明文存储 + 文件权限保护
+- **React 19 警告**: 修复 `setState in effect`、`refs during render` 等 7 处 React 19 禁止模式
+- **ERP 密码不显示**: `GET /api/config/erp-clients` 改为从 `.env` 读取
+- **保存按钮卡住**: `ErpTabPanel` 保存后复位 `editing` 状态
+- **clarfiy 渲染**: 选项从原始 JSON 改为可点击按钮面板
+- **三个点持续闪烁**: `useRef` 追踪运行状态代替闭包中的 `state.agentRunning`
+- **定时任务 auto-send**: 从 URL 直接读取 session_id 而非 `state.currentSessionId`
+- **ruff 28 处警告**: 全部修复，包括未使用的 import、`datetime.UTC` 别名、import 排序等
+- **`no-explicit-any` 12 处**: 替换为 `unknown` + 类型窄化
+- **测试隔离**: `.env` 文件隔离到临时目录，避免测试污染用户配置
+
+### 工具数
+
+- 内置工具: 27 → 41 (+ 14 新工具 + MCP 工具不变)
+- 内置技能: 15 → 19 (+ 4 新技能)
+- 测试: 99/99 通过
+
+### 已知问题
+
+- `html-presentation` 在用户技能区有残留记录（已清理，不影响使用）
+- `research` 技能需要手动激活（已激活）
+
+
 ## v1.5.3 — 2026-07-10 (终极破坏式清理: 移除所有 ys-agent 命名兼容)
 
 **范围**: 把 v1.5.0 重命名留下的最后一丝 ys-agent 痕迹全部清除。从这个版本起,项目可以当作 100% 全新项目来对待 — 不再有兼容层、不再有旧命名 shim、不再有 fallback。
