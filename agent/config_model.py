@@ -109,6 +109,10 @@ class AppConfig(BaseModel):
                 try:
                     decrypted[field] = _decrypt(val)
                 except Exception:
+                    import logging as _lg
+                    _lg.getLogger(__name__).warning(
+                        "Cannot decrypt %s — key derivation may have changed. Re-enter in settings.", field,
+                    )
                     decrypted[field] = ""
         # 解密 erp_clients 中的 secret 字段
         erp = decrypted.get("erp_clients")
