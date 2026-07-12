@@ -1,0 +1,16 @@
+{
+  "ownerId": "kn71j6xbmpwfvx4c6y1ez8cd718081mg",
+  "slug": "skill-vetter",
+  "version": "1.0.0",
+  "publishedAt": 1769863429632,
+  "owner": "xavi296",
+  "displayName": "test-skill-vetter2",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1779156702463,
+    "commit": null
+  },
+  "history": [],
+  "updatedAt": "2026-05-19T02:11:42.463Z",
+  "createdAt": "2026-05-19T02:11:26.618Z"
+}
