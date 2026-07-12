@@ -69,7 +69,7 @@ export default function Sidebar() {
 
       <div className="sidebar-footer">
         <div className="sidebar-footer-dot" />
-        ZLink Agent v1.5.3
+        ZLink Agent v1.6.0
       </div>
     </aside>
   );
