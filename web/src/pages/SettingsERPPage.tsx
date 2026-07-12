@@ -58,7 +58,7 @@ const ERP_REGISTRY: Record<string, ErpMeta> = {
 
 type ErpName = keyof typeof ERP_REGISTRY;
 
-type ErpConfig = Record<string, any>;
+type ErpConfig = Record<string, unknown>;
 
 type McpStatus = {
   name: string;
@@ -139,7 +139,7 @@ export default function SettingsERPPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const updateField = (name: ErpName, key: string, value: any) => {
+  const updateField = (name: ErpName, key: string, value: unknown) => {
     setConfigs((prev) => ({
       ...prev,
       [name]: { ...(prev[name] || {}), [key]: value },
@@ -165,8 +165,8 @@ export default function SettingsERPPage() {
           "success",
           `${meta.label} 已${newEnabled ? "启用" : "停用"}，MCP server 同步成功`,
         );
-      } catch (mcpErr: any) {
-        const msg = String(mcpErr?.message || "");
+      } catch (mcpErr: unknown) {
+        const msg = mcpErr instanceof Error ? mcpErr.message : String(mcpErr);
         if (msg.includes("404") || msg.includes("not found")) {
           showToast(
             "error",
@@ -179,8 +179,8 @@ export default function SettingsERPPage() {
 
       const mcp = await api.get<McpStatus[]>("/config/mcp-servers").catch(() => []);
       setMcpStatuses(mcp);
-    } catch (e: any) {
-      showToast("error", `更新 ${meta.label} 配置失败：${e.message}`);
+    } catch (e: unknown) {
+      showToast("error", `更新 ${meta.label} 配置失败：${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setTogglingName(null);
     }
@@ -195,8 +195,8 @@ export default function SettingsERPPage() {
       const updated = await api.put<ErpConfig>(`/config/erp-clients/${name}`, cfg);
       setConfigs((prev) => ({ ...prev, [name]: updated }));
       showToast("success", `${meta.label} 连接信息已保存`);
-    } catch (e: any) {
-      showToast("error", `保存失败：${e.message}`);
+    } catch (e: unknown) {
+      showToast("error", `保存失败：${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setSavingName(null);
     }
@@ -216,10 +216,10 @@ export default function SettingsERPPage() {
           ? { ok: true, message: `${meta.label} 连接成功` }
           : { ok: false, message: `连接失败：${res.error}` },
       }));
-    } catch (e: any) {
+    } catch (e: unknown) {
       setTestResults((prev) => ({
         ...prev,
-        [name]: { ok: false, message: `测试失败：${e.message}` },
+        [name]: { ok: false, message: `测试失败：${e instanceof Error ? e.message : String(e)}` },
       }));
     } finally {
       setTestingName(null);
@@ -337,7 +337,7 @@ type TabProps = {
   isSaving: boolean;
   isTesting: boolean;
   testResult: { ok: boolean; message: string } | null;
-  onUpdateField: (key: string, value: any) => void;
+  onUpdateField: (key: string, value: unknown) => void;
   onToggle: () => void;
   onSave: () => void;
   onTest: () => void;
@@ -453,7 +453,7 @@ function ErpTabPanel({
               <div className="card-body" style={{ padding: "8px 0", fontSize: 14 }}>
                 {field.secret && config[field.key]
                   ? "••••••••"
-                  : (config[field.key] ?? "（未设置）")}
+                  : (config[field.key] == null ? "（未设置）" : String(config[field.key]))}
               </div>
             </div>
           ))}
@@ -487,7 +487,7 @@ function ErpTabPanel({
               <input
                 className="form-input"
                 type={field.type}
-                value={config[field.key] ?? ""}
+                value={config[field.key] == null ? "" : String(config[field.key])}
                 placeholder={
                   field.placeholder ??
                   (field.secret && config[field.key] ? "（已设置，留空保持原值）" : "")

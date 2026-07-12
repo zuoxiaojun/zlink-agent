@@ -1,7 +1,7 @@
 // In Electron, API calls go to the local Python backend.
 // In browser (dev), they use same-origin proxy via Vite.
-const API_BASE = (window as any).electron
-  ? `${(window as any).electron.backendUrl}/api`
+const API_BASE = (window as unknown as Record<string, unknown>).electron
+  ? `${((window as unknown as Record<string, unknown>).electron as Record<string, string>).backendUrl}/api`
   : "/api";
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {

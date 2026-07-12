@@ -66,8 +66,8 @@ export default function CronJobPage() {
       setShowCreate(false);
       showToast("success", "任务已创建");
       await loadJobs();
-    } catch (e: any) {
-      showToast("error", e.message || "创建失败");
+    } catch (e: unknown) {
+      showToast("error", e instanceof Error ? e.message : "创建失败");
     }
   };
 
@@ -117,8 +117,8 @@ export default function CronJobPage() {
       setEditingId(null);
       showToast("success", "任务已更新");
       await loadJobs();
-    } catch (e: any) {
-      showToast("error", e.message || "更新失败");
+    } catch (e: unknown) {
+      showToast("error", e instanceof Error ? e.message : "更新失败");
     }
   };
 

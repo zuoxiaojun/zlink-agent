@@ -7,7 +7,7 @@ export class ChatWebSocket {
   private pending: WsClientMessage[] = [];
 
   connect(sessionId: string) {
-    const electron = (window as any).electron;
+    const electron = (window as unknown as Record<string, unknown>).electron as Record<string, string> | undefined;
     const url = electron
       ? `${electron.wsUrl}/ws/chat/${sessionId}`
       : `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws/chat/${sessionId}`;
