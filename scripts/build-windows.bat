@@ -147,6 +147,13 @@ if errorlevel 1 (
 echo.
 
 :: ── 完成 ────────────────────────────────────────────────────────────────
+:: 清理 .blockmap 和中间产物
+if exist "dist-electron\*.blockmap" del /q "dist-electron\*.blockmap"
+if exist "dist-electron\builder-debug.yml" del /q "dist-electron\builder-debug.yml"
+if exist "dist-electron\mac" rmdir /s /q "dist-electron\mac"
+if exist "dist-electron\mac-arm64" rmdir /s /q "dist-electron\mac-arm64"
+if exist "dist-electron\win-unpacked" rmdir /s /q "dist-electron\win-unpacked"
+
 echo.
 echo ========================================
 echo   ✅ ZLink Agent Windows 打包完成

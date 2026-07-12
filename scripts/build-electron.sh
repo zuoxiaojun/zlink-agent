@@ -49,6 +49,11 @@ echo "✅ Electron 打包完成"
 echo ""
 echo "[4/4] 清理临时文件..."
 rm -rf build/python-bundle
+# 清理 .blockmap 增量文件（本应用不使用 auto-updater）
+rm -f dist-electron/*.blockmap
+# 清理 electron-builder 中间产物
+rm -rf dist-electron/mac dist-electron/mac-arm64 dist-electron/builder-debug.yml
 echo "✅ 清理完成"
 echo ""
 echo "📦 成品位置: dist-electron/"
+ls -lh dist-electron/*.dmg 2>/dev/null
