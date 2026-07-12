@@ -48,9 +48,12 @@ def test_get_erp_client_yonsuite_secrets_masked(client):
         assert data["app_key"] == "***" or not data["app_key"]
 
 
-def test_put_erp_client_nc_stores_password(client):
+def test_put_erp_client_nc_stores_password(client, monkeypatch, tmp_path):
     """PUT NC 配置时 password 存入 .env 而非 config.json"""
     from agent import config_manager
+
+    # Isolate .env to temp directory to avoid polluting real config
+    monkeypatch.setattr(config_manager, "ENV_FILE", tmp_path / ".env")
 
     r = client.put(
         "/api/config/erp-clients/nc",
