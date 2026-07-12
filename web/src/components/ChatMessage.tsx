@@ -3,10 +3,10 @@ import remarkGfm from "remark-gfm";
 import { IconRobot, IconUser, IconTool, IconFileText, IconBolt, IconChartBar } from "@tabler/icons-react";
 import type { Message } from "../types";
 
-function ToolResult({ msg }: { msg: Message }) {
+function ToolResult({ msg, onChoiceSelect }: { msg: Message; onChoiceSelect?: (text: string) => void }) {
   const content = msg.content;
 
-  // Render clarify choices as interactive buttons
+  // Render clarify choices as clickable chips that send the choice
   if (typeof content === "string") {
     try {
       const parsed = JSON.parse(content);
@@ -17,7 +17,9 @@ function ToolResult({ msg }: { msg: Message }) {
             {parsed.choices.length > 0 && (
               <div className="clarify-choices">
                 {parsed.choices.map((choice: string, i: number) => (
-                  <span key={i} className="clarify-chip">{choice}</span>
+                  <button key={i} className="clarify-chip" onClick={() => onChoiceSelect?.(choice)}>
+                    {choice}
+                  </button>
                 ))}
               </div>
             )}
@@ -69,12 +71,12 @@ function MessageContent({ content }: { content: Message["content"] }) {
   return <>{String(content)}</>;
 }
 
-function AssistantGroupContent({ msgs }: { msgs: Message[] }) {
+function AssistantGroupContent({ msgs, onChoiceSelect }: { msgs: Message[]; onChoiceSelect?: (text: string) => void }) {
   return (
     <div className="msg-body" style={{ maxWidth: "85%" }}>
       {msgs.map((msg, i) => {
         if (msg.role === "tool") {
-          return <ToolResult key={i} msg={msg} />;
+          return <ToolResult key={i} msg={msg} onChoiceSelect={onChoiceSelect} />;
         }
         if (msg.role === "assistant") {
           return (
@@ -123,7 +125,7 @@ function AssistantGroupContent({ msgs }: { msgs: Message[] }) {
   );
 }
 
-export default function ChatMessage({ msgs }: { msgs: Message[] }) {
+export default function ChatMessage({ msgs, onChoiceSelect }: { msgs: Message[]; onChoiceSelect?: (text: string) => void }) {
   const first = msgs[0];
   if (first.role === "user") {
     return (
@@ -141,7 +143,7 @@ export default function ChatMessage({ msgs }: { msgs: Message[] }) {
   return (
     <div className="msg-row assistant">
       <div className="msg-avatar"><IconRobot size={18} /></div>
-      <AssistantGroupContent msgs={msgs} />
+      <AssistantGroupContent msgs={msgs} onChoiceSelect={onChoiceSelect} />
     </div>
   );
 }

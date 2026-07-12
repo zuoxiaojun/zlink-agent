@@ -121,6 +121,11 @@ export default function ChatPage() {
             <ChatMessage
               key={i}
               msgs={g}
+              onChoiceSelect={(text) => {
+                setApproval(null);
+                userScrolledUp.current = false;
+                sendMessage(text);
+              }}
             />
           ));
         })()}

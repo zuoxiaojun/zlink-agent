@@ -562,9 +562,11 @@ body {
   border-radius: 20px;
   background: var(--bg-hover);
   color: var(--text-1);
-  cursor: default;
+  cursor: pointer;
   user-select: none;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  font-family: inherit;
+  line-height: 1.4;
 }
 .clarify-chip:hover {
   background: var(--primary-bg);
