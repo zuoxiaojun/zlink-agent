@@ -108,6 +108,6 @@ def test_get_erp_client_nc_fallback_mcp_env(tmp_path, monkeypatch):
     assert data["port"] == "1521"
     assert data["service"] == "xe"
     assert data["user"] == "test_user"
-    assert data["password"] == "test_pass"
+    assert data["password"] == "***"
     assert data["max_rows"] == 500
     assert data["enabled"] is True

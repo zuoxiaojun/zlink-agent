@@ -92,34 +92,42 @@ def _mcp_env_to_erp_config(mcp_cfg: dict) -> dict:
 
 @router.get("/api/config/erp-clients")
 async def list_erp_clients() -> dict:
-    raw = _read_raw_config()
-    erp_clients = raw.get("erp_clients", {})
-    return {name: _mask_secrets(name, cfg) for name, cfg in erp_clients.items()}
+    """列出所有 ERP 配置（含 .env 中的密钥，已脱敏）"""
+    cfg = config_manager.load()
+    erp_clients = cfg.erp_clients or {}
+    return {name: _mask_secrets(name, ecfg) for name, ecfg in erp_clients.items()}
 
 
 @router.get("/api/config/erp-clients/{name}")
 async def get_erp_client(name: str) -> dict:
-    raw = _read_raw_config()
-    erp_clients = raw.get("erp_clients", {})
-    if name not in erp_clients:
-        # 尝试从 mcp_servers 反向回读（兼容旧 MCP 管理页保存的配置）
-        mcp_cfg = raw.get("mcp_servers", {}).get(f"mcp-{name}")
-        if name == "yonsuite":
-            return {"enabled": False, "tenant_id": "", "app_key": "", "app_secret": "", "base_url": ""}
-        if name == "nc":
+    """获取单个 ERP 配置（含 .env 中的密钥，已脱敏）"""
+    cfg = config_manager.load()
+    if name == "yonsuite":
+        return _mask_secrets(name, {
+            "enabled": cfg.erp_clients.get("yonsuite", {}).get("enabled", False) if isinstance(cfg.erp_clients.get("yonsuite"), dict) else False,
+            "tenant_id": cfg.ys_tenant_id or "",
+            "app_key": cfg.ys_app_key or "",
+            "app_secret": cfg.ys_app_secret or "",
+            "base_url": cfg.ys_gateway_url or "",
+        })
+    if name == "nc":
+        raw = _read_raw_config()
+        ecfg = cfg.erp_clients.get("nc", {}) if isinstance(cfg.erp_clients.get("nc"), dict) else {}
+        if not ecfg.get("host"):
+            # 尝试从 mcp_servers 反向回读
+            mcp_cfg = raw.get("mcp_servers", {}).get("mcp-nc")
             if mcp_cfg:
-                return _mcp_env_to_erp_config(mcp_cfg)
-            return {
-                "enabled": False,
-                "host": "",
-                "port": "",
-                "service": "",
-                "user": "",
-                "password": "",
-                "max_rows": 200,
-            }
-        raise HTTPException(404, f"ERP client {name!r} not found")
-    return _mask_secrets(name, erp_clients[name])
+                return _mask_secrets(name, _mcp_env_to_erp_config(mcp_cfg))
+        return _mask_secrets(name, {
+            "enabled": ecfg.get("enabled", False),
+            "host": ecfg.get("host", ""),
+            "port": ecfg.get("port", ""),
+            "service": ecfg.get("service", ""),
+            "user": ecfg.get("user", ""),
+            "password": ecfg.get("password", ""),
+            "max_rows": ecfg.get("max_rows", 200),
+        })
+    raise HTTPException(404, f"ERP client {name!r} not found")
 
 
 @router.put("/api/config/erp-clients/{name}")
@@ -143,14 +151,17 @@ async def put_erp_client(name: str, body: ERPPutRequest) -> dict:
         else:
             cfg[k] = v
 
-    # Strip secrets from raw dict before writing to config.json
-    for sf in secret_fields:
-        if name in erp_clients:
-            ecfg = erp_clients[name]
-            if sf in ecfg:
-                del ecfg[sf]
+    # Strip secrets from raw dict (copy!) before writing to config.json
+    raw_erp = erp_clients.get(name, {})
+    clean_erp = {k: v for k, v in raw_erp.items() if k not in secret_fields}
+    erp_clients[name] = clean_erp
 
     _write_raw_config(raw)
+
+    # Restore secrets to in-memory cfg so response has full data
+    for sf in secret_fields:
+        if sf in raw_erp:
+            cfg[sf] = raw_erp[sf]
 
     # 触发 MCP 同步
     try:

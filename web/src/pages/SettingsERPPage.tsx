@@ -339,7 +339,7 @@ type TabProps = {
   testResult: { ok: boolean; message: string } | null;
   onUpdateField: (key: string, value: unknown) => void;
   onToggle: () => void;
-  onSave: () => void;
+  onSave: () => void | Promise<void>;
   onTest: () => void;
   onCancelEdit: () => void;
 };
@@ -502,7 +502,7 @@ function ErpTabPanel({
             </div>
           ))}
           <div className="card-actions">
-            <button className="btn btn-primary" onClick={onSave} disabled={isSaving}>
+            <button className="btn btn-primary" onClick={async () => { await onSave(); setEditing(false); }} disabled={isSaving}>
               {isSaving ? <IconLoader size={14} className="spin" /> : <IconDeviceFloppy size={14} />}
               保存
             </button>
