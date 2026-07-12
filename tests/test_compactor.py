@@ -195,3 +195,115 @@ def test_compact_messages_extension_can_augment_summary():
     assert new_summary is not None
     assert "BASE" in new_summary
     assert "AUGMENTED by extension" in new_summary, f"extension append not folded in: {new_summary!r}"
+
+
+# ────────────────────────────────────────────────────────────────────
+# resolve_context_window
+# ────────────────────────────────────────────────────────────────────
+
+
+def test_resolve_context_window_known_model():
+    """Known models should return their mapped context window."""
+    from agent.context_compactor import resolve_context_window
+
+    assert resolve_context_window("gpt-4o") == 128_000
+    assert resolve_context_window("gpt-4.1") == 1_000_000
+    assert resolve_context_window("claude-sonnet-4-20250514") == 200_000
+    assert resolve_context_window("deepseek-chat") == 128_000
+    assert resolve_context_window("qwen-plus") == 128_000
+    assert resolve_context_window("gemini-2.5-pro") == 1_000_000
+    assert resolve_context_window("o3") == 200_000
+    assert resolve_context_window("kimi-k2.5") == 128_000
+    assert resolve_context_window("glm-4-plus") == 128_000
+
+
+def test_resolve_context_window_unknown_model():
+    """Unknown models should return the fallback."""
+    from agent.context_compactor import resolve_context_window
+
+    assert resolve_context_window("completely-unknown-model-v99") == 128_000
+
+
+def test_resolve_context_window_empty():
+    """Empty string should return fallback."""
+    from agent.context_compactor import resolve_context_window
+
+    assert resolve_context_window("") == 128_000
+
+
+def test_resolve_context_window_case_insensitive():
+    """Model matching should be case-insensitive."""
+    from agent.context_compactor import resolve_context_window
+
+    assert resolve_context_window("GPT-4O") == 128_000
+    assert resolve_context_window("Claude-Sonnet-4") == 200_000
+    assert resolve_context_window("DEEPSEEK-CHAT") == 128_000
+
+
+def test_resolve_context_window_prefers_specific():
+    """More specific (longer) patterns should match before broader ones."""
+    from agent.context_compactor import resolve_context_window
+
+    assert resolve_context_window("minimax-m3") == 1_000_000  # specific, not generic 128K
+    assert resolve_context_window("minimax-m2.5") == 128_000  # falls to m2.5 row
+    assert resolve_context_window("gpt-4.1-mini") == 1_000_000  # 4.1 family, not generic 4o
+
+
+# ────────────────────────────────────────────────────────────────────
+# CompactionSettings.effective_max_context_tokens
+# ────────────────────────────────────────────────────────────────────
+
+
+def test_effective_max_context_tokens_manual_override():
+    """When max_context_tokens > 0, the manual value is used."""
+    settings = CompactionSettings(max_context_tokens=32000)
+    assert settings.effective_max_context_tokens("gpt-4o") == 32000
+
+
+def test_effective_max_context_tokens_auto():
+    """When max_context_tokens == 0, the model's value is used."""
+    settings = CompactionSettings(max_context_tokens=0)
+    assert settings.effective_max_context_tokens("gpt-4o") == 128_000
+
+
+def test_effective_max_context_tokens_unknown_model():
+    """When model is unknown and max_context_tokens==0, fallback applies."""
+    settings = CompactionSettings(max_context_tokens=0)
+    assert settings.effective_max_context_tokens("unknown-model") == 128_000
+
+
+def test_effective_max_context_tokens_defaults():
+    """Default CompactionSettings with no model should return fallback."""
+    settings = CompactionSettings()
+    assert settings.effective_max_context_tokens() == 128_000
+
+
+# ────────────────────────────────────────────────────────────────────
+# Additional edge cases for estimate_tokens
+# ────────────────────────────────────────────────────────────────────
+
+
+def test_estimate_tokens_cjk():
+    """CJK characters are heavier than ASCII per char."""
+    from agent.context_compactor import estimate_tokens
+
+    cjk = estimate_tokens("你好世界")
+    ascii = estimate_tokens("hello world")
+    # CJK should estimate more tokens than equivalent-length ASCII
+    assert cjk >= ascii
+
+
+def test_estimate_tokens_mixed():
+    """Mixed CJK + ASCII should still produce a positive count."""
+    from agent.context_compactor import estimate_tokens
+
+    t = estimate_tokens("你好 world hello 世界")
+    assert t > 0
+
+
+def test_estimate_tokens_newlines():
+    """Newlines alone produce zero tokens (the estimator counts
+    non-whitespace chars)."""
+    from agent.context_compactor import estimate_tokens
+
+    assert estimate_tokens("\n\n\n") == 0
