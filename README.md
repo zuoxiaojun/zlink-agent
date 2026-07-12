@@ -7,7 +7,7 @@
 ## 功能
 
 - **AI 对话** — WebSocket 流式聊天，41 个内置工具 + YonSuite/NC MCP 自动调用，支持推理过程实时显示
-- **多 ERP 接入** — 内置 YonSuite MCP；NC 通过 [nc-mcp-server](https://atomgit.com/gcw_cJbJuamU/nc-mcp-project) 集成；新 ERP 按 MCP 包规范添加即可
+- **多 ERP 接入** — 内置 YonSuite MCP + NC MCP（Oracle 直连，无需外部包）；新 ERP 按 MCP 包规范添加即可
 - **配置驱动路由** — 用户在 `/settings/erp` 选择启用哪个 ERP，AI 自动从对应系统取数
 - **Pydantic 配置** — 类型安全的配置模型，自动加密敏感字段
 - **Phase 状态机** — 4 阶段生命周期 + Envelope SSE 消息包装
@@ -30,7 +30,6 @@
 - Python 3.11+
 - Node.js 18+
 - npm 9+
-- （可选）Oracle 客户端库 — 仅当启用 NC 时需要
 
 ## 一键安装（macOS / Linux）
 
@@ -38,18 +37,6 @@
 git clone https://atomgit.com/gcw_cJbJuamU/zlink-agent.git
 cd zlink-agent
 ./setup.sh
-```
-
-## 启用 NC 支持（可选）
-
-```bash
-# 装 NC MCP server 包 (Oracle 直连)
-pip install "zlink-agent[nc]"
-
-# 或从源码装最新:
-pip install git+https://atomgit.com/gcw_cJbJuamU/nc-mcp-project.git
-
-# 启动后访问 /settings/erp 填 Oracle 连接信息
 ```
 
 ## 快速启动
@@ -94,14 +81,14 @@ zlink-agent/
 │   └── pages/                      # ChatPage / HistoryPage / ToolsPage / SkillManagerPage / MemoryPage / McpPage / SettingsLLMPage / SettingsAgentPage / SettingsERPPage [新] / SettingsYSPage / SettingsExtensionsPage
 ├── mcp_server/
 │   ├── ys_mcp_server/              # builtin YonSuite MCP (11 个 query 工具)
-│   └── nc_mcp/                     # NC MCP 集成入口 (调外部 nc-mcp-server)
+│   └── nc_mcp/                     # NC MCP 集成入口 (Oracle 直连，内置)
 ├── data/                           # 运行时数据 (源码模式; .app 模式用 ~/.zlink-agent/data/)
-└── tests/                          # pytest (99 个)
+└── tests/                          # pytest (356 个)
 ```
 
 ## 版本
 
-v1.6.0 — 2026-07-12
+v1.6.1 — 2026-07-12
 
 详见 [CHANGELOG.md](CHANGELOG.md)
 
