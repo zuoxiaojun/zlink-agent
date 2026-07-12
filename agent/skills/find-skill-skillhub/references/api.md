@@ -92,6 +92,7 @@ skillhub install <slug> --dir <skills目录>
 | Windsurf | `~/.codeium/windsurf/skills/`（或项目 `.windsurf/skills/`） |
 | Gemini CLI | `~/.gemini/skills/` |
 | workbuddy | `~/.workbuddy/skills/` |
+| ZLink Agent | `~/.zlink-agent/data/skills/` |
 
 - 也可用 `skillhub search <kw>` 在 CLI 内搜索。
 - 安装完成后提示用户：「✅ {name} 已安装」。

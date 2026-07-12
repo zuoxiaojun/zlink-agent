@@ -45,6 +45,8 @@ curl -s "https://api.skillhub.cn/api/skills?keyword=周报&sortBy=score&pageSize
 ### Step 5 · 一键安装
 **用户选定后**才进入本步，且命令由你**直接执行**（不要把命令行贴给用户看）：`command -v skillhub` 检查 → 未装则 `install.sh --cli-only` 仅装 CLI → `skillhub install <slug> --dir <当前 Agent 的 skills 目录>`（必须带 `--dir`，否则不被识别）。装完只回一句「✅ {name} 已安装」。各 Agent 目录与备用 zip 方式见 [references/api.md](references/api.md#一键安装用户选定后)。
 
+**ZLink Agent 的 skills 目录为 `~/.zlink-agent/data/skills/`。**
+
 ## 一级标签（category）
 
 12 个一级标签（`?category=<key>`），映射意图时按需打开对应详情文件（渐进式披露）。完整索引与说明见 [references/categories.md](references/categories.md)：
