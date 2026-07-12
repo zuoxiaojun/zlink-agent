@@ -124,14 +124,16 @@ def _kill_process_tree(proc: subprocess.Popen) -> None:
 def _record_history(command: str, result: dict):
     """Record a terminal execution result in the history buffer."""
     with _history_lock:
-        _terminal_history.append({
-            "command": command,
-            "timestamp": __import__("datetime").datetime.now().isoformat(),
-            "stdout": result.get("stdout", ""),
-            "stderr": result.get("stderr", ""),
-            "exit_code": result.get("exit_code", -1),
-            "success": result.get("success", False),
-        })
+        _terminal_history.append(
+            {
+                "command": command,
+                "timestamp": __import__("datetime").datetime.now().isoformat(),
+                "stdout": result.get("stdout", ""),
+                "stderr": result.get("stderr", ""),
+                "exit_code": result.get("exit_code", -1),
+                "success": result.get("success", False),
+            }
+        )
 
 
 def _track_process(proc: subprocess.Popen) -> int:
@@ -367,10 +369,7 @@ TERMINAL_SCHEMA = {
 
 READ_TERMINAL_SCHEMA = {
     "name": "read_terminal",
-    "description": (
-        "读取最近的终端命令执行历史。返回最近 N 条命令的输出结果。"
-        "可用于查看之前执行的命令的完整输出。"
-    ),
+    "description": ("读取最近的终端命令执行历史。返回最近 N 条命令的输出结果。可用于查看之前执行的命令的完整输出。"),
     "parameters": {
         "type": "object",
         "properties": {
@@ -385,9 +384,7 @@ READ_TERMINAL_SCHEMA = {
 
 CLOSE_TERMINAL_SCHEMA = {
     "name": "close_terminal",
-    "description": (
-        "终止正在运行的终端进程。不传 pid 则终止所有由 terminal 工具启动的进程。"
-    ),
+    "description": ("终止正在运行的终端进程。不传 pid 则终止所有由 terminal 工具启动的进程。"),
     "parameters": {
         "type": "object",
         "properties": {

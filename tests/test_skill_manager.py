@@ -12,7 +12,6 @@ from pathlib import Path
 
 import pytest
 
-
 # ── Fixture: redirect skill file paths to tmp_path ─────────────────
 
 
@@ -65,18 +64,21 @@ def sm(tmp_path: Path, monkeypatch):
                 meta = {}
                 if raw.startswith("---"):
                     import yaml
+
                     try:
                         meta = yaml.safe_load(raw.split("---", 2)[1]) or {}
                     except Exception:
                         meta = {}
-                skills.append({
-                    "name": meta.get("name", d.name),
-                    "description": meta.get("description", ""),
-                    "version": meta.get("version", ""),
-                    "tags": meta.get("tags", []),
-                    "builtin": is_builtin,
-                    "path": str(d),
-                })
+                skills.append(
+                    {
+                        "name": meta.get("name", d.name),
+                        "description": meta.get("description", ""),
+                        "version": meta.get("version", ""),
+                        "tags": meta.get("tags", []),
+                        "builtin": is_builtin,
+                        "path": str(d),
+                    }
+                )
         return skills
 
     # Patch skills_tool module
@@ -95,7 +97,9 @@ def sm(tmp_path: Path, monkeypatch):
     return sm, builtin_skills, user_skills
 
 
-def _create_skill(dir_path: Path, name: str, description: str = "", tags: list[str] | None = None, version: str = "1.0"):
+def _create_skill(
+    dir_path: Path, name: str, description: str = "", tags: list[str] | None = None, version: str = "1.0"
+):
     """Create a skill directory with SKILL.md."""
     skill_dir = dir_path / name
     skill_dir.mkdir(parents=True, exist_ok=True)

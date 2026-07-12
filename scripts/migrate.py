@@ -32,6 +32,7 @@ logger = logging.getLogger("migrate")
 # 格式：整数，从 0 开始（0 表示初始版本，无迁移）。
 SCHEMA_VERSION = 0
 
+
 # ── 获取数据目录 ────────────────────────────────────────────────────────────
 # 复用 agent.utils._resolve_data_dir 的逻辑，保持一致
 def _resolve_data_dir() -> Path:
@@ -39,6 +40,7 @@ def _resolve_data_dir() -> Path:
     if env:
         return Path(env).expanduser().resolve()
     return Path.home() / ".zlink-agent" / "data"
+
 
 DATA_DIR = _resolve_data_dir()
 VERSION_FILE = DATA_DIR / ".schema_version"

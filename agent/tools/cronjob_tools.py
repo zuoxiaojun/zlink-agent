@@ -218,10 +218,12 @@ def cronjob_create(name: str, schedule: str, prompt: str) -> str:
     # Validate schedule
     next_nr = _next_run(schedule)
     if next_nr is None:
-        return json.dumps({
-            "success": False,
-            "error": f"无法解析调度表达式: '{schedule}'。支持格式：'every N minutes/hours/days'、'every day at HH:MM'、ISO时间戳",
-        })
+        return json.dumps(
+            {
+                "success": False,
+                "error": f"无法解析调度表达式: '{schedule}'。支持格式：'every N minutes/hours/days'、'every day at HH:MM'、ISO时间戳",
+            }
+        )
 
     job_id = uuid4().hex[:12]
     now = datetime.now(UTC).isoformat()
@@ -293,27 +295,32 @@ def cronjob_update(job_id: str, name: str, schedule: str, prompt: str) -> str:
                 # Validate new schedule
                 next_nr = _next_run(schedule)
                 if next_nr is None:
-                    return json.dumps({
-                        "success": False,
-                        "error": f"无法解析调度表达式: '{schedule}'",
-                    })
+                    return json.dumps(
+                        {
+                            "success": False,
+                            "error": f"无法解析调度表达式: '{schedule}'",
+                        }
+                    )
                 job["schedule"] = schedule
                 job["next_run_at"] = next_nr
             if prompt:
                 job["prompt"] = prompt
             _save_jobs(jobs)
-            return json.dumps({
-                "success": True,
-                "id": job_id,
-                "name": name,
-                "next_run_at": job.get("next_run_at"),
-            }, ensure_ascii=False)
+            return json.dumps(
+                {
+                    "success": True,
+                    "id": job_id,
+                    "name": name,
+                    "next_run_at": job.get("next_run_at"),
+                },
+                ensure_ascii=False,
+            )
     return json.dumps({"success": False, "error": f"未找到任务: {job_id}"})
 
 
-def _execute_job_prompt(name: str, prompt: str,
-                        session_id: str | None = None,
-                        session_title: str | None = None) -> str | None:
+def _execute_job_prompt(
+    name: str, prompt: str, session_id: str | None = None, session_title: str | None = None
+) -> str | None:
     """Run the job's prompt through the AI agent and save as a session.
 
     If *session_id* is provided, updates that existing session instead of creating
@@ -374,9 +381,13 @@ def _execute_job_prompt(name: str, prompt: str,
                     _body = _parts[2].strip() if len(_parts) >= 3 else _body.strip()
                 _skill_bodies.append(f"## {_sname}\n\n{_body}")
         skill_detail = (
-            "\n\n## 已启用的技能\n\n以下是你可用的技能，请优先使用它们而不是通用搜索工具：\n\n"
-            + "\n\n".join(_skill_bodies)
-        ) if _skill_bodies else ""
+            (
+                "\n\n## 已启用的技能\n\n以下是你可用的技能，请优先使用它们而不是通用搜索工具：\n\n"
+                + "\n\n".join(_skill_bodies)
+            )
+            if _skill_bodies
+            else ""
+        )
 
         system_with_memory = build_system_prompt(
             base=agent.system_prompt,
@@ -401,9 +412,7 @@ def _execute_job_prompt(name: str, prompt: str,
                 messages.append(msg)
 
         final = result.get("final_response", "")
-        if final and not any(
-            m.get("role") == "assistant" and m.get("content") == final for m in messages
-        ):
+        if final and not any(m.get("role") == "assistant" and m.get("content") == final for m in messages):
             messages.append({"role": "assistant", "content": final})
 
         session_manager.save_session(session_id, messages, title=session_title or name)
@@ -447,11 +456,14 @@ def cronjob_run(job_id: str) -> str:
 
             logger.info("Cron job '%s' session created: %s, prompting: %s", name, session_id, prompt[:60])
 
-            return json.dumps({
-                "success": True,
-                "session_id": session_id,
-                "prompt": prompt,
-            }, ensure_ascii=False)
+            return json.dumps(
+                {
+                    "success": True,
+                    "session_id": session_id,
+                    "prompt": prompt,
+                },
+                ensure_ascii=False,
+            )
     return json.dumps({"success": False, "error": f"未找到任务: {job_id}"})
 
 
@@ -470,7 +482,10 @@ CRONJOB_CREATE_SCHEMA = {
         "type": "object",
         "properties": {
             "name": {"type": "string", "description": "任务名称"},
-            "schedule": {"type": "string", "description": "调度表达式，如'every 30 minutes'、'every day at 09:00'、'2026-12-31T23:59:00+00:00'"},
+            "schedule": {
+                "type": "string",
+                "description": "调度表达式，如'every 30 minutes'、'every day at 09:00'、'2026-12-31T23:59:00+00:00'",
+            },
             "prompt": {"type": "string", "description": "任务触发时要发送给 AI 的提示词"},
         },
         "required": ["name", "schedule", "prompt"],

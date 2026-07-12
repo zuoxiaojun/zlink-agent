@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 DB_PATH = DATA_DIR / "search_index.db"
 _local = threading.local()
+_all_connections: list[sqlite3.Connection] = []
+_all_connections_lock = threading.Lock()
 
 
 def _get_db() -> sqlite3.Connection:
@@ -26,7 +28,21 @@ def _get_db() -> sqlite3.Connection:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=OFF")
         _local.conn = conn
+        with _all_connections_lock:
+            _all_connections.append(conn)
     return conn
+
+
+def close_all_connections():
+    """Close all tracked database connections across threads. Used in tests."""
+    with _all_connections_lock:
+        for conn in _all_connections:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        _all_connections.clear()
+    _local.conn = None
 
 
 def init_db():

@@ -15,8 +15,8 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def client(isolated_config, monkeypatch):
     """TestClient with isolated config and no lifespan side-effects."""
-    from agent.extensions import register_built_in_extensions
     from agent.events.extensions import apply_config_overrides
+    from agent.extensions import register_built_in_extensions
 
     register_built_in_extensions()
     apply_config_overrides([])
@@ -115,7 +115,9 @@ def test_save_llm_config_updates_values(client):
 def test_save_llm_config_ignores_masked_key(client):
     """If the api_key starts with ***, it should not overwrite the stored key."""
     # First set a key
-    client.put("/api/config/llm", json={"api_key": "real-key-12345", "base_url": "", "model": "gpt-4o", "provider": "OpenAI"})
+    client.put(
+        "/api/config/llm", json={"api_key": "real-key-12345", "base_url": "", "model": "gpt-4o", "provider": "OpenAI"}
+    )
     # Then send a masked key — should be ignored
     resp = client.put(
         "/api/config/llm",

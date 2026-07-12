@@ -7,8 +7,6 @@ skill_manager functions (no real filesystem skills).
 from __future__ import annotations
 
 import io
-from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -21,21 +19,31 @@ def client(isolated_config, monkeypatch):
     # Mock all skill_manager functions to avoid real filesystem access
     mock_skills = [
         {"name": "skill-a", "description": "Skill A desc", "version": "1.0", "tags": ["tag1"], "builtin": True},
-        {"name": "skill-b", "description": "Skill B desc", "version": "2.0", "tags": ["tag2", "tag3"], "builtin": False},
+        {
+            "name": "skill-b",
+            "description": "Skill B desc",
+            "version": "2.0",
+            "tags": ["tag2", "tag3"],
+            "builtin": False,
+        },
     ]
 
     import agent.skill_manager as sm
 
     monkeypatch.setattr(sm, "get_all_skills", lambda: mock_skills)
     monkeypatch.setattr(sm, "get_active_skills", lambda: ["skill-a"])
-    monkeypatch.setattr(sm, "get_skill_content", lambda name: f"---\nname: {name}\n---\nContent for {name}" if name in ("skill-a", "skill-b") else None)
+    monkeypatch.setattr(
+        sm,
+        "get_skill_content",
+        lambda name: f"---\nname: {name}\n---\nContent for {name}" if name in ("skill-a", "skill-b") else None,
+    )
     monkeypatch.setattr(sm, "set_skill_active", lambda name, active: name in ("skill-a", "skill-b"))
     monkeypatch.setattr(sm, "update_skill_content", _mock_update_skill)
     monkeypatch.setattr(sm, "uninstall_skill", _mock_uninstall_skill)
     monkeypatch.setattr(sm, "install_skill_from_zip", lambda path: "installed-skill")
 
-    from agent.extensions import register_built_in_extensions
     from agent.events.extensions import apply_config_overrides
+    from agent.extensions import register_built_in_extensions
 
     register_built_in_extensions()
     apply_config_overrides([])

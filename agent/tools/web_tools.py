@@ -4,6 +4,7 @@ Port of Hermes web_tools.py — simplified using httpx directly.
 Supports configurable search backend via env vars.
 """
 
+import html.parser
 import logging
 import os
 import urllib.parse
@@ -66,10 +67,63 @@ def _search_via_api(query: str, limit: int, api_url: str, api_key: str) -> str:
         return tool_error(f"Search failed: {e}")
 
 
-def _search_duckduckgo(query: str, limit: int) -> str:
-    """Search via DuckDuckGo's HTML interface (no API key needed)."""
-    import re
+class _DDGResultParser(html.parser.HTMLParser):
+    """HTML parser for DuckDuckGo search results.
 
+    Uses Python's stdlib HTMLParser — much more robust than regex for
+    parsing HTML DOM structure. Degrades gracefully if DDG changes
+    their page structure (empty results instead of crash).
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.results: list[dict[str, str]] = []
+        self._in_result = False
+        self._in_title = False
+        self._in_snippet = False
+        self._current_url = ""
+        self._current_title = ""
+        self._current_snippet = ""
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attrs_dict = dict(attrs)
+        if tag == "a" and attrs_dict.get("class") == "result__a":
+            self._in_result = True
+            self._in_title = True
+            self._current_url = attrs_dict.get("href", "")
+            self._current_title = ""
+            self._current_snippet = ""
+        elif tag == "a" and attrs_dict.get("class") == "result__snippet":
+            self._in_snippet = True
+            self._current_snippet = ""
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "a" and self._in_result:
+            self._in_result = False
+            self._in_title = False
+            self._in_snippet = False
+            if self._current_url and self._current_title:
+                self.results.append(
+                    {
+                        "title": self._current_title.strip(),
+                        "url": self._current_url,
+                        "snippet": self._current_snippet.strip(),
+                    }
+                )
+
+    def handle_data(self, data: str) -> None:
+        if self._in_title:
+            self._current_title += data
+        elif self._in_snippet:
+            self._current_snippet += data
+
+
+def _search_duckduckgo(query: str, limit: int) -> str:
+    """Search via DuckDuckGo's HTML interface (no API key needed).
+
+    Uses Python stdlib ``HTMLParser`` instead of regex for robust and
+    maintainable HTML parsing.
+    """
     try:
         encoded = urllib.parse.quote(query)
         url = f"https://html.duckduckgo.com/html/?q={encoded}"
@@ -83,47 +137,9 @@ def _search_duckduckgo(query: str, limit: int) -> str:
             resp = client.get(url, headers=headers)
             resp.raise_for_status()
 
-        # Simple HTML parsing for DuckDuckGo results
-        html = resp.text
-        results = []
-
-        # Extract result blocks
-        blocks = re.findall(
-            r'<a rel="nofollow" class="result__a" href="(.*?)".*?>(.*?)</a>.*?'
-            r'<a class="result__snippet".*?>(.*?)</a>',
-            html,
-            re.DOTALL,
-        )
-
-        for href, title, snippet in blocks[:limit]:
-            # Clean HTML tags from title and snippet
-            title = re.sub(r"<.*?>", "", title).strip()
-            snippet = re.sub(r"<.*?>", "", snippet).strip()
-            results.append(
-                {
-                    "title": title,
-                    "url": href,
-                    "snippet": snippet,
-                }
-            )
-
-        if not results:
-            # Fallback: try extracting from different DOM structure
-            blocks = re.findall(
-                r'<h[23][^>]*>.*?<a[^>]*href="(https?://[^"]+)"[^>]*>(.*?)</a>.*?</h[23]>',
-                html,
-                re.DOTALL,
-            )
-            for href, title in blocks[:limit]:
-                title = re.sub(r"<.*?>", "", title).strip()
-                results.append(
-                    {
-                        "title": title,
-                        "url": href,
-                        "snippet": "",
-                    }
-                )
-
+        parser = _DDGResultParser()
+        parser.feed(resp.text)
+        results = parser.results[:limit]
         return tool_result(data=_format_results(results, query))
     except Exception as e:
         logger.warning("DuckDuckGo search failed: %s", e)

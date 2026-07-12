@@ -8,8 +8,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
 from agent.slash_commands import (
     SlashCommand,
     execute,
@@ -18,7 +16,6 @@ from agent.slash_commands import (
     parse_command,
     register_command,
 )
-
 
 # ────────────────────────────────────────────────────────────────────
 # 1) Registration and command listing

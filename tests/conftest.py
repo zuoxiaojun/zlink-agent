@@ -73,6 +73,18 @@ def clean_extensions():
         pass
 
 
+@pytest.fixture(autouse=True)
+def clean_search_db():
+    """Close all tracked SQLite connections after each test to avoid ResourceWarning."""
+    yield
+    try:
+        from agent.search_index import close_all_connections
+
+        close_all_connections()
+    except Exception:
+        pass
+
+
 # ────────────────────────────────────────────────────────────────────
 # Config isolation
 # ────────────────────────────────────────────────────────────────────

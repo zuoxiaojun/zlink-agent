@@ -6,6 +6,7 @@ import io
 import json
 import os
 import sys
+
 import requests
 
 if sys.stdout.encoding != "utf-8":
@@ -14,6 +15,7 @@ if sys.stderr.encoding != "utf-8":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 ENDPOINT = "https://api.anysearch.com/mcp"
+
 
 def _load_env():
     """Load API keys from .env files near the skill.
@@ -28,7 +30,7 @@ def _load_env():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     for env_path in [os.path.join(script_dir, ".env"), os.path.join(script_dir, "..", ".env")]:
         if os.path.isfile(env_path):
-            with open(env_path, "r", encoding="utf-8-sig") as f:
+            with open(env_path, encoding="utf-8-sig") as f:
                 for line in f:
                     line = line.strip()
                     if not line or line.startswith("#"):
@@ -47,9 +49,23 @@ _load_env()
 
 # BEGIN GENERATED:CONSTANTS
 AVAILABLE_DOMAINS = [
-    "general", "resource", "social_media", "finance", "academic", "legal",
-    "health", "business", "security", "ip", "code", "energy",
-    "environment", "agriculture", "travel", "film", "gaming",
+    "general",
+    "resource",
+    "social_media",
+    "finance",
+    "academic",
+    "legal",
+    "health",
+    "business",
+    "security",
+    "ip",
+    "code",
+    "energy",
+    "environment",
+    "agriculture",
+    "travel",
+    "film",
+    "gaming",
 ]
 # END GENERATED:CONSTANTS
 
@@ -59,6 +75,7 @@ def _build_headers(api_key: str) -> dict:
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
     return headers
+
 
 def _call_api(tool_name: str, arguments: dict, api_key: str) -> str:
     payload = {
@@ -212,7 +229,7 @@ def _repair_json_object(s: str) -> dict:
             continue
         colon = pair.index(":")
         key = pair[:colon].strip().strip("'\"")
-        val = pair[colon + 1:].strip()
+        val = pair[colon + 1 :].strip()
         if val.startswith("{"):
             try:
                 result[key] = json.loads(val)
@@ -249,7 +266,7 @@ def cmd_batch_search(args):
         if raw.startswith("@"):
             file_path = raw[1:]
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, encoding="utf-8") as f:
                     raw = f.read()
             except FileNotFoundError:
                 print(f"Error: file not found: {file_path}", file=sys.stderr)
@@ -277,17 +294,20 @@ def cmd_batch_search(args):
 # BEGIN GENERATED:DOC_SPEC
 def _render_doc():
     import json as _json
+
     _dir = os.path.dirname(os.path.abspath(__file__))
     _shared = os.path.join(_dir, "shared")
-    with open(os.path.join(_shared, "doc_spec.md"), "r", encoding="utf-8") as _f:
+    with open(os.path.join(_shared, "doc_spec.md"), encoding="utf-8") as _f:
         _tpl = _f.read()
-    with open(os.path.join(_shared, "constants.json"), "r", encoding="utf-8") as _f:
+    with open(os.path.join(_shared, "constants.json"), encoding="utf-8") as _f:
         _c = _json.load(_f)
     _tpl = _tpl.replace("{{LANG_NAME}}", "Python")
     _tpl = _tpl.replace("{{LANG_CODEBLOCK}}", "")
     _tpl = _tpl.replace("{{LANG_INVOKE}}", "python scripts/anysearch_cli.py")
     _tpl = _tpl.replace("{{DOMAINS_SPACE}}", " ".join(_c["available_domains"]))
     return _tpl
+
+
 # END GENERATED:DOC_SPEC
 
 
@@ -307,11 +327,11 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "examples:\n"
-            "  anysearch search \"quantum computing\"\n"
-            "  anysearch search \"AAPL\" --domain finance --sub_domain finance.us_stock\n"
+            '  anysearch search "quantum computing"\n'
+            '  anysearch search "AAPL" --domain finance --sub_domain finance.us_stock\n'
             "  anysearch get_sub_domains --domain finance\n"
             "  anysearch extract --url https://example.com\n"
-            "  anysearch batch_search --queries '[{\"query\":\"AAPL\"},{\"query\":\"GOOG\"}]'\n"
+            '  anysearch batch_search --queries \'[{"query":"AAPL"},{"query":"GOOG"}]\'\n'
         ),
     )
 
@@ -337,17 +357,18 @@ def build_parser() -> argparse.ArgumentParser:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    search_p.add_argument("query", help="Search query string. For vertical search, follow the format returned by get_sub_domains.")
     search_p.add_argument(
-        "--domain", "-d",
-        choices=AVAILABLE_DOMAINS,
-        help=(
-            "Vertical domain for structured search. "
-            f"Available: {', '.join(AVAILABLE_DOMAINS)}"
-        ),
+        "query", help="Search query string. For vertical search, follow the format returned by get_sub_domains."
     )
     search_p.add_argument(
-        "--sub_domain", "-s",
+        "--domain",
+        "-d",
+        choices=AVAILABLE_DOMAINS,
+        help=(f"Vertical domain for structured search. Available: {', '.join(AVAILABLE_DOMAINS)}"),
+    )
+    search_p.add_argument(
+        "--sub_domain",
+        "-s",
         help="Sub-domain routing key (e.g. finance.us_stock). Required for vertical search; obtain via get_sub_domains.",
     )
     search_p.add_argument(
@@ -355,7 +376,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Additional sub_domain parameters as JSON string. Schema depends on the sub_domain (see get_sub_domains output).",
     )
     search_p.add_argument(
-        "--max_results", "-m",
+        "--max_results",
+        "-m",
         type=int,
         help="Maximum number of results to return (1-10, default 10).",
     )
@@ -402,7 +424,9 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ext_p.add_argument("url", nargs="?", help="Target URL to extract content from (http(s)://).")
-    ext_p.add_argument("--url", "-u", dest="url_opt", help="Target URL to extract content from (alternative to positional arg).")
+    ext_p.add_argument(
+        "--url", "-u", dest="url_opt", help="Target URL to extract content from (alternative to positional arg)."
+    )
     ext_p.set_defaults(func=cmd_extract)
 
     batch_p = subparsers.add_parser(
@@ -418,24 +442,26 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "examples:\n"
-            '  anysearch batch_search --query AAPL --query GOOG\n'
-            '  anysearch batch_search --queries \'[{\"query\":\"AAPL\"},{\"query\":\"GOOG\"}]\'\n'
-            '  anysearch batch_search \'[{\"query\":\"AAPL\"},{\"query\":\"GOOG\"}]\'\n'
-            '  anysearch batch_search --queries @queries.json\n'
+            "  anysearch batch_search --query AAPL --query GOOG\n"
+            '  anysearch batch_search --queries \'[{"query":"AAPL"},{"query":"GOOG"}]\'\n'
+            '  anysearch batch_search \'[{"query":"AAPL"},{"query":"GOOG"}]\'\n'
+            "  anysearch batch_search --queries @queries.json\n"
         ),
     )
     batch_p.add_argument(
         "queries",
         nargs="?",
         help=(
-            'JSON array of search query objects (1-5 items). '
-            'Tolerates PowerShell quote-stripping automatically.\n'
-            'Each object supports: query (required), domain, sub_domain, sub_domain_params, max_results.\n'
+            "JSON array of search query objects (1-5 items). "
+            "Tolerates PowerShell quote-stripping automatically.\n"
+            "Each object supports: query (required), domain, sub_domain, sub_domain_params, max_results.\n"
             'Example: \'[{"query":"AAPL"},{"query":"GOOG"}]\''
         ),
     )
     batch_p.add_argument(
-        "--queries", "-q", dest="queries_opt",
+        "--queries",
+        "-q",
+        dest="queries_opt",
         help="JSON array of search query objects (alternative to positional arg). Prefix @ to read from file.",
     )
     batch_p.add_argument(

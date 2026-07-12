@@ -123,8 +123,7 @@ def vision_analyze_tool(image_url: str, question: str = "") -> str:
 VISION_ANALYZE_SCHEMA = {
     "name": "vision_analyze",
     "description": (
-        "分析图片内容。支持公开图片 URL 或 base64 data URI。"
-        "可以要求 AI 描述图片、识别图中的文字、分析图表或截图等。"
+        "分析图片内容。支持公开图片 URL 或 base64 data URI。可以要求 AI 描述图片、识别图中的文字、分析图表或截图等。"
     ),
     "parameters": {
         "type": "object",

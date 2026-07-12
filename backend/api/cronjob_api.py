@@ -35,6 +35,7 @@ def create_cronjob(body: dict):
     )
     if not result.get("success"):
         from fastapi import HTTPException
+
         raise HTTPException(status_code=400, detail=result.get("error", "创建失败"))
     return result
 
@@ -45,6 +46,7 @@ def delete_cronjob(job_id: str):
     result = json.loads(cronjob_delete(job_id=job_id))
     if not result.get("success"):
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail=result.get("error", "未找到"))
     return result
 
@@ -55,6 +57,7 @@ def run_cronjob(job_id: str):
     result = json.loads(cronjob_run(job_id=job_id))
     if not result.get("success"):
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail=result.get("error", "未找到"))
     return result
 
@@ -72,6 +75,7 @@ def update_cronjob(job_id: str, body: dict):
     )
     if not result.get("success"):
         from fastapi import HTTPException
+
         raise HTTPException(status_code=400, detail=result.get("error", "更新失败"))
     return result
 
@@ -79,10 +83,9 @@ def update_cronjob(job_id: str, body: dict):
 @router.put("/{job_id}/toggle")
 def toggle_cronjob(job_id: str, body: dict):
     """Enable or disable a cron job."""
-    result = json.loads(
-        cronjob_toggle(job_id=job_id, enabled=body.get("enabled", True))
-    )
+    result = json.loads(cronjob_toggle(job_id=job_id, enabled=body.get("enabled", True)))
     if not result.get("success"):
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail=result.get("error", "未找到"))
     return result

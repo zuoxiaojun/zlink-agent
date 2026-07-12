@@ -41,17 +41,16 @@ def client(isolated_config, monkeypatch):
     monkeypatch.setattr(mcp_mgr, "test_server_connection", _noop_test)
     monkeypatch.setattr(mcp_mgr, "get_server_statuses", _noop_statuses)
 
-    from agent.extensions import register_built_in_extensions
     from agent.events.extensions import apply_config_overrides
+    from agent.extensions import register_built_in_extensions
 
     register_built_in_extensions()
     apply_config_overrides([])
 
-    from backend.main import app
-
     # Also patch the references in mcp_api, which may have been
     # imported earlier by another test's fixture (module caching).
     import backend.api.mcp_api as mcp_api_mod
+    from backend.main import app
 
     monkeypatch.setattr(mcp_api_mod, "connect_server", _noop_connect)
     monkeypatch.setattr(mcp_api_mod, "disconnect_server", _noop_disconnect)

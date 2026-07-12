@@ -106,13 +106,16 @@ async def get_erp_client(name: str) -> dict:
         ys_cfg = cfg.erp_clients.get("yonsuite", {})
         if not isinstance(ys_cfg, dict):
             ys_cfg = {}
-        return _mask_secrets(name, {
-            "enabled": ys_cfg.get("enabled", False),
-            "tenant_id": ys_cfg.get("tenant_id") or cfg.ys_tenant_id or "",
-            "app_key": ys_cfg.get("app_key") or "",
-            "app_secret": ys_cfg.get("app_secret") or "",
-            "base_url": ys_cfg.get("base_url") or cfg.ys_gateway_url or "",
-        })
+        return _mask_secrets(
+            name,
+            {
+                "enabled": ys_cfg.get("enabled", False),
+                "tenant_id": ys_cfg.get("tenant_id") or cfg.ys_tenant_id or "",
+                "app_key": ys_cfg.get("app_key") or "",
+                "app_secret": ys_cfg.get("app_secret") or "",
+                "base_url": ys_cfg.get("base_url") or cfg.ys_gateway_url or "",
+            },
+        )
     if name == "nc":
         raw = _read_raw_config()
         ecfg = cfg.erp_clients.get("nc", {}) if isinstance(cfg.erp_clients.get("nc"), dict) else {}
@@ -121,15 +124,18 @@ async def get_erp_client(name: str) -> dict:
             mcp_cfg = raw.get("mcp_servers", {}).get("mcp-nc")
             if mcp_cfg:
                 return _mask_secrets(name, _mcp_env_to_erp_config(mcp_cfg))
-        return _mask_secrets(name, {
-            "enabled": ecfg.get("enabled", False),
-            "host": ecfg.get("host", ""),
-            "port": ecfg.get("port", ""),
-            "service": ecfg.get("service", ""),
-            "user": ecfg.get("user", ""),
-            "password": ecfg.get("password", ""),
-            "max_rows": ecfg.get("max_rows", 200),
-        })
+        return _mask_secrets(
+            name,
+            {
+                "enabled": ecfg.get("enabled", False),
+                "host": ecfg.get("host", ""),
+                "port": ecfg.get("port", ""),
+                "service": ecfg.get("service", ""),
+                "user": ecfg.get("user", ""),
+                "password": ecfg.get("password", ""),
+                "max_rows": ecfg.get("max_rows", 200),
+            },
+        )
     raise HTTPException(404, f"ERP client {name!r} not found")
 
 

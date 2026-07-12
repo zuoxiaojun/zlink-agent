@@ -1,6 +1,7 @@
 """ZLink Agent FastAPI backend — serves REST API + WebSocket for the React frontend."""
 
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -82,6 +83,15 @@ async def lifespan(application: FastAPI):
     ys_app_secret = ys_cfg_erp.get("app_secret") or cfg.ys_app_secret or ""
     ys_tenant_id = ys_cfg_erp.get("tenant_id") or cfg.ys_tenant_id or ""
     ys_gateway_url = ys_cfg_erp.get("base_url") or cfg.ys_gateway_url or "https://c2.yonyoucloud.com/iuap-api-gateway"
+
+    # Set os.environ once at startup (not per-WebSocket) to avoid global
+    # state pollution from concurrent connections. YonSuite client code
+    # (agent/erp_clients/yonsuite/config.py) reads these at import time.
+    os.environ.setdefault("YONSUITE_APP_KEY", ys_app_key)
+    os.environ.setdefault("YONSUITE_APP_SECRET", ys_app_secret)
+    os.environ.setdefault("YONSUITE_TENANT_ID", ys_tenant_id)
+    os.environ.setdefault("YONSUITE_GATEWAY_URL", ys_gateway_url)
+    os.environ.setdefault("YONSUITE_CACHE_DIR", str(DATA_DIR / "yonsuite_cache"))
 
     yonsuite_cfg = servers_cfg.get("yonsuite")
     if yonsuite_cfg:

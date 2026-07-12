@@ -9,8 +9,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from agent.tools.file_tools import (
     _handle_ls,
     _handle_patch,
@@ -19,7 +17,6 @@ from agent.tools.file_tools import (
     _handle_write_file,
     _is_safe_path,
 )
-
 
 # ────────────────────────────────────────────────────────────────────
 # 1) _is_safe_path
@@ -166,9 +163,7 @@ def test_write_file_protected_path(tmp_path: Path):
 def test_patch_single_edit(tmp_path: Path):
     fp = tmp_path / "patch_me.txt"
     fp.write_text("hello old world")
-    result = json.loads(
-        _handle_patch({"path": str(fp), "old_string": "old", "new_string": "new"})
-    )
+    result = json.loads(_handle_patch({"path": str(fp), "old_string": "old", "new_string": "new"}))
     assert result["success"] is True
     assert "patched" in result["data"].lower()
     assert result["diff"]["old_len"] == 3
@@ -183,9 +178,7 @@ def test_patch_path_missing():
 
 
 def test_patch_file_not_found(tmp_path: Path):
-    result = json.loads(
-        _handle_patch({"path": str(tmp_path / "nope.txt"), "old_string": "x", "new_string": "y"})
-    )
+    result = json.loads(_handle_patch({"path": str(tmp_path / "nope.txt"), "old_string": "x", "new_string": "y"}))
     assert result["success"] is False
     assert "not found" in result["error"].lower()
 
@@ -193,9 +186,7 @@ def test_patch_file_not_found(tmp_path: Path):
 def test_patch_old_string_not_found(tmp_path: Path):
     fp = tmp_path / "content.txt"
     fp.write_text("some content")
-    result = json.loads(
-        _handle_patch({"path": str(fp), "old_string": "zzz", "new_string": "yyy"})
-    )
+    result = json.loads(_handle_patch({"path": str(fp), "old_string": "zzz", "new_string": "yyy"}))
     assert result["success"] is False
     assert "not found" in result["error"].lower()
 
@@ -217,9 +208,7 @@ def test_patch_protected_path():
 def test_patch_replace_all(tmp_path: Path):
     fp = tmp_path / "replace_all.txt"
     fp.write_text("a a a a")
-    result = json.loads(
-        _handle_patch({"path": str(fp), "old_string": "a", "new_string": "b", "replace_all": True})
-    )
+    result = json.loads(_handle_patch({"path": str(fp), "old_string": "a", "new_string": "b", "replace_all": True}))
     assert result["success"] is True
     assert fp.read_text() == "b b b b"
 
@@ -228,9 +217,7 @@ def test_patch_replace_once(tmp_path: Path):
     """With replace_all=False (default), only the first occurrence is replaced."""
     fp = tmp_path / "replace_once.txt"
     fp.write_text("a a a")
-    result = json.loads(
-        _handle_patch({"path": str(fp), "old_string": "a", "new_string": "b"})
-    )
+    result = json.loads(_handle_patch({"path": str(fp), "old_string": "a", "new_string": "b"}))
     assert result["success"] is True
     assert fp.read_text() == "b a a"
 
@@ -270,9 +257,7 @@ def test_patch_batch_not_list(tmp_path: Path):
 def test_patch_batch_missing_old_string(tmp_path: Path):
     fp = tmp_path / "batch_err2.txt"
     fp.write_text("content")
-    result = json.loads(
-        _handle_patch({"path": str(fp), "edits": [{"new_string": "y"}]})
-    )
+    result = json.loads(_handle_patch({"path": str(fp), "edits": [{"new_string": "y"}]}))
     assert result["success"] is False
     assert "missing old_string" in result["error"].lower()
 
@@ -311,18 +296,14 @@ def test_search_files_basic(tmp_path: Path):
 
 def test_search_files_case_insensitive(tmp_path: Path):
     (tmp_path / "test.txt").write_text("Hello World\n")
-    result = json.loads(
-        _handle_search_files({"pattern": "hello", "path": str(tmp_path), "ignore_case": True})
-    )
+    result = json.loads(_handle_search_files({"pattern": "hello", "path": str(tmp_path), "ignore_case": True}))
     assert result["success"] is True
     assert result["total"] >= 1
 
 
 def test_search_files_case_sensitive(tmp_path: Path):
     (tmp_path / "test.txt").write_text("Hello World\n")
-    result = json.loads(
-        _handle_search_files({"pattern": "hello", "path": str(tmp_path), "ignore_case": False})
-    )
+    result = json.loads(_handle_search_files({"pattern": "hello", "path": str(tmp_path), "ignore_case": False}))
     assert result["success"] is True
     assert result["total"] == 0
 
@@ -331,9 +312,7 @@ def test_search_files_file_glob(tmp_path: Path):
     (tmp_path / "data.py").write_text("x = 1")
     (tmp_path / "data.txt").write_text("x = 1")
     (tmp_path / "data.md").write_text("x = 1")
-    result = json.loads(
-        _handle_search_files({"pattern": "x = 1", "path": str(tmp_path), "file_glob": "*.py"})
-    )
+    result = json.loads(_handle_search_files({"pattern": "x = 1", "path": str(tmp_path), "file_glob": "*.py"}))
     assert result["success"] is True
     assert result["total"] == 1
     assert result["data"][0]["path"].endswith(".py")
@@ -341,11 +320,7 @@ def test_search_files_file_glob(tmp_path: Path):
 
 def test_search_files_context_lines(tmp_path: Path):
     (tmp_path / "ctx.txt").write_text("before\ntarget\nafter\n")
-    result = json.loads(
-        _handle_search_files(
-            {"pattern": "target", "path": str(tmp_path), "context_lines": 1}
-        )
-    )
+    result = json.loads(_handle_search_files({"pattern": "target", "path": str(tmp_path), "context_lines": 1}))
     assert result["success"] is True
     assert result["total"] == 1
     match = result["data"][0]

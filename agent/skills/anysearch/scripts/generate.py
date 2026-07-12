@@ -32,7 +32,7 @@ MARKERS = {
 
 
 def load_constants():
-    with open(os.path.join(SHARED_DIR, "constants.json"), "r", encoding="utf-8") as f:
+    with open(os.path.join(SHARED_DIR, "constants.json"), encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -44,7 +44,7 @@ def render_constants(ext, constants):
         lines = []
         lines.append("AVAILABLE_DOMAINS = [")
         for i in range(0, len(domains), 6):
-            chunk = domains[i:i+6]
+            chunk = domains[i : i + 6]
             lines.append("    " + ", ".join(f'"{d}"' for d in chunk) + ",")
         lines.append("]")
         return "\n".join(lines)
@@ -53,7 +53,7 @@ def render_constants(ext, constants):
         lines = []
         lines.append("const AVAILABLE_DOMAINS = [")
         for i in range(0, len(domains), 6):
-            chunk = domains[i:i+6]
+            chunk = domains[i : i + 6]
             lines.append("  " + ",".join(f'"{d}"' for d in chunk) + ",")
         lines.append("];")
         return "\n".join(lines)
@@ -61,7 +61,7 @@ def render_constants(ext, constants):
     elif ext == ".ps1":
         lines = []
         lines.append("$AVAILABLE_DOMAINS = @(")
-        chunks = [domains[i:i+6] for i in range(0, len(domains), 6)]
+        chunks = [domains[i : i + 6] for i in range(0, len(domains), 6)]
         for idx, chunk in enumerate(chunks):
             suffix = "," if idx < len(chunks) - 1 else ""
             lines.append("    " + ", ".join(f'"{d}"' for d in chunk) + suffix)
@@ -79,7 +79,7 @@ def render_constants(ext, constants):
 def render_doc_block(ext, constants):
     """Generate code that reads and renders doc_spec.md at runtime."""
     if ext == ".py":
-        return '''def _render_doc():
+        return """def _render_doc():
     import json as _json
     _dir = os.path.dirname(os.path.abspath(__file__))
     _shared = os.path.join(_dir, "shared")
@@ -91,10 +91,10 @@ def render_doc_block(ext, constants):
     _tpl = _tpl.replace("{{LANG_CODEBLOCK}}", "")
     _tpl = _tpl.replace("{{LANG_INVOKE}}", "python scripts/anysearch_cli.py")
     _tpl = _tpl.replace("{{DOMAINS_SPACE}}", " ".join(_c["available_domains"]))
-    return _tpl'''
+    return _tpl"""
 
     elif ext == ".js":
-        return '''function renderDoc() {
+        return """function renderDoc() {
   const shared = path.join(__dirname, "shared");
   let tpl = fs.readFileSync(path.join(shared, "doc_spec.md"), "utf-8");
   const c = JSON.parse(fs.readFileSync(path.join(shared, "constants.json"), "utf-8"));
@@ -103,10 +103,10 @@ def render_doc_block(ext, constants):
   tpl = tpl.replace(/\\{\\{LANG_INVOKE\\}\\}/g, "node scripts/anysearch_cli.js");
   tpl = tpl.replace(/\\{\\{DOMAINS_SPACE\\}\\}/g, c.available_domains.join(" "));
   return tpl;
-}'''
+}"""
 
     elif ext == ".ps1":
-        return '''function Render-Doc {
+        return """function Render-Doc {
     $shared = Join-Path (Split-Path -Parent $MyInvocation.ScriptName) "shared"
     $tpl = Get-Content (Join-Path $shared "doc_spec.md") -Raw -Encoding UTF8
     $c = Get-Content (Join-Path $shared "constants.json") -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -115,10 +115,10 @@ def render_doc_block(ext, constants):
     $tpl = $tpl.Replace("{{LANG_INVOKE}}", "powershell -ExecutionPolicy Bypass -File scripts/anysearch_cli.ps1")
     $tpl = $tpl.Replace("{{DOMAINS_SPACE}}", ($c.available_domains -join " "))
     return $tpl
-}'''
+}"""
 
     elif ext == ".sh":
-        return r'''_cmd_doc() {
+        return r"""_cmd_doc() {
   local shared="$SCRIPT_DIR/shared"
   local tpl
   tpl=$(cat "$shared/doc_spec.md")
@@ -129,7 +129,7 @@ def render_doc_block(ext, constants):
   tpl="${tpl//\{\{LANG_INVOKE\}\}\}/bash scripts/anysearch_cli.sh}"
   tpl="${tpl//\{\{DOMAINS_SPACE\}\}/$domains}"
   printf '%s\n' "$tpl"
-}'''
+}"""
 
     raise ValueError(f"Unsupported extension: {ext}")
 
@@ -156,7 +156,7 @@ def generate_script(script_path, constants):
     if ext not in MARKERS:
         raise ValueError(f"Unsupported extension: {ext}")
 
-    with open(script_path, "r", encoding="utf-8") as f:
+    with open(script_path, encoding="utf-8") as f:
         content = f.read()
 
     constants_text = render_constants(ext, constants)
@@ -185,7 +185,7 @@ def main():
 
         try:
             new_content = generate_script(script_path, constants)
-            with open(script_path, "r", encoding="utf-8") as f:
+            with open(script_path, encoding="utf-8") as f:
                 old_content = f.read()
 
             if new_content != old_content:

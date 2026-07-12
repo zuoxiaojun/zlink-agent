@@ -10,10 +10,7 @@ router = APIRouter(prefix="/api/slash-commands", tags=["slash-commands"])
 @router.get("", response_model=SlashCommandsResponse)
 def get_slash_commands():
     """Return all registered slash commands + skill names for auto-completion."""
-    cmds = [
-        SlashCommandInfo(name=c.name, description=c.description, usage=c.usage)
-        for c in list_commands()
-    ]
+    cmds = [SlashCommandInfo(name=c.name, description=c.description, usage=c.usage) for c in list_commands()]
     # Append all skill names as type="skill" for popup auto-completion
     for s in get_all_skills():
         name = s["name"]

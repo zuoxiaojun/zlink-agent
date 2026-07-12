@@ -193,7 +193,6 @@ CODE_EXECUTION_SCHEMA = {
 }
 
 
-
 registry.register(
     name="execute_code",
     toolset="code",
