@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from agent.tools.web_extract_tool import _handle_web_extract, WEB_EXTRACT_SCHEMA
+from agent.tools.web_extract_tool import WEB_EXTRACT_SCHEMA, _handle_web_extract
 
 
 class TestWebExtractTool:

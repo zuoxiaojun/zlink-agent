@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from agent.tools.project_tools import project_list, project_create, project_switch, PROJECTS_FILE
+from agent.tools.project_tools import project_create, project_list, project_switch
 
 
 @pytest.fixture(autouse=True)

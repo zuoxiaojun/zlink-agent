@@ -5,14 +5,13 @@ from __future__ import annotations
 import json
 
 from agent.tools.web_tools import (
+    _check_web_search,
     _DDGResultParser,
     _format_results,
     _search_duckduckgo,
     _search_via_api,
-    _check_web_search,
     web_search_tool,
 )
-
 
 # ── _DDGResultParser ───────────────────────────────────────────────
 
@@ -223,7 +222,6 @@ class TestWebSearchTool:
         monkeypatch.setattr("agent.tools.web_tools._search_duckduckgo", fake_ddg)
         monkeypatch.setattr("agent.tools.web_tools._get_search_url", lambda: "")
         result = web_search_tool("test")
-        data = json.loads(result)
         assert called is True
 
     def test_uses_api_when_url_is_set(self, monkeypatch):
@@ -237,7 +235,7 @@ class TestWebSearchTool:
         monkeypatch.setattr("agent.tools.web_tools._search_via_api", fake_api)
         monkeypatch.setattr("agent.tools.web_tools._get_search_url", lambda: "http://api/search")
         result = web_search_tool("test")
-        data = json.loads(result)
+        assert called is True
         assert called is True
 
     def test_check_fn_returns_true(self):

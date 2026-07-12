@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from agent.tools.process_tool import process_tool, PROCESS_SCHEMA
+from agent.tools.process_tool import PROCESS_SCHEMA, process_tool
 
 
 class TestProcessTool:

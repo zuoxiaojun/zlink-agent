@@ -5,12 +5,11 @@ from __future__ import annotations
 import json
 
 from agent.tools.vision_tool import (
-    _is_data_uri,
-    _image_to_base64,
-    vision_analyze_tool,
     VISION_ANALYZE_SCHEMA,
+    _image_to_base64,
+    _is_data_uri,
+    vision_analyze_tool,
 )
-
 
 # ── _is_data_uri ───────────────────────────────────────────────────
 

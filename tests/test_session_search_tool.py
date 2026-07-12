@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from agent.tools.session_search_tool import _handle_session_search, SESSION_SEARCH_SCHEMA
+from agent.tools.session_search_tool import SESSION_SEARCH_SCHEMA, _handle_session_search
 
 
 class TestSessionSearchTool:
