@@ -103,8 +103,10 @@ async def get_erp_client(name: str) -> dict:
     """获取单个 ERP 配置（含 .env 中的密钥，已脱敏）"""
     cfg = config_manager.load()
     if name == "yonsuite":
+        ys_cfg = cfg.erp_clients.get("yonsuite", {})
+        ys_enabled = ys_cfg.get("enabled", False) if isinstance(ys_cfg, dict) else False
         return _mask_secrets(name, {
-            "enabled": cfg.erp_clients.get("yonsuite", {}).get("enabled", False) if isinstance(cfg.erp_clients.get("yonsuite"), dict) else False,
+            "enabled": ys_enabled,
             "tenant_id": cfg.ys_tenant_id or "",
             "app_key": cfg.ys_app_key or "",
             "app_secret": cfg.ys_app_secret or "",
