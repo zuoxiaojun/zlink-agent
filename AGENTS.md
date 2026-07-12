@@ -880,4 +880,11 @@ Expected: ~27 tool names printed (terminal, file, web, skills, MCP, todo, clarif
 
 Target: 70%+ coverage overall.
 
+### Build & Run Notes
+
+- **Git remote**: atomgit.com/gcw_cJbJuamU/zlink-agent.git (NOT GitHub)
+- **BROWSER_URL**: start.sh 的 `open` 命令不能用 `$HOST` (默认 0.0.0.0)，设 `BROWSER_URL="http://127.0.0.1:$PORT"`
+- **Build .app**: 改 backend/web/src 后 `bash scripts/build-app.sh --no-frontend`。前端有改动去掉 `--no-frontend` 或 `npm run build`
+- **NC65**: DBILLDATE 是 CHAR 类型，字符串比较；PO_ORDER 用 FORDERSTATUS（0=自由~5=输出）；SO_SALEORDER 用 FSTATUSFLAG
+
 <!-- END_DOCUMENT -->

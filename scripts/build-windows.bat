@@ -26,7 +26,6 @@ cd /d "%PROJECT_DIR%"
 
 set BUILD_FRONTEND=1
 set SKIP_BUNDLE=
-set NO_BUNDLE=
 
 :parse_args
 if "%~1"=="" goto :args_done
@@ -62,12 +61,12 @@ if errorlevel 1 (
   exit /b 1
 )
 
-:: 检查 Git Bash（bundle-python.sh 需要）
+:: ── 检查 Git Bash（bundle-python.sh 需要）─────────────────────────────
 where bash >nul 2>nul
 if errorlevel 1 (
   echo [WARN] Git Bash 未找到 — Python bundle 需要 bash 环境
   echo   Windows 请安装 Git for Windows: https://git-scm.com/download/win
-  echo   或使用 --no-bundle 跳过
+  echo   或使用 --no-bundle 跳过 Python bundle 步骤
 )
 
 echo.
@@ -152,10 +151,10 @@ echo.
 echo ========================================
 echo   ✅ ZLink Agent Windows 打包完成
 echo ========================================
-dir "dist-electron" /b /a:d 2>nul
+echo   输出目录:
+dir "dist-electron" /b 2>nul
 echo.
-echo   输出目录: dist-electron\
-echo   运行: 双击 dist-electron\ZLink Agent Setup *.exe
+echo   安装: 双击 dist-electron\ 下的 ZLink Agent Setup 安装包
 echo   数据目录: %%USERPROFILE%%\.zlink-agent\data\
 echo ========================================
 echo.

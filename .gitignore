@@ -43,3 +43,4 @@ zlink_agent.egg-info/
 
 .opencode/
 .agents/
+.coverage
