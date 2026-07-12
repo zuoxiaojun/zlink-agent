@@ -62,10 +62,7 @@ class TestDDGResultParser:
 
     def test_parse_handles_nested_tags(self):
         """Title with nested tags should still be captured."""
-        html = (
-            '<a rel="nofollow" class="result__a" href="http://x.com">'
-            "<b>Bold</b> Title</a>"
-        )
+        html = '<a rel="nofollow" class="result__a" href="http://x.com"><b>Bold</b> Title</a>'
         parser = self._parse(html)
         assert len(parser.results) == 1
         assert "Title" in parser.results[0]["title"]
@@ -117,9 +114,7 @@ class FakeClient:
 class TestSearchDuckduckgo:
     def test_success(self, monkeypatch):
         html = (
-            '<a rel="nofollow" class="result__a" href="http://ex.com">'
-            "Example</a>"
-            '<a class="result__snippet">Snippet</a>'
+            '<a rel="nofollow" class="result__a" href="http://ex.com">Example</a><a class="result__snippet">Snippet</a>'
         )
 
         def fake_client(*args, **kwargs):
@@ -221,7 +216,7 @@ class TestWebSearchTool:
 
         monkeypatch.setattr("agent.tools.web_tools._search_duckduckgo", fake_ddg)
         monkeypatch.setattr("agent.tools.web_tools._get_search_url", lambda: "")
-        result = web_search_tool("test")
+        web_search_tool("test")
         assert called is True
 
     def test_uses_api_when_url_is_set(self, monkeypatch):
@@ -234,8 +229,7 @@ class TestWebSearchTool:
 
         monkeypatch.setattr("agent.tools.web_tools._search_via_api", fake_api)
         monkeypatch.setattr("agent.tools.web_tools._get_search_url", lambda: "http://api/search")
-        result = web_search_tool("test")
-        assert called is True
+        web_search_tool("test")
         assert called is True
 
     def test_check_fn_returns_true(self):
