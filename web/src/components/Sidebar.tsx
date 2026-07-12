@@ -37,7 +37,7 @@ export default function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-brand">
         <div className="sidebar-brand-icon">
-          <IconRobot size={18} color="#fff" />
+          <img src="/favicon.png" alt="ZLink Agent" style={{ width: 22, height: 22, borderRadius: 6 }} />
         </div>
         <div>
           <h3>ZLink Agent</h3>
