@@ -5,10 +5,39 @@ import type { Message } from "../types";
 
 function ToolResult({ msg }: { msg: Message }) {
   const content = msg.content;
+
+  // Render clarify choices as interactive buttons
+  if (typeof content === "string") {
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed.choices && Array.isArray(parsed.choices)) {
+        return (
+          <div className="clarify-prompt">
+            <p className="clarify-question">{parsed.question || parsed.data || ""}</p>
+            {parsed.choices.length > 0 && (
+              <div className="clarify-choices">
+                {parsed.choices.map((choice: string, i: number) => (
+                  <span key={i} className="clarify-chip">{choice}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      }
+    } catch {
+      /* not JSON, fall through */
+    }
+    return (
+      <details className="tool-result-inline">
+        <summary><IconFileText size={12} style={{ marginRight: "4px" }} />工具返回数据</summary>
+        <pre>{content}</pre>
+      </details>
+    );
+  }
   return (
     <details className="tool-result-inline">
       <summary><IconFileText size={12} style={{ marginRight: "4px" }} />工具返回数据</summary>
-      <pre>{typeof content === "string" ? content : JSON.stringify(content, null, 2)}</pre>
+      <pre>{JSON.stringify(content, null, 2)}</pre>
     </details>
   );
 }

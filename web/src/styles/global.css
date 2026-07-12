@@ -532,6 +532,44 @@ body {
   font-size: 12px;
   max-height: min(50vh, 300px);
   overflow: auto;
+}
+
+/* ── Clarify choices ─────────────────────────────────── */
+
+.clarify-prompt {
+  margin: 8px 0;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.clarify-question {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  color: var(--text-1);
+  line-height: 1.5;
+}
+.clarify-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.clarify-chip {
+  display: inline-block;
+  padding: 6px 14px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg-hover);
+  color: var(--text-1);
+  cursor: default;
+  user-select: none;
+  transition: background 0.15s;
+}
+.clarify-chip:hover {
+  background: var(--primary-bg);
+  color: var(--primary);
+  border-color: var(--primary);
   white-space: pre-wrap;
   word-break: break-all;
 }
