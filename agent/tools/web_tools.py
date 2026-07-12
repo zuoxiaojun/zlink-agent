@@ -70,52 +70,63 @@ def _search_via_api(query: str, limit: int, api_url: str, api_key: str) -> str:
 class _DDGResultParser(html.parser.HTMLParser):
     """HTML parser for DuckDuckGo search results.
 
-    Uses Python's stdlib HTMLParser — much more robust than regex for
-    parsing HTML DOM structure. Degrades gracefully if DDG changes
-    their page structure (empty results instead of crash).
+    Expected HTML structure (two separate <a> tags per result)::
+
+        <a rel="nofollow" class="result__a" href="URL">TITLE TEXT</a>
+        <a class="result__snippet">SNIPPET TEXT</a>
     """
 
     def __init__(self) -> None:
         super().__init__()
         self.results: list[dict[str, str]] = []
-        self._in_result = False
-        self._in_title = False
-        self._in_snippet = False
-        self._current_url = ""
-        self._current_title = ""
-        self._current_snippet = ""
+        self._pending: dict[str, str] | None = None
+        self._collecting: str | None = None  # "title" or "snippet"
+        self._depth = 0  # track nested <a> tag depth
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attrs_dict = dict(attrs)
-        if tag == "a" and attrs_dict.get("class") == "result__a":
-            self._in_result = True
-            self._in_title = True
-            self._current_url = attrs_dict.get("href", "")
-            self._current_title = ""
-            self._current_snippet = ""
-        elif tag == "a" and attrs_dict.get("class") == "result__snippet":
-            self._in_snippet = True
-            self._current_snippet = ""
+        if tag == "a":
+            cls = attrs_dict.get("class", "")
+            if cls == "result__a":
+                if self._pending and self._pending["url"] and self._pending["title"]:
+                    self.results.append(self._pending)
+                self._pending = {"url": attrs_dict.get("href", ""), "title": "", "snippet": ""}
+                self._collecting = "title"
+                self._depth = 1
+            elif cls == "result__snippet":
+                self._collecting = "snippet"
+                self._depth = 1
+
+    def _save_pending(self):
+        if self._pending and self._pending["url"] and self._pending["title"]:
+            self.results.append(self._pending)
+        self._pending = None
+        self._collecting = None
+
+    def close(self):
+        self._save_pending()
+        super().close()
 
     def handle_endtag(self, tag: str) -> None:
-        if tag == "a" and self._in_result:
-            self._in_result = False
-            self._in_title = False
-            self._in_snippet = False
-            if self._current_url and self._current_title:
-                self.results.append(
-                    {
-                        "title": self._current_title.strip(),
-                        "url": self._current_url,
-                        "snippet": self._current_snippet.strip(),
-                    }
-                )
+        if tag != "a":
+            return
+        if self._depth <= 0:
+            return
+        self._depth -= 1
+        if self._depth > 0:
+            return  # still inside nested <a>
+        # outermost </a> closes the block
+        if self._collecting == "snippet":
+            self._save_pending()
+        elif self._collecting == "title":
+            # title <a> closed; snippet <a> may follow
+            self._collecting = None
 
     def handle_data(self, data: str) -> None:
-        if self._in_title:
-            self._current_title += data
-        elif self._in_snippet:
-            self._current_snippet += data
+        if self._collecting == "title" and self._pending is not None:
+            self._pending["title"] += data
+        elif self._collecting == "snippet" and self._pending is not None:
+            self._pending["snippet"] += data
 
 
 def _search_duckduckgo(query: str, limit: int) -> str:
@@ -139,6 +150,7 @@ def _search_duckduckgo(query: str, limit: int) -> str:
 
         parser = _DDGResultParser()
         parser.feed(resp.text)
+        parser.close()
         results = parser.results[:limit]
         return tool_result(data=_format_results(results, query))
     except Exception as e:
