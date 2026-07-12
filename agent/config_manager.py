@@ -1,9 +1,10 @@
 """Persistent configuration for ZLink Agent.
 
-Non-secret settings → data/config.json (plain JSON).
-Secrets (API keys, passwords) → data/.env (plaintext, chmod 0600).
+All settings (including API keys and passwords) are stored in a single
+data/config.json file as plain JSON. Data directory is secured with
+owner-only permissions (chmod 0700).
 
-This matches Hermes Agent's approach: no encryption, OS file permissions.
+This is the simplest possible storage approach — no encryption, no .env split.
 """
 
 from __future__ import annotations
@@ -21,46 +22,30 @@ logger = logging.getLogger(__name__)
 CONFIG_FILE = DATA_DIR / "config.json"
 ENV_FILE = DATA_DIR / ".env"
 
-# Fields stored in .env instead of config.json
-_SECRET_FIELDS: dict[str, str] = {
-    "llm_api_key": "LLM_API_KEY",
-    "ys_app_key": "YS_APP_KEY",
-    "ys_app_secret": "YS_APP_SECRET",
-}
-
-# ERP secret sub-fields stored under erp_clients.<name>
+# Known secret fields for ERP clients (used by erp_clients_api.py)
 ERP_SECRET_FIELDS: dict[str, tuple[str, ...]] = {
     "yonsuite": ("app_key", "app_secret"),
     "nc": ("password",),
 }
 
-# ── .env helpers ─────────────────────────────────────────────────────────
 
-
-def _env_path() -> str:
-    return str(ENV_FILE)
-
-
-def _ensure_env():
-    """Create data/ dir and .env with secure permissions."""
+def _secure_data_dir():
+    """Set data directory to owner-only access (0700)."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    if not ENV_FILE.exists():
-        ENV_FILE.write_text("", encoding="utf-8")
-    _secure_file(str(ENV_FILE))
-
-
-def _secure_file(path: str):
-    """Set file to owner-only read/write (0o600).  No-op on Windows."""
     try:
-        os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
+        os.chmod(str(DATA_DIR), stat.S_IRWXU)
     except OSError:
         pass
 
 
+# ── .env helpers (kept for backward compat, no longer used by load/save) ─
+
+
 def _load_env() -> dict[str, str]:
     """Parse data/.env into a dict of KEY=VALUE."""
-    _ensure_env()
     result: dict[str, str] = {}
+    if not ENV_FILE.exists():
+        return result
     try:
         for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
             line = line.strip()
@@ -76,119 +61,129 @@ def _load_env() -> dict[str, str]:
 
 
 def _save_env_value(key: str, value: str):
-    """Update a single key in data/.env, preserving other entries."""
-    _ensure_env()
-    try:
-        lines = ENV_FILE.read_text(encoding="utf-8").splitlines()
-    except OSError:
-        lines = []
-    # Remove existing entry for this key
-    lines = [line for line in lines if not line.strip().startswith(f"{key}=")]
-    if value:
-        lines.append(f"{key}={value}")
-    ENV_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    _secure_file(str(ENV_FILE))
-
-
-def _save_env_batch(updates: dict[str, str]):
-    """Replace the entire .env with the given key-value pairs."""
-    _ensure_env()
-    content = "\n".join(f"{k}={v}" for k, v in sorted(updates.items()) if v)
-    ENV_FILE.write_text(content + "\n", encoding="utf-8")
-    _secure_file(str(ENV_FILE))
-
-
-def _load_env_erp_secrets() -> dict[str, dict[str, str]]:
-    """Load ERP secret fields from .env (stored as ERP_{NAME}_{FIELD})."""
+    """Write a single key to .env for backward compat with erp_clients_api.py."""
     env = _load_env()
-    result: dict[str, dict[str, str]] = {}
-    for erp_name, fields in ERP_SECRET_FIELDS.items():
-        prefix = f"ERP_{erp_name.upper()}_"
-        secrets: dict[str, str] = {}
-        for field in fields:
-            key = f"{prefix}{field.upper()}"
-            val = env.get(key, "")
-            if val:
-                secrets[field] = val
-        if secrets:
-            result[erp_name] = secrets
-    return result
+    if value:
+        env[key] = value
+    else:
+        env.pop(key, None)
+    _write_env(env)
+
+
+def _write_env(env: dict[str, str]):
+    """Write the .env file. Also syncs values into config.json."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    content = "\n".join(f"{k}={v}" for k, v in sorted(env.items()) if v)
+    ENV_FILE.write_text(content + "\n" if content else "", encoding="utf-8")
+    try:
+        os.chmod(str(ENV_FILE), stat.S_IRUSR | stat.S_IWUSR)
+    except OSError:
+        pass
+    # Sync .env values back into config.json so load() sees them
+    _sync_env_to_config(env)
 
 
 def _save_erp_secret(erp_name: str, field: str, value: str):
-    """Save a single ERP secret to .env."""
-    key = f"ERP_{erp_name.upper()}_{field.upper()}"
-    _save_env_value(key, value)
+    """Save a single ERP secret to both .env and config.json."""
+    env_key = f"ERP_{erp_name.upper()}_{field.upper()}"
+    _save_env_value(env_key, value)
+    # Also update config.json in-place
+    _sync_env_to_config({env_key: value})
+
+
+def _sync_env_to_config(env: dict[str, str]):
+    """Migrate .env values into config.json so they survive a load/save cycle."""
+    if not CONFIG_FILE.exists():
+        return
+    try:
+        data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        changed = False
+        # Map .env keys → config.json paths
+        env_map: dict[str, tuple[str, ...]] = {
+            "LLM_API_KEY": ("llm_api_key",),
+            "YS_APP_KEY": ("ys_app_key",),
+            "YS_APP_SECRET": ("ys_app_secret",),
+            "ERP_YONSUITE_APP_KEY": ("erp_clients", "yonsuite", "app_key"),
+            "ERP_YONSUITE_APP_SECRET": ("erp_clients", "yonsuite", "app_secret"),
+            "ERP_NC_PASSWORD": ("erp_clients", "nc", "password"),
+        }
+        for env_key, path in env_map.items():
+            if env_key not in env:
+                continue
+            val = env[env_key]
+            d = data
+            for p in path[:-1]:
+                if p not in d or not isinstance(d[p], dict):
+                    d[p] = {}
+                d = d[p]
+            if d.get(path[-1]) != val:
+                d[path[-1]] = val
+                changed = True
+        if changed:
+            atomic_json_write(CONFIG_FILE, data)
+    except Exception:
+        pass
 
 
 # ── AppConfig load / save ────────────────────────────────────────────────
 
 
 def load() -> AppConfig:
-    """Load config.json + overlay secrets from .env."""
+    """Load config from config.json (everything is in one place)."""
+    _secure_data_dir()
     if not CONFIG_FILE.exists():
         cfg = AppConfig()
-    else:
-        try:
-            data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-            cfg = AppConfig.model_validate(data)
-        except (json.JSONDecodeError, OSError, ValueError):
-            cfg = AppConfig()
-
-    # Overlay secrets from .env
-    env = _load_env()
-    for model_field, env_key in _SECRET_FIELDS.items():
-        if env_key in env:
-            setattr(cfg, model_field, env[env_key])
-
-    # Overlay ERP secrets from .env
-    erp_secrets = _load_env_erp_secrets()
-    for erp_name, secrets in erp_secrets.items():
-        if erp_name not in cfg.erp_clients:
-            cfg.erp_clients[erp_name] = {}
-        cfg.erp_clients[erp_name].update(secrets)
-
-    return cfg
+        # Check if .env has data (migration path)
+        env = _load_env()
+        if env:
+            _sync_env_to_config(env)
+            # Re-read after sync
+            try:
+                data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+                cfg = AppConfig.model_validate(data)
+            except Exception:
+                pass
+        return cfg
+    try:
+        data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        return AppConfig.model_validate(data)
+    except (json.JSONDecodeError, OSError, ValueError):
+        return AppConfig()
 
 
 def save(cfg: AppConfig):
-    """Persist non-secret fields to config.json, secrets to .env."""
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-    # Save non-secret fields to config.json
+    """Persist everything to config.json (single file, no .env split)."""
+    _secure_data_dir()
     data = cfg.model_dump(mode="json")
-    for field in _SECRET_FIELDS:
-        data.pop(field, None)
-    # Also strip ERP secrets from erp_clients before saving to json
-    erp = data.get("erp_clients", {})
-    if isinstance(erp, dict):
-        for erp_name, fields in ERP_SECRET_FIELDS.items():
-            ecfg = erp.get(erp_name)
-            if isinstance(ecfg, dict):
-                for f in fields:
-                    ecfg.pop(f, None)
     atomic_json_write(CONFIG_FILE, data)
 
-    # Save secrets to .env
+    # Also sync to .env for backward compat with erp_clients_api.py
     env = _load_env()
-    for model_field, env_key in _SECRET_FIELDS.items():
-        val = getattr(cfg, model_field, "")
-        if val:
-            env[env_key] = val
-        else:
-            env.pop(env_key, None)
-    # Save ERP secrets
+    changed = False
+    llm_key = cfg.llm_api_key or ""
+    if llm_key and env.get("LLM_API_KEY") != llm_key:
+        env["LLM_API_KEY"] = llm_key
+        changed = True
+    elif not llm_key and "LLM_API_KEY" in env:
+        del env["LLM_API_KEY"]
+        changed = True
     for erp_name, fields in ERP_SECRET_FIELDS.items():
         ecfg = cfg.erp_clients.get(erp_name, {})
         if isinstance(ecfg, dict):
             for field in fields:
-                val = ecfg.get(field, "")
+                val = ecfg.get(field, "") or ""
                 env_key = f"ERP_{erp_name.upper()}_{field.upper()}"
-                if val:
+                if val and env.get(env_key) != val:
                     env[env_key] = val
-                else:
-                    env.pop(env_key, None)
-    _save_env_batch(env)
+                    changed = True
+                elif not val and env_key in env:
+                    del env[env_key]
+                    changed = True
+    if changed:
+        _write_env(env)
+    elif not ENV_FILE.exists() or ENV_FILE.stat().st_size == 0:
+        # Ensure .env exists with current values
+        _write_env(env)
 
 
 # ── ERP helpers (backward compatible) ────────────────────────────────────
