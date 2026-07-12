@@ -1,4 +1,26 @@
 # Changelog
+## v1.6.1 — 2026-07-12 (代码优化 + 测试覆盖增强 + 构建修复)
+
+**范围**: 代码质量优化、安全修复、测试覆盖从 44% 提升至 53%、Windows 构建脚本重写。
+
+### 新增
+
+- **356 个测试**（新增 72 个）: 覆盖 file_tools、config_api、mcp_api、skills_api、skill_manager、slash_commands、web_tools、vision_tool、memory_tool、project_tools、process_tool、session_search_tool、web_extract_tool、message_builder、openai_compat、chat.py 辅助函数
+- **Win 构建脚本**: 从 PyInstaller 重写为 Electron（`electron-builder --win`），修复引用不存在的 `.spec`/NSIS 文件问题
+
+### 改动
+
+- **tiktoken 默认启用**: 移除 `YS_USE_TIKTOKEN` 环境变量开关，改设 `YS_USE_TIKTOKEN=0` 可禁用
+- **`cryptography` 依赖移除**: Fernet 加密已在 v1.5.2 移除，不再需要
+- **`zip(strict=False)` → `strict=True`**: 防止 `names`/`results` 长度不匹配时静默截断
+- **`AgentPhase` 别名清理**: 移除 `Phase→AgentPhase` 向后兼容别名
+- **`_generate_summary` OpenAI 客户端缓存**: 改用 `lru_cache` 复用实例
+- **`os.environ` 全局污染修复**: 从 `chat.py`（每 WebSocket 连接）移到 `main.py`（启动时一次设置）
+- **DDG 搜索 `html.parser` 替代正则**: 用 stdlib `HTMLParser` 替代脆弱的 `re.findall` 解析
+- **统一图标库**: 移除 `lucide-react`（0 次 import），仅保留 `@tabler/icons-react`
+- **`ResourceWarning` 修复**: `search_index.py` 添加 `close_all_connections()`，测试自动清理
+- **ruff 全清**: 213 个 Python 文件全部格式化，零 lint 错误
+
 ## v1.6.0 — 2026-07-12 (技能工具增强 + 密钥管理重构 + 定时任务系统)
 
 **范围**: 大幅扩展技能和工具系统，重构密钥存储方式，新增定时任务管理。共计 41 个内置工具 + 19 个内置技能。
