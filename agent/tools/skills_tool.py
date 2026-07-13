@@ -1,7 +1,6 @@
 """Skills management tools for ZLink Agent.
 
-Port of Hermes skill system — loads SKILL.md files from the skills directory.
-"""
+Port of Hermes skill system — loads SKILL.md files from the skills directory."""
 
 import json
 import logging
@@ -47,7 +46,7 @@ def _load_skill_index() -> list[dict]:
                     "name": meta.get("name", entry.name),
                     "description": meta.get("description", ""),
                     "version": meta.get("version", "1.0.0"),
-                    "tags": meta.get("metadata", {}).get("hermes", {}).get("tags", []),
+                    "tags": meta.get("metadata", {}).get("zlink", {}).get("tags", []),
                     "path": str(skill_file),
                     "builtin": builtin,
                 }

@@ -83,7 +83,7 @@ async def lifespan(application: FastAPI):
         transport="stdio",
         command=py_path,
         args=["-m", "mcp_server.nc_mcp_server"],
-        enabled=False,
+        enabled=True,
         timeout=120,
         builtin=True,
         env={},
@@ -118,7 +118,7 @@ async def lifespan(application: FastAPI):
     # NC
     nc_cfg_erp = cfg.erp_clients.get("nc", {})
     if isinstance(nc_cfg_erp, dict):
-        nc_entry.enabled = bool(nc_cfg_erp.get("enabled", False))
+        nc_entry.enabled = bool(nc_cfg_erp.get("enabled", True))
         nc_host = nc_cfg_erp.get("host", "") or ""
         if nc_host:
             nc_entry.env = {

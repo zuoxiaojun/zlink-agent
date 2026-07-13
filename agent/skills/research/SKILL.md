@@ -5,7 +5,7 @@ version: 1.0.0
 author: ZLink Agent
 license: MIT
 metadata:
-  hermes:
+  zlink:
     tags: [research, investigation, analysis, deep-dive, fact-check]
     related_skills: [data-analysis, systematic-debugging]
 ---

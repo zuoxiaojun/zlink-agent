@@ -2,11 +2,11 @@
 name: plan
 description: "Plan mode: write markdown plan to data/plans/, no exec."
 version: 1.0.0
-author: Hermes Agent
+author: ZLink Agent
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
-  hermes:
+  zlink:
     tags: [planning, plan-mode, implementation, workflow]
     related_skills: [writing-plans, subagent-driven-development]
 ---

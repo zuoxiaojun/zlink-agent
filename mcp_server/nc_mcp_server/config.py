@@ -65,7 +65,8 @@ class Config:
         port = self.ORACLE_PORT
         if not port:
             raise ValueError(
-                "ORACLE_PORT 为空，请检查环境变量配置。\n使用: hermes mcp add nc-mcp --env ORACLE_PORT=1521"
+                "ORACLE_PORT 为空，请检查内置 NC 连接的配置。\n"
+                "前往「设置 → ERP → NC」页面填写连接信息即可。"
             )
         return {
             "user": self.ORACLE_USER,
@@ -83,7 +84,8 @@ class Config:
                 missing.append(key)
         if missing:
             raise ValueError(
-                f"缺少必需的配置项：{', '.join(missing)}\n请在 ~/.zshrc 设置环境变量或用 hermes mcp add --env 传入。"
+                f"缺少必需的配置项：{', '.join(missing)}\n"
+                "这是内置 NC 数据源，前往「设置 → ERP → NC」页面填写保存即可。"
             )
 
     @property
