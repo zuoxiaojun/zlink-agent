@@ -212,6 +212,92 @@ def test_phase_machine_idle_to_turn_to_idle():
     assert agent.phase == "idle"  # must return to idle
 
 
+# ────────────────────────────────────────────────────────────────────
+# 8) System prompt — ERP context injection
+# ────────────────────────────────────────────────────────────────────
+
+
+def test_build_system_prompt_includes_erp_context_when_enabled(monkeypatch):
+    """当 erp_clients 中有启用项时，system prompt 应包含可用数据源信息"""
+    from agent.config_model import AppConfig
+
+    cfg = AppConfig(approval_mode="allow_all")
+    cfg.erp_clients = {
+        "yonsuite": {"enabled": True, "tenant_id": "t1", "app_key": "k1", "app_secret": "s1"},
+        "nc": {"enabled": False},
+    }
+    monkeypatch.setattr("agent.config_manager.load", lambda: cfg)
+
+    agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+    agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=MockLLMProvider())
+
+    sys_prompt = agent._build_system_prompt()
+    assert sys_prompt is not None
+    assert "可用数据源" in sys_prompt
+    assert "YonSuite" in sys_prompt
+    assert "NC" in sys_prompt
+    assert "未启用" in sys_prompt
+    # 只有一个启用 → 规则说"使用已启用系统"
+    assert "使用已启用" in sys_prompt
+
+
+def test_build_system_prompt_no_erp_context_when_none_enabled(monkeypatch):
+    """当所有 ERP 都未启用时，不注入可用数据源 section"""
+    from agent.config_model import AppConfig
+
+    cfg = AppConfig(approval_mode="allow_all")
+    cfg.erp_clients = {}
+    monkeypatch.setattr("agent.config_manager.load", lambda: cfg)
+
+    agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+    agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=MockLLMProvider())
+
+    sys_prompt = agent._build_system_prompt()
+    assert sys_prompt is None or "可用数据源" not in sys_prompt
+
+
+def test_build_system_prompt_multi_erp_ask_which_system(monkeypatch):
+    """当多个 ERP 都启用时，规则应提示询问用户指定系统"""
+    from agent.config_model import AppConfig
+
+    cfg = AppConfig(approval_mode="allow_all")
+    cfg.erp_clients = {
+        "yonsuite": {"enabled": True},
+        "nc": {"enabled": True},
+    }
+    monkeypatch.setattr("agent.config_manager.load", lambda: cfg)
+
+    agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+    agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=MockLLMProvider())
+
+    sys_prompt = agent._build_system_prompt()
+    assert sys_prompt is not None
+    assert "可用数据源" in sys_prompt
+    # 两个启用 → 规则说先问查哪个系统
+    assert "查哪个系统的数据" in sys_prompt
+    assert "如果用户已指定系统名称" in sys_prompt
+    assert "YonSuite" in sys_prompt
+    assert "NC" in sys_prompt
+
+
+def test_build_system_prompt_no_erp_context_when_all_disabled(monkeypatch):
+    """当所有 ERP 都显式禁用时，不注入可用数据源 section"""
+    from agent.config_model import AppConfig
+
+    cfg = AppConfig(approval_mode="allow_all")
+    cfg.erp_clients = {
+        "yonsuite": {"enabled": False},
+        "nc": {"enabled": False},
+    }
+    monkeypatch.setattr("agent.config_manager.load", lambda: cfg)
+
+    agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+    agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=MockLLMProvider())
+
+    sys_prompt = agent._build_system_prompt()
+    assert sys_prompt is None or "可用数据源" not in sys_prompt
+
+
 def test_phase_machine_rejects_reentrant_call():
     """Calling run_conversation while running must raise."""
 

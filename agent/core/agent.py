@@ -69,6 +69,12 @@ from agent.tools.registry import discover_tools, registry
 
 logger = logging.getLogger(__name__)
 
+# ERP 系统显示名称映射（与 config_manager.ERP_SECRET_FIELDS 键名同步）
+_ERP_LABELS: dict[str, str] = {
+    "yonsuite": "YonSuite",
+    "nc": "NC",
+}
+
 
 # ── ApprovalRequest ───────────────────────────────────────────────
 
@@ -365,10 +371,58 @@ class AIAgent:
         )
 
     def _build_system_prompt(self) -> str | None:
+        erp_context = self._build_erp_context()
         return build_system_prompt(
             base=self.system_prompt,
             memory_store=self._memory_store,
+            erp_context=erp_context,
         )
+
+    @staticmethod
+    def _build_erp_context() -> str:
+        """生成可用数据源列表文本，供 system prompt 注入。
+
+        从 config_manager 读取当前 ERP 配置，列出各系统的启用状态，
+        并根据启用的系统数量给出相应的取数规则。
+        """
+        try:
+            from agent import config_manager
+
+            cfg = config_manager.load()
+        except Exception:
+            return ""
+
+        erp_clients = cfg.erp_clients or {}
+        if not erp_clients:
+            return ""
+
+        enabled_count = 0
+        lines: list[str] = []
+        for name, ecfg in erp_clients.items():
+            enabled = bool(ecfg.get("enabled", False)) if isinstance(ecfg, dict) else False
+            label = _ERP_LABELS.get(name, name)
+            if enabled:
+                lines.append(f"  \u2022 {label} \u2705 \u2014 \u53ef\u67e5\u8be2\u9500\u552e\u8ba2\u5355\u3001\u5ba2\u6237\u7b49\u6570\u636e")
+                enabled_count += 1
+            else:
+                lines.append(f"  \u2022 {label} \u274c \u2014 \u672a\u542f\u7528")
+
+        if enabled_count == 0:
+            return ""
+
+        lines.insert(0, "当前已启用的 ERP 系统：")
+
+        if enabled_count > 1:
+            lines.append("")
+            lines.append("规则：")
+            lines.append('- 如果用户未指明系统 → 必须先询问"查哪个系统的数据"')
+            lines.append('- 如果用户已指定系统名称（如"查 NC 的销售订单"）→ 直接执行')
+        elif enabled_count == 1:
+            lines.append("")
+            lines.append("规则：")
+            lines.append("- 使用已启用 ✅ 系统的对应工具取数")
+
+        return "\n".join(lines)
 
     def _report(self, msg: str):
         if self.progress_callback:
