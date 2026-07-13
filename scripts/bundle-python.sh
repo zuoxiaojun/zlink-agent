@@ -8,7 +8,6 @@
 # 用法:
 #   bash scripts/bundle-python.sh               构建 Python bundle
 #   bash scripts/bundle-python.sh --python /path/to/python  指定 Python
-#   bash scripts/bundle-python.sh --no-venv     跳过 venv（直接使用当前 .venv）
 #
 # 输出: build/python-bundle/
 #   ├── bin/python          ← 可执行 Python
@@ -22,15 +21,13 @@ PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_DIR"
 
 BUNDLE_DIR="build/python-bundle"
-SKIP_VENV=false
 PYTHON_BIN=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --python) PYTHON_BIN="$2"; shift 2 ;;
-    --no-venv) SKIP_VENV=true; shift ;;
     --help|-h)
-      echo "用法: bash scripts/bundle-python.sh [--python /path/to/python] [--no-venv]"
+      echo "用法: bash scripts/bundle-python.sh [--python /path/to/python]"
       exit 0 ;;
     *) echo "未知参数: $1"; exit 1 ;;
   esac
@@ -63,28 +60,11 @@ rm -rf "$BUNDLE_DIR"
 mkdir -p "$BUNDLE_DIR"
 
 # ── 创建虚拟环境 ──────────────────────────────────────────────────────
-if [ "$SKIP_VENV" = true ]; then
-  echo "[2/3] 使用现有的 .venv..."
-  if [ ! -f ".venv/bin/python" ]; then
-    echo "[ERROR] .venv 不存在"
-    exit 1
-  fi
-  # 复制 venv，排除缓存和不需要的文件
-  rsync -a --delete \
-    --exclude='__pycache__' \
-    --exclude='*.pyc' \
-    --exclude='.git' \
-    --exclude='pip' \
-    --exclude='setuptools' \
-    --exclude='dist-info' \
-    ".venv/" "$BUNDLE_DIR/"
-else
-  echo "[2/3] 创建虚拟环境..."
-  "$PYTHON_BIN" -m venv "$BUNDLE_DIR"
-fi
+echo "[2/3] 创建虚拟环境..."
+"$PYTHON_BIN" -m venv "$BUNDLE_DIR"
 
 # ── 安装依赖 ──────────────────────────────────────────────────────────
-echo "[3/3] 安装依赖..."
+echo "[3/3] 安装依赖（复用 pip 缓存）..."
 "$BUNDLE_DIR/bin/python" -m pip install --no-input --quiet --upgrade pip 2>/dev/null || true
 
 # 安装项目自身（包含所有依赖）

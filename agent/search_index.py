@@ -27,6 +27,7 @@ def _get_db() -> sqlite3.Connection:
         conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=OFF")
+        conn.execute("PRAGMA busy_timeout=5000")
         _local.conn = conn
         with _all_connections_lock:
             _all_connections.append(conn)

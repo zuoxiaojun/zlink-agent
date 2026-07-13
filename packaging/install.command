@@ -55,15 +55,18 @@ if [ -z "$APP_PATH" ]; then
 fi
 
 echo "📍 找到应用: $APP_PATH"
-echo "🔓 正在去除 quarantine 属性..."
-xattr -dr com.apple.quarantine "$APP_PATH"
+echo "🔓 正在去除扩展属性和签名隔离..."
+# 第一步: 去除所有扩展属性（包括 quarantine 和签名残留）
+xattr -cr "$APP_PATH" 2>/dev/null || true
+# 第二步: 确保 quarantine 属性也被清除
+xattr -dr com.apple.quarantine "$APP_PATH" 2>/dev/null || true
 
 echo ""
 echo "✅ 完成！现在可以在 Finder 中双击 ${APP_NAME} 打开。"
 echo ""
-echo "💡 如果仍然提示「已损坏」，请尝试:"
-echo "   1. 在 Finder 中右键点击应用 → 选择「打开」"
-echo "   2. 或打开「系统设置 → 隐私与安全性」点「仍要打开」"
+echo "💡 如果仍遇到问题，请在终端执行:"
+echo "   xattr -cr '/Applications/${APP_NAME}'"
+echo "   然后到「系统设置 → 隐私与安全性」点「仍要打开」"
 echo ""
 
 # 让 Terminal.app 窗口停留，便于新人看到结果

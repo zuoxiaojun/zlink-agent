@@ -1,12 +1,11 @@
 #!/bin/bash
 # ===========================================================================
-# build-electron.sh — ZLink Agent Electron 全自包含打包脚本
+# build-electron.sh — ZLink Agent Electron 打包脚本（macOS + Windows）
 #
 # 用法：
 #   bash scripts/build-electron.sh              默认 macOS
 #   bash scripts/build-electron.sh --win        Windows .exe
-#   bash scripts/build-electron.sh --linux      Linux .AppImage
-#   bash scripts/build-electron.sh --all        全部平台
+#   bash scripts/build-electron.sh --mac --win  同时打包两个平台
 #
 # 前置条件：
 #   - Python 3.11+、Node.js 18+、npm
@@ -20,10 +19,9 @@ cd "$(dirname "$0")/.."
 PLATFORM="${1:-}"
 case "$PLATFORM" in
   --win)   PLATFORM="--win" ;;
-  --linux) PLATFORM="--linux" ;;
-  --all)   PLATFORM="--mac --win --linux" ;;
+  --mac)   PLATFORM="--mac" ;;
   "")      PLATFORM="--mac" ;;
-  *) echo "用法: $0 [--win|--linux|--all]"; exit 1 ;;
+  *) echo "用法: $0 [--mac|--win]"; exit 1 ;;
 esac
 
 echo "╔══════════════════════════════════════════════╗"
@@ -108,8 +106,8 @@ rm -rf build/python-bundle
 # 清理 .blockmap 增量文件（本应用不使用 auto-updater）
 rm -f dist-electron/*.blockmap
 # 清理 electron-builder 中间产物
-rm -rf dist-electron/mac dist-electron/mac-arm64 dist-electron/builder-debug.yml
+rm -rf dist-electron/mac dist-electron/mac-arm64 dist-electron/win dist-electron/builder-debug.yml
 echo "✅ 清理完成"
 echo ""
 echo "📦 成品位置: dist-electron/"
-ls -lh dist-electron/*.dmg 2>/dev/null
+ls -lh dist-electron/*.dmg dist-electron/*.exe 2>/dev/null
