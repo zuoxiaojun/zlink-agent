@@ -20,6 +20,17 @@ class TestBuildSystemPrompt:
         # Even without base, time info is always included
         assert result is not None
 
+    def test_erp_context_appended_when_provided(self):
+        result = build_system_prompt(base="你是助手", erp_context="YonSuite ✅")
+        assert result is not None
+        assert "可用数据源" in result
+        assert "YonSuite" in result
+
+    def test_erp_context_empty_when_not_provided(self):
+        result = build_system_prompt(base="你是助手")
+        # Should not contain the section when no erp_context given
+        assert "可用数据源" not in result
+
 
 class TestBuildTurnMessages:
     def test_empty_history_creates_single_user_message(self):

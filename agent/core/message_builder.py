@@ -8,8 +8,9 @@ inline logic.  The system prompt is the result of concatenating:
   3. Current time stamp
   4. Memory manager context
   5. Active skills index
-  6. Skill detail (if user query matches a skill)
-  7. Sub-agent delegation guidance (if delegate_task tool is available)
+   6. Skill detail (if user query matches a skill)
+   7. Sub-agent delegation guidance (if delegate_task tool is available)
+   8. ERP data-source context (dynamic, from active ERP clients)
 
 This module is intentionally side-effect-free — given a list of
 ``(label, content)`` fragments, it concatenates them.  The agent loop
@@ -36,6 +37,7 @@ def build_system_prompt(
     memory_context: str = "",
     skill_index: str = "",
     skill_detail: str = "",
+    erp_context: str = "",
 ) -> str | None:
     """Concatenate system prompt fragments.
 
@@ -86,6 +88,10 @@ def build_system_prompt(
             )
     except ImportError:
         pass
+
+    # 7. ERP 数据源上下文（动态注入）
+    if erp_context:
+        parts.append("## 可用数据源\n" + erp_context)
 
     if len(parts) == 1:
         return None
