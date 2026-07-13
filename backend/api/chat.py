@@ -361,6 +361,7 @@ async def _run_agent(
                 stream_callback=stream_callback,
                 reasoning_callback=reasoning_callback,
                 stop_event=stop_event,
+                session_id=session_id,
             )
 
             # Append new messages to existing + save

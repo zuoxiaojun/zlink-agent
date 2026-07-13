@@ -8,8 +8,12 @@ from __future__ import annotations
 from typing import Any
 
 
-def _decrypt_password(value: str | None) -> str:
-    """密码已由 config_manager 从 .env 加载为明文，直接返回"""
+def _password_or_empty(value: str | None) -> str:
+    """Return the NC DB password verbatim, or "" if missing.
+
+    Secrets live as plain JSON in ``data/config.json`` (see
+    ``agent/config_manager``), so this is a pass-through.
+    """
     return value or ""
 
 
@@ -20,7 +24,7 @@ def build_nc_mcp_env(erp_config: dict[str, Any]) -> dict[str, str]:
         "ORACLE_PORT": str(erp_config.get("port", "")),
         "ORACLE_SERVICE": str(erp_config.get("service", "")),
         "ORACLE_USER": str(erp_config.get("user", "")),
-        "ORACLE_PASSWORD": _decrypt_password(erp_config.get("password")),
+        "ORACLE_PASSWORD": _password_or_empty(erp_config.get("password")),
         "NC_MCP_MAX_ROWS": str(erp_config.get("max_rows", 200)),
     }
 

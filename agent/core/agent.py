@@ -69,7 +69,7 @@ from agent.tools.registry import discover_tools, registry
 
 logger = logging.getLogger(__name__)
 
-# ERP 系统显示名称映射（与 config_manager.ERP_SECRET_FIELDS 键名同步）
+# ERP 系统显示名称映射 (key = erp_clients dict key, value = human label)
 _ERP_LABELS: dict[str, str] = {
     "yonsuite": "YonSuite",
     "nc": "NC",
@@ -291,7 +291,13 @@ class AIAgent:
         # Expose LLM config for child sub-agents (delegate_task tool)
         from agent.tools.delegate_tool import set_parent_config
 
-        set_parent_config(api_key=api_key, base_url=base_url, model=model, temperature=temperature)
+        set_parent_config(
+            api_key=api_key,
+            base_url=base_url,
+            model=model,
+            temperature=temperature,
+            approval_callback=approval_callback,
+        )
 
     # ── Envelope helper ──
 
@@ -306,14 +312,27 @@ class AIAgent:
 
     # ── Phase Machine helpers ──
 
-    def _set_phase(self, to_phase: str, reason: str = "") -> None:
-        """Transition the phase and publish a ``PhaseChangeEvent``."""
+    def _set_phase(self, to_phase: str, reason: str = "", session_id: str = "") -> None:
+        """Transition the phase and publish a ``PhaseChangeEvent``.
+
+        ``session_id`` is forwarded to the event so subscribers can
+        correlate phase changes with the originating chat session.
+        Empty string means "unknown / un-scoped" — the pre-existing
+        contract for callers that never had a session id.
+        """
         if self.phase == to_phase:
             return
         _check_transition(self.phase, to_phase)
         from_phase = self.phase
         self.phase = to_phase
-        event_bus.publish(PhaseChangeEvent(from_phase=from_phase, to_phase=to_phase, reason=reason))
+        event_bus.publish(
+            PhaseChangeEvent(
+                from_phase=from_phase,
+                to_phase=to_phase,
+                reason=reason,
+                session_id=session_id,
+            )
+        )
 
     def _assert_idle(self, operation: str) -> None:
         """Raise if not in idle phase — prevents re-entrant calls."""
@@ -652,6 +671,7 @@ class AIAgent:
         stream_callback: Callable[[str], None] | None = None,
         reasoning_callback: Callable[[str], None] | None = None,
         stop_event: threading.Event | None = None,
+        session_id: str | None = None,
     ) -> dict[str, Any]:
         """Run a conversation with tool calling support.
 
@@ -662,190 +682,211 @@ class AIAgent:
         Returns a dict with keys: final_response, messages, api_calls,
         token_usage, completed, error.  Identical contract to the
         pre-refactor version.
+
+        ``session_id`` (optional) is forwarded to ``SessionStartEvent`` /
+        ``SessionEndEvent`` / ``PhaseChangeEvent`` so event-bus subscribers
+        can correlate activity with the originating chat session.  Empty
+        string is used as the no-session-id sentinel and matches the
+        pre-existing event contract.
+
+        The whole body runs inside a single ``try / finally`` so that an
+        exception in any subscriber or tool handler still resets the
+        phase to ``idle`` and clears the turn snapshot — without this
+        guarantee the agent would lock up and reject every future call.
         """
-        self._assert_idle("run_conversation")
-        self._set_phase(AgentPhase.TURN, "conversation start")
+        effective_session_id = session_id or ""
 
-        if not self.api_key:
-            self._set_phase(AgentPhase.IDLE, "no api key")
-            return {
-                "final_response": "",
-                "messages": [],
-                "api_calls": 0,
-                "completed": False,
-                "error": "API Key 未配置",
-            }
+        try:
+            self._assert_idle("run_conversation")
+            self._set_phase(AgentPhase.TURN, "conversation start", session_id=effective_session_id)
 
-        messages = build_turn_messages(conversation_history, user_message)
+            if not self.api_key:
+                self._set_phase(AgentPhase.IDLE, "no api key", session_id=effective_session_id)
+                return {
+                    "final_response": "",
+                    "messages": [],
+                    "api_calls": 0,
+                    "completed": False,
+                    "error": "API Key 未配置",
+                }
 
-        # ── Take turn snapshot ──
-        snap = self._take_snapshot()
+            messages = build_turn_messages(conversation_history, user_message)
 
-        event_bus.publish(
-            SessionStartEvent(
-                session_id="",
-                history=conversation_history or [],
-            )
-        )
-
-        user_evt = UserMessageEvent(content=user_message)
-        event_bus.publish(user_evt)
-        if user_evt.cancelled:
-            self._drop_snapshot()
-            self._set_phase(AgentPhase.IDLE, "user message rejected")
-            return {
-                "final_response": "",
-                "messages": messages,
-                "api_calls": 0,
-                "completed": False,
-                "error": f"User message rejected: {user_evt.cancel_reason}",
-            }
-        if user_evt.content != user_message and isinstance(user_evt.content, str):
-            messages[-1] = {"role": "user", "content": user_evt.content}
-
-        # ── Pre-turn compaction ──
-        messages = self._maybe_compact(messages)
-        # snapshot may have changed after compaction phase, re-read
-        snap = self._snapshot
-        if snap is None:
-            # Compaction may have dropped the snapshot; re-take it
+            # ── Take turn snapshot ──
             snap = self._take_snapshot()
 
-        # ── Strip images for non-vision models ──
-        if not snap.supports_vision:
-            total_image = sum(
-                sum(1 for b in m["content"] if isinstance(b, dict) and b.get("type") == "image_url")
-                for m in messages
-                if isinstance(m.get("content"), list)
-            )
-            if total_image > 0:
-                messages = strip_images_from_messages(messages)
-                self._report(f"🖼️ 当前模型不支持图片输入，已自动过滤 {total_image} 张图片")
-                if stream_callback:
-                    stream_callback(f"\n\n---\n🖼️ **当前模型不支持图片输入，已自动过滤 {total_image} 张图片**\n")
-
-        budget = IterationBudget(self.max_iterations)
-        api_calls = 0
-        error: str | None = None
-        final_response = ""
-        total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
-
-        while budget.consume():
-            if stop_event and stop_event.is_set():
-                error = "用户已手动停止"
-                break
-
-            self._report(f"🤔 思考中...（第 {budget.used}/{self.max_iterations} 轮）")
-
-            full_messages: list[dict] = []
-            if snap.system_prompt:
-                full_messages.append({"role": "system", "content": snap.system_prompt})
-            full_messages.extend(messages)
-            api_kwargs: dict = {
-                "model": snap.model,
-                "messages": full_messages,
-                "temperature": snap.temperature,
-            }
-            if snap.max_tokens is not None:
-                api_kwargs["max_tokens"] = snap.max_tokens
-            if snap.tool_defs:
-                api_kwargs["tools"] = snap.tool_defs
-                api_kwargs["tool_choice"] = "auto"
-
-            pre_llm = BeforeLLMCallEvent(
-                model=snap.model,
-                messages=full_messages,
-                api_kwargs=api_kwargs,
-            )
-            event_bus.publish(pre_llm)
-            if pre_llm.cancelled:
-                error = f"LLM call cancelled by extension: {pre_llm.cancel_reason}"
-                break
-
-            try:
-                response = self._call_llm(
-                    system_prompt=snap.system_prompt,
-                    messages=messages,
-                    tool_defs=snap.tool_defs,
-                    stream_callback=stream_callback,
-                    reasoning_callback=reasoning_callback,
-                    stop_event=stop_event,
-                )
-                api_calls += 1
-            except Exception as e:
-                logger.exception("LLM call failed")
-                if budget.remaining > 0:
-                    self._set_phase(AgentPhase.RETRY, f"LLM error: {e}")
-                    continue
-                error = f"API call failed: {e}"
-                break
-
-            # M7: check never-throw contract — LLMClient now guarantees
-            # no exceptions; errors are in ``response.error``.
-            if response.failed:
-                logger.warning("LLM call returned error: %s", response.error)
-                if budget.remaining > 0:
-                    self._set_phase(AgentPhase.RETRY, f"LLM error: {response.error}")
-                    continue
-                error = f"API call failed: {response.error}"
-                break
-
-            self._set_phase(AgentPhase.TURN, "llm call completed")
-
             event_bus.publish(
-                AfterLLMCallEvent(
-                    model=snap.model,
-                    response=response,
+                SessionStartEvent(
+                    session_id=effective_session_id,
+                    history=conversation_history or [],
                 )
             )
 
-            if response.usage:
-                for k in total_usage:
-                    total_usage[k] += response.usage.get(k, 0)
+            user_evt = UserMessageEvent(content=user_message)
+            event_bus.publish(user_evt)
+            if user_evt.cancelled:
+                return {
+                    "final_response": "",
+                    "messages": messages,
+                    "api_calls": 0,
+                    "completed": False,
+                    "error": f"User message rejected: {user_evt.cancel_reason}",
+                }
+            if user_evt.content != user_message and isinstance(user_evt.content, str):
+                messages[-1] = {"role": "user", "content": user_evt.content}
 
-            if response.tool_calls:
-                messages.append(self._build_assistant_message(response))
-                self._run_tool_calls(response.tool_calls, messages, stream_callback, stop_event)
+            # ── Pre-turn compaction ──
+            messages = self._maybe_compact(messages)
+            # snapshot may have changed after compaction phase, re-read
+            snap = self._snapshot
+            if snap is None:
+                # Compaction may have dropped the snapshot; re-take it
+                snap = self._take_snapshot()
 
+            # ── Strip images for non-vision models ──
+            if not snap.supports_vision:
+                total_image = sum(
+                    sum(1 for b in m["content"] if isinstance(b, dict) and b.get("type") == "image_url")
+                    for m in messages
+                    if isinstance(m.get("content"), list)
+                )
+                if total_image > 0:
+                    messages = strip_images_from_messages(messages)
+                    self._report(f"🖼️ 当前模型不支持图片输入，已自动过滤 {total_image} 张图片")
+                    if stream_callback:
+                        stream_callback(f"\n\n---\n🖼️ **当前模型不支持图片输入，已自动过滤 {total_image} 张图片**\n")
+
+            budget = IterationBudget(self.max_iterations)
+            api_calls = 0
+            error: str | None = None
+            final_response = ""
+            total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+
+            while budget.consume():
                 if stop_event and stop_event.is_set():
                     error = "用户已手动停止"
                     break
 
-                self._report(f"✅ 工具执行完成 (第 {budget.used} 轮)")
-                if stream_callback:
-                    stream_callback("\n\n---\n✅ **工具执行完成**\n")
+                self._report(f"🤔 思考中...（第 {budget.used}/{self.max_iterations} 轮）")
+
+                full_messages: list[dict] = []
+                if snap.system_prompt:
+                    full_messages.append({"role": "system", "content": snap.system_prompt})
+                full_messages.extend(messages)
+                api_kwargs: dict = {
+                    "model": snap.model,
+                    "messages": full_messages,
+                    "temperature": snap.temperature,
+                }
+                if snap.max_tokens is not None:
+                    api_kwargs["max_tokens"] = snap.max_tokens
+                if snap.tool_defs:
+                    api_kwargs["tools"] = snap.tool_defs
+                    api_kwargs["tool_choice"] = "auto"
+
+                pre_llm = BeforeLLMCallEvent(
+                    model=snap.model,
+                    messages=full_messages,
+                    api_kwargs=api_kwargs,
+                )
+                event_bus.publish(pre_llm)
+                if pre_llm.cancelled:
+                    error = f"LLM call cancelled by extension: {pre_llm.cancel_reason}"
+                    break
+
+                try:
+                    response = self._call_llm(
+                        system_prompt=snap.system_prompt,
+                        messages=messages,
+                        tool_defs=snap.tool_defs,
+                        stream_callback=stream_callback,
+                        reasoning_callback=reasoning_callback,
+                        stop_event=stop_event,
+                    )
+                    api_calls += 1
+                except Exception as e:
+                    logger.exception("LLM call failed")
+                    if budget.remaining > 0:
+                        self._set_phase(AgentPhase.RETRY, f"LLM error: {e}", session_id=effective_session_id)
+                        continue
+                    error = f"API call failed: {e}"
+                    break
+
+                # M7: check never-throw contract — LLMClient now guarantees
+                # no exceptions; errors are in ``response.error``.
+                if response.failed:
+                    logger.warning("LLM call returned error: %s", response.error)
+                    if budget.remaining > 0:
+                        self._set_phase(
+                            AgentPhase.RETRY,
+                            f"LLM error: {response.error}",
+                            session_id=effective_session_id,
+                        )
+                        continue
+                    error = f"API call failed: {response.error}"
+                    break
+
+                self._set_phase(AgentPhase.TURN, "llm call completed", session_id=effective_session_id)
+
+                event_bus.publish(
+                    AfterLLMCallEvent(
+                        model=snap.model,
+                        response=response,
+                    )
+                )
+
+                if response.usage:
+                    for k in total_usage:
+                        total_usage[k] += response.usage.get(k, 0)
+
+                if response.tool_calls:
+                    messages.append(self._build_assistant_message(response))
+                    self._run_tool_calls(response.tool_calls, messages, stream_callback, stop_event)
+
+                    if stop_event and stop_event.is_set():
+                        error = "用户已手动停止"
+                        break
+
+                    self._report(f"✅ 工具执行完成 (第 {budget.used} 轮)")
+                    if stream_callback:
+                        stream_callback("\n\n---\n✅ **工具执行完成**\n")
+                else:
+                    final_response = response.content
+                    final_msg: dict = {"role": "assistant", "content": final_response}
+                    if response.reasoning:
+                        final_msg["reasoning_content"] = response.reasoning
+                    messages.append(final_msg)
+                    break
             else:
-                final_response = response.content
-                final_msg: dict = {"role": "assistant", "content": final_response}
-                if response.reasoning:
-                    final_msg["reasoning_content"] = response.reasoning
-                messages.append(final_msg)
-                break
-        else:
-            if not final_response:
-                error = error or "Max iterations reached without final response"
+                if not final_response:
+                    error = error or "Max iterations reached without final response"
 
-        has_usage = total_usage.get("total_tokens", 0) > 0
-        event_bus.publish(
-            SessionEndEvent(
-                session_id="",
-                final_response=final_response,
-                error=error,
-                api_calls=api_calls,
+            has_usage = total_usage.get("total_tokens", 0) > 0
+            event_bus.publish(
+                SessionEndEvent(
+                    session_id=effective_session_id,
+                    final_response=final_response,
+                    error=error,
+                    api_calls=api_calls,
+                )
             )
-        )
 
-        self._drop_snapshot()
-        self._set_phase(AgentPhase.IDLE, "conversation end")
-
-        return {
-            "final_response": final_response,
-            "messages": messages,
-            "api_calls": api_calls,
-            "token_usage": total_usage if has_usage else None,
-            "completed": bool(final_response) and error is None,
-            "error": error,
-        }
+            return {
+                "final_response": final_response,
+                "messages": messages,
+                "api_calls": api_calls,
+                "token_usage": total_usage if has_usage else None,
+                "completed": bool(final_response) and error is None,
+                "error": error,
+            }
+        finally:
+            self._drop_snapshot()
+            if self.phase != AgentPhase.IDLE:
+                self._set_phase(
+                    AgentPhase.IDLE,
+                    "conversation cleanup",
+                    session_id=effective_session_id,
+                )
 
 
 __all__ = ["AIAgent"]

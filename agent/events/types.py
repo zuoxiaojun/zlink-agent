@@ -151,6 +151,7 @@ class PhaseChangeEvent(Event):
     from_phase: str
     to_phase: str
     reason: str = ""
+    session_id: str = ""
 
 
 # -- Compaction events (M4) --

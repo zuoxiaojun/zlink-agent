@@ -64,3 +64,48 @@ def test_round_trip_preserves_disabled_extensions(tmp_path, monkeypatch):
 
     reloaded = config_manager.load()
     assert reloaded.disabled_extensions == ["log-everything"]
+
+
+def test_save_sets_owner_only_permissions_on_config_file(tmp_path, monkeypatch):
+    """``save()`` must chmod ``config.json`` to 0600 so plain-JSON secrets
+    are not readable by other local users.
+
+    Skipped on Windows because os.chmod on Windows only honours the
+    read-only bit and cannot grant/revoke owner-only semantics.
+    """
+    import sys
+
+    if sys.platform == "win32":
+        return
+
+    f = tmp_path / "config.json"
+    monkeypatch.setattr(config_manager, "CONFIG_FILE", f)
+
+    cfg = AppConfig(llm_api_key="sk-test", ys_app_secret="secret")
+    config_manager.save(cfg)
+
+    mode = f.stat().st_mode & 0o777
+    assert mode == 0o600, f"expected 0o600, got {oct(mode)}"
+
+
+def test_save_overwrite_resets_permissions(tmp_path, monkeypatch):
+    """A second ``save()`` re-tightens perms even if a previous write
+    left them looser (defence-in-depth against external edits)."""
+    import os
+    import sys
+
+    if sys.platform == "win32":
+        return
+
+    f = tmp_path / "config.json"
+    monkeypatch.setattr(config_manager, "CONFIG_FILE", f)
+
+    cfg = AppConfig(llm_api_key="sk-test")
+    config_manager.save(cfg)
+
+    # Simulate a user manually widening perms
+    os.chmod(f, 0o644)
+
+    config_manager.save(cfg)
+    mode = f.stat().st_mode & 0o777
+    assert mode == 0o600, f"expected 0o600 after re-save, got {oct(mode)}"

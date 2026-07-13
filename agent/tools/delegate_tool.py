@@ -73,6 +73,11 @@ def _run_sub_agent(task: str, context: str, parent_cfg: dict) -> str:
         temperature=temperature,
         max_iterations=_SUB_AGENT_MAX_ITERATIONS,
         max_tool_result_length=_MAX_RESULT_CHARS,
+        # Forward the parent's approval_callback so the child can
+        # surface high-risk tool blocks (approval_mode=approve) to the
+        # same UI.  When the parent's callback is None (default), the
+        # child falls back to its existing 120 s silent timeout.
+        approval_callback=parent_cfg.get("approval_callback"),
     )
 
     result = sub_agent.run_conversation(
@@ -114,6 +119,11 @@ def handle_delegate_task(args: dict) -> str:
         "base_url": getattr(_parent_config, "base_url", "https://api.openai.com/v1"),
         "model": getattr(_parent_config, "model", "gpt-4o"),
         "temperature": getattr(_parent_config, "temperature", 0.7),
+        # Forwarded so child agents can prompt the same WS client when
+        # they trigger a high-risk tool under approval_mode=approve.
+        # Without this, the child would silently wait 120 s and then
+        # return "user denied" — leaving the user confused.
+        "approval_callback": getattr(_parent_config, "approval_callback", None),
     }
 
     try:
@@ -175,14 +185,20 @@ def set_parent_config(
     base_url: str = "",
     model: str = "",
     temperature: float = 0.7,
+    approval_callback=None,
 ):
     """Set the parent agent's LLM config for child agents to inherit.
 
     Called from the agent loop (``agent.py``) before delegate_task
     may be invoked.  Uses thread-local storage so multiple concurrent
     conversations don't interfere.
+
+    ``approval_callback`` is forwarded to child AIAgents so high-risk
+    tool blocks raised under ``approval_mode=approve`` can be surfaced
+    to the same UI as the parent's requests.
     """
     _parent_config.api_key = api_key
     _parent_config.base_url = base_url
     _parent_config.model = model
     _parent_config.temperature = temperature
+    _parent_config.approval_callback = approval_callback

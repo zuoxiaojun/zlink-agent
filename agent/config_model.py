@@ -1,7 +1,11 @@
 """Pydantic config model for ZLink Agent persistent settings.
 
-Secrets (API keys, passwords) are stored in data/.env with 0o600 permissions,
-not encrypted in config.json.  See config_manager.py for load/save.
+All fields — including secrets (LLM API key, ERP app keys/passwords) — are
+persisted as plain JSON in ``data/config.json`` via ``config_manager``.  The
+file is written atomically (``atomic_json_write``) and chmod'd to ``0o600``
+at save time so it is only readable by the owner.  There is no encryption
+layer; the data directory itself is chmod'd ``0o700``.  See
+``config_manager.py`` for load/save and permission handling.
 """
 
 from __future__ import annotations

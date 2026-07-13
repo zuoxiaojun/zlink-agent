@@ -203,3 +203,103 @@ def test_sub_agent_import_does_not_crash():
     """
     # This should work: the lazy import is valid
     from agent.core.agent import AIAgent  # noqa: F401
+
+
+# ─────────────────────────────────────────────────────────────────
+# approval_callback forwarding (regression for the silent-timeout bug
+# where child agents were stuck 120 s and returned "user denied"
+# instead of notifying the WS)
+# ─────────────────────────────────────────────────────────────────
+
+
+def test_set_parent_config_stores_approval_callback():
+    """``set_parent_config`` must persist ``approval_callback`` on the
+    thread-local so it can be picked up by ``handle_delegate_task``
+    when it captures parent config.
+    """
+
+    def cb(req):
+        pass
+
+    set_parent_config(api_key="sk-x", approval_callback=cb)
+    assert _parent_config.approval_callback is cb
+
+
+def test_set_parent_config_approval_callback_default_is_none():
+    """When ``approval_callback`` is not provided, it stays None so
+    existing call-sites that don't pass it (e.g. test fixtures) keep
+    the previous behaviour of silent 120 s timeout."""
+    set_parent_config(api_key="sk-x")
+    assert _parent_config.approval_callback is None
+
+
+def test_handle_delegate_task_forwards_approval_callback(monkeypatch):
+    """Regression: a parent's ``approval_callback`` must be forwarded
+    to the child AIAgent instance created by ``_run_sub_agent``.
+
+    Without this fix, child agents that triggered high-risk tools
+    under ``approval_mode=approve`` silently waited 120 s and then
+    returned "user denied" — the user was never notified.
+
+    The trick: monkey-patch ``_run_sub_agent`` itself to a stub that
+    captures the ``parent_cfg`` dict that would be passed to the
+    sub-agent.  We then build a tiny fake ``AIAgent`` class that
+    records its kwargs — that's enough to prove the forwarding.
+    """
+    import pytest as _pytest
+
+    from agent.tools import delegate_tool
+
+    captured_parent_cfg: dict = {}
+
+    def fake_run_sub_agent(task, context, parent_cfg):
+        captured_parent_cfg.update(parent_cfg)
+        raise SystemExit("captured")
+
+    monkeypatch.setattr(delegate_tool, "_run_sub_agent", fake_run_sub_agent)
+
+    def cb(req):
+        pass
+
+    set_parent_config(api_key="sk-test", approval_callback=cb)
+
+    with _pytest.raises(SystemExit, match="captured"):
+        delegate_tool.handle_delegate_task({"task": "anything"})
+
+    assert captured_parent_cfg.get("approval_callback") is cb, (
+        f"approval_callback was not captured into parent_cfg: got {captured_parent_cfg.get('approval_callback')!r}"
+    )
+    assert captured_parent_cfg["api_key"] == "sk-test"
+
+
+def test_handle_delegate_task_approval_callback_none_falls_through(monkeypatch):
+    """When no parent callback is NOT set, the captured parent_cfg
+    must contain ``approval_callback=None`` so the sub-agent falls
+    back to the legacy silent-timeout path (no regression).
+    """
+    import pytest as _pytest
+
+    from agent.tools import delegate_tool
+
+    captured_parent_cfg: dict = {}
+
+    def fake_run_sub_agent(task, context, parent_cfg):
+        captured_parent_cfg.update(parent_cfg)
+        raise SystemExit("captured")
+
+    monkeypatch.setattr(delegate_tool, "_run_sub_agent", fake_run_sub_agent)
+
+    # Leave thread-local empty (the autouse fixture already cleared it).
+    for attr in ("api_key", "base_url", "model", "temperature", "approval_callback"):
+        try:
+            delattr(_parent_config, attr)
+        except AttributeError:
+            pass
+
+    with _pytest.raises(SystemExit, match="captured"):
+        delegate_tool.handle_delegate_task({"task": "anything"})
+
+    assert captured_parent_cfg.get("approval_callback") is None, (
+        f"approval_callback should default to None when parent has no "
+        f"callback; got {captured_parent_cfg.get('approval_callback')!r}"
+    )

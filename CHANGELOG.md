@@ -1,4 +1,22 @@
 # Changelog
+
+## Unreleased — 配置存储 doc/code 对齐
+
+> v1.6.0 的发布说明里把"密钥改存到 `data/.env`+chmod 0600"列为已完成的改动，但实际落地后走了更简单的路径：**全部写入 `data/config.json` 明文**，既无 `.env` 拆分也无 Fernet。本节只补齐文档/代码对账，不影响运行行为。
+
+### 改动
+
+- **`agent/config_model.py` docstring**: 改为与 `config_manager.py` 实际行为一致（明文存 `config.json`，目录 0700 / 文件 0600）。
+- **`agent/config_manager.py`**: `save()` 现在每次写入后将 `data/config.json` chmod 0600（best-effort，Windows/网络盘上无 chmod 时静默 no-op）。
+- **`agent/core/agent.py`**: 注释里删除对已不存在的 `config_manager.ERP_SECRET_FIELDS` 的引用。
+- **`mcp_server/nc_mcp/config.py`**: `_decrypt_password` → `_password_or_empty`，去掉"解密"函数名带来的错觉，实际行为没变。
+- **新增测试**: 断言 `config_manager.save()` 写出的 `config.json` 权限为 `0o600`。
+- **`AGENTS.md`**: 删除所有引用 `encrypt_secret` / `decrypt_secret` / `Fernet` / `encrypted:` 前缀的描述（包括 Flow C、`config_manager` 函数签名块、`Configuration Encryption Convention` 整节、ERP 设置步骤、Hub diagram 等共 13 处）。
+
+### 注意（向后兼容）
+
+- v1.6.0 提到的"`.env` 拆分"从未生效；老用户的密钥如果存在于 `~/.zlink-agent/data/.env` 中会被忽略（`config_manager` 只读 `config.json`）。如需保留，请把密钥从 `.env` 复制到 `config.json` 对应字段后重启动后端。
+
 ## v1.6.1 — 2026-07-12 (代码优化 + 测试覆盖增强 + 构建修复)
 
 **范围**: 代码质量优化、安全修复、测试覆盖从 44% 提升至 53%、Windows 构建脚本重写。

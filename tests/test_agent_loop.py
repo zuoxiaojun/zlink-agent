@@ -395,3 +395,147 @@ def test_turn_snapshot_cleared_after_conversation():
     assert agent._snapshot is None
     agent.run_conversation("hello")
     assert agent._snapshot is None
+
+
+# ────────────────────────────────────────────────────────────────────
+# 8) session_id propagated into session_* and phase_change events
+# ────────────────────────────────────────────────────────────────────
+
+
+def _capture_events(provider):
+    """Run a turn and return a snapshot of every event the agent fires."""
+    from agent.events import Event
+    from agent.events.bus import event_bus
+    from agent.events.types import PhaseChangeEvent, SessionEndEvent, SessionStartEvent
+
+    captured: list[Event] = []
+
+    def _spy(event: Event) -> None:
+        captured.append(event)
+
+    event_bus.subscribe(_spy)
+
+    agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+    agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+
+    return agent, captured, SessionStartEvent, SessionEndEvent, PhaseChangeEvent
+
+
+def test_run_conversation_propagates_session_id_to_events():
+    """``session_id`` passed to ``run_conversation`` must appear on
+    ``SessionStartEvent`` and ``SessionEndEvent`` so that event-bus
+    subscribers can correlate activity with the originating chat."""
+    provider = MockLLMProvider(responses=[make_text_response("ok")])
+    agent, captured, SessionStartEvent, SessionEndEvent, PhaseChangeEvent = _capture_events(provider)
+
+    agent.run_conversation("hello", session_id="chat-42")
+
+    starts = [e for e in captured if isinstance(e, SessionStartEvent)]
+    ends = [e for e in captured if isinstance(e, SessionEndEvent)]
+    assert len(starts) == 1
+    assert len(ends) == 1
+    assert starts[0].session_id == "chat-42"
+    assert ends[0].session_id == "chat-42"
+
+
+def test_run_conversation_propagates_session_id_to_phase_changes():
+    """Every ``PhaseChangeEvent`` fired during a turn must carry the
+    same ``session_id``.  This lets monitoring extensions attribute
+    phase transitions to a session without out-of-band state."""
+    provider = MockLLMProvider(responses=[make_text_response("ok")])
+    from agent.events.types import PhaseChangeEvent
+
+    agent, captured, _, _, _ = _capture_events(provider)
+    agent.run_conversation("hi", session_id="sess-1")
+
+    phase_changes = [e for e in captured if isinstance(e, PhaseChangeEvent)]
+    assert phase_changes, "expected at least one PhaseChangeEvent"
+    for ev in phase_changes:
+        assert ev.session_id == "sess-1", f"unexpected session_id: {ev.session_id!r}"
+
+
+# ────────────────────────────────────────────────────────────────────
+# 9) Exception safety — phase + snapshot must reset on any raise
+# ────────────────────────────────────────────────────────────────────
+
+
+class _ExplodingProvider:
+    """LLM provider that raises on every call — used to drive the
+    exception-cleanup path of ``run_conversation``."""
+
+    def __init__(self, exc: BaseException):
+        from agent.core.llm_providers import LLMResponse
+
+        self._exc = exc
+        self._fallback = LLMResponse(error=str(exc), stop_reason="error")
+        self.call_count = 0
+
+    def chat(self, **kwargs):
+        self.call_count += 1
+        # Always raise on the first call so the agent hits its exception
+        # cleanup branch; subsequent calls (during RETRY phase) return a
+        # clean error response so the loop eventually exits cleanly.
+        if self.call_count == 1:
+            raise self._exc
+        return self._fallback
+
+
+def test_run_conversation_phase_resets_to_idle_on_exception(monkeypatch):
+    """If anything inside the run body raises, ``self.phase`` must
+    still end up at ``idle`` so the agent is reusable.  Regression for
+    the bug where an exception inside the run body left
+    ``self.phase == "turn"`` and every subsequent call hit
+    ``_assert_idle``.
+
+    We trigger the failure by monkey-patching ``_take_snapshot`` to
+    raise — that call sits inside the guarded body so the ``finally``
+    block is responsible for restoring agent state.
+    """
+    import pytest
+
+    provider = MockLLMProvider(responses=[make_text_response("never used")])
+    agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+    agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+
+    def _boom() -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(agent, "_take_snapshot", _boom)
+
+    with pytest.raises(RuntimeError, match="boom"):
+        agent.run_conversation("hi", session_id="sess-x")
+
+    # The guard MUST have cleaned up: phase back to idle, snapshot cleared.
+    assert agent.phase == "idle", f"phase leaked to {agent.phase!r}"
+    assert agent._snapshot is None, "snapshot leaked across exception"
+
+    # And the agent must be immediately reusable.
+    # Undo monkeypatch so the next call takes a real snapshot.
+    monkeypatch.undo()
+    result = agent.run_conversation("again")
+    assert result["completed"] is True
+    assert result["final_response"] == "never used"  # the only scripted response
+
+
+def test_run_conversation_phase_resets_on_reentrant_failure(monkeypatch):
+    """A subscriber that cancels ``UserMessageEvent`` must still leave
+    the agent in ``idle`` so the next user message works."""
+    from agent.events import Event
+    from agent.events.bus import event_bus
+
+    def _reject_user(event: Event) -> None:
+        if event.type == "user_message":
+            event.cancel("test rejection")
+
+    event_bus.subscribe(_reject_user)
+
+    provider = MockLLMProvider(responses=[make_text_response("ok")])
+    agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+    agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+
+    result = agent.run_conversation("hi")
+
+    assert result["completed"] is False
+    assert "User message rejected" in result["error"]
+    assert agent.phase == "idle", f"phase leaked: {agent.phase!r}"
+    assert agent._snapshot is None
