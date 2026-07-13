@@ -46,6 +46,62 @@ echo "[3/4] 打包 Electron 应用..."
 npx electron-builder $PLATFORM --config electron-builder.yml
 echo "✅ Electron 打包完成"
 
+if [[ "$PLATFORM" == *"--mac"* ]]; then
+    echo ""
+    echo "[3.5/4] 把安装资源嵌入 dmg..."
+    EMBED_FILES=()
+    [ -f "packaging/install.command" ] && EMBED_FILES+=("packaging/install.command")
+    DMG_FOUND=false
+
+    if [ ${#EMBED_FILES[@]} -gt 0 ]; then
+        for dmg in dist-electron/*.dmg; do
+            [ -f "$dmg" ] || continue
+            DMG_FOUND=true
+            echo "  → $dmg"
+            (
+                WORK_DIR=$(mktemp -d)
+                RW="$WORK_DIR/source-rw.dmg"
+                MNT="$WORK_DIR/mount"
+                OUTPUT="$WORK_DIR/output.dmg"
+                ATTACHED=false
+                mkdir -p "$MNT"
+
+                cleanup_dmg() {
+                    if $ATTACHED; then
+                        hdiutil detach "$MNT" -quiet 2>/dev/null \
+                            || hdiutil detach "$MNT" -force -quiet 2>/dev/null \
+                            || true
+                    fi
+                    rm -rf "$WORK_DIR"
+                }
+                trap cleanup_dmg EXIT
+
+                hdiutil convert "$dmg" -format UDRW -o "$RW" > /dev/null
+                hdiutil attach "$RW" -mountpoint "$MNT" -nobrowse -quiet
+                ATTACHED=true
+                for f in "${EMBED_FILES[@]}"; do
+                    cp "$f" "$MNT/"
+                    [[ "$f" == *.sh || "$f" == *.command ]] \
+                        && chmod +x "$MNT/$(basename "$f")"
+                done
+                hdiutil detach "$MNT" -quiet
+                ATTACHED=false
+                hdiutil convert "$RW" -format UDZO -o "$OUTPUT" > /dev/null
+                mv "$OUTPUT" "$dmg"
+            )
+        done
+    fi
+
+    if $DMG_FOUND; then
+        EMBED_NAMES=""
+        for f in "${EMBED_FILES[@]}"; do EMBED_NAMES+="$(basename "$f") "; done
+        echo "✅ 已嵌入: $EMBED_NAMES"
+    else
+        echo "⏭️  未找到 DMG 或嵌入文件，跳过"
+    fi
+fi
+
+
 echo ""
 echo "[4/4] 清理临时文件..."
 rm -rf build/python-bundle
