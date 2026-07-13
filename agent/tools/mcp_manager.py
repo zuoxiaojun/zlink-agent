@@ -104,8 +104,8 @@ def _convert_mcp_tool_schema(server_name: str, tool: dict) -> dict:
         description = description[:2000] + "..."
 
     # ERP 数据源标签：在 description 末尾标注数据来源
-    ERP_SOURCE_LABELS = {"yonsuite": "YonSuite", "mcp-nc": "NC"}
-    source_label = ERP_SOURCE_LABELS.get(server_name)
+    erp_source_labels = {"yonsuite": "YonSuite", "mcp-nc": "NC"}
+    source_label = erp_source_labels.get(server_name)
     if source_label:
         description = f"{description.rstrip()} 【数据源：{source_label}】"
 

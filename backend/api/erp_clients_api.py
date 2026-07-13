@@ -169,10 +169,9 @@ async def put_erp_client(name: str, body: ERPPutRequest) -> dict:
 
             await sync_nc_mcp()
         elif name == "yonsuite":
-            from agent.config_manager import get_erp_config
-            from agent.config_model import MCPServerEntry
-            from agent.tools.mcp_manager import connect_server, disconnect_server
             from agent import config_manager as cm
+            from agent.config_manager import get_erp_config
+            from agent.tools.mcp_manager import connect_server, disconnect_server
 
             ys_cfg = get_erp_config("yonsuite")
             new_enabled = bool(ys_cfg.get("enabled", False))

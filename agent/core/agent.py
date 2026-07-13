@@ -402,10 +402,10 @@ class AIAgent:
             enabled = bool(ecfg.get("enabled", False)) if isinstance(ecfg, dict) else False
             label = _ERP_LABELS.get(name, name)
             if enabled:
-                lines.append(f"  \u2022 {label} \u2705 \u2014 \u53ef\u67e5\u8be2\u9500\u552e\u8ba2\u5355\u3001\u5ba2\u6237\u7b49\u6570\u636e")
+                lines.append(f"  • {label} ✅ — 可查询销售订单、客户等数据")
                 enabled_count += 1
             else:
-                lines.append(f"  \u2022 {label} \u274c \u2014 \u672a\u542f\u7528")
+                lines.append(f"  • {label} ❌ — 未启用")
 
         if enabled_count == 0:
             return ""

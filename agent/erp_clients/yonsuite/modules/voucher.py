@@ -12,7 +12,6 @@ API: POST /yonbip/fi/ficloud/openapi/voucher/queryVouchers
 
 import json
 import logging
-from pathlib import Path
 from typing import Any
 
 from .base import BaseAPIClient, retry_on_failure
@@ -21,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 # 账簿缓存路径（使用用户数据目录，避免打包后源码目录不可写）
 from agent.utils import DATA_DIR
+
 _CACHE_DIR = DATA_DIR / "yonsuite_cache"
 _CACHE_ACCBOOK = _CACHE_DIR / "cache_accbook.json"
 
