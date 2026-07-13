@@ -74,19 +74,19 @@ class TestWebSocketIntegration:
     test code without rewriting the agent surface.
     """
 
-    def test_no_api_key_returns_error_frame(self, monkeypatch, tmp_path):
+    def test_no_api_key_returns_error_frame(self, monkeypatch):
         """When ``llm_api_key`` is empty the WS endpoint must publish
         a single ``error`` frame and close — never hang or crash."""
-        import tempfile
-
-        tmp = tempfile.mkdtemp()
-        monkeypatch.setenv("ZLINK_DATA_DIR", tmp)
         from agent import config_manager
-        from agent.config_model import AppConfig
 
-        cfg = AppConfig()
+        cfg = config_manager.load().model_copy(deep=True)
         cfg.llm_api_key = ""
-        config_manager.save(cfg)
+
+        def fail_on_config_save(*_args, **_kwargs):
+            raise AssertionError("WebSocket tests must not write config.json")
+
+        monkeypatch.setattr(config_manager, "load", lambda: cfg)
+        monkeypatch.setattr(config_manager, "save", fail_on_config_save)
 
         from fastapi.testclient import TestClient
 
