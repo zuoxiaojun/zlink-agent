@@ -66,10 +66,10 @@ def test_put_erp_client_nc_stores_password(client, monkeypatch, tmp_path):
         },
     )
     assert r.status_code == 200, r.text
-    # config.json 不应有 password 字段
+    # 密码直接存储在 config.json（不再分离 .env）
     cfg = json.loads(config_manager.CONFIG_FILE.read_text())
-    assert "password" not in cfg.get("erp_clients", {}).get("nc", {})
-    # .env 文件应有 ERP_NC_PASSWORD
+    assert cfg.get("erp_clients", {}).get("nc", {}).get("password") == "plain-password"
+    # .env 文件也应同步有 ERP_NC_PASSWORD（向后兼容）
     env = config_manager._load_env()
     assert env.get("ERP_NC_PASSWORD") == "plain-password"
 

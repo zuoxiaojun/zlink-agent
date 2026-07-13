@@ -96,6 +96,43 @@ async def lifespan(application: FastAPI):
     nc_entry.args = ["-m", "mcp_server.nc_mcp_server"]
     nc_entry.builtin = True
 
+    # ── 从 erp_clients 读取配置，覆盖内置 MCP 服务器的 env ──────────
+    # YonSuite
+    ys_cfg_erp = cfg.erp_clients.get("yonsuite", {})
+    ys_app_key = ys_cfg_erp.get("app_key") or cfg.ys_app_key or ""
+    ys_app_secret = ys_cfg_erp.get("app_secret") or cfg.ys_app_secret or ""
+    ys_tenant_id = ys_cfg_erp.get("tenant_id") or cfg.ys_tenant_id or ""
+    ys_gateway_url = ys_cfg_erp.get("base_url") or cfg.ys_gateway_url or "https://c2.yonyoucloud.com/iuap-api-gateway"
+    if isinstance(ys_cfg_erp, dict) and ys_app_key:
+        ys_entry = servers_cfg["yonsuite"]
+        ys_entry.env = {
+            "YONSUITE_APP_KEY": ys_app_key,
+            "YONSUITE_APP_SECRET": ys_app_secret,
+            "YONSUITE_TENANT_ID": ys_tenant_id,
+            "YONSUITE_GATEWAY_URL": ys_gateway_url,
+        }
+    # Always set os.environ (YonSuite client code reads these at import time)
+    os.environ.setdefault("YONSUITE_APP_KEY", ys_app_key)
+    os.environ.setdefault("YONSUITE_APP_SECRET", ys_app_secret)
+    os.environ.setdefault("YONSUITE_TENANT_ID", ys_tenant_id)
+    os.environ.setdefault("YONSUITE_GATEWAY_URL", ys_gateway_url)
+    os.environ.setdefault("YONSUITE_CACHE_DIR", str(DATA_DIR / "yonsuite_cache"))
+
+    # NC
+    nc_cfg_erp = cfg.erp_clients.get("nc", {})
+    if isinstance(nc_cfg_erp, dict):
+        nc_entry.enabled = bool(nc_cfg_erp.get("enabled", False))
+        nc_host = nc_cfg_erp.get("host", "") or ""
+        if nc_host:
+            nc_entry.env = {
+                "ORACLE_HOST": nc_host,
+                "ORACLE_PORT": str(nc_cfg_erp.get("port", "") or ""),
+                "ORACLE_SERVICE": str(nc_cfg_erp.get("service", "") or ""),
+                "ORACLE_USER": str(nc_cfg_erp.get("user", "") or ""),
+                "ORACLE_PASSWORD": str(nc_cfg_erp.get("password", "") or ""),
+                "NC_MCP_MAX_ROWS": str(nc_cfg_erp.get("max_rows", 200) or 200),
+            }
+
     # Chart MCP server
     _chart_entry = _PROJECT_ROOT / "node_modules" / "@antv" / "mcp-server-chart" / "build" / "index.js"
     _node_path = shutil.which("node") if _chart_entry.exists() else None
@@ -124,30 +161,6 @@ async def lifespan(application: FastAPI):
     # 持久化内置服务器路径配置到 config.json
     cfg.mcp_servers = servers_cfg
     config_manager.save(cfg)
-
-    # ── Inject YonSuite credentials ──────────────────────────────────────
-    # 优先从 erp_clients.yonsuite 读取（新 ERP 页），其次从旧字段读取（向后兼容）
-    ys_cfg_erp = cfg.erp_clients.get("yonsuite", {})
-    ys_app_key = ys_cfg_erp.get("app_key") or cfg.ys_app_key or ""
-    ys_app_secret = ys_cfg_erp.get("app_secret") or cfg.ys_app_secret or ""
-    ys_tenant_id = ys_cfg_erp.get("tenant_id") or cfg.ys_tenant_id or ""
-    ys_gateway_url = ys_cfg_erp.get("base_url") or cfg.ys_gateway_url or "https://c2.yonyoucloud.com/iuap-api-gateway"
-
-    # Set os.environ once at startup (not per-WebSocket)
-    os.environ.setdefault("YONSUITE_APP_KEY", ys_app_key)
-    os.environ.setdefault("YONSUITE_APP_SECRET", ys_app_secret)
-    os.environ.setdefault("YONSUITE_TENANT_ID", ys_tenant_id)
-    os.environ.setdefault("YONSUITE_GATEWAY_URL", ys_gateway_url)
-    os.environ.setdefault("YONSUITE_CACHE_DIR", str(DATA_DIR / "yonsuite_cache"))
-
-    ys_entry = servers_cfg.get("yonsuite")
-    if ys_entry:
-        ys_entry.env = {
-            "YONSUITE_APP_KEY": ys_app_key,
-            "YONSUITE_APP_SECRET": ys_app_secret,
-            "YONSUITE_TENANT_ID": ys_tenant_id,
-            "YONSUITE_GATEWAY_URL": ys_gateway_url,
-        }
 
     if servers_cfg:
         import asyncio
