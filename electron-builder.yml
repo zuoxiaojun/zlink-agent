@@ -35,7 +35,6 @@ extraResources:
       - "mcp_server/**/*.py"
       - "scripts/**/*.py"
       - "packaging/**/*"
-      - "VERSION"
       - "requirements.txt"
       - "pyproject.toml"
       - "LICENSE"

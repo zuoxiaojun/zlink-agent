@@ -38,23 +38,14 @@ _update_status: dict = {
 
 
 def _get_version() -> str:
-    """读取版本号: 优先级 VERSION 文件 > pyproject.toml > unknown."""
-    # 1. 优先读 VERSION 文件
-    candidates = [_PROJECT_ROOT / "VERSION", Path(__file__).resolve().parent.parent.parent / "VERSION"]
-    for candidate in candidates:
-        try:
-            if candidate.exists():
-                return candidate.read_text().strip()
-        except Exception:
-            pass
-    # 2. 退化: 从 pyproject.toml 解析
+    """从 pyproject.toml 读取版本号 (单一真实源头)。"""
+    import tomllib
+
+    pyproject = _PROJECT_ROOT / "pyproject.toml"
     try:
-        pyproject = _PROJECT_ROOT / "pyproject.toml"
         if pyproject.exists():
-            for line in pyproject.read_text().splitlines():
-                line = line.strip()
-                if line.startswith("version"):
-                    return line.split("=")[1].strip().strip('"').strip("'")
+            data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+            return data.get("project", {}).get("version", "unknown")
     except Exception:
         pass
     return "unknown"
