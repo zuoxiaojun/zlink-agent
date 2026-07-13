@@ -49,11 +49,10 @@ def test_get_erp_client_yonsuite_secrets_masked(client):
 
 
 def test_put_erp_client_nc_stores_password(client, monkeypatch, tmp_path):
-    """PUT NC 配置时 password 存入 .env 而非 config.json"""
+    """PUT NC 配置时 password 存入 config.json"""
     from agent import config_manager
 
-    # Isolate .env to temp directory to avoid polluting real config
-    monkeypatch.setattr(config_manager, "ENV_FILE", tmp_path / ".env")
+    monkeypatch.setattr(config_manager, "CONFIG_FILE", tmp_path / "config.json")
 
     r = client.put(
         "/api/config/erp-clients/nc",
@@ -66,12 +65,9 @@ def test_put_erp_client_nc_stores_password(client, monkeypatch, tmp_path):
         },
     )
     assert r.status_code == 200, r.text
-    # 密码直接存储在 config.json（不再分离 .env）
+    # 密码直接存储在 config.json（单文件，不剥离）
     cfg = json.loads(config_manager.CONFIG_FILE.read_text())
     assert cfg.get("erp_clients", {}).get("nc", {}).get("password") == "plain-password"
-    # .env 文件也应同步有 ERP_NC_PASSWORD（向后兼容）
-    env = config_manager._load_env()
-    assert env.get("ERP_NC_PASSWORD") == "plain-password"
 
 
 def test_get_erp_client_nc_fallback_mcp_env(tmp_path, monkeypatch):

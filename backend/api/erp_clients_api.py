@@ -141,11 +141,10 @@ async def get_erp_client(name: str) -> dict:
 
 @router.put("/api/config/erp-clients/{name}")
 async def put_erp_client(name: str, body: ERPPutRequest) -> dict:
-    raw = _read_raw_config()
-    erp_clients = raw.setdefault("erp_clients", {})
-    if name not in erp_clients:
+    cfg = config_manager.load()
+    erp_clients = cfg.erp_clients
+    if name not in erp_clients or not isinstance(erp_clients[name], dict):
         erp_clients[name] = {}
-    cfg = erp_clients[name]
 
     updates = body.model_dump(exclude_none=True)
     secret_fields = SECRET_FIELDS.get(name, [])
@@ -154,23 +153,14 @@ async def put_erp_client(name: str, body: ERPPutRequest) -> dict:
             if v == "***":
                 continue  # 前端脱敏占位符，跳过
             if v:
-                cfg[k] = v
-                config_manager._save_erp_secret(name, k, v)
+                erp_clients[name][k] = v
             # else: v 为空字符串，跳过更新（保留已有值）
         else:
-            cfg[k] = v
+            erp_clients[name][k] = v
 
-    # Strip secrets from raw dict (copy!) before writing to config.json
-    raw_erp = erp_clients.get(name, {})
-    clean_erp = {k: v for k, v in raw_erp.items() if k not in secret_fields}
-    erp_clients[name] = clean_erp
-
-    _write_raw_config(raw)
-
-    # Restore secrets to in-memory cfg so response has full data
-    for sf in secret_fields:
-        if sf in raw_erp:
-            cfg[sf] = raw_erp[sf]
+    # 保存到 config.json（所有字段，不剥离）
+    cfg.erp_clients = erp_clients
+    config_manager.save(cfg)
 
     # 触发 MCP 同步
     try:
