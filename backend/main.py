@@ -2,6 +2,7 @@
 
 import logging
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -58,25 +59,73 @@ async def lifespan(application: FastAPI):
     cfg = config_manager.load()
     servers_cfg = cfg.mcp_servers
 
-    if "yonsuite" not in servers_cfg:
-        py_path = sys.executable
-        if getattr(sys, "frozen", False):
-            # PyInstaller: use the same binary with --mcp-server flag
-            mcp_args = ["--mcp-server"]
-        else:
-            mcp_args = ["-m", "mcp_server.ys_mcp_server"]
-        servers_cfg["yonsuite"] = MCPServerEntry(
+    # ── 强制覆盖内置 MCP 服务器的 command/args ─────────────────────────
+    # 避免 config.json 中残留的绝对路径（如 Electron .app 内部路径）
+    # 导致开发环境启动失败。每次启动都用当前运行环境覆盖并持久化。
+    py_path = sys.executable
+    if getattr(sys, "frozen", False):
+        ys_mcp_args = ["--mcp-server"]
+    else:
+        ys_mcp_args = ["-m", "mcp_server.ys_mcp_server"]
+
+    servers_cfg.setdefault("yonsuite", MCPServerEntry(
+        transport="stdio",
+        command=py_path,
+        args=ys_mcp_args,
+        enabled=True,
+        timeout=120,
+        builtin=True,
+    ))
+    ys_entry = servers_cfg["yonsuite"]
+    ys_entry.command = py_path
+    ys_entry.args = ys_mcp_args
+    ys_entry.builtin = True
+
+    # nc MCP — 内置，用当前 Python
+    servers_cfg.setdefault("mcp-nc", MCPServerEntry(
+        transport="stdio",
+        command=py_path,
+        args=["-m", "mcp_server.nc_mcp_server"],
+        enabled=False,
+        timeout=120,
+        builtin=True,
+        env={},
+    ))
+    nc_entry = servers_cfg["mcp-nc"]
+    nc_entry.command = py_path
+    nc_entry.args = ["-m", "mcp_server.nc_mcp_server"]
+    nc_entry.builtin = True
+
+    # Chart MCP server
+    _chart_entry = _PROJECT_ROOT / "node_modules" / "@antv" / "mcp-server-chart" / "build" / "index.js"
+    _node_path = shutil.which("node") if _chart_entry.exists() else None
+    if _node_path:
+        servers_cfg.setdefault("mcp-server-chart", MCPServerEntry(
             transport="stdio",
-            command=py_path,
-            args=mcp_args,
+            command=_node_path,
+            args=[str(_chart_entry)],
             enabled=True,
             timeout=120,
             builtin=True,
+            env={},
+        ))
+        chart_entry = servers_cfg["mcp-server-chart"]
+        chart_entry.command = _node_path
+        chart_entry.args = [str(_chart_entry)]
+        chart_entry.builtin = True
+    elif _chart_entry.exists():
+        _logger.warning("node 未安装, Chart MCP 服务器已跳过")
+    elif not getattr(sys, "frozen", False):
+        _logger.warning(
+            "@antv/mcp-server-chart 未安装 (node_modules/@antv/mcp-server-chart 不存在), "
+            "Chart MCP 服务器已跳过。运行 cd web && npm ci 安装。"
         )
-        cfg.mcp_servers = servers_cfg
-        config_manager.save(cfg)
 
-    # Inject YonSuite credentials into yonsuite MCP server's env
+    # 持久化内置服务器路径配置到 config.json
+    cfg.mcp_servers = servers_cfg
+    config_manager.save(cfg)
+
+    # ── Inject YonSuite credentials ──────────────────────────────────────
     # 优先从 erp_clients.yonsuite 读取（新 ERP 页），其次从旧字段读取（向后兼容）
     ys_cfg_erp = cfg.erp_clients.get("yonsuite", {})
     ys_app_key = ys_cfg_erp.get("app_key") or cfg.ys_app_key or ""
@@ -84,67 +133,21 @@ async def lifespan(application: FastAPI):
     ys_tenant_id = ys_cfg_erp.get("tenant_id") or cfg.ys_tenant_id or ""
     ys_gateway_url = ys_cfg_erp.get("base_url") or cfg.ys_gateway_url or "https://c2.yonyoucloud.com/iuap-api-gateway"
 
-    # Set os.environ once at startup (not per-WebSocket) to avoid global
-    # state pollution from concurrent connections. YonSuite client code
-    # (agent/erp_clients/yonsuite/config.py) reads these at import time.
+    # Set os.environ once at startup (not per-WebSocket)
     os.environ.setdefault("YONSUITE_APP_KEY", ys_app_key)
     os.environ.setdefault("YONSUITE_APP_SECRET", ys_app_secret)
     os.environ.setdefault("YONSUITE_TENANT_ID", ys_tenant_id)
     os.environ.setdefault("YONSUITE_GATEWAY_URL", ys_gateway_url)
     os.environ.setdefault("YONSUITE_CACHE_DIR", str(DATA_DIR / "yonsuite_cache"))
 
-    yonsuite_cfg = servers_cfg.get("yonsuite")
-    if yonsuite_cfg:
-        yonsuite_cfg.env = {
+    ys_entry = servers_cfg.get("yonsuite")
+    if ys_entry:
+        ys_entry.env = {
             "YONSUITE_APP_KEY": ys_app_key,
             "YONSUITE_APP_SECRET": ys_app_secret,
             "YONSUITE_TENANT_ID": ys_tenant_id,
             "YONSUITE_GATEWAY_URL": ys_gateway_url,
         }
-        cfg.mcp_servers = servers_cfg
-        config_manager.save(cfg)
-
-    # Chart MCP server — 使用本地的 @antv/mcp-server-chart (node_modules)
-    _chart_entry = _PROJECT_ROOT / "node_modules" / "@antv" / "mcp-server-chart" / "build" / "index.js"
-    if _chart_entry.exists():
-        # 尝试找 node 可执行文件
-        import shutil
-
-        _node_path = shutil.which("node")
-        if _node_path:
-            if "mcp-server-chart" not in servers_cfg:
-                servers_cfg["mcp-server-chart"] = MCPServerEntry(
-                    transport="stdio",
-                    enabled=True,
-                    timeout=120,
-                    command=_node_path,
-                    args=[str(_chart_entry)],
-                    env={},
-                    builtin=True,
-                )
-            else:
-                servers_cfg["mcp-server-chart"].builtin = True
-            _logger.info("Chart MCP 服务器已就绪 (node=%s)", _node_path)
-        else:
-            _logger.warning("node 未安装, Chart MCP 服务器已跳过")
-    elif not getattr(sys, "frozen", False):
-        _logger.warning(
-            "@antv/mcp-server-chart 未安装 (node_modules/@antv/mcp-server-chart 不存在), "
-            "Chart MCP 服务器已跳过。运行 cd web && npm ci 安装。"
-        )
-
-    # Guard: ensure local builtin servers have builtin=True even if loaded from old config
-    builtin_names = {"yonsuite", "mcp-server-chart", "mcp-nc"}
-    _builtin_fixed = False
-    for name in builtin_names:
-        entry = servers_cfg.get(name)
-        if entry and not entry.builtin:
-            entry.builtin = True
-            _logger.info("已修复内置 MCP 服务器「%s」的 builtin 标记", name)
-            _builtin_fixed = True
-    if _builtin_fixed:
-        cfg.mcp_servers = servers_cfg
-        config_manager.save(cfg)
 
     if servers_cfg:
         import asyncio
