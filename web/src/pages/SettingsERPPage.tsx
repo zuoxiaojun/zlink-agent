@@ -88,7 +88,7 @@ export default function SettingsERPPage() {
   const [savingName, setSavingName] = useState<ErpName | null>(null);
   const [testingName, setTestingName] = useState<ErpName | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string } | null>>({});
-  const [, setDriftWarned] = useState<Record<ErpName, boolean>>({
+  const [driftWarned, setDriftWarned] = useState<Record<ErpName, boolean>>({
     yonsuite: false,
     nc: false,
   });
@@ -97,7 +97,9 @@ export default function SettingsERPPage() {
     void loadAll();
   }, []);
 
+  // 漂移检测 — toggle 操作中跳过，避免操作过程中的临时状态触发警告
   useEffect(() => {
+    if (togglingName) return; // 正在开关操作，跳过漂移检测
     (Object.keys(ERP_REGISTRY) as ErpName[]).forEach((name) => {
       const cfg = configs[name];
       if (!cfg || mcpStatuses.length === 0) return;
@@ -117,7 +119,7 @@ export default function SettingsERPPage() {
         });
       }
     });
-  }, [configs, mcpStatuses]);
+  }, [configs, mcpStatuses, togglingName]);
 
   const loadAll = async () => {
     const [ys, ncData, mcp] = await Promise.all([
@@ -153,32 +155,24 @@ export default function SettingsERPPage() {
     const newEnabled = !cfg.enabled;
 
     setTogglingName(name);
+    // 重置该 ERP 的漂移警告（即将刷新状态）
+    setDriftWarned((prev) => ({ ...prev, [name]: false }));
     try {
+      // ERP PUT 后端会自动同步 MCP server 状态（连接/断开）
       const updated = await api.put<ErpConfig>(`/config/erp-clients/${name}`, {
         enabled: newEnabled,
       });
       setConfigs((prev) => ({ ...prev, [name]: updated }));
 
-      try {
-        await api.post(`/config/mcp-servers/${meta.mcpServerName}/toggle`);
-        showToast(
-          "success",
-          `${meta.label} 已${newEnabled ? "启用" : "停用"}，MCP server 同步成功`,
-        );
-      } catch (mcpErr: unknown) {
-        const msg = mcpErr instanceof Error ? mcpErr.message : String(mcpErr);
-        if (msg.includes("404") || msg.includes("not found")) {
-          showToast(
-            "error",
-            `${meta.label} MCP server (${meta.mcpServerName}) 未注册，请先到 MCP 管理页安装`,
-          );
-        } else {
-          showToast("error", `${meta.label} MCP 联动失败：${msg}`);
-        }
-      }
-
+      // 等待一小段时间让后端 MCP 连接/断开完成，然后刷新 MCP 状态
+      await new Promise((r) => setTimeout(r, 300));
       const mcp = await api.get<McpStatus[]>("/config/mcp-servers").catch(() => []);
       setMcpStatuses(mcp);
+
+      showToast(
+        "success",
+        `${meta.label} 已${newEnabled ? "启用" : "停用"}`,
+      );
     } catch (e: unknown) {
       showToast("error", `更新 ${meta.label} 配置失败：${e instanceof Error ? e.message : String(e)}`);
     } finally {

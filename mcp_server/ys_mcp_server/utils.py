@@ -6,10 +6,7 @@ import sys
 from pathlib import Path
 
 # Ensure project root on sys.path so agent/ imports work
-if getattr(sys, "frozen", False):
-    _PROJECT_ROOT = Path(sys._MEIPASS)  # type: ignore
-else:
-    _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 

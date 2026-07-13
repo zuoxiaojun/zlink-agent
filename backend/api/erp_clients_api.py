@@ -162,42 +162,55 @@ async def put_erp_client(name: str, body: ERPPutRequest) -> dict:
     cfg.erp_clients = erp_clients
     config_manager.save(cfg)
 
-    # 触发 MCP 同步
+    # 触发 MCP 同步（仅在启用/禁用状态变化时）
     try:
         if name == "nc":
             from mcp_server.nc_mcp.mcp_starter import sync_nc_mcp
 
             await sync_nc_mcp()
         elif name == "yonsuite":
-            # 同步 YonSuite 凭证到 MCP server 环境变量（立即生效，无需重启）
             from agent.config_manager import get_erp_config
-            from agent.tools.mcp_manager import connect_server, disconnect_server, get_server_statuses
+            from agent.config_model import MCPServerEntry
+            from agent.tools.mcp_manager import connect_server, disconnect_server
+            from agent import config_manager as cm
 
             ys_cfg = get_erp_config("yonsuite")
-            statuses = {s["name"]: s for s in get_server_statuses()}
-            ys_mcp = statuses.get("yonsuite")
-            if ys_mcp and ys_mcp.get("status") == "connected":
-                from agent.config_model import MCPServerEntry
+            new_enabled = bool(ys_cfg.get("enabled", False))
 
-                ys_mcp_cfg = MCPServerEntry(
-                    transport="stdio",
-                    command=ys_mcp.get("command", ""),
-                    args=ys_mcp.get("args", []),
-                    enabled=bool(ys_cfg.get("enabled", False)),
-                    env={
-                        "YONSUITE_APP_KEY": ys_cfg.get("app_key", ""),
-                        "YONSUITE_APP_SECRET": ys_cfg.get("app_secret", ""),
-                        "YONSUITE_TENANT_ID": ys_cfg.get("tenant_id", ""),
-                        "YONSUITE_GATEWAY_URL": ys_cfg.get("base_url") or "https://c2.yonyoucloud.com/iuap-api-gateway",
-                    },
-                    builtin=True,
-                )
+            # 持久化 MCP server 的 enabled 状态到 config.json
+            raw = json.loads(cm.CONFIG_FILE.read_text(encoding="utf-8"))
+            servers = raw.setdefault("mcp_servers", {})
+            mcp_entry = servers.setdefault("yonsuite", {})
+            mcp_entry["enabled"] = new_enabled
+            cm.atomic_json_write(cm.CONFIG_FILE, raw)
+
+            # 读取当前 MCP server 配置(command/args/env)
+            cfg = cm.load()
+            mcp_cfg = cfg.mcp_servers.get("yonsuite")
+            if mcp_cfg is None:
+                logger.warning("yonsuite MCP server 未注册，跳过同步")
+            elif not new_enabled:
+                # 禁用 → 断开 MCP，不重连
+                logger.info("YonSuite 已停用，断开 yonsuite MCP server")
                 await disconnect_server("yonsuite")
-                await connect_server("yonsuite", ys_mcp_cfg.model_dump())
+            else:
+                # 启用 → 刷新 env，断开重连
+                mcp_cfg.env = {
+                    "YONSUITE_APP_KEY": ys_cfg.get("app_key", ""),
+                    "YONSUITE_APP_SECRET": ys_cfg.get("app_secret", ""),
+                    "YONSUITE_TENANT_ID": ys_cfg.get("tenant_id", ""),
+                    "YONSUITE_GATEWAY_URL": ys_cfg.get("base_url")
+                    or "https://c2.yonyoucloud.com/iuap-api-gateway",
+                }
+                cm.save(cfg)
+                logger.info("YonSuite 已启用，重连 yonsuite MCP server")
+                await disconnect_server("yonsuite")
+                await connect_server("yonsuite", mcp_cfg.model_dump())
     except Exception as e:
         logger.warning("MCP 同步失败 (%s): %s", name, e)
 
-    return _mask_secrets(name, cfg)
+    # 返回 ERP 客户端配置字典（与 GET 同形状），而非完整 AppConfig
+    return await get_erp_client(name)
 
 
 @router.post("/api/config/erp-clients/{name}/test")

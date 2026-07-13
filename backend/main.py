@@ -63,10 +63,7 @@ async def lifespan(application: FastAPI):
     # 避免 config.json 中残留的绝对路径（如 Electron .app 内部路径）
     # 导致开发环境启动失败。每次启动都用当前运行环境覆盖并持久化。
     py_path = sys.executable
-    if getattr(sys, "frozen", False):
-        ys_mcp_args = ["--mcp-server"]
-    else:
-        ys_mcp_args = ["-m", "mcp_server.ys_mcp_server"]
+    ys_mcp_args = ["-m", "mcp_server.ys_mcp_server"]
 
     servers_cfg.setdefault("yonsuite", MCPServerEntry(
         transport="stdio",
@@ -152,7 +149,7 @@ async def lifespan(application: FastAPI):
         chart_entry.builtin = True
     elif _chart_entry.exists():
         _logger.warning("node 未安装, Chart MCP 服务器已跳过")
-    elif not getattr(sys, "frozen", False):
+    else:
         _logger.warning(
             "@antv/mcp-server-chart 未安装 (node_modules/@antv/mcp-server-chart 不存在), "
             "Chart MCP 服务器已跳过。运行 cd web && npm ci 安装。"
@@ -232,7 +229,7 @@ from backend.api.erp_clients_api import router as erp_clients_router
 
 app.include_router(erp_clients_router)
 
-# ── Serve React frontend static files (for production / frozen builds) ──
+    # ── Serve React frontend static files (for production builds) ──
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "web" / "dist"
 if _STATIC_DIR.is_dir():
     app.mount("/", StaticFiles(directory=str(_STATIC_DIR), html=True), name="frontend")
