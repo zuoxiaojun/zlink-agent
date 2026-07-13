@@ -88,7 +88,7 @@ export default function SettingsERPPage() {
   const [savingName, setSavingName] = useState<ErpName | null>(null);
   const [testingName, setTestingName] = useState<ErpName | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string } | null>>({});
-  const [driftWarned, setDriftWarned] = useState<Record<ErpName, boolean>>({
+  const [, setDriftWarned] = useState<Record<ErpName, boolean>>({
     yonsuite: false,
     nc: false,
   });
