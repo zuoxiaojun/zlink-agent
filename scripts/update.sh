@@ -133,7 +133,7 @@ cleanup_old_backups() {
 
 # ── 检查是否有更新 ──────────────────────────────────────────────────────────
 info "正在检查更新..."
-git fetch --tags --quiet 2>/dev/null || warn "无法连接到远程仓库，将尝试本地 pull"
+git fetch --quiet 2>/dev/null || warn "无法连接到远程仓库，将尝试本地 pull"
 
 LATEST_HASH=$(git rev-parse --short @{upstream} 2>/dev/null || echo "")
 
