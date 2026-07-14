@@ -14,6 +14,7 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$(dirname "$0")/.."
 
 PLATFORM="${1:-}"
@@ -40,8 +41,10 @@ bash scripts/bundle-python.sh
 echo "✅ Python 环境打包完成"
 
 echo ""
+ARCH_FLAG=""
+[[ "$PLATFORM" == "--mac" ]] && ARCH_FLAG="--arm64"
 echo "[3/4] 打包 Electron 应用..."
-npx electron-builder $PLATFORM --arm64 --config electron-builder.yml
+npx electron-builder $PLATFORM $ARCH_FLAG --config electron-builder.yml
 echo "✅ Electron 打包完成"
 
 if [[ "$PLATFORM" == *"--mac"* ]]; then
@@ -102,11 +105,20 @@ fi
 
 echo ""
 echo "[4/4] 清理临时文件..."
-rm -rf build/python-bundle
-# 清理 .blockmap 增量文件（本应用不使用 auto-updater）
-rm -f dist-electron/*.blockmap
-# 清理 electron-builder 中间产物
-rm -rf dist-electron/mac dist-electron/mac-arm64 dist-electron/win dist-electron/builder-debug.yml
+python3 -c "
+import sys; sys.path.insert(0, '$SCRIPT_DIR')
+from build_utils import remove_paths
+import glob
+remove_paths('build/python-bundle')
+for f in glob.glob('dist-electron/*.blockmap'):
+    remove_paths(f)
+remove_paths(
+    'dist-electron/mac',
+    'dist-electron/mac-arm64',
+    'dist-electron/win',
+    'dist-electron/builder-debug.yml',
+)
+"
 echo "✅ 清理完成"
 echo ""
 echo "📦 成品位置: dist-electron/"
