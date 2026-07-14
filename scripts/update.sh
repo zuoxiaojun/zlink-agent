@@ -85,7 +85,8 @@ fi
 PIP=$(command -v pip3 || command -v pip)
 
 # ── 数据目录 ────────────────────────────────────────────────────────────────
-DATA_DIR="$PROJECT_ROOT/data"
+# 运行时数据目录 ~/.zlink-agent/data/（config.json, sessions, memory 等）
+DATA_DIR="${ZLINK_DATA_DIR:-$HOME/.zlink-agent/data}"
 BACKUP_DIR="$DATA_DIR/backups"
 BACKUP_RETENTION=5  # 保留最近 5 份备份
 
@@ -100,13 +101,13 @@ do_backup() {
 
     info "正在备份 data/ → $backup_file ..."
 
-    # 用 tar 打包 data/ 下除 backups/ 自身以外的所有内容
+    # 用 tar 打包 DATA_DIR 下除 backups/ 自身以外的所有内容
     # --exclude 排除备份目录自身和日志（日志可丢弃）
     if tar -czf "$backup_file" \
         --exclude="backups" \
         --exclude="logs" \
         --exclude="yonsuite_cache" \
-        -C "$PROJECT_ROOT" data/ 2>/dev/null; then
+        -C "$(dirname "$DATA_DIR")" "$(basename "$DATA_DIR")" 2>/dev/null; then
         # 计算备份文件大小并显示
         local size
         size=$(du -h "$backup_file" | cut -f1)
@@ -146,7 +147,7 @@ if [[ -n "$LATEST_HASH" && "$CURRENT_HASH" == "$LATEST_HASH" ]]; then
     echo "  当前版本 : $CURRENT_VERSION"
     echo "  Commit   : $CURRENT_HASH"
     echo "  远端地址 : $REMOTE_URL"
-    echo "  数据目录 : $PROJECT_ROOT/data/"
+    echo "  数据目录 : $DATA_DIR/"
     echo "──────────────────────────────────────────"
     exit 0
 fi
