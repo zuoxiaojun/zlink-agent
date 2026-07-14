@@ -137,12 +137,15 @@ git fetch --quiet 2>/dev/null || warn "无法连接到远程仓库，将尝试�
 
 LATEST_HASH=$(git rev-parse --short @{upstream} 2>/dev/null || echo "")
 
+REMOTE_URL=$(git remote get-url origin 2>/dev/null || echo "未知")
+
 if [[ -n "$LATEST_HASH" && "$CURRENT_HASH" == "$LATEST_HASH" ]]; then
     ok "当前 ($CURRENT_VERSION) 已是最新版本，无需更新。"
     echo ""
     echo "── 版本信息 ──────────────────────────────"
     echo "  当前版本 : $CURRENT_VERSION"
     echo "  Commit   : $CURRENT_HASH"
+    echo "  远端地址 : $REMOTE_URL"
     echo "  数据目录 : $PROJECT_ROOT/data/"
     echo "──────────────────────────────────────────"
     exit 0
@@ -152,6 +155,7 @@ echo ""
 echo "═══════════════════════════════════════════"
 echo "  版本: $CURRENT_VERSION → 最新"
 echo "  Commit: $CURRENT_HASH → $LATEST_HASH"
+echo "  远端: $REMOTE_URL"
 echo "═══════════════════════════════════════════"
 echo ""
 
