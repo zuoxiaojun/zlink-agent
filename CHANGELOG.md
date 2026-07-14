@@ -17,6 +17,25 @@
 
 - v1.6.0 提到的"`.env` 拆分"从未生效；老用户的密钥如果存在于 `~/.zlink-agent/data/.env` 中会被忽略（`config_manager` 只读 `config.json`）。如需保留，请把密钥从 `.env` 复制到 `config.json` 对应字段后重启动后端。
 
+## v1.6.2 — 2026-07-14 (MCP 管理工具 + 自动审批)
+
+**范围**: 新增 6 个 agent 可调用的 MCP 管理工具，opencode 配置添加自动审批。
+
+### 新增
+
+- **MCP 管理工具** (`agent/tools/mcp_management_tool.py`): 注册 6 个工具供 LLM 在对话中直接管理 MCP 服务器
+  - `mcp_list_servers` — 列出所有 MCP 服务器状态
+  - `mcp_add_server` — 添加并连接新 MCP 服务器
+  - `mcp_delete_server` — 删除 MCP 服务器（内置服务器受保护）
+  - `mcp_toggle_server` — 启用/停用切换
+  - `mcp_test_server` — 测试连接
+  - `mcp_reload_servers` — 全部断开后重连
+- **自动审批**: `~/.config/opencode/opencode.json` 添加 `"permission": "allow"`
+
+### 版本号同步
+
+- `pyproject.toml` / `package.json` / `CHANGELOG.md` / `README.md` 四文件统一
+
 ## v1.6.1 — 2026-07-12 (代码优化 + 测试覆盖增强 + 构建修复)
 
 **范围**: 代码质量优化、安全修复、测试覆盖从 44% 提升至 53%、Windows 构建脚本重写。
