@@ -41,7 +41,7 @@ echo "✅ Python 环境打包完成"
 
 echo ""
 echo "[3/4] 打包 Electron 应用..."
-npx electron-builder $PLATFORM --config electron-builder.yml
+npx electron-builder $PLATFORM --arm64 --config electron-builder.yml
 echo "✅ Electron 打包完成"
 
 if [[ "$PLATFORM" == *"--mac"* ]]; then
