@@ -35,6 +35,7 @@ class ConfigResponse(BaseModel):
     llm: LLMConfig
     yonsuite: YonSuiteConfig
     agent: AgentConfig
+    version: str = ""
 
 
 class ProviderInfo(BaseModel):

@@ -20,7 +20,8 @@ const NAV = [
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { dispatch } = useAppState();
+  const { state, dispatch } = useAppState();
+  const appVersion = state.config?.version || "unknown";
 
   const handleNewChat = async () => {
     try {
@@ -69,7 +70,7 @@ export default function Sidebar() {
 
       <div className="sidebar-footer">
         <div className="sidebar-footer-dot" />
-        ZLink Agent v1.6.0
+        ZLink Agent v{appVersion}
       </div>
     </aside>
   );

@@ -87,6 +87,7 @@ export interface ConfigResponse {
   llm: LLMConfigPayload;
   yonsuite: YonSuiteConfigPayload;
   agent: AgentConfigPayload;
+  version: string;
 }
 
 

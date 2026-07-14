@@ -7,6 +7,7 @@ from agent.config_model import MCPServerEntry
 from agent.context_compactor import resolve_context_window
 from agent.tools.mcp_manager import connect_server, disconnect_server
 from backend.llm_providers import LLM_PROVIDERS
+from backend.api.system_api import _get_version
 from backend.schemas.config import (
     AgentConfig,
     ConfigResponse,
@@ -52,6 +53,7 @@ def get_config():
             keep_recent_tokens=cfg.keep_recent_tokens,
             approval_mode=cfg.approval_mode,
         ),
+        version=_get_version(),
     )
 
 
