@@ -112,7 +112,7 @@ AgentPhase = Phase
 _ALL_PHASES = {Phase.IDLE, Phase.TURN, Phase.COMPACTION, Phase.RETRY}
 _VALID_TRANSITIONS: dict[str, set[str]] = {
     Phase.IDLE: {Phase.TURN, Phase.COMPACTION},
-    Phase.TURN: {Phase.IDLE, Phase.RETRY},
+    Phase.TURN: {Phase.IDLE, Phase.RETRY, Phase.COMPACTION},
     Phase.COMPACTION: {Phase.IDLE, Phase.TURN},
     Phase.RETRY: {Phase.TURN, Phase.IDLE},
 }
