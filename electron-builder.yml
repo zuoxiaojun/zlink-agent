@@ -21,8 +21,11 @@ asar: true
 
 extraResources:
   # PyInstaller 打包的后端单文件二进制 (build by scripts/build-pyinstaller.sh)
-  - from: dist/zlink-backend
+  # macOS/Linux: dist/zlink-backend | Windows: dist/zlink-backend.exe
+  - from: dist/
     to: .
+    filter:
+      - "zlink-backend*"
   # Chart MCP server (预置, npx @antv/mcp-server-chart)
   - from: node_modules/@antv/mcp-server-chart/
     to: mcp-chart

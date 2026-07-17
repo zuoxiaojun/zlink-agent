@@ -25,9 +25,15 @@ case "$PLATFORM" in
   *) echo "用法: $0 [--mac|--win]"; exit 1 ;;
 esac
 
+IS_MAC_HOST=false
+[[ "$(uname -s)" == "Darwin" ]] && IS_MAC_HOST=true
+IS_WIN_HOST=false
+[[ "$(uname -s)" =~ MINGW*|MSYS* ]] && IS_WIN_HOST=true
+
 echo "╔══════════════════════════════════════════════╗"
 echo "║     ZLink Agent 全自包含打包                  ║"
-echo "║     平台: $PLATFORM"
+echo "║     目标平台: $PLATFORM"
+echo "║     构建主机: $(uname -s)"
 echo "╚══════════════════════════════════════════════╝"
 
 echo ""
@@ -37,8 +43,14 @@ echo "✅ 前端构建完成"
 
 echo ""
 echo "[2/4] 打包 Python 后端 (PyInstaller)..."
-bash scripts/build-pyinstaller.sh
-echo "✅ PyInstaller 打包完成: dist/zlink-backend"
+if $IS_WIN_HOST || [[ "$PLATFORM" == "--mac" && "$IS_MAC_HOST" == "true" ]]; then
+    bash scripts/build-pyinstaller.sh
+    echo "✅ PyInstaller 打包完成"
+elif [[ "$PLATFORM" == "--win" && "$IS_MAC_HOST" == "true" ]]; then
+    echo "  ⚠️  macOS 上无法交叉编译 Windows PyInstaller 二进制。"
+    echo "  ℹ️  请准备预编译的 dist/zlink-backend.exe 后再运行此脚本。"
+    echo "  ℹ️  或者在 Windows 主机上原生构建。"
+fi
 
 echo ""
 ARCH_FLAG=""
@@ -106,10 +118,9 @@ fi
 echo ""
 echo "[4/4] 清理临时文件..."
 python3 -c "
-import sys; sys.path.insert(0, '$SCRIPT_DIR')
+import sys; sys.path.insert(0, '\$SCRIPT_DIR')
 from build_utils import remove_paths
 import glob
-# 保留 build/python-bundle 加速下次构建（如需重建可手动删除）
 for f in glob.glob('dist-electron/*.blockmap'):
     remove_paths(f)
 remove_paths(

@@ -32,12 +32,19 @@ fi
 echo ""
 echo "▶ 打包中..."
 
+# --add-data separator: macOS/Linux use ":", Windows uses ";"
+if [[ "$(uname -s)" =~ MINGW*|MSYS* ]]; then
+    ADD_DATA_SEP=";"
+else
+    ADD_DATA_SEP=":"
+fi
+
 python3 -m PyInstaller \
     --clean \
     --noconfirm \
     $MODE \
     --name zlink-backend \
-    --add-data "agent/skills:skills" \
+    --add-data "agent/skills${ADD_DATA_SEP}skills" \
     --hidden-import uvicorn \
     --hidden-import uvicorn.logging \
     --hidden-import uvicorn.loops \
@@ -54,5 +61,4 @@ python3 -m PyInstaller \
 
 echo ""
 echo "✅ PyInstaller 打包完成"
-echo "   产物: dist/zlink-backend"
 ls -lh dist/zlink-backend*
