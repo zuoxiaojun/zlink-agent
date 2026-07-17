@@ -22,36 +22,18 @@ let backendProcess = null;
 const BACKEND_PORT = 8089;
 const BACKEND_HOST = `http://localhost:${BACKEND_PORT}`;
 
-/** Resolve bundled Python path inside the app resources. */
-function findBundledPython() {
+/** Resolve bundled PyInstaller backend binary inside the app resources. */
+function findBackendBinary() {
   if (IS_DEV) return null;
   const dir = process.resourcesPath;
   const candidates = [
-    // macOS/Linux: venv uses bin/
-    path.join(dir, "python-bundle", "bin", "python3"),
-    path.join(dir, "python-bundle", "bin", "python"),
-    // Windows: venv uses Scripts/python.exe
-    path.join(dir, "python-bundle", "Scripts", "python.exe"),
-    path.join(dir, "python-bundle", "Scripts", "python3.exe"),
+    // macOS/Linux
+    path.join(dir, "zlink-backend"),
+    // Windows
+    path.join(dir, "zlink-backend.exe"),
   ];
   for (const p of candidates) {
     if (fs.existsSync(p)) return p;
-  }
-  return null;
-}
-
-function findBackendLauncher() {
-  if (IS_DEV) return null;
-  const dir = process.resourcesPath;
-  const launcher = path.join(dir, "backend_launcher.py");
-  return fs.existsSync(launcher) ? launcher : null;
-}
-
-function findProjectRoot() {
-  // In production: resourcesPath/app/ contains the project source
-  if (!IS_DEV) {
-    const p = path.join(process.resourcesPath, "app");
-    if (fs.existsSync(path.join(p, "backend", "main.py"))) return p;
   }
   return null;
 }
@@ -62,37 +44,21 @@ function startBackend() {
     return;
   }
 
-  const pythonBin = findBundledPython();
-  if (!pythonBin) {
-    dialog.showErrorBox("启动失败", "找不到内置 Python 运行环境。请运行 scripts/bundle-python.sh 重新构建。");
+  const backendBin = findBackendBinary();
+  if (!backendBin) {
+    dialog.showErrorBox("启动失败", "找不到后端程序 (zlink-backend)。请运行 scripts/build-pyinstaller.sh 重新构建。");
     app.quit();
     return;
   }
 
-  // Use the launcher script so Python can import backend.main
-  const launcher = findBackendLauncher();
-  if (!launcher) {
-    dialog.showErrorBox("启动失败", "找不到后端启动脚本 (backend_launcher.py)");
-    app.quit();
-    return;
-  }
+  console.log(`[electron] Starting backend: ${backendBin}`);
 
-  console.log(`[electron] Starting backend: ${pythonBin}`);
-  console.log(`[electron] Launcher: ${launcher}`);
-
-  // Project source is at Resources/app/ (electron-builder extraResources)
-  // Add to PYTHONPATH so subprocesses (MCP servers) can find agent/ etc.
-  const pythonBundleDir = path.dirname(path.dirname(pythonBin));
-  const resourcesPath = path.dirname(pythonBundleDir);
-  const appDir = path.join(resourcesPath, "app");
-
-  backendProcess = spawn(pythonBin, [launcher], {
+  backendProcess = spawn(backendBin, [], {
     stdio: ["ignore", "pipe", "pipe"],
     env: {
       ...process.env,
       ZLINK_AGENT_PORT: String(BACKEND_PORT),
       ZLINK_AGENT_CORS: "*",  // allow file:// origin in Electron
-      PYTHONPATH: appDir,      // bundled project source for MCP subprocesses
     },
   });
 
