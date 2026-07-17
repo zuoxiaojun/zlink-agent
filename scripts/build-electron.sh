@@ -36,13 +36,9 @@ cd web && npm install --prefer-offline && npm run build && cd ..
 echo "✅ 前端构建完成"
 
 echo ""
-echo "[2/4] 打包 Python 运行环境..."
-if [ -f "build/python-bundle/bin/python" ]; then
-    echo "  ⏭️  build/python-bundle 已存在，跳过重新构建（如需重建请删除该目录）"
-else
-    bash scripts/bundle-python.sh
-fi
-echo "✅ Python 环境打包完成"
+echo "[2/4] 打包 Python 后端 (PyInstaller)..."
+bash scripts/build-pyinstaller.sh
+echo "✅ PyInstaller 打包完成: dist/zlink-backend"
 
 echo ""
 ARCH_FLAG=""
