@@ -20,34 +20,14 @@ asarUnpack:
 asar: true
 
 extraResources:
-  # 自包含 Python 运行环境 (build by scripts/bundle-python.sh)
-  - from: build/python-bundle/
-    to: python-bundle
-    filter:
-      - "**/*"
-  # 项目源码
-  - from: .
-    to: app
-    filter:
-      - "backend/**/*.py"
-      - "agent/**/*"
-      - "!agent/**/__pycache__/**"
-      - "!agent/**/*.pyc"
-      - "scripts/**/*.py"
-      - "packaging/**/*"
-      - "requirements.txt"
-      - "pyproject.toml"
-      - "LICENSE"
+  # PyInstaller 打包的后端单文件二进制 (build by scripts/build-pyinstaller.sh)
+  - from: dist/zlink-backend
+    to: .
   # Chart MCP server (预置, npx @antv/mcp-server-chart)
   - from: node_modules/@antv/mcp-server-chart/
     to: mcp-chart
     filter:
       - "**/*"
-  # 后端启动脚本
-  - from: electron/
-    to: .
-    filter:
-      - "backend_launcher.py"
 
 mac:
   category: public.app-category.business
