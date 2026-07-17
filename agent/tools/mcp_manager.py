@@ -383,7 +383,7 @@ class MCPServerConnection:
 
         # Filter safe env vars + user-specified env
         safe_env = {
-            k: v for k, v in os.environ.items() if k in ("PATH", "HOME", "USER", "SHELL", "TMPDIR", "TEMP", "TMP")
+            k: v for k, v in os.environ.items() if k in ("PATH", "HOME", "USER", "SHELL", "TMPDIR", "TEMP", "TMP", "PYTHONPATH")
         }
         safe_env.update(user_env)
 

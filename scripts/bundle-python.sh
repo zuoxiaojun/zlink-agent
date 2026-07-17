@@ -65,12 +65,34 @@ echo "[3/3] 安装运行时依赖（复用 pip 缓存）..."
   --no-input --quiet \
   -r requirements.txt 2>&1 | tail -3
 
+# ── 清除 editable install 残留（指向本机路径，用户机器上会导 ──
+#    致 agent/backend/mcp_server import 失败） ─────────────────────
+echo "  清除 editable install 残留..."
+# Unix/macOS path
+rm -f "$BUNDLE_DIR/lib/python3.14/site-packages/__editable__"*.pth 2>/dev/null || true
+rm -f "$BUNDLE_DIR/lib/python3.14/site-packages/__editable___"*.py 2>/dev/null || true
+rm -rf "$BUNDLE_DIR/lib/python3.14/site-packages/zlink_agent-"*.dist-info 2>/dev/null || true
+# Windows path (venv uses Lib/ not lib/pythonX.Y/)
+rm -f "$BUNDLE_DIR/Lib/site-packages/__editable__"*.pth 2>/dev/null || true
+rm -f "$BUNDLE_DIR/Lib/site-packages/__editable___"*.py 2>/dev/null || true
+rm -rf "$BUNDLE_DIR/Lib/site-packages/zlink_agent-"*.dist-info 2>/dev/null || true
+echo "  ✅ Editable install 残留已清除"
+
 # ── 清理（跨平台） ─────────────────────────────────────────────────
 python3 -c "
 import sys; sys.path.insert(0, '$SCRIPT_DIR')
 from build_utils import clean_pycache, remove_test_dirs
 clean_pycache('$BUNDLE_DIR')
 remove_test_dirs('$BUNDLE_DIR')
+"
+
+# ── 自包含可重定位处理（macOS：替换符号链接 + 打包标准库） ──────
+echo ""
+echo "[3.5/3] 制作自包含可重定位 Python（替换绝对符号链接）..."
+python3 -c "
+import sys; sys.path.insert(0, '$SCRIPT_DIR')
+from build_utils import relocate_python_bundle
+relocate_python_bundle('$BUNDLE_DIR')
 "
 
 # ── 验证关键包 ───────────────────────────────────────────────────────
@@ -80,6 +102,7 @@ echo "  验证安装:"
 import fastapi, uvicorn, openai, anthropic, pydantic, httpx, oracledb, sqlparse, mcp
 print('  ✅ 所有核心依赖已安装')
 print(f'  Python: {__import__(\"sys\").version}')
+print(f'  sys.prefix: {__import__(\"sys\").prefix}')
 " 2>&1 || echo "  ⚠️ 部分依赖缺失"
 
 # ── 统计大小（跨平台） ─────────────────────────────────────────────

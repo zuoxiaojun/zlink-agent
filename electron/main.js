@@ -27,8 +27,12 @@ function findBundledPython() {
   if (IS_DEV) return null;
   const dir = process.resourcesPath;
   const candidates = [
+    // macOS/Linux: venv uses bin/
     path.join(dir, "python-bundle", "bin", "python3"),
     path.join(dir, "python-bundle", "bin", "python"),
+    // Windows: venv uses Scripts/python.exe
+    path.join(dir, "python-bundle", "Scripts", "python.exe"),
+    path.join(dir, "python-bundle", "Scripts", "python3.exe"),
   ];
   for (const p of candidates) {
     if (fs.existsSync(p)) return p;
@@ -75,12 +79,20 @@ function startBackend() {
 
   console.log(`[electron] Starting backend: ${pythonBin}`);
   console.log(`[electron] Launcher: ${launcher}`);
+
+  // Project source is at Resources/app/ (electron-builder extraResources)
+  // Add to PYTHONPATH so subprocesses (MCP servers) can find agent/ etc.
+  const pythonBundleDir = path.dirname(path.dirname(pythonBin));
+  const resourcesPath = path.dirname(pythonBundleDir);
+  const appDir = path.join(resourcesPath, "app");
+
   backendProcess = spawn(pythonBin, [launcher], {
     stdio: ["ignore", "pipe", "pipe"],
     env: {
       ...process.env,
       ZLINK_AGENT_PORT: String(BACKEND_PORT),
       ZLINK_AGENT_CORS: "*",  // allow file:// origin in Electron
+      PYTHONPATH: appDir,      // bundled project source for MCP subprocesses
     },
   });
 
