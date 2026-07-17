@@ -1,6 +1,6 @@
 {
   "name": "zlink-agent",
-  "version": "1.6.2",
+  "version": "1.7.0",
   "description": "ZLink Agent — Smart Link to Your Business Systems",
   "main": "electron/main.js",
   "type": "commonjs",
