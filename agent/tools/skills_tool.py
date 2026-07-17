@@ -10,11 +10,13 @@ from pathlib import Path
 import yaml
 
 from agent.tools.registry import registry, tool_error, tool_result
-from agent.utils import DATA_DIR, atomic_json_write
+from agent.utils import DATA_DIR, atomic_json_write, get_base_dir
 
 logger = logging.getLogger(__name__)
 
-SKILLS_DIR = Path(__file__).resolve().parent.parent / "skills"
+# PyInstaller-aware: use sys._MEIPASS when frozen, __file__-based path otherwise
+# skills_tool.py → parent=tools → parent=agent → skills/
+SKILLS_DIR = get_base_dir() / "agent" / "skills"
 USER_SKILLS_DIR = DATA_DIR / "skills"
 USER_SKILLS_DIR = DATA_DIR / "skills"
 

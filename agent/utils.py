@@ -2,9 +2,24 @@
 
 import json
 import os
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
+
+
+def get_base_dir() -> Path:
+    """Return the project root directory, handling PyInstaller frozen mode.
+
+    In PyInstaller one-file builds, ``sys._MEIPASS`` points to the temporary
+    extraction directory where all bundled files (Python modules + data files)
+    are located.  In normal Python execution, fall back to ``__file__``-based
+    resolution from this module's location.
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS)
+    # agent/utils.py → agent/ → project root
+    return Path(__file__).resolve().parent.parent
 
 # ── Data directory 解析 ─────────────────────────────────────────────────────
 # v1.5.2 规则 (破坏式清理, 老用户数据目录已物理 rename):

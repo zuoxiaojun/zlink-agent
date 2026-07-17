@@ -44,7 +44,7 @@ python3 -m PyInstaller \
     --noconfirm \
     $MODE \
     --name zlink-backend \
-    --add-data "agent/skills${ADD_DATA_SEP}skills" \
+    --add-data "agent/skills${ADD_DATA_SEP}agent/skills" \
     --hidden-import uvicorn \
     --hidden-import uvicorn.logging \
     --hidden-import uvicorn.loops \
@@ -57,6 +57,43 @@ python3 -m PyInstaller \
     --hidden-import uvicorn.middleware.proxy_headers \
     --hidden-import uvicorn.middleware.wsgi \
     --hidden-import oracledb \
+    --hidden-import yaml \
+    --hidden-import httpx \
+    --hidden-import dotenv \
+    --hidden-import pydantic \
+    --hidden-import websockets \
+    --hidden-import agent.tools.browser_tool \
+    --hidden-import agent.tools.clarify_tool \
+    --hidden-import agent.tools.code_execution_tool \
+    --hidden-import agent.tools.cronjob_tools \
+    --hidden-import agent.tools.delegate_tool \
+    --hidden-import agent.tools.erp_nc_tools \
+    --hidden-import agent.tools.erp_ys_tools \
+    --hidden-import agent.tools.file_mutation_queue \
+    --hidden-import agent.tools.file_tools \
+    --hidden-import agent.tools.mcp_management_tool \
+    --hidden-import agent.tools.mcp_manager \
+    --hidden-import agent.tools.memory_tool \
+    --hidden-import agent.tools.process_tool \
+    --hidden-import agent.tools.project_tools \
+    --hidden-import agent.tools.security_hooks \
+    --hidden-import agent.tools.session_search_tool \
+    --hidden-import agent.tools.skills_tool \
+    --hidden-import agent.tools.terminal_tool \
+    --hidden-import agent.tools.todo_tool \
+    --hidden-import agent.tools.vision_tool \
+    --hidden-import agent.tools.web_extract_tool \
+    --hidden-import agent.tools.web_tools \
+    --hidden-import agent.extensions.audit_log \
+    --hidden-import agent.extensions.log_everything \
+    --hidden-import agent.extensions.monitoring \
+    --hidden-import agent.extensions.security_event \
+    --hidden-import agent.core.agent \
+    --hidden-import agent.core.llm_client \
+    --hidden-import agent.core.message_builder \
+    --hidden-import agent.core.metrics \
+    --hidden-import agent.core.iteration_budget \
+    --hidden-import agent.core.tool_dispatcher \
     backend/main.py
 
 echo ""
