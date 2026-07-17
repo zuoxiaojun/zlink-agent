@@ -209,7 +209,7 @@ def test_resolve_context_window_known_model():
     assert resolve_context_window("gpt-4o") == 128_000
     assert resolve_context_window("gpt-4.1") == 1_000_000
     assert resolve_context_window("claude-sonnet-4-20250514") == 200_000
-    assert resolve_context_window("deepseek-chat") == 128_000
+    assert resolve_context_window("deepseek-chat") == 1_000_000
     assert resolve_context_window("qwen-plus") == 128_000
     assert resolve_context_window("gemini-2.5-pro") == 1_000_000
     assert resolve_context_window("o3") == 200_000
@@ -237,7 +237,7 @@ def test_resolve_context_window_case_insensitive():
 
     assert resolve_context_window("GPT-4O") == 128_000
     assert resolve_context_window("Claude-Sonnet-4") == 200_000
-    assert resolve_context_window("DEEPSEEK-CHAT") == 128_000
+    assert resolve_context_window("DEEPSEEK-CHAT") == 1_000_000
 
 
 def test_resolve_context_window_prefers_specific():

@@ -10,7 +10,6 @@ v1.5.0 角色:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
 # === 通用异常 ===
@@ -63,23 +62,3 @@ class ERPClient(Protocol):
 
     def authenticate(self, force_refresh: bool = False) -> str | bool: ...
     def health_check(self) -> bool: ...
-
-
-# === MCP 启动配置 schema ===
-
-
-@dataclass(frozen=True)
-class MCPStarterConfig:
-    """
-    把用户友好配置转换为 MCP server 启动参数
-
-    用于 agent/mcp_server/nc_mcp/mcp_starter.py 等
-    """
-
-    erp_name: str
-    enabled: bool
-    command: str
-    args: list[str]
-    env: dict[str, str]
-    builtin: bool
-    install_hint: str | None = None

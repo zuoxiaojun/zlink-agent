@@ -261,6 +261,33 @@ export default function McpPage() {
             </div>
           </div>
 
+          <div style={{ marginBottom: "16px" }}>
+            <span style={{ fontSize: "12px", color: "var(--text-3)", fontWeight: 500 }}>推荐预设</span>
+            <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
+              <button className="btn btn-ghost" style={{ fontSize: "12px", padding: "4px 12px" }}
+                onClick={() => {
+                  setForm({ name: "mcp-server-chart", transport: "stdio", command: "npx", args: ["-y", "@antv/mcp-server-chart"], url: "", headers: {}, env: {}, enabled: true, timeout: 120 });
+                  setAddMode("form");
+                }}>
+                📊 Chart 图表
+              </button>
+              <button className="btn btn-ghost" style={{ fontSize: "12px", padding: "4px 12px" }}
+                onClick={() => {
+                  setJsonText(JSON.stringify({ name: "playwright", transport: "stdio", command: "npx", args: ["-y", "@playwright/mcp@latest"], timeout: 120, enabled: true }, null, 2));
+                  setAddMode("json");
+                }}>
+                🌐 Playwright 浏览器
+              </button>
+              <button className="btn btn-ghost" style={{ fontSize: "12px", padding: "4px 12px" }}
+                onClick={() => {
+                  setForm({ name: "my-mcp-server", transport: "stdio", command: "", args: [], url: "", headers: {}, env: {}, enabled: true, timeout: 120 });
+                  setAddMode("form");
+                }}>
+                ✏️ 自定义
+              </button>
+            </div>
+          </div>
+
           {addMode === "form" ? (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
               <div>

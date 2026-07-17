@@ -23,6 +23,31 @@ from agent import config_manager
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
+def _apply_erp_env(name: str, cfg: dict):
+    """将 ERP 配置注入环境变量，供内置工具 (agent/tools/erp_*_tools.py) 读取。"""
+    import os
+
+    if name == "nc":
+        host = cfg.get("host", "")
+        if host:
+            os.environ["ORACLE_HOST"] = host
+            os.environ["ORACLE_PORT"] = str(cfg.get("port", "") or "")
+            os.environ["ORACLE_SERVICE"] = str(cfg.get("service", "") or "")
+            os.environ["ORACLE_USER"] = str(cfg.get("user", "") or "")
+            os.environ["ORACLE_PASSWORD"] = str(cfg.get("password", "") or "")
+            os.environ["NC_MCP_MAX_ROWS"] = str(cfg.get("max_rows", 200) or 200)
+    elif name == "yonsuite":
+        app_key = cfg.get("app_key", "")
+        app_secret = cfg.get("app_secret", "")
+        tenant_id = cfg.get("tenant_id", "")
+        gateway_url = cfg.get("base_url", "https://c2.yonyoucloud.com/iuap-api-gateway")
+        if app_key:
+            os.environ["YONSUITE_APP_KEY"] = app_key
+            os.environ["YONSUITE_APP_SECRET"] = app_secret
+            os.environ["YONSUITE_TENANT_ID"] = tenant_id
+            os.environ["YONSUITE_GATEWAY_URL"] = gateway_url
+
 # secret 字段在 PUT 时自动加密
 SECRET_FIELDS = {
     "yonsuite": ["app_key", "app_secret"],
@@ -162,51 +187,8 @@ async def put_erp_client(name: str, body: ERPPutRequest) -> dict:
     cfg.erp_clients = erp_clients
     config_manager.save(cfg)
 
-    # 触发 MCP 同步（仅在启用/禁用状态变化时）
-    try:
-        if name == "nc":
-            from mcp_server.nc_mcp.mcp_starter import sync_nc_mcp
-
-            await sync_nc_mcp()
-        elif name == "yonsuite":
-            from agent import config_manager as cm
-            from agent.config_manager import get_erp_config
-            from agent.tools.mcp_manager import connect_server, disconnect_server
-
-            ys_cfg = get_erp_config("yonsuite")
-            new_enabled = bool(ys_cfg.get("enabled", False))
-
-            # 持久化 MCP server 的 enabled 状态到 config.json
-            raw = json.loads(cm.CONFIG_FILE.read_text(encoding="utf-8"))
-            servers = raw.setdefault("mcp_servers", {})
-            mcp_entry = servers.setdefault("yonsuite", {})
-            mcp_entry["enabled"] = new_enabled
-            cm.atomic_json_write(cm.CONFIG_FILE, raw)
-
-            # 读取当前 MCP server 配置(command/args/env)
-            cfg = cm.load()
-            mcp_cfg = cfg.mcp_servers.get("yonsuite")
-            if mcp_cfg is None:
-                logger.warning("yonsuite MCP server 未注册，跳过同步")
-            elif not new_enabled:
-                # 禁用 → 断开 MCP，不重连
-                logger.info("YonSuite 已停用，断开 yonsuite MCP server")
-                await disconnect_server("yonsuite")
-            else:
-                # 启用 → 刷新 env，断开重连
-                mcp_cfg.env = {
-                    "YONSUITE_APP_KEY": ys_cfg.get("app_key", ""),
-                    "YONSUITE_APP_SECRET": ys_cfg.get("app_secret", ""),
-                    "YONSUITE_TENANT_ID": ys_cfg.get("tenant_id", ""),
-                    "YONSUITE_GATEWAY_URL": ys_cfg.get("base_url")
-                    or "https://c2.yonyoucloud.com/iuap-api-gateway",
-                }
-                cm.save(cfg)
-                logger.info("YonSuite 已启用，重连 yonsuite MCP server")
-                await disconnect_server("yonsuite")
-                await connect_server("yonsuite", mcp_cfg.model_dump())
-    except Exception as e:
-        logger.warning("MCP 同步失败 (%s): %s", name, e)
+    # 将 ERP 配置注入环境变量（内置工具 agent/tools/erp_*_tools.py 读取）
+    _apply_erp_env(name, erp_clients.get(name, {}))
 
     # 返回 ERP 客户端配置字典（与 GET 同形状），而非完整 AppConfig
     return await get_erp_client(name)
@@ -235,13 +217,24 @@ async def test_erp_client(name: str) -> dict:
             return {"ok": False, "error": str(e)}
     elif name == "nc":
         try:
-            from agent.tools.mcp_manager import get_server_statuses
+            from agent.config_manager import get_erp_config
 
-            statuses = {s["name"]: s for s in get_server_statuses()}
-            nc_status = statuses.get("mcp-nc", {}).get("status", "disconnected")
-            if nc_status == "connected":
-                return {"ok": True}
-            return {"ok": False, "error": f"mcp-nc 状态: {nc_status}，请先在 ERP 连接页启用 NC"}
+            cfg = get_erp_config("nc")
+            host = cfg.get("host", "")
+            port = cfg.get("port", "")
+            user = cfg.get("user", "")
+            password = cfg.get("password", "")
+            service = cfg.get("service", "")
+            if not all([host, port, user, password, service]):
+                return {"ok": False, "error": "NC 配置不完整，请填写所有连接字段"}
+
+            import oracledb
+
+            conn = oracledb.connect(user=user, password=password, host=host, port=int(port), service_name=service)
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1 FROM DUAL")
+            conn.close()
+            return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
     raise HTTPException(404, f"Unknown ERP {name!r}")

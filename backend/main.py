@@ -59,103 +59,69 @@ async def lifespan(application: FastAPI):
     cfg = config_manager.load()
     servers_cfg = cfg.mcp_servers
 
-    # ── 强制覆盖内置 MCP 服务器的 command/args ─────────────────────────
-    # 避免 config.json 中残留的绝对路径（如 Electron .app 内部路径）
-    # 导致开发环境启动失败。每次启动都用当前运行环境覆盖并持久化。
-    py_path = sys.executable
-    ys_mcp_args = ["-m", "mcp_server.ys_mcp_server"]
-
-    servers_cfg.setdefault("yonsuite", MCPServerEntry(
-        transport="stdio",
-        command=py_path,
-        args=ys_mcp_args,
-        enabled=True,
-        timeout=120,
-        builtin=True,
-    ))
-    ys_entry = servers_cfg["yonsuite"]
-    ys_entry.command = py_path
-    ys_entry.args = ys_mcp_args
-    ys_entry.builtin = True
-
-    # nc MCP — 内置，用当前 Python
-    servers_cfg.setdefault("mcp-nc", MCPServerEntry(
-        transport="stdio",
-        command=py_path,
-        args=["-m", "mcp_server.nc_mcp_server"],
-        enabled=True,
-        timeout=120,
-        builtin=True,
-        env={},
-    ))
-    nc_entry = servers_cfg["mcp-nc"]
-    nc_entry.command = py_path
-    nc_entry.args = ["-m", "mcp_server.nc_mcp_server"]
-    nc_entry.builtin = True
-
-    # ── 从 erp_clients 读取配置，覆盖内置 MCP 服务器的 env ──────────
-    # YonSuite
+    # ── YonSuite: 注入环境变量（内置工具 agent/tools/erp_ys_tools.py 读取） ──
     ys_cfg_erp = cfg.erp_clients.get("yonsuite", {})
     ys_app_key = ys_cfg_erp.get("app_key") or cfg.ys_app_key or ""
     ys_app_secret = ys_cfg_erp.get("app_secret") or cfg.ys_app_secret or ""
     ys_tenant_id = ys_cfg_erp.get("tenant_id") or cfg.ys_tenant_id or ""
     ys_gateway_url = ys_cfg_erp.get("base_url") or cfg.ys_gateway_url or "https://c2.yonyoucloud.com/iuap-api-gateway"
-    if isinstance(ys_cfg_erp, dict) and ys_app_key:
-        ys_entry = servers_cfg["yonsuite"]
-        ys_entry.env = {
-            "YONSUITE_APP_KEY": ys_app_key,
-            "YONSUITE_APP_SECRET": ys_app_secret,
-            "YONSUITE_TENANT_ID": ys_tenant_id,
-            "YONSUITE_GATEWAY_URL": ys_gateway_url,
-        }
-    # Always set os.environ (YonSuite client code reads these at import time)
     os.environ.setdefault("YONSUITE_APP_KEY", ys_app_key)
     os.environ.setdefault("YONSUITE_APP_SECRET", ys_app_secret)
     os.environ.setdefault("YONSUITE_TENANT_ID", ys_tenant_id)
     os.environ.setdefault("YONSUITE_GATEWAY_URL", ys_gateway_url)
     os.environ.setdefault("YONSUITE_CACHE_DIR", str(DATA_DIR / "yonsuite_cache"))
 
-    # NC
+    # ── NC: 注入环境变量（内置工具 agent/tools/erp_nc_tools.py 读取） ──
     nc_cfg_erp = cfg.erp_clients.get("nc", {})
     if isinstance(nc_cfg_erp, dict):
-        nc_entry.enabled = bool(nc_cfg_erp.get("enabled", True))
         nc_host = nc_cfg_erp.get("host", "") or ""
         if nc_host:
-            nc_entry.env = {
-                "ORACLE_HOST": nc_host,
-                "ORACLE_PORT": str(nc_cfg_erp.get("port", "") or ""),
-                "ORACLE_SERVICE": str(nc_cfg_erp.get("service", "") or ""),
-                "ORACLE_USER": str(nc_cfg_erp.get("user", "") or ""),
-                "ORACLE_PASSWORD": str(nc_cfg_erp.get("password", "") or ""),
-                "NC_MCP_MAX_ROWS": str(nc_cfg_erp.get("max_rows", 200) or 200),
-            }
+            os.environ.setdefault("ORACLE_HOST", nc_host)
+            os.environ.setdefault("ORACLE_PORT", str(nc_cfg_erp.get("port", "") or ""))
+            os.environ.setdefault("ORACLE_SERVICE", str(nc_cfg_erp.get("service", "") or ""))
+            os.environ.setdefault("ORACLE_USER", str(nc_cfg_erp.get("user", "") or ""))
+            os.environ.setdefault("ORACLE_PASSWORD", str(nc_cfg_erp.get("password", "") or ""))
+            os.environ.setdefault("NC_MCP_MAX_ROWS", str(nc_cfg_erp.get("max_rows", 200) or 200))
 
-    # Chart MCP server
-    _chart_entry = _PROJECT_ROOT / "node_modules" / "@antv" / "mcp-server-chart" / "build" / "index.js"
-    _node_path = shutil.which("node") if _chart_entry.exists() else None
-    if _node_path:
-        servers_cfg.setdefault("mcp-server-chart", MCPServerEntry(
-            transport="stdio",
-            command=_node_path,
-            args=[str(_chart_entry)],
-            enabled=True,
-            timeout=120,
-            builtin=True,
-            env={},
-        ))
-        chart_entry = servers_cfg["mcp-server-chart"]
-        chart_entry.command = _node_path
-        chart_entry.args = [str(_chart_entry)]
-        chart_entry.builtin = True
-    elif _chart_entry.exists():
-        _logger.warning("node 未安装, Chart MCP 服务器已跳过")
+    # ── Chart MCP server（预置，打包在 Resources/mcp-chart/） ──
+    # 开发模式: node_modules/@antv/mcp-server-chart/build/index.js
+    # 生产模式: Resources/mcp-chart/build/index.js
+    _chart_paths = [
+        _PROJECT_ROOT / "node_modules" / "@antv" / "mcp-server-chart" / "build" / "index.js",
+    ]
+    # 检查是否是 Electron 打包环境（Resources/mcp-chart/）
+    _resources_chart = Path(__file__).resolve().parent.parent.parent / "Resources" / "mcp-chart" / "build" / "index.js"
+    if _resources_chart.exists():
+        _chart_paths.insert(0, _resources_chart)
+
+    _chart_entry = None
+    for p in _chart_paths:
+        if p.exists():
+            _chart_entry = p
+            break
+
+    if _chart_entry:
+        _node_path = shutil.which("node")
+        if _node_path:
+            servers_cfg.setdefault("mcp-server-chart", MCPServerEntry(
+                transport="stdio",
+                command=_node_path,
+                args=[str(_chart_entry)],
+                enabled=True,
+                timeout=120,
+                builtin=True,
+                env={},
+            ))
+        else:
+            _logger.warning("Chart MCP 服务器已跳过（未找到 node）")
     else:
-        _logger.warning(
-            "@antv/mcp-server-chart 未安装 (node_modules/@antv/mcp-server-chart 不存在), "
-            "Chart MCP 服务器已跳过。运行 cd web && npm ci 安装。"
-        )
+        _logger.info("Chart MCP 未安装，跳过（用户可自行 npx 启动）")
 
-    # 持久化内置服务器路径配置到 config.json
+    # 从 servers_cfg 中移除已内置化的 ERP MCP 条目（保留用户自己添加的第三方 MCP）
+    for _erp_key in ("yonsuite", "mcp-nc"):
+        servers_cfg.pop(_erp_key, None)
+
+    # 持久化配置（不含已移除的 ERP 条目）
     cfg.mcp_servers = servers_cfg
     config_manager.save(cfg)
 

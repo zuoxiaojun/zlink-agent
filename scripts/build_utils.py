@@ -223,17 +223,24 @@ def relocate_python_bundle(bundle_dir: str) -> None:
     # ── Step 6: relocate Homebrew dylibs referenced by .so files ──
     _relocate_homebrew_dylibs(bundle)
 
+    # ── Step 6.5: fix Rust .so @rpath self-references ──
+    # Rust-compiled native extensions (e.g. pydantic_core, cryptography)
+    # set their own install name to @rpath/xxx.so, which works on the
+    # build machine (Homebrew Python Framework registers @rpath) but
+    # fails on user machines.  Fix by replacing @rpath/ with @loader_path/.
+    _fix_rpath_self_references(bundle)
+
     # ── Step 7: verify ──
-    result = subprocess.run(
-        [str(venv_python), "-c",
-         "import sys; print(f'Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')"],
-        capture_output=True, text=True, timeout=30,
-        cwd=str(bundle),
-    )
-    if result.returncode == 0:
-        print(f"  ✅  Relocated Python works: {result.stdout.strip()}")
-    else:
-        print(f"  ⚠️  Relocated Python check failed:\n{result.stderr[:500]}")
+    for mod_name in ("sys", "pydantic", "pydantic_core", "cryptography"):
+        result = subprocess.run(
+            [str(venv_python), "-c", f"import {mod_name}"],
+            capture_output=True, text=True, timeout=30,
+            cwd=str(bundle),
+        )
+        if result.returncode == 0:
+            print(f"  ✅  import {mod_name}")
+        else:
+            print(f"  ⚠️  import {mod_name} FAILED:\n{result.stderr[:300]}")
 
 
 def _relocate_homebrew_dylibs(bundle: Path) -> None:
@@ -361,3 +368,82 @@ def _relocate_homebrew_dylibs(bundle: Path) -> None:
         print(f"  ✅  Created {fixed_symlinks} dylib symlink alias(es) (version → unversioned)")
 
     print(f"  ✅  Bundled and relocated {len(deps)} Homebrew dylib(s)")
+
+
+def _fix_rpath_self_references(bundle: Path) -> None:
+    """Fix Rust .so files whose own install name is @rpath/xxx.so.
+
+    These files set their own install name to @rpath/<filename>, relying on
+    the Python interpreter's ``-Wl,-rpath`` to resolve it.  On the build
+    machine (Homebrew Python Framework) this works; on user machines without
+    Homebrew it fails at import time.
+
+    Fix: change the install name from ``@rpath/<filename>`` to
+    ``@loader_path/<filename>`` so it resolves relative to the .so itself.
+    """
+    so_files = list(bundle.rglob("*.so"))
+    fixed = 0
+    for so in so_files:
+        try:
+            out = subprocess.check_output(["otool", "-L", str(so)], text=True).splitlines()
+        except subprocess.CalledProcessError:
+            continue
+        # First line is the file's own install name
+        own_name = out[0].strip() if out else ""
+        if own_name.startswith("@rpath/"):
+            loader_path = "@loader_path/" + Path(own_name).name
+            try:
+                subprocess.run(
+                    ["install_name_tool", "-id", loader_path, str(so)],
+                    check=True, capture_output=True, text=True,
+                )
+                print(f"  ✅  Fixed @rpath self-ref: {so.relative_to(bundle)} -> {loader_path}")
+                fixed += 1
+            except subprocess.CalledProcessError:
+                print(f"  ⚠️  Failed to fix @rpath for {so.relative_to(bundle)}")
+        # Also fix any other @rpath references in the same file
+        for line in out[1:]:
+            line = line.strip()
+            if line.startswith("@rpath/"):
+                old = line.split()[0]
+                new = "@loader_path/" + Path(old).name
+                try:
+                    subprocess.run(
+                        ["install_name_tool", "-change", old, new, str(so)],
+                        check=True, capture_output=True, text=True,
+                    )
+                    print(f"  ✅  Fixed @rpath dep: {so.relative_to(bundle)}: {old} -> {new}")
+                    fixed += 1
+                except subprocess.CalledProcessError:
+                    pass
+
+    # Also scan .dylib files in lib/ for @rpath references
+    for dylib in (bundle / "lib").glob("*.dylib"):
+        try:
+            out = subprocess.check_output(["otool", "-L", str(dylib)], text=True).splitlines()
+        except subprocess.CalledProcessError:
+            continue
+        for line in out[1:]:
+            line = line.strip()
+            if line.startswith("@rpath/"):
+                old = line.split()[0]
+                new = "@loader_path/" + Path(old).name
+                try:
+                    subprocess.run(
+                        ["install_name_tool", "-change", old, new, str(dylib)],
+                        check=True, capture_output=True, text=True,
+                    )
+                    print(f"  ✅  Fixed @rpath dylib: {dylib.relative_to(bundle)}: {old} -> {new}")
+                    fixed += 1
+                except subprocess.CalledProcessError:
+                    pass
+
+    if fixed:
+        print(f"  ✅  Fixed {fixed} @rpath reference(s) in native extensions")
+        # Re-sign after changes
+        for so in so_files:
+            subprocess.run(["codesign", "--force", "--sign", "-", str(so)],
+                           check=False, capture_output=True, text=True)
+        for dylib in (bundle / "lib").glob("*.dylib"):
+            subprocess.run(["codesign", "--force", "--sign", "-", str(dylib)],
+                           check=False, capture_output=True, text=True)

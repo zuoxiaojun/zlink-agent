@@ -18,4 +18,5 @@ def list_tools():
             emoji=e.emoji,
         )
         for e in registry.entries.values()
+        if not e.toolset.startswith("mcp-")
     ]

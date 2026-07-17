@@ -30,23 +30,6 @@ def test_import_api_error_with_code():
     assert "Unauthorized" in str(e)
 
 
-def test_import_mcp_starter_config():
-    from agent.erp_clients.base import MCPStarterConfig
-
-    cfg = MCPStarterConfig(
-        erp_name="nc",
-        enabled=True,
-        command="nc-mcp-server",
-        args=[],
-        env={"ORACLE_HOST": "1.2.3.4"},
-        builtin=False,
-        install_hint="pip install nc-mcp-server",
-    )
-    assert cfg.erp_name == "nc"
-    assert cfg.enabled is True
-    assert cfg.env["ORACLE_HOST"] == "1.2.3.4"
-
-
 def test_erp_client_protocol_runtime_checkable():
     """YonSuiteClient 结构子类型满足 ERPClient Protocol"""
     from agent.erp_clients.base import ERPClient

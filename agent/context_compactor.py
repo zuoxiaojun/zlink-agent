@@ -171,13 +171,13 @@ _MODEL_CONTEXT_WINDOWS: list[tuple[str, int]] = [
     ("claude-3-sonnet", 200_000),
     ("claude-3-haiku", 200_000),
     ("claude-", 200_000),  # catch-all for newer Claude models
-    # DeepSeek
+    # DeepSeek — 所有模型统一 1M (deepseek-chat/reasoner/v4-flash/v4-pro)
+    ("deepseek-reasoner", 1_000_000),
+    ("deepseek-chat", 1_000_000),
     ("deepseek-v4", 1_000_000),
-    ("deepseek-reasoner", 128_000),
-    ("deepseek-chat", 128_000),
-    ("deepseek-v3", 128_000),
-    ("deepseek-r1", 128_000),
-    ("deepseek-ai/deepseek", 128_000),
+    ("deepseek-v3", 1_000_000),
+    ("deepseek-r1", 1_000_000),
+    ("deepseek-ai/deepseek", 1_000_000),
     # Kimi
     ("kimi-k2", 128_000),
     ("kimi-latest", 128_000),
@@ -204,7 +204,7 @@ _MODEL_CONTEXT_WINDOWS: list[tuple[str, int]] = [
     ("openai/o4", 200_000),
     ("openai/", 128_000),
     ("anthropic/claude", 200_000),
-    ("deepseek/", 128_000),
+    ("deepseek/", 1_000_000),
     ("google/gemini-2.5", 1_000_000),
     ("google/gemini-2.0", 1_000_000),
     ("google/gemini-1.5", 1_000_000),

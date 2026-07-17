@@ -1,5 +1,36 @@
 # Changelog
 
+## v1.7.0 — 2026-07-17 (ERP 工具内置化，MCP 子进程移除)
+
+**范围**: 将 YonSuite 和 NC 从 MCP 子进程迁移为内置工具 (`agent/tools/erp_*_tools.py`)，移除 `mcp_server/` 中 40+ 文件，解决打包时 dylib relocation 问题。新增 Python bundle @rpath 修复。Chart MCP 保留为预置 MCP。
+
+### 新增
+
+- **YonSuite 内置工具** (`agent/tools/erp_ys_tools.py`): 从 `mcp_server/ys_mcp_server/` 迁移 11 个工具（`ys_api`、`query_sale_orders`、`query_purchase_orders`、`query_production_orders`、`query_stock`、`query_customers`、`query_vendors`、`query_products`、`query_opportunities`、`query_vouchers`、`query_user_todos`）
+- **NC 内置工具** (`agent/tools/erp_nc_tools.py`): 从 `mcp_server/nc_mcp_server/` 迁移 4 个工具（`nc_query`、`nc_list_tables`、`nc_describe_table`、`nc_raw_sql`）
+- **Python bundle @rpath 修复** (`scripts/build_utils.py`): 自动修复 Rust 原生扩展（pydantic_core、watchfiles、cryptography 等）的 `@rpath` 自引用，解决用户机器上 import 崩溃问题
+- **MCP 添加预设** (MCP 页面): 一键填充 Chart 图表、Playwright 等常用 MCP 配置
+
+### 改动
+
+- **`backend/main.py`**: 移除 YonSuite/NC MCP 子进程启动逻辑，Chart MCP 保留为预置自动启动
+- **`backend/api/config_api.py`**: 移除 yonsuite MCP 重连逻辑
+- **`backend/api/erp_clients_api.py`**: 移除 MCP 同步逻辑，NC 测试连接改为直连 Oracle
+- **`backend/api/tools_api.py`**: `/api/tools` 过滤外部 MCP 注册的工具（toolset 以 `mcp-` 开头的不显示）
+- **`agent/erp_clients/base.py`**: 移除 `MCPStarterConfig`（不再需要）
+- **`agent/context_compactor.py`**: 修正 DeepSeek 模型上下文窗口为 1M（之前误为 128K）
+- **`electron-builder.yml`**: Chart MCP 打包进 `Resources/mcp-chart/`
+
+### 删除
+
+- **`mcp_server/`** 整个目录（ys_mcp_server、nc_mcp_server、nc_mcp 共 40+ 文件）
+- **`tests/test_nc_mcp_config.py`**、**`tests/test_nc_mcp_starter.py`**
+
+### 构建
+
+- **`build_utils.py`**: 新增 `_fix_rpath_self_references()` 函数，Step 7 验证增强为逐包 import
+- Python bundling 不再需要手工 dylib relocation（ERP 不走 MCP 子进程）
+
 ## Unreleased — 配置存储 doc/code 对齐
 
 > v1.6.0 的发布说明里把"密钥改存到 `data/.env`+chmod 0600"列为已完成的改动，但实际落地后走了更简单的路径：**全部写入 `data/config.json` 明文**，既无 `.env` 拆分也无 Fernet。本节只补齐文档/代码对账，不影响运行行为。
