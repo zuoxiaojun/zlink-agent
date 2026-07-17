@@ -32,12 +32,16 @@ echo "╚═══════════════════════�
 
 echo ""
 echo "[1/4] 构建前端..."
-cd web && npm ci && npm run build && cd ..
+cd web && npm install --prefer-offline && npm run build && cd ..
 echo "✅ 前端构建完成"
 
 echo ""
 echo "[2/4] 打包 Python 运行环境..."
-bash scripts/bundle-python.sh
+if [ -f "build/python-bundle/bin/python" ]; then
+    echo "  ⏭️  build/python-bundle 已存在，跳过重新构建（如需重建请删除该目录）"
+else
+    bash scripts/bundle-python.sh
+fi
 echo "✅ Python 环境打包完成"
 
 echo ""
@@ -109,7 +113,7 @@ python3 -c "
 import sys; sys.path.insert(0, '$SCRIPT_DIR')
 from build_utils import remove_paths
 import glob
-remove_paths('build/python-bundle')
+# 保留 build/python-bundle 加速下次构建（如需重建可手动删除）
 for f in glob.glob('dist-electron/*.blockmap'):
     remove_paths(f)
 remove_paths(
