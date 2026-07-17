@@ -78,6 +78,27 @@ rm -f "$BUNDLE_DIR/Lib/site-packages/__editable___"*.py 2>/dev/null || true
 rm -rf "$BUNDLE_DIR/Lib/site-packages/zlink_agent-"*.dist-info 2>/dev/null || true
 echo "  ✅ Editable install 残留已清除"
 
+# ── 清理 pyvenv.cfg：去掉编译机器的路径，指向 bundle 自身 ─────
+echo "  清理 pyvenv.cfg 开发机路径..."
+python3 -c "
+import re
+with open('$BUNDLE_DIR/pyvenv.cfg') as f:
+    lines = f.read().splitlines()
+clean = []
+for line in lines:
+    if line.startswith('home = '):
+        clean.append('home = .')
+    elif line.startswith('executable = '):
+        clean.append('executable = bin/python3.14')
+    elif line.startswith('command = '):
+        continue  # remove build machine command
+    else:
+        clean.append(line)
+with open('$BUNDLE_DIR/pyvenv.cfg', 'w') as f:
+    f.write('\n'.join(clean) + '\n')
+"
+echo "  ✅ pyvenv.cfg 已清理"
+
 # ── 清理（跨平台） ─────────────────────────────────────────────────
 python3 -c "
 import sys; sys.path.insert(0, '$SCRIPT_DIR')
