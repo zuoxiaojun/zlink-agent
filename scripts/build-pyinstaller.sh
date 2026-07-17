@@ -23,10 +23,20 @@ echo "║     模式: $MODE"
 echo "║     平台: $PLATFORM_TAG"
 echo "╚══════════════════════════════════════════════╝"
 
+# 使用项目自带的虚拟环境（干净 venv，不含 torch/pandas 等无关大包）
+VENV_PYTHON="$(pwd)/.venv/bin/python3"
+if [ ! -f "$VENV_PYTHON" ]; then
+    echo "❌ 未找到项目虚拟环境: $VENV_PYTHON"
+    echo "   请先运行: python3 -m venv .venv && source .venv/bin/activate && pip install -e ."
+    exit 1
+fi
+
+PYTHON="$VENV_PYTHON"
+
 # 确保 venv 里有 pyinstaller
-if ! python3 -c "import PyInstaller" 2>/dev/null; then
-    echo "安装 PyInstaller..."
-    pip install pyinstaller
+if ! "$PYTHON" -c "import PyInstaller" 2>/dev/null; then
+    echo "安装 PyInstaller 到项目 venv..."
+    "$PYTHON" -m pip install pyinstaller --quiet
 fi
 
 echo ""
@@ -39,12 +49,15 @@ else
     ADD_DATA_SEP=":"
 fi
 
-python3 -m PyInstaller \
+"$PYTHON" -m PyInstaller \
     --clean \
     --noconfirm \
+    --paths . \
     $MODE \
     --name zlink-backend \
     --add-data "agent/skills${ADD_DATA_SEP}agent/skills" \
+    --add-data "pyproject.toml${ADD_DATA_SEP}." \
+    --hidden-import backend.main \
     --hidden-import uvicorn \
     --hidden-import uvicorn.logging \
     --hidden-import uvicorn.loops \
@@ -91,10 +104,9 @@ python3 -m PyInstaller \
     --hidden-import agent.core.agent \
     --hidden-import agent.core.llm_client \
     --hidden-import agent.core.message_builder \
-    --hidden-import agent.core.metrics \
     --hidden-import agent.core.iteration_budget \
     --hidden-import agent.core.tool_dispatcher \
-    backend/main.py
+    backend/pyinstaller_entry.py
 
 echo ""
 echo "✅ PyInstaller 打包完成"

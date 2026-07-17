@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -42,6 +43,9 @@ def _get_version() -> str:
     import tomllib
 
     pyproject = _PROJECT_ROOT / "pyproject.toml"
+    # PyInstaller frozen mode: pyproject.toml is at sys._MEIPASS
+    if not pyproject.exists() and getattr(sys, "frozen", False):
+        pyproject = Path(sys._MEIPASS) / "pyproject.toml"
     try:
         if pyproject.exists():
             data = tomllib.loads(pyproject.read_text(encoding="utf-8"))

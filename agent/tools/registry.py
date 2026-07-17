@@ -18,6 +18,7 @@ import ast
 import importlib
 import json
 import logging
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -30,28 +31,50 @@ AfterHook = Callable[[str, dict, str], str]
 
 
 def discover_tools(tools_dir: Path | None = None) -> list[str]:
-    """Import self-registering tool modules and return their module names."""
+    """Import self-registering tool modules and return their module names.
+
+    In normal (source) mode, this scans the filesystem for ``.py`` files
+    that contain a ``registry.register()`` call.  In PyInstaller frozen mode
+    the files are compressed inside PYZ, so we use a known list of tool
+    module names as fallback.
+    """
     tools_path = tools_dir or Path(__file__).resolve().parent
-    module_names = []
-    for path in sorted(tools_path.glob("*.py")):
-        if path.name in {"__init__.py", "registry.py"}:
-            continue
-        try:
-            source = path.read_text(encoding="utf-8")
-            tree = ast.parse(source, filename=str(path))
-        except (OSError, SyntaxError):
-            continue
-        has_register = any(
-            isinstance(stmt, ast.Expr)
-            and isinstance(stmt.value, ast.Call)
-            and isinstance(stmt.value.func, ast.Attribute)
-            and stmt.value.func.attr == "register"
-            and isinstance(stmt.value.func.value, ast.Name)
-            and stmt.value.func.value.id == "registry"
-            for stmt in tree.body
-        )
-        if has_register:
-            module_names.append(f"agent.tools.{path.stem}")
+    module_names: list[str] = []
+
+    # ── PyInstaller frozen mode: use known tool list ──
+    # sys.frozen is set by PyInstaller at runtime
+    if getattr(sys, "frozen", False):
+        known_tools = [
+            "browser_tool", "clarify_tool", "code_execution_tool",
+            "cronjob_tools", "delegate_tool", "erp_nc_tools",
+            "erp_ys_tools", "file_mutation_queue", "file_tools",
+            "mcp_management_tool", "mcp_manager", "memory_tool",
+            "process_tool", "project_tools", "security_hooks",
+            "session_search_tool", "skills_tool", "terminal_tool",
+            "todo_tool", "vision_tool", "web_extract_tool", "web_tools",
+        ]
+        module_names = [f"agent.tools.{name}" for name in known_tools]
+    else:
+        # ── Normal mode: scan filesystem ──
+        for path in sorted(tools_path.glob("*.py")):
+            if path.name in {"__init__.py", "registry.py"}:
+                continue
+            try:
+                source = path.read_text(encoding="utf-8")
+                tree = ast.parse(source, filename=str(path))
+            except (OSError, SyntaxError):
+                continue
+            has_register = any(
+                isinstance(stmt, ast.Expr)
+                and isinstance(stmt.value, ast.Call)
+                and isinstance(stmt.value.func, ast.Attribute)
+                and stmt.value.func.attr == "register"
+                and isinstance(stmt.value.func.value, ast.Name)
+                and stmt.value.func.value.id == "registry"
+                for stmt in tree.body
+            )
+            if has_register:
+                module_names.append(f"agent.tools.{path.stem}")
 
     imported = []
     for mod_name in module_names:
