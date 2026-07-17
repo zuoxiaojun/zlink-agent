@@ -22,6 +22,7 @@ releases/
 # Electron + PyInstaller 构建产物
 dist/
 build/
+*.spec
 dist-electron/
 
 CLAUDE.md
