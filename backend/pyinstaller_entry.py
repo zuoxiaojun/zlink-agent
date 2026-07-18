@@ -25,10 +25,13 @@ from backend.main import app
 import uvicorn
 
 port = int(os.environ.get("ZLINK_AGENT_PORT", "8089"))
+# 桌面端只监听本机回环：0.0.0.0 会把无鉴权的 agent API（terminal/文件工具）
+# 暴露给整个局域网。服务器部署场景可通过 ZLINK_AGENT_HOST 显式放开。
+host = os.environ.get("ZLINK_AGENT_HOST", "127.0.0.1")
 
 uvicorn.run(
     app,
-    host="0.0.0.0",
+    host=host,
     port=port,
     log_level="info",
     access_log=False,

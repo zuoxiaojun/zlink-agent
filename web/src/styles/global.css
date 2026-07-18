@@ -88,6 +88,12 @@ body {
   padding-top: 38px;
 }
 
+/* Electron: hiddenInset 无原生拖动区，顶栏（纯文本、无按钮）作为拖拽区。
+   严禁整页设 drag（会在 loadURL 换页后残留导致点击全灭），仅限此类小区域。 */
+.electron .top-bar {
+  -webkit-app-region: drag;
+}
+
 .sidebar-brand {
   padding: 20px 16px 12px;
   display: flex;

@@ -1,5 +1,25 @@
 # Changelog
 
+## v1.7.1 — 2026-07-18 (打包版点击修复 + 启动体验)
+
+**范围**: 修复打包版窗口点击完全无响应的严重 bug（loading.html 整页拖拽区残留），重设计启动加载页，全新安装默认启用内置技能。
+
+### 修复
+
+- **打包版点击/悬停完全无响应** (`electron/loading.html`): 加载页 `html, body { -webkit-app-region: drag }` 把整页设为窗口拖拽区，拖拽区是窗口级状态，`loadURL` 跳转正式前端后残留，整窗鼠标事件被系统截去拖窗口。已删除并加防回退注释
+- **窗口无法拖动**: `titleBarStyle: hiddenInset` 无原生拖动区，改由 `.electron .top-bar { -webkit-app-region: drag }` 提供（`web/src/styles/global.css`）
+
+### 改动
+
+- **全新安装默认启用全部内置技能** (`agent/skill_manager.py`): `active_skills.json` 不存在时以全部内置技能为初始值并落盘；之后以文件为准，用户显式全关（`[]`）也会被尊重。老用户行为不变
+- **启动加载页重设计**: 与前端一致的浅色 Ant/Arco 风格（浅灰底 + 白卡片 + 橙红渐变 logo），替换原深色 Tokyo Night 风格
+- **Electron** 43.1.1
+- **构建脚本** (`scripts/build-electron.sh`): 默认 `ELECTRON_MIRROR=npmmirror` 镜像，避免 Electron 运行时从 GitHub 下载停滞（可用 `ELECTRON_MIRROR=""` 覆盖回官方源）
+
+### 测试
+
+- `tests/test_skill_manager.py`: +2 用例（全新安装默认启用并落盘、显式 `[]` 被尊重），全量 397 通过
+
 ## v1.7.0 — 2026-07-17 (ERP 工具内置化，MCP 子进程移除)
 
 **范围**: 将 YonSuite 和 NC 从 MCP 子进程迁移为内置工具 (`agent/tools/erp_*_tools.py`)，移除 `mcp_server/` 中 40+ 文件，解决打包时 dylib relocation 问题。新增 Python bundle @rpath 修复。Chart MCP 保留为预置 MCP。

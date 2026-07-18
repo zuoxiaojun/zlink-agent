@@ -106,17 +106,29 @@ async def lifespan(application: FastAPI):
             break
 
     if _chart_entry:
-        _node_path = shutil.which("node")
+        # Electron 自带 Node.js 优先（ELECTRON_NODE_PATH 由 electron/main.js 注入；
+        # 用 Electron 二进制跑 JS 必须带 ELECTRON_RUN_AS_NODE=1，否则会再开一个应用实例）
+        _electron_node = os.environ.get("ELECTRON_NODE_PATH", "")
+        _chart_env: dict = {}
+        if _electron_node and Path(_electron_node).exists():
+            _node_path = _electron_node
+            _chart_env["ELECTRON_RUN_AS_NODE"] = "1"
+        else:
+            _node_path = shutil.which("node")
         if _node_path:
-            servers_cfg.setdefault("mcp-server-chart", MCPServerEntry(
+            # 内置 chart 条目由应用托管：每次启动都刷新 command/args/env。
+            # 不能用 setdefault —— 旧条目残留后（app 被移动、从 DMG 直接运行过、
+            # 旧版本升级）路径失效，chart 会永久坏掉。仅保留用户的 enabled 选择。
+            _prev = servers_cfg.get("mcp-server-chart")
+            servers_cfg["mcp-server-chart"] = MCPServerEntry(
                 transport="stdio",
                 command=_node_path,
                 args=[str(_chart_entry)],
-                enabled=True,
+                enabled=_prev.enabled if _prev is not None else True,
                 timeout=120,
                 builtin=True,
-                env={},
-            ))
+                env=_chart_env,
+            )
         else:
             _logger.warning("Chart MCP 服务器已跳过（未找到 node）")
     else:

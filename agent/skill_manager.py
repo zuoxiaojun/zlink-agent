@@ -21,7 +21,11 @@ ACTIVE_SKILLS_FILE = DATA_DIR / "active_skills.json"
 
 def _load_active() -> list[str]:
     if not ACTIVE_SKILLS_FILE.exists():
-        return []
+        # 首次运行（全新安装）：默认启用全部内置技能并落盘为初始值。
+        # 之后一切以文件为准——用户显式全关（[]）也会被尊重。
+        names = [s["name"] for s in _load_skill_index() if s.get("builtin")]
+        _save_active(names)
+        return names
     try:
         data = json.loads(ACTIVE_SKILLS_FILE.read_text(encoding="utf-8"))
         return data if isinstance(data, list) else []

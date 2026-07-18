@@ -149,6 +149,27 @@ def test_active_skills_persisted_on_disk(sm):
     assert "persist-skill" in sm_mod._load_active()
 
 
+def test_fresh_install_defaults_to_builtin_skills(sm):
+    """active_skills.json 不存在（全新安装）→ 默认启用全部内置技能并落盘。"""
+    sm_mod, builtin_skills, user_skills = sm
+    _create_skill(builtin_skills, "builtin-a")
+    _create_skill(builtin_skills, "builtin-b")
+    _create_skill(user_skills, "user-x")
+    sm_mod.ACTIVE_SKILLS_FILE.unlink()  # 模拟全新安装：文件不存在
+    assert sm_mod.get_active_skills() == ["builtin-a", "builtin-b"]
+    # 用户安装的技能不默认启用
+    assert "user-x" not in sm_mod.get_active_skills()
+    # 初始值已落盘，后续以文件为准
+    assert json.loads(sm_mod.ACTIVE_SKILLS_FILE.read_text()) == ["builtin-a", "builtin-b"]
+
+
+def test_explicit_empty_active_file_respected(sm):
+    """文件存在且为 []（用户显式全关）→ 不触发默认启用。"""
+    sm_mod, builtin_skills, _ = sm
+    _create_skill(builtin_skills, "builtin-a")
+    assert sm_mod.get_active_skills() == []  # fixture 已预写 []
+
+
 # ────────────────────────────────────────────────────────────────────
 # 2) get_all_skills
 # ────────────────────────────────────────────────────────────────────

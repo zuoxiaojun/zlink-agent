@@ -13,6 +13,7 @@ const { app, BrowserWindow, dialog } = require("electron");
 const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
+const { ensurePortFree } = require("./port");
 
 const IS_DEV = !app.isPackaged;
 
@@ -59,6 +60,8 @@ function startBackend() {
       ...process.env,
       ZLINK_AGENT_PORT: String(BACKEND_PORT),
       ZLINK_AGENT_CORS: "*",  // allow file:// origin in Electron
+      // Electron 自带 Node 运行时，供后端启动 Chart MCP（新用户机器没有 node）
+      ELECTRON_NODE_PATH: process.execPath,
     },
   });
 
@@ -85,24 +88,21 @@ function getLoadURL() {
   return `file://${path.join(process.resourcesPath, "app.asar.unpacked", "web", "dist", "index.html")}`;
 }
 
+/** Poll until the backend answers /api/health. */
 async function waitForBackend(maxRetries = 60) {
-  if (IS_DEV) return;
   for (let i = 0; i < maxRetries; i++) {
     try {
-      const res = await fetch(`${BACKEND_HOST}/api/config`);
-      if (res.ok) return;
+      const res = await fetch(`${BACKEND_HOST}/api/health`);
+      if (res.ok) return true;
     } catch { /* not ready yet */ }
     await new Promise((r) => setTimeout(r, 1000));
   }
-  console.warn("[electron] Backend did not start in time");
+  return false;
 }
 
 let mainWindow = null;
 
 async function createWindow() {
-  startBackend();
-  await waitForBackend();
-
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -116,12 +116,44 @@ async function createWindow() {
     titleBarStyle: "hiddenInset",
     show: false,
   });
-
-  mainWindow.loadURL(getLoadURL());
   mainWindow.once("ready-to-show", () => mainWindow.show());
   mainWindow.on("closed", () => { mainWindow = null; });
 
-  if (IS_DEV) mainWindow.webContents.openDevTools({ mode: "detach" });
+  // 先显示加载页：PyInstaller onefile 解包 + 后端启动需要十几秒，
+  // 避免用户双击后长时间看不到任何反馈。
+  await mainWindow.loadFile(path.join(__dirname, "loading.html"));
+
+  if (IS_DEV) {
+    mainWindow.loadURL(getLoadURL());
+    mainWindow.webContents.openDevTools({ mode: "detach" });
+    return;
+  }
+
+  // 端口被占用：杀掉上次异常退出残留的 zlink-backend；
+  // 占用者是外来进程时不做破坏性操作，提示用户自行处理。
+  const port = await ensurePortFree(BACKEND_PORT);
+  if (!port.ok) {
+    const detail = port.foreignPids.length
+      ? `端口 ${BACKEND_PORT} 被其他程序占用（PID: ${port.foreignPids.join(", ")}）。\n请关闭该程序后重新打开 ZLink Agent。`
+      : `端口 ${BACKEND_PORT} 未能释放（残留进程无法终止）。\n请重启电脑后重试。`;
+    dialog.showErrorBox("启动失败", detail);
+    app.quit();
+    return;
+  }
+
+  startBackend();
+
+  const ready = await waitForBackend();
+  if (!mainWindow) return; // 用户在启动期间关闭了窗口
+  if (!ready) {
+    dialog.showErrorBox(
+      "启动失败",
+      "后端服务启动超时。\n日志位置：~/.zlink-agent/data/logs/app.log",
+    );
+    app.quit();
+    return;
+  }
+  mainWindow.loadURL(getLoadURL());
 }
 
 // ── App lifecycle ─────────────────────────────────────────────────
