@@ -268,6 +268,55 @@ def _handle_search_files(args: dict) -> str:
     )
 
 
+def _handle_glob(args: dict) -> str:
+    """Find files by glob pattern (e.g. ``**/*.tsx``, ``*test*``, ``src/**/*.py``).
+    Does not read file contents — just returns matching paths."""
+    pattern = args.get("pattern", "")
+    search_path = args.get("path", ".")
+    limit = int(args.get("limit", 100))
+    sort_by = args.get("sort", "name")
+
+    if not pattern:
+        return tool_error("pattern is required")
+
+    try:
+        root = Path(_expand_path(search_path)).resolve()
+        if not root.exists():
+            return tool_error(f"Path not found: {search_path}")
+        if not root.is_dir():
+            return tool_error(f"Not a directory: {search_path}")
+    except (OSError, ValueError) as e:
+        return tool_error(f"Cannot access path: {e}")
+
+    results = []
+    try:
+        for fpath in root.rglob(pattern):
+            try:
+                rel = str(fpath.relative_to(root))
+                results.append({
+                    "path": rel,
+                    "is_dir": fpath.is_dir(),
+                    "size": fpath.stat().st_size if fpath.is_file() else 0,
+                })
+            except OSError:
+                continue
+            if len(results) >= limit:
+                break
+    except (OSError, ValueError) as e:
+        return tool_error(f"Glob failed: {e}")
+
+    # Sort: directories first, then by name
+    if sort_by == "name":
+        results.sort(key=lambda e: (not e["is_dir"], e["path"].lower()))
+
+    truncated = len(results) >= limit
+    return tool_result(
+        data=results,
+        total=len(results),
+        truncated=truncated,
+    )
+
+
 def _handle_ls(args: dict) -> str:
     path = _expand_path(args.get("path", "."))
     limit = int(args.get("limit", 200))
@@ -414,6 +463,26 @@ LS_SCHEMA = {
     },
 }
 
+GLOB_SCHEMA = {
+    "name": "glob",
+    "description": "Find files and directories by glob pattern (e.g. '**/*.tsx', 'src/**/*.py', '*test*'). Returns matching paths, file sizes, and types. Does NOT read file contents — use read_file for that after finding the target file.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "pattern": {"type": "string", "description": "Glob pattern to match (e.g. '**/*.py', 'src/**/*.tsx', '*test*'). Supports ** for recursive matching, * for wildcard, ? for single char."},
+            "path": {"type": "string", "description": "Directory to search in", "default": "."},
+            "limit": {"type": "integer", "description": "Max results to return", "default": 100},
+            "sort": {
+                "type": "string",
+                "description": "Sort order: 'name' (default, dirs first alpha) or 'none'",
+                "default": "name",
+                "enum": ["name", "none"],
+            },
+        },
+        "required": ["pattern"],
+    },
+}
+
 
 def _init_queue() -> None:
     """Wire the queue executor to the raw handlers."""
@@ -450,3 +519,4 @@ registry.register(
     emoji="🔍",
 )
 registry.register(name="ls", toolset="file", schema=LS_SCHEMA, handler=_handle_ls, emoji="📂")
+registry.register(name="glob", toolset="file", schema=GLOB_SCHEMA, handler=_handle_glob, emoji="🔎")
