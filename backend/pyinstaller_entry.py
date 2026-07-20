@@ -21,8 +21,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
-from backend.main import app
-import uvicorn
+import uvicorn  # noqa: E402
+
+from backend.main import app  # noqa: E402
 
 port = int(os.environ.get("ZLINK_AGENT_PORT", "8089"))
 # 桌面端只监听本机回环：0.0.0.0 会把无鉴权的 agent API（terminal/文件工具）

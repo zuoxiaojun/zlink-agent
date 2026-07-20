@@ -28,7 +28,6 @@ def _ensure_ys_config():
     if _YSONSUITE_CONFIG_LOADED:
         return
     _YSONSUITE_CONFIG_LOADED = True
-    from pathlib import Path
 
     from agent.utils import DATA_DIR
 
@@ -185,7 +184,7 @@ def _handle_ys_api(args: dict) -> str:
         except Exception as e:
             return tool_result(data="YonSuite 连接失败", connected=False, message=str(e))
 
-    _ALLOWED = frozenset({
+    allowed = frozenset({
         "query_sale_orders", "get_order_detail", "query_purchase_orders",
         "get_purchase_order_detail", "query_current_stock", "query_products",
         "query_customers", "query_vendors", "get_vendor_detail",
@@ -195,7 +194,7 @@ def _handle_ys_api(args: dict) -> str:
         "format_order_info", "format_stock_info", "format_todo_info",
         "format_production_order_info", "format_org_unit_info",
     })
-    if method not in _ALLOWED:
+    if method not in allowed:
         return tool_error(f"未知方法: {method}")
     if client is None:
         return tool_error("YonSuite 未配置")
@@ -341,10 +340,10 @@ def _handle_query_production_orders(args: dict) -> str:
             and (not date_to or str(r.get("vouchdate", ""))[:10] <= date_to)
         ]
 
-    SKIP = {"合计", "物料SKU编码", "物料SKU名称", "自由项特征组"}
+    skip = {"合计", "物料SKU编码", "物料SKU名称", "自由项特征组"}
     parsed = []
     for r in records:
-        if r.get("code") in SKIP:
+        if r.get("code") in skip:
             continue
         parsed.append({
             "code": r.get("code", ""),
@@ -506,7 +505,7 @@ def _handle_query_products(args: dict) -> str:
     product_name = (args.get("product_name") or "").strip() or None
 
     def fetch(pi, ps):
-        return (client.query_products(page_index=pi, page_size=ps, product_code=product_code if product_code else None)
+        return (client.query_products(page_index=pi, page_size=ps, product_code=product_code or "")
                 .get("data", {}).get("recordList", []))
 
     if product_name:
@@ -519,7 +518,7 @@ def _handle_query_products(args: dict) -> str:
         result = _paginate(args, 500, fetch)
         records = result.records
 
-    ATTR_MAP = {"1": "实物物料", "2": "虚拟物料"}
+    attr_map = {"1": "实物物料", "2": "虚拟物料"}
     parsed = []
     for r in records:
         parsed.append({
@@ -530,7 +529,7 @@ def _handle_query_products(args: dict) -> str:
             "productClass": r.get("manageClassName", "") or r.get("productClass", ""),
             "unitName": r.get("unitName", "") or r.get("unit_name", ""),
             "brand": r.get("brand", ""),
-            "productType": ATTR_MAP.get(r.get("realProductAttribute", ""), ""),
+            "productType": attr_map.get(r.get("realProductAttribute", ""), ""),
             "status": "停用" if r.get("stopStatus") else "启用",
         })
 

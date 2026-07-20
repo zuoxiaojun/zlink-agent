@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 
 from agent.tools.registry import registry, tool_error, tool_result
@@ -101,7 +100,7 @@ def _execute_query(sql: str, params: dict | None, page: int, page_size: int) -> 
             rows = rows[:page_size]
             return {
                 "cols": cols,
-                "rows": [dict(zip(cols, row)) for row in rows],
+                "rows": [dict(zip(cols, row, strict=False)) for row in rows],
                 "has_more": has_more,
                 "total_count": len(rows),
             }
@@ -206,7 +205,7 @@ ORDER BY h.DBILLDATE DESC, b.CROWNO"""
 
 def _sql_sales_order_by_code(billcode: str) -> tuple[str, dict]:
     sql, _ = _sql_sales_order()
-    sql += f" AND h.VBILLCODE = :billcode" if "VBILLCODE =" not in sql else " AND h.VBILLCODE = :billcode"
+    sql += " AND h.VBILLCODE = :billcode" if "VBILLCODE =" not in sql else " AND h.VBILLCODE = :billcode"
     return sql.replace("ORDER BY h.DBILLDATE DESC, b.CROWNO", "") + " AND h.VBILLCODE = :billcode ORDER BY h.DBILLDATE DESC, b.CROWNO", {"billcode": billcode}
 
 
@@ -241,7 +240,7 @@ ORDER BY h.DBILLDATE DESC, b.CROWNO"""
 
 def _sql_purchase_order_by_code(billcode: str) -> tuple[str, dict]:
     sql, _ = _sql_purchase_order()
-    return sql.replace("ORDER BY h.DBILLDATE DESC, b.CROWNO", "") + f" AND h.VBILLCODE = :billcode ORDER BY h.DBILLDATE DESC, b.CROWNO", {"billcode": billcode}
+    return sql.replace("ORDER BY h.DBILLDATE DESC, b.CROWNO", "") + " AND h.VBILLCODE = :billcode ORDER BY h.DBILLDATE DESC, b.CROWNO", {"billcode": billcode}
 
 
 def _sql_customer(code: str | None = None, name: str | None = None) -> tuple[str, dict | None]:
@@ -389,7 +388,7 @@ def _format_table_result(result: dict) -> str:
 
     lines = [f"第 {page} 页，返回 {len(rows)} 行，共 {len(cols)} 列"]
     if has_more:
-        lines[0] += "（还有更多，请使用 page={} 获取下一页）".format(page + 1)
+        lines[0] += f"（还有更多，请使用 page={page + 1} 获取下一页）"
     else:
         lines[0] += "（已是最后一页）"
 
@@ -429,7 +428,7 @@ def _handle_nc_query(args: dict) -> str:
     if db_config is None:
         return tool_error("NC 数据库未配置，请在设置 → ERP → NC 中填写连接信息")
 
-    _QUERIES = {
+    queries = {
         "sales_order": (_sql_sales_order, ["start_date", "end_date"]),
         "sales_order_by_code": (_sql_sales_order_by_code, ["billcode"]),
         "purchase_order": (_sql_purchase_order, ["start_date", "end_date"]),
@@ -441,13 +440,11 @@ def _handle_nc_query(args: dict) -> str:
         "stock": (_sql_stock, ["warehouse", "material", "batch", "org"]),
     }
 
-    info = _QUERIES.get(query_name)
+    info = queries.get(query_name)
     if not info:
         return tool_error(f"未知查询: {query_name}")
 
     sql_fn, _ = info
-    # Extract only the params relevant to the query
-    query_params = {k: v for k, v in params.items() if k in (_[1] for _ in _QUERIES.values() or []) or True}
     cleaned = {}
     for key in params:
         cleaned[key] = params[key]
@@ -505,10 +502,12 @@ def _handle_nc_raw_sql(args: dict) -> str:
         return tool_error(str(e))
 
     result = _run_query(validated, None, args)
+    if isinstance(result, str):
+        return result
     output_format = args.get("format", "text")
     if output_format == "text":
         return tool_result(data=_format_table_result(result))
-    return tool_result(data=f"SQL 查询完成", records=result["rows"])
+    return tool_result(data="SQL 查询完成", records=result["rows"])
 
 
 # ═══════════════════════════════════════════════════════════════

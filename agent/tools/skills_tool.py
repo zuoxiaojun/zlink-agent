@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 # skills_tool.py → parent=tools → parent=agent → skills/
 SKILLS_DIR = get_base_dir() / "agent" / "skills"
 USER_SKILLS_DIR = DATA_DIR / "skills"
-USER_SKILLS_DIR = DATA_DIR / "skills"
 
 
 def _get_skill_dirs() -> list[tuple[Path, bool]]:

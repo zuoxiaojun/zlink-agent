@@ -78,8 +78,8 @@ class _DDGResultParser(html.parser.HTMLParser):
 
     def __init__(self) -> None:
         super().__init__()
-        self.results: list[dict[str, str]] = []
-        self._pending: dict[str, str] | None = None
+        self.results: list[dict[str, str | None]] = []
+        self._pending: dict[str, str | None] | None = None
         self._collecting: str | None = None  # "title" or "snippet"
         self._depth = 0  # track nested <a> tag depth
 
@@ -124,9 +124,9 @@ class _DDGResultParser(html.parser.HTMLParser):
 
     def handle_data(self, data: str) -> None:
         if self._collecting == "title" and self._pending is not None:
-            self._pending["title"] += data
+            self._pending["title"] = (self._pending["title"] or "") + data
         elif self._collecting == "snippet" and self._pending is not None:
-            self._pending["snippet"] += data
+            self._pending["snippet"] = (self._pending["snippet"] or "") + data
 
 
 def _search_duckduckgo(query: str, limit: int) -> str:

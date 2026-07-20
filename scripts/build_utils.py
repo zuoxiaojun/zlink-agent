@@ -1,7 +1,6 @@
 """Build utilities — cross-platform helpers for build scripts."""
 
 import os
-import platform
 import shutil
 import subprocess
 import sys

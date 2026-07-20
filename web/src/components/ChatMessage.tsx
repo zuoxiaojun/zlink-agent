@@ -8,27 +8,33 @@ function ToolResult({ msg, onChoiceSelect }: { msg: Message; onChoiceSelect?: (t
 
   // Render clarify choices as clickable chips that send the choice
   if (typeof content === "string") {
+    let parsed: { choices?: string[]; question?: string; data?: string } | null = null;
     try {
-      const parsed = JSON.parse(content);
-      if (parsed.choices && Array.isArray(parsed.choices)) {
-        return (
-          <div className="clarify-prompt">
-            <p className="clarify-question">{parsed.question || parsed.data || ""}</p>
-            {parsed.choices.length > 0 && (
-              <div className="clarify-choices">
-                {parsed.choices.map((choice: string, i: number) => (
-                  <button key={i} className="clarify-chip" onClick={() => onChoiceSelect?.(choice)}>
-                    {choice}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        );
+      const candidate = JSON.parse(content);
+      if (candidate.choices && Array.isArray(candidate.choices)) {
+        parsed = candidate;
       }
     } catch {
       /* not JSON, fall through */
     }
+
+    if (parsed) {
+      return (
+        <div className="clarify-prompt">
+          <p className="clarify-question">{parsed.question || parsed.data || ""}</p>
+          {parsed.choices && parsed.choices.length > 0 && (
+            <div className="clarify-choices">
+              {parsed.choices.map((choice: string, i: number) => (
+                <button key={i} className="clarify-chip" onClick={() => onChoiceSelect?.(choice)}>
+                  {choice}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return (
       <details className="tool-result-inline">
         <summary><IconFileText size={12} style={{ marginRight: "4px" }} />工具返回数据</summary>

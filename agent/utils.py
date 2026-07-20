@@ -17,7 +17,7 @@ def get_base_dir() -> Path:
     resolution from this module's location.
     """
     if getattr(sys, "frozen", False):
-        return Path(sys._MEIPASS)
+        return Path(getattr(sys, "_MEIPASS", tempfile.gettempdir()))
     # agent/utils.py → agent/ → project root
     return Path(__file__).resolve().parent.parent
 

@@ -35,7 +35,7 @@ def detect_and_load(file_path: str, sheet_name_filter: str | None = None) -> dic
     Raises ValueError for unsupported formats or encoding failures.
     """
     try:
-        import pandas as pd
+        import pandas as pd  # type: ignore[import-not-found]
     except ImportError as err:
         raise RuntimeError("pandas is not installed. Run: pip install pandas openpyxl") from err
 
@@ -60,7 +60,7 @@ def detect_and_load(file_path: str, sheet_name_filter: str | None = None) -> dic
         last_error = None
         for enc in encodings:
             try:
-                import pandas as pd
+                import pandas as pd  # type: ignore[import-not-found]
 
                 df = pd.read_csv(file_path, sep=sep, encoding=enc)
                 df._reader_encoding = enc  # attach metadata (non-standard, for reporting)
@@ -118,7 +118,7 @@ def audit_quality(sheets: dict) -> dict:
     Return data quality findings per sheet.
     Checks: nulls, duplicates, mixed-type columns, potential year formatting issues.
     """
-    import pandas as pd
+    import pandas as pd  # type: ignore[import-not-found]
 
     findings = {}
     for sheet_name, df in sheets.items():
@@ -304,7 +304,7 @@ def render_report(
         # Preview
         if info["preview"]:
             p("\n  Preview (first 3 rows):")
-            import pandas as pd
+            import pandas as pd  # type: ignore[import-not-found]
 
             preview_df = pd.DataFrame(info["preview"][:3])
             for line in preview_df.to_string(index=False).splitlines():

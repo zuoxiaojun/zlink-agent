@@ -40,11 +40,20 @@ def _expand_path(path: str) -> str:
 
 
 def _is_safe_path(path: str) -> bool:
-    """Check that the resolved path is not a sensitive system path."""
+    """Check that the resolved path is not a sensitive system path.
+
+    Cross-platform: normalize separators and case so Unix-style absolute
+    paths (``/proc/self``) are still blocked on Windows, where ``Path``
+    would resolve them to ``C:\\proc\\self``.
+    """
     try:
-        resolved = Path(_expand_path(path)).resolve()
+        expanded = _expand_path(path)
+        resolved = Path(expanded).resolve()
+        input_norm = expanded.replace("\\", "/").lower()
+        resolved_norm = str(resolved).replace("\\", "/").lower()
         for denied in _DENY_PATHS:
-            if str(resolved).startswith(denied):
+            denied_norm = denied.lower()
+            if input_norm.startswith(denied_norm) or resolved_norm.startswith(denied_norm):
                 return False
         return True
     except (OSError, ValueError):

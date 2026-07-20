@@ -380,10 +380,10 @@ def _render_math_png(expr: str, dpi: int = 180) -> bytes | None:
               Greek letters, sub/superscripts, etc.
     """
     try:
-        import matplotlib
+        import matplotlib  # type: ignore[import-not-found]
 
         matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
+        import matplotlib.pyplot as plt  # type: ignore[import-not-found]
 
         fig = plt.figure(figsize=(8, 1.2))
         fig.patch.set_facecolor("white")
@@ -415,14 +415,14 @@ def _render_chart_png(item: dict, accent: str, dpi: int = 150) -> bytes | None:
         y_label      Y-axis label
     """
     try:
-        import matplotlib
+        import matplotlib  # type: ignore[import-not-found]
 
         matplotlib.use("Agg")
         import colorsys
 
-        import matplotlib.colors as mcolors
-        import matplotlib.pyplot as plt
-        import numpy as np
+        import matplotlib.colors as mcolors  # type: ignore[import-not-found]
+        import matplotlib.pyplot as plt  # type: ignore[import-not-found]
+        import numpy as np  # type: ignore[import-not-found]
 
         chart_type = item.get("chart_type", "bar")
         title_text = item.get("title", "")
@@ -541,13 +541,13 @@ def _render_flowchart_png(item: dict, accent: str, dark: str, muted: str, dpi: i
         Back edges (to an earlier node) draw a curved arc to the right.
     """
     try:
-        import matplotlib
+        import matplotlib  # type: ignore[import-not-found]
 
         matplotlib.use("Agg")
-        import matplotlib.colors as mcolors
-        import matplotlib.patches as mpatch
-        import matplotlib.pyplot as plt
-        from matplotlib.patches import FancyBboxPatch
+        import matplotlib.colors as mcolors  # type: ignore[import-not-found]
+        import matplotlib.patches as mpatch  # type: ignore[import-not-found]
+        import matplotlib.pyplot as plt  # type: ignore[import-not-found]
+        from matplotlib.patches import FancyBboxPatch  # type: ignore[import-not-found]
 
         nodes_list = item.get("nodes", [])
         edges = item.get("edges", [])

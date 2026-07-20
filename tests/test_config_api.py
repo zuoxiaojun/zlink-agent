@@ -85,7 +85,7 @@ def test_get_config_default_values(client):
     assert data["agent"]["compaction_enabled"] is True
     assert data["agent"]["reserve_tokens"] == 4000
     assert data["agent"]["keep_recent_tokens"] == 8000
-    assert data["agent"]["approval_mode"] == "allow_all"
+    assert data["agent"]["approval_mode"] == "approve"
 
 
 # ────────────────────────────────────────────────────────────────────

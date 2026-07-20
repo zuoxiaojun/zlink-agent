@@ -51,7 +51,7 @@ class AppConfig(BaseModel):
     mcp_servers: dict[str, MCPServerEntry] = {}
     erp_clients: dict[str, dict[str, Any]] = {}
     disabled_extensions: list[str] = []
-    approval_mode: str = "allow_all"
+    approval_mode: str = "approve"
 
     # Secret fields (empty in model — loaded from .env at runtime)
     llm_api_key: str = ""

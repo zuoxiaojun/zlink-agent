@@ -12,7 +12,6 @@ from pathlib import Path
 
 import pytest
 
-
 # ────────────────────────────────────────────────────────────────────
 # Fixtures
 # ────────────────────────────────────────────────────────────────────
@@ -28,8 +27,9 @@ def mgmt_env(monkeypatch, isolated_config: Path):
     - ``get_server_statuses`` returns a controlled list
     """
     import asyncio
-    import agent.tools.mcp_manager as mcp_mgr
+
     import agent.tools.mcp_management_tool as mgmt_tool
+    import agent.tools.mcp_manager as mcp_mgr
 
     # Patch _run_async to just run the coroutine synchronously
     def _sync_run_async(coro, timeout: float = 30.0):

@@ -4,8 +4,8 @@ from fastapi import APIRouter
 
 from agent import config_manager
 from agent.context_compactor import resolve_context_window
-from backend.llm_providers import LLM_PROVIDERS
 from backend.api.system_api import _get_version
+from backend.llm_providers import LLM_PROVIDERS
 from backend.schemas.config import (
     AgentConfig,
     ConfigResponse,

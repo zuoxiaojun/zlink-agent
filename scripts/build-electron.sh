@@ -133,7 +133,14 @@ fi
 
 echo ""
 echo "[4/4] 清理临时文件..."
-python3 -c "
+if [ -f "$(pwd)/.venv/Scripts/python.exe" ]; then
+    CLEANUP_PYTHON="$(pwd)/.venv/Scripts/python.exe"
+elif [ -f "$(pwd)/.venv/bin/python3" ]; then
+    CLEANUP_PYTHON="$(pwd)/.venv/bin/python3"
+else
+    CLEANUP_PYTHON="python3"
+fi
+"$CLEANUP_PYTHON" -c "
 import sys; sys.path.insert(0, '$SCRIPT_DIR')
 from build_utils import remove_paths
 import glob

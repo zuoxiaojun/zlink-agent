@@ -5,5 +5,7 @@
   "reportMissingImports": "warning",
   "reportMissingModuleSource": "warning",
   "pythonVersion": "3.11",
-  "pythonPlatform": "All"
+  "pythonPlatform": "All",
+  "venvPath": ".",
+  "venv": ".venv"
 }

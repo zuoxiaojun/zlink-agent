@@ -84,16 +84,18 @@ def _call_api(tool_name: str, arguments: dict, api_key: str) -> str:
         "method": "tools/call",
         "params": {"name": tool_name, "arguments": arguments},
     }
+    resp = None
     try:
         resp = requests.post(ENDPOINT, json=payload, headers=_build_headers(api_key), timeout=30)
         resp.raise_for_status()
     except requests.exceptions.HTTPError as e:
         print(f"HTTP Error: {e}", file=sys.stderr)
-        try:
-            detail = resp.json()
-            print(f"Response: {json.dumps(detail, ensure_ascii=False)}", file=sys.stderr)
-        except Exception:
-            print(f"Response body: {resp.text[:500]}", file=sys.stderr)
+        if resp is not None:
+            try:
+                detail = resp.json()
+                print(f"Response: {json.dumps(detail, ensure_ascii=False)}", file=sys.stderr)
+            except Exception:
+                print(f"Response body: {resp.text[:500]}", file=sys.stderr)
         sys.exit(1)
     except requests.exceptions.ConnectionError:
         print("Connection Error: Unable to reach the API endpoint.", file=sys.stderr)

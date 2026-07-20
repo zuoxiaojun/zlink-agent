@@ -45,7 +45,7 @@ def discover_tools(tools_dir: Path | None = None) -> list[str]:
     # sys.frozen is set by PyInstaller at runtime
     if getattr(sys, "frozen", False):
         known_tools = [
-            "browser_tool", "clarify_tool", "code_execution_tool",
+            "clarify_tool", "code_execution_tool",
             "cronjob_tools", "delegate_tool", "erp_nc_tools",
             "erp_ys_tools", "file_mutation_queue", "file_tools",
             "mcp_management_tool", "mcp_manager", "memory_tool",

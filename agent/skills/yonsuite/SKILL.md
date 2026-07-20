@@ -21,23 +21,23 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 
 ---
 
-## 🔧 MCP 查询工具（直接调用，无需手写代码）
+## 🔧 内置查询工具（直接调用，无需手写代码）
 
-以下工具通过 YonSuite MCP Server 提供，工具名以 `mcp_yonsuite_` 为前缀，**直接通过 MCP 协议调用，不需要手写 Python 代码**。需手动传 `page_index` 逐页获取数据。
+以下工具为 ZLink Agent 内置工具（v1.7.0 起由 YonSuite MCP Server 迁移而来），**直接调用，不需要手写 Python 代码**。需手动传 `page_index` 逐页获取数据。
 
 | 工具名 | 用途 | 关键参数 |
 |--------|------|---------|
-| `mcp_yonsuite_query_sale_orders` | 销售订单查询 | `date_from`, `date_to`, `is_sum`, `page_index`, `page_size` |
-| `mcp_yonsuite_query_purchase_orders` | 采购订单查询 | `date_from`, `date_to`, `page_index`, `page_size` |
-| `mcp_yonsuite_query_production_orders` | 生产工单查询 | `date_from`, `date_to`, `page_index`, `page_size` |
-| `mcp_yonsuite_query_stock` | 库存现存量查询 | `warehouse`, `sku`, `product_id`, `page_size` |
-| `mcp_yonsuite_query_user_todos` | 用户待办查询 | `page_no`, `page_size` |
-| `mcp_yonsuite_query_opportunities` | CRM 商机查询 | `oppt_state`, `win_lose_state`, `date_from`, `date_to`, `page_index`, `page_size` |
-| `mcp_yonsuite_query_products` | 物料档案查询 | `product_code`, `product_name`, `page_index`, `page_size` |
-| `mcp_yonsuite_query_customers` | 客户档案查询 | `customer_name`, `page_index`, `page_size` |
-| `mcp_yonsuite_query_vendors` | 供应商档案查询 | `vendor_name`, `page_index`, `page_size` |
-| `mcp_yonsuite_query_vouchers` | 财务凭证查询 | `date_from`, `date_to`, `accbook_code`, `period_start`, `period_end`, `page_index`, `page_size` |
-| `mcp_yonsuite_ys_api` | 通用 YonSuite API 调用 | `method`, `params` |
+| `query_sale_orders` | 销售订单查询 | `date_from`, `date_to`, `is_sum`, `page_index`, `page_size` |
+| `query_purchase_orders` | 采购订单查询 | `date_from`, `date_to`, `page_index`, `page_size` |
+| `query_production_orders` | 生产工单查询 | `date_from`, `date_to`, `page_index`, `page_size` |
+| `query_stock` | 库存现存量查询 | `warehouse`, `sku`, `product_id`, `page_size` |
+| `query_user_todos` | 用户待办查询 | `page_no`, `page_size` |
+| `query_opportunities` | CRM 商机查询 | `oppt_state`, `win_lose_state`, `date_from`, `date_to`, `page_index`, `page_size` |
+| `query_products` | 物料档案查询 | `product_code`, `product_name`, `page_index`, `page_size` |
+| `query_customers` | 客户档案查询 | `customer_name`, `page_index`, `page_size` |
+| `query_vendors` | 供应商档案查询 | `vendor_name`, `page_index`, `page_size` |
+| `query_vouchers` | 财务凭证查询 | `date_from`, `date_to`, `accbook_code`, `period_start`, `period_end`, `page_index`, `page_size` |
+| `ys_api` | 通用 YonSuite API 调用 | `method`, `params` |
 
 每个工具返回的 JSON 已包含**解析后的中文字段名、状态文本、计算好的税额**，无需再做字段映射或公式计算。
 
@@ -126,7 +126,7 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 ### 标准流程
 
 ```
-1. 调用 MCP 查询工具获取数据（mcp_yonsuite_query_sale_orders / mcp_yonsuite_query_purchase_orders / mcp_yonsuite_query_production_orders）
+1. 调用内置查询工具获取数据（query_sale_orders / query_purchase_orders / query_production_orders）
 2. Python 聚合分析 → 按客户/商品/日期分组统计
 3. 调用 mcp-server-chart 生成图表（theme=academy）
 4. 必须调用 data-analysis 技能执行统计分析（HHI/IQR/漏斗）
@@ -235,8 +235,6 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 
 ---
 
-<｜｜DSML｜｜parameter name="new_string" string="true">---
-
 ## 📌 命名规范
 
 - 输出文件：`~/Desktop/YS_YYYY-MM-DD_类型.html`
@@ -259,21 +257,21 @@ description: YS系统业务数据查询技能（销售/采购/生产订单、库
 | HTML Logo 位置错误 | 分析报表 Logo 放 Hero 区**右上角**，待办类放左上角 |
 | `is_sum=True` 查订单明细 | 必须用 `is_sum=False`，否则订单去重丢失数据 |
 | 只发文字不生成 HTML | **双轨输出**：聊天框展示 + HTML 文件 |
-| `mcp_yonsuite_query_products` 物料模糊匹配 | `product_name` 参数是精确/前缀匹配，MCP 工具自动全量拉取后过滤 |
+| `query_products` 物料模糊匹配 | `product_name` 参数是精确/前缀匹配，工具自动全量拉取后过滤 |
 
 ---
 
-## 📌 API 参考（MCP 工具底层接口，AI 无需直接调用）
+## 📌 API 参考（内置工具底层接口，AI 无需直接调用）
 
-> 以下 API 均由对应的 `mcp_yonsuite_*` 工具封装调用，**AI 不要直接手写 HTTP 请求**，统一走 MCP 工具。
+> 以下 API 均由对应的内置工具封装调用，**AI 不要直接手写 HTTP 请求**，统一走内置工具。
 
-| 业务 | MCP 工具 | 底层 API |
+| 业务 | 内置工具 | 底层 API |
 |------|---------|---------|
-| 销售订单 | `mcp_yonsuite_query_sale_orders` | `POST /yonbip/sd/voucherorder/list` |
-| 采购订单 | `mcp_yonsuite_query_purchase_orders` | `POST /yonbip/scm/purchaseorder/list` |
-| 生产订单 | `mcp_yonsuite_query_production_orders` | `POST /yonbip/mfg/productionorder/list` |
-| 库存现存量 | `mcp_yonsuite_query_stock` | `POST /yonbip/scm/stock/QueryCurrentStocksByCondition` |
-| 商机 | `mcp_yonsuite_query_opportunities` | `POST /yonbip/crm/oppt/bill/list` |
-| 创建销售订单 | `mcp_yonsuite_ys_api(method="yonbip/sd/voucherorder/save")` | `POST /yonbip/sd/voucherorder/save` |
+| 销售订单 | `query_sale_orders` | `POST /yonbip/sd/voucherorder/list` |
+| 采购订单 | `query_purchase_orders` | `POST /yonbip/scm/purchaseorder/list` |
+| 生产订单 | `query_production_orders` | `POST /yonbip/mfg/productionorder/list` |
+| 库存现存量 | `query_stock` | `POST /yonbip/scm/stock/QueryCurrentStocksByCondition` |
+| 商机 | `query_opportunities` | `POST /yonbip/crm/oppt/bill/list` |
+| 创建销售订单 | `ys_api(method="yonbip/sd/voucherorder/save")` | `POST /yonbip/sd/voucherorder/save` |
 
 - 官方文档：https://open.yonyoudcloud.com/#/doc-center/docDes/api

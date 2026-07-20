@@ -55,6 +55,17 @@
 
 > v1.6.0 的发布说明里把"密钥改存到 `data/.env`+chmod 0600"列为已完成的改动，但实际落地后走了更简单的路径：**全部写入 `data/config.json` 明文**，既无 `.env` 拆分也无 Fernet。本节只补齐文档/代码对账，不影响运行行为。
 
+### 文档/代码对账补充
+
+- **浏览器工具正式移除**：删除 `agent/tools/browser_tool.py` 及 `tests/test_browser_tool.py`，共移除 9 个工具（`browser_navigate` 等）。README 工具计数同步更新为 54。需要浏览器自动化的用户可通过 MCP 管理页添加 `@playwright/mcp`。
+- **工具/技能计数更新**：README 中 41 个内置工具 → 54 个，19 个内置技能 → 20 个，与当前 `agent/tools/registry.py` 和 `agent/skills/` 扫描结果一致。
+- **默认审批模式调整**（`agent/config_model.py`）：新安装的默认 `approval_mode` 从 `allow_all` 改为 `approve`，高风险工具（如 `terminal`）首次执行会触发前端确认弹窗。已有配置的 `config.json` 中的值不受影响。
+- **修复打包版 NC 查询报 `No module named 'cryptography.hazmat.primitives.kdf'`**（`scripts/build-pyinstaller.sh`）：PyInstaller 未自动包含 `oracledb` thin mode 依赖的 `cryptography` 子模块，显式添加 `cryptography.hazmat.primitives.kdf` 等 hidden imports。需重新打包生效。
+- **新增 PyInstaller 依赖管理工具链**：
+  - `scripts/pyinstaller_hidden_imports.py`：集中维护 hidden imports 清单，按功能分类（Web 框架/LLM/数据库/工具模块等），打包脚本直接引用。
+  - `scripts/check_dynamic_imports.py`：自动扫描代码中的函数内 import、try-except ImportError、importlib 动态导入，与清单比对并提示补录；已知可选依赖（如 `playwright.sync_api`）单独标记。
+  - `scripts/build-pyinstaller.sh`：接入集中清单，打包前自动扫描动态导入，打包后自动冒烟测试（启动 exe、验证版本接口、62 个工具注册、NC 工具注册）。
+
 ### 改动
 
 - **`agent/config_model.py` docstring**: 改为与 `config_manager.py` 实际行为一致（明文存 `config.json`，目录 0700 / 文件 0600）。

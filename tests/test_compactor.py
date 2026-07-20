@@ -63,40 +63,33 @@ def test_track_files_extracts_paths_from_tool_calls(tmp_path):
 
     ``track_files`` actually reads the file (capped at a small
     number of bytes) — so we need a real existing file.  We write
-    one into ``/tmp/`` and reference it from the messages.
+    one into ``tmp_path`` and reference it from the messages.
     """
-    f1 = "/tmp/test_track_alpha.py"
-    f2 = "/tmp/test_track_beta.py"
+    f1 = str(tmp_path / "test_track_alpha.py")
+    f2 = str(tmp_path / "test_track_beta.py")
     Path(f1).write_text("# alpha")
     Path(f2).write_text("# beta")
-    try:
-        msgs = [
-            {"role": "user", "content": f"read {f1} and {f2}"},
-            {
-                "role": "assistant",
-                "content": "",
-                "tool_calls": [
-                    {
-                        "id": "c1",
-                        "type": "function",
-                        "function": {"name": "read_file", "arguments": json.dumps({"path": f1})},
-                    }
-                ],
-            },
-            {"role": "tool", "content": "# alpha\n# beta"},
-        ]
-        tracked = track_files(msgs)
-        assert f1 in tracked
-        assert f2 in tracked
-        # Content is inlined — should contain the marker
-        assert "alpha" in tracked[f1]
-        assert "beta" in tracked[f2]
-    finally:
-        for p in (f1, f2):
-            try:
-                Path(p).unlink()
-            except FileNotFoundError:
-                pass
+    msgs = [
+        {"role": "user", "content": f"read {f1} and {f2}"},
+        {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": "c1",
+                    "type": "function",
+                    "function": {"name": "read_file", "arguments": json.dumps({"path": f1})},
+                }
+            ],
+        },
+        {"role": "tool", "content": "# alpha\n# beta"},
+    ]
+    tracked = track_files(msgs)
+    assert f1 in tracked
+    assert f2 in tracked
+    # Content is inlined — should contain the marker
+    assert "alpha" in tracked[f1]
+    assert "beta" in tracked[f2]
 
 
 def test_extract_paths_from_text_ignores_urls():

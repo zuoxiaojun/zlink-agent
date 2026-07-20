@@ -24,9 +24,15 @@ echo "║     平台: $PLATFORM_TAG"
 echo "╚══════════════════════════════════════════════╝"
 
 # 使用项目自带的虚拟环境（干净 venv，不含 torch/pandas 等无关大包）
-VENV_PYTHON="$(pwd)/.venv/bin/python3"
-if [ ! -f "$VENV_PYTHON" ]; then
-    echo "❌ 未找到项目虚拟环境: $VENV_PYTHON"
+# Windows venv 结构是 .venv/Scripts/python.exe，macOS/Linux 是 .venv/bin/python3
+if [ -f "$(pwd)/.venv/Scripts/python.exe" ]; then
+    VENV_PYTHON="$(pwd)/.venv/Scripts/python.exe"
+elif [ -f "$(pwd)/.venv/bin/python3" ]; then
+    VENV_PYTHON="$(pwd)/.venv/bin/python3"
+else
+    echo "❌ 未找到项目虚拟环境"
+    echo "   Windows: $(pwd)/.venv/Scripts/python.exe"
+    echo "   macOS/Linux: $(pwd)/.venv/bin/python3"
     echo "   请先运行: python3 -m venv .venv && source .venv/bin/activate && pip install -e ."
     exit 1
 fi
@@ -39,6 +45,15 @@ if ! "$PYTHON" -c "import PyInstaller" 2>/dev/null; then
     "$PYTHON" -m pip install pyinstaller --quiet
 fi
 
+# ── 动态导入扫描提醒 ─────────────────────────────────────────────
+echo ""
+echo "▶ 扫描代码中的动态导入..."
+if ! "$PYTHON" scripts/check_dynamic_imports.py > /dev/null 2>&1; then
+    echo "⚠️  发现未覆盖的动态导入，请运行以下命令查看："
+    echo "   $PYTHON scripts/check_dynamic_imports.py --verbose"
+    echo ""
+fi
+
 echo ""
 echo "▶ 打包中..."
 
@@ -49,6 +64,13 @@ else
     ADD_DATA_SEP=":"
 fi
 
+# 从集中清单生成 --hidden-import 参数（去除 Windows 换行符 \r）
+HIDDEN_IMPORT_ARGS=()
+while IFS= read -r module; do
+    module="${module%$'\r'}"
+    [ -n "$module" ] && HIDDEN_IMPORT_ARGS+=("--hidden-import" "$module")
+done < <("$PYTHON" scripts/pyinstaller_hidden_imports.py)
+
 "$PYTHON" -m PyInstaller \
     --clean \
     --noconfirm \
@@ -58,56 +80,76 @@ fi
     --add-data "agent/skills${ADD_DATA_SEP}agent/skills" \
     --add-data "pyproject.toml${ADD_DATA_SEP}." \
     --hidden-import backend.main \
-    --hidden-import uvicorn \
-    --hidden-import uvicorn.logging \
-    --hidden-import uvicorn.loops \
-    --hidden-import uvicorn.loops.auto \
-    --hidden-import uvicorn.protocols \
-    --hidden-import uvicorn.protocols.http \
-    --hidden-import uvicorn.protocols.http.auto \
-    --hidden-import uvicorn.middleware \
-    --hidden-import uvicorn.middleware.asgi2 \
-    --hidden-import uvicorn.middleware.proxy_headers \
-    --hidden-import uvicorn.middleware.wsgi \
-    --hidden-import oracledb \
-    --hidden-import yaml \
-    --hidden-import httpx \
-    --hidden-import dotenv \
-    --hidden-import pydantic \
-    --hidden-import websockets \
-    --hidden-import agent.tools.browser_tool \
-    --hidden-import agent.tools.clarify_tool \
-    --hidden-import agent.tools.code_execution_tool \
-    --hidden-import agent.tools.cronjob_tools \
-    --hidden-import agent.tools.delegate_tool \
-    --hidden-import agent.tools.erp_nc_tools \
-    --hidden-import agent.tools.erp_ys_tools \
-    --hidden-import agent.tools.file_mutation_queue \
-    --hidden-import agent.tools.file_tools \
-    --hidden-import agent.tools.mcp_management_tool \
-    --hidden-import agent.tools.mcp_manager \
-    --hidden-import agent.tools.memory_tool \
-    --hidden-import agent.tools.process_tool \
-    --hidden-import agent.tools.project_tools \
-    --hidden-import agent.tools.security_hooks \
-    --hidden-import agent.tools.session_search_tool \
-    --hidden-import agent.tools.skills_tool \
-    --hidden-import agent.tools.terminal_tool \
-    --hidden-import agent.tools.todo_tool \
-    --hidden-import agent.tools.vision_tool \
-    --hidden-import agent.tools.web_extract_tool \
-    --hidden-import agent.tools.web_tools \
-    --hidden-import agent.extensions.audit_log \
-    --hidden-import agent.extensions.log_everything \
-    --hidden-import agent.extensions.monitoring \
-    --hidden-import agent.extensions.security_event \
-    --hidden-import agent.core.agent \
-    --hidden-import agent.core.llm_client \
-    --hidden-import agent.core.message_builder \
-    --hidden-import agent.core.iteration_budget \
-    --hidden-import agent.core.tool_dispatcher \
+    "${HIDDEN_IMPORT_ARGS[@]}" \
     backend/pyinstaller_entry.py
 
 echo ""
 echo "✅ PyInstaller 打包完成"
 ls -lh dist/zlink-backend*
+
+# ── 冒烟测试 ─────────────────────────────────────────────────────
+echo ""
+echo "▶ 冒烟测试..."
+
+# 启动新打包的后端
+if [[ "$(uname -s)" =~ MINGW*|MSYS* ]]; then
+    EXE_PATH="dist/zlink-backend.exe"
+else
+    EXE_PATH="dist/zlink-backend"
+fi
+
+if [ ! -f "$EXE_PATH" ]; then
+    echo "❌ 未找到打包产物: $EXE_PATH"
+    exit 1
+fi
+
+# 选择测试端口，避免与运行中的服务冲突
+TEST_PORT=18089
+export ZLINK_AGENT_PORT="$TEST_PORT"
+
+# 后台启动
+"$EXE_PATH" &
+TEST_PID=$!
+echo "   测试后端 PID: $TEST_PID (端口: $TEST_PORT)"
+
+# 等待启动
+for i in {1..15}; do
+    if curl -s "http://127.0.0.1:${TEST_PORT}/api/system/version" > /dev/null 2>&1; then
+        break
+    fi
+    sleep 1
+done
+
+# 检查是否启动成功
+if ! curl -s "http://127.0.0.1:${TEST_PORT}/api/system/version" > /dev/null 2>&1; then
+    echo "❌ 冒烟测试失败：后端未在 15 秒内启动"
+    kill "$TEST_PID" 2>/dev/null || true
+    exit 1
+fi
+
+# 验证关键接口
+echo "   ✓ /api/system/version 响应正常"
+
+# 检查工具注册（确认 agent 模块加载成功）
+TOOLS_COUNT=$(curl -s "http://127.0.0.1:${TEST_PORT}/api/tools" | "$PYTHON" -c "import json,sys; print(len(json.load(sys.stdin)))")
+if [ "$TOOLS_COUNT" -lt 50 ]; then
+    echo "❌ 冒烟测试失败：工具注册数量异常 ($TOOLS_COUNT)"
+    kill "$TEST_PID" 2>/dev/null || true
+    exit 1
+fi
+echo "   ✓ 工具注册正常 ($TOOLS_COUNT 个)"
+
+# 验证 NC 工具（确认 oracledb + cryptography 打包成功）
+if ! curl -s "http://127.0.0.1:${TEST_PORT}/api/tools" | grep -q "nc_query"; then
+    echo "❌ 冒烟测试失败：NC 工具未注册"
+    kill "$TEST_PID" 2>/dev/null || true
+    exit 1
+fi
+echo "   ✓ NC 工具注册正常"
+
+# 清理
+kill "$TEST_PID" 2>/dev/null || true
+sleep 1
+
+echo ""
+echo "✅ 冒烟测试通过"
