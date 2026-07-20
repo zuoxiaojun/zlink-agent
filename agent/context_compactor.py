@@ -421,6 +421,7 @@ _PATH_PATTERNS = [
     re.compile(r"(?:^|[\s\"'`=,(])(/home/[^\s\"'`,)]+)"),  # Linux /home
     re.compile(r"(?:^|[\s\"'`=,(])(/root/[^\s\"'`,)]+)"),  # Linux /root
     re.compile(r"(?:^|[\s\"'`=,(])(/tmp/[^\s\"'`,)]+)"),  # /tmp
+    re.compile(r"(?:^|[\s\"'`=,(])(/private/var/[^\s\"'`,)]+)"),  # macOS /private/var
     re.compile(r"(?:^|[\s\"'`=,(])(/var/[^\s\"'`,)]+)"),  # /var
     re.compile(r"(?:^|[\s\"'`=,(])([A-Za-z]:\\[^\s\"'`,)]+)"),  # Windows absolute (C:\...)
     re.compile(r"(?:^|[\s\"'`=,(])(?:~/)([A-Za-z0-9_./-]+\.[A-Za-z0-9]{1,8})"),
