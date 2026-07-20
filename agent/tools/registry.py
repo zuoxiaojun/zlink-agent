@@ -45,13 +45,14 @@ def discover_tools(tools_dir: Path | None = None) -> list[str]:
     # sys.frozen is set by PyInstaller at runtime
     if getattr(sys, "frozen", False):
         known_tools = [
-            "clarify_tool", "code_execution_tool",
+            "binary_extensions", "clarify_tool", "code_execution_tool",
             "cronjob_tools", "delegate_tool", "erp_nc_tools",
             "erp_ys_tools", "file_mutation_queue", "file_tools",
             "mcp_management_tool", "mcp_manager", "memory_tool",
-            "process_tool", "project_tools", "security_hooks",
-            "session_search_tool", "skills_tool", "terminal_tool",
-            "tool_search_tool", "todo_tool", "vision_tool",
+            "process_tool", "project_tools", "read_extract",
+            "security_hooks", "session_search_tool", "skills_tool",
+            "terminal_tool", "tool_search_tool",
+            "todo_tool", "vision_tool",
             "web_extract_tool", "web_tools",
         ]
         module_names = [f"agent.tools.{name}" for name in known_tools]

@@ -78,6 +78,7 @@ NETWORK = [
 
 # ── Agent 工具模块 ──────────────────────────────────────────────
 AGENT_TOOLS = [
+    "agent.tools.binary_extensions",
     "agent.tools.clarify_tool",
     "agent.tools.code_execution_tool",
     "agent.tools.cronjob_tools",
@@ -91,11 +92,14 @@ AGENT_TOOLS = [
     "agent.tools.memory_tool",
     "agent.tools.process_tool",
     "agent.tools.project_tools",
+    "agent.tools.read_extract",
     "agent.tools.security_hooks",
     "agent.tools.session_search_tool",
     "agent.tools.skills_tool",
     "agent.tools.terminal_tool",
     "agent.tools.todo_tool",
+    "agent.tools.tool_search",
+    "agent.tools.tool_search_tool",
     "agent.tools.vision_tool",
     "agent.tools.web_extract_tool",
     "agent.tools.web_tools",
@@ -118,6 +122,11 @@ AGENT_CORE = [
     "agent.core.tool_dispatcher",
 ]
 
+# ── 标准库（动态导入，PyInstaller 可能漏掉）──
+STDLIB = [
+    "posixpath",  # read_extract.py 中 `import posixpath`
+]
+
 # ── 汇总 ────────────────────────────────────────────────────────
 HIDDEN_IMPORTS: list[str] = [
     *WEB_FRAMEWORK,
@@ -126,6 +135,7 @@ HIDDEN_IMPORTS: list[str] = [
     *DATABASE,
     *MONITORING,
     *NETWORK,
+    *STDLIB,
     *AGENT_TOOLS,
     *AGENT_EXTENSIONS,
     *AGENT_CORE,

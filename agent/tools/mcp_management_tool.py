@@ -15,16 +15,6 @@ import asyncio
 import json
 import logging
 
-from agent import config_manager
-from agent.config_model import MCPServerEntry
-from agent.tools.mcp_manager import (
-    _main_loop,
-    connect_server,
-    disconnect_server,
-    get_server_statuses,
-    reload_all_servers,
-    test_server_connection,
-)
 from agent.tools.registry import registry
 
 logger = logging.getLogger(__name__)
@@ -38,6 +28,8 @@ _MCP_LOOP_IMPORTED = False
 
 def _ensure_mcp_loop():
     """Import and return _main_loop from mcp_manager; caches success."""
+    from agent.tools.mcp_manager import _main_loop
+
     global _MCP_LOOP_IMPORTED
     try:
         if _main_loop is None:
@@ -70,6 +62,8 @@ def _run_async(coro, timeout: float = 30.0):
 
 def mcp_list_servers(args: dict) -> str:
     """List all configured MCP servers and their current status."""
+    from agent.tools.mcp_manager import get_server_statuses
+
     try:
         statuses = get_server_statuses()
         # Build a compact summary for the LLM
@@ -131,6 +125,10 @@ def mcp_add_server(args: dict) -> str:
         config["headers"] = args.get("headers", {})
 
     try:
+        from agent import config_manager
+        from agent.config_model import MCPServerEntry
+        from agent.tools.mcp_manager import connect_server, get_server_statuses
+
         # Load config
         cfg = config_manager.load()
 
@@ -174,6 +172,9 @@ def mcp_add_server(args: dict) -> str:
 
 def mcp_delete_server(args: dict) -> str:
     """Delete an MCP server by name."""
+    from agent import config_manager
+    from agent.tools.mcp_manager import disconnect_server
+
     name = (args.get("name") or "").strip()
     if not name:
         return json.dumps({"success": False, "error": "服务器名称不能为空"}, ensure_ascii=False)
@@ -208,6 +209,9 @@ def mcp_delete_server(args: dict) -> str:
 
 def mcp_toggle_server(args: dict) -> str:
     """Enable or disable an MCP server."""
+    from agent import config_manager
+    from agent.tools.mcp_manager import connect_server, disconnect_server
+
     name = (args.get("name") or "").strip()
     if not name:
         return json.dumps({"success": False, "error": "服务器名称不能为空"}, ensure_ascii=False)
@@ -248,6 +252,9 @@ def mcp_toggle_server(args: dict) -> str:
 
 def mcp_test_server(args: dict) -> str:
     """Test-connect to an MCP server (ad-hoc config or existing)."""
+    from agent import config_manager
+    from agent.tools.mcp_manager import test_server_connection
+
     name = (args.get("name") or "").strip()
     if not name:
         return json.dumps({"success": False, "error": "服务器名称不能为空"}, ensure_ascii=False)
@@ -305,6 +312,8 @@ def mcp_test_server(args: dict) -> str:
 
 def mcp_reload_servers(args: dict) -> str:
     """Disconnect all MCP servers and reconnect enabled ones from config."""
+    from agent.tools.mcp_manager import reload_all_servers
+
     try:
         result = _run_async(reload_all_servers(), timeout=120)
         if isinstance(result, dict):
