@@ -66,6 +66,16 @@ from agent.events import (
     event_bus,
 )
 from agent.tools.registry import discover_tools, registry
+from agent.tools.tool_search import (
+    TOOL_CALL_NAME,
+    TOOL_DESCRIBE_NAME,
+    TOOL_SEARCH_NAME,
+    BRIDGE_TOOL_NAMES,
+    assemble_tool_defs,
+    dispatch_tool_call,
+    dispatch_tool_describe,
+    dispatch_tool_search,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -281,6 +291,8 @@ class AIAgent:
             max_retry_delay=max_retry_delay,
         )
         self._tools_discovered = False
+        self._tool_search_enabled = True  # enable progressive tool disclosure
+        self._cached_full_tool_defs: list[dict] | None = None  # for bridge dispatch
         self._memory_store = fact_memory.init_store()
 
         # ── M7: Phase Machine ──
@@ -384,10 +396,45 @@ class AIAgent:
 
     def _get_tool_definitions(self) -> list[dict]:
         self._ensure_discovered()
-        return registry.get_definitions(
+        raw = registry.get_definitions(
             tool_names=self.enabled_tools,
             disabled_tools=self.disabled_tools,
         )
+        # Apply progressive tool disclosure when enabled
+        if self._tool_search_enabled:
+            result = assemble_tool_defs(
+                raw,
+                context_length=self._resolve_context_length(),
+            )
+            if result.activated:
+                # Cache the deferred tool defs for bridge dispatch
+                self._cached_full_tool_defs = raw
+            return result.tool_defs
+        return raw
+
+    def _resolve_context_length(self) -> int | None:
+        """Try to resolve the model's context window size."""
+        try:
+            from agent.context_compactor import resolve_context_window
+            return resolve_context_window(self.model)
+        except Exception:
+            return None
+
+    def _dispatch_bridge_tool(self, name: str, args: dict) -> str:
+        """Dispatch a bridge tool (tool_search/tool_describe/tool_call).
+
+        Uses the cached full tool defs (pre-disclosure) for search/describe,
+        and routes through the registry for tool_call.
+        """
+        if name == TOOL_SEARCH_NAME:
+            current = self._cached_full_tool_defs or []
+            return dispatch_tool_search(args, current_tool_defs=current)
+        elif name == TOOL_DESCRIBE_NAME:
+            current = self._cached_full_tool_defs or []
+            return dispatch_tool_describe(args, current_tool_defs=current)
+        elif name == TOOL_CALL_NAME:
+            return dispatch_tool_call(args)
+        return json.dumps({"success": False, "error": f"Unknown bridge tool: {name}"})
 
     def _build_system_prompt(self) -> str | None:
         erp_context = self._build_erp_context()
@@ -575,42 +622,49 @@ class AIAgent:
                     )
                 else:
                     args = pre_event.args
-                    try:
-                        result, _ = dispatch_tool(
-                            tc.name,
-                            args,
-                            max_result_length=max_result_length,
-                        )
-                    except Exception as _ex:
-                        if type(_ex).__name__ == "ApprovalBlockedError":
-                            self._report(f"⚠️ 工具 {tc.name} 需要你的批准")
-                            approval = self._handle_approval_block(
-                                tool_name=tc.name,
-                                reason=str(_ex),
+                    # ── Bridge tool dispatch ──
+                    if tc.name in BRIDGE_TOOL_NAMES:
+                        try:
+                            result = self._dispatch_bridge_tool(tc.name, args)
+                        except Exception as _ex:
+                            result = json.dumps({"success": False, "error": str(_ex)})
+                    else:
+                        try:
+                            result, _ = dispatch_tool(
+                                tc.name,
+                                args,
+                                max_result_length=max_result_length,
                             )
-                            if approval == "approved":
-                                # User approved - retry with the original tool, bypassing hooks
-                                from agent.tools.registry import registry
+                        except Exception as _ex:
+                            if type(_ex).__name__ == "ApprovalBlockedError":
+                                self._report(f"⚠️ 工具 {tc.name} 需要你的批准")
+                                approval = self._handle_approval_block(
+                                    tool_name=tc.name,
+                                    reason=str(_ex),
+                                )
+                                if approval == "approved":
+                                    # User approved - retry with the original tool, bypassing hooks
+                                    from agent.tools.registry import registry
 
-                                entry = registry.get_entry(tc.name)
-                                if entry:
-                                    try:
-                                        raw_result = entry.handler(args)
-                                        result = (
-                                            raw_result
-                                            if isinstance(raw_result, str)
-                                            else json.dumps(raw_result, ensure_ascii=False)
-                                        )
-                                        if len(result) > max_result_length:
-                                            result = result[:max_result_length] + "\n\n..."
-                                    except Exception as e:
-                                        result = json.dumps({"success": False, "error": f"执行失败: {e}"})
+                                    entry = registry.get_entry(tc.name)
+                                    if entry:
+                                        try:
+                                            raw_result = entry.handler(args)
+                                            result = (
+                                                raw_result
+                                                if isinstance(raw_result, str)
+                                                else json.dumps(raw_result, ensure_ascii=False)
+                                            )
+                                            if len(result) > max_result_length:
+                                                result = result[:max_result_length] + "\n\n..."
+                                        except Exception as e:
+                                            result = json.dumps({"success": False, "error": f"执行失败: {e}"})
+                                    else:
+                                        result = json.dumps({"success": False, "error": f"未知工具: {tc.name}"})
                                 else:
-                                    result = json.dumps({"success": False, "error": f"未知工具: {tc.name}"})
+                                    result = json.dumps({"success": False, "error": "用户拒绝了操作"})
                             else:
-                                result = json.dumps({"success": False, "error": "用户拒绝了操作"})
-                        else:
-                            raise
+                                raise
 
             if stream_callback:
                 try:

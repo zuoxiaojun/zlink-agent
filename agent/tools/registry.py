@@ -51,7 +51,8 @@ def discover_tools(tools_dir: Path | None = None) -> list[str]:
             "mcp_management_tool", "mcp_manager", "memory_tool",
             "process_tool", "project_tools", "security_hooks",
             "session_search_tool", "skills_tool", "terminal_tool",
-            "todo_tool", "vision_tool", "web_extract_tool", "web_tools",
+            "tool_search_tool", "todo_tool", "vision_tool",
+            "web_extract_tool", "web_tools",
         ]
         module_names = [f"agent.tools.{name}" for name in known_tools]
     else:
