@@ -24,7 +24,6 @@ type ErpMeta = {
   label: string;
   badge: string;
   description: string;
-  mcpServerName: string;
   fields: FieldDef[];
 };
 
@@ -33,7 +32,6 @@ const ERP_REGISTRY: Record<string, ErpMeta> = {
     label: "YonSuite",
     badge: "内置",
     description: "用友 YonSuite 云 ERP",
-    mcpServerName: "yonsuite",
     fields: [
       { key: "tenant_id", label: "Tenant ID", type: "text" },
       { key: "app_key", label: "App Key", type: "password", secret: true },
@@ -44,7 +42,6 @@ const ERP_REGISTRY: Record<string, ErpMeta> = {
     label: "NC",
     badge: "内置",
     description: "用友 NC Cloud（Oracle 数据库）",
-    mcpServerName: "mcp-nc",
     fields: [
       { key: "host", label: "Host", type: "text" },
       { key: "port", label: "Port", type: "text", placeholder: "默认 1521" },
@@ -59,12 +56,6 @@ const ERP_REGISTRY: Record<string, ErpMeta> = {
 type ErpName = keyof typeof ERP_REGISTRY;
 
 type ErpConfig = Record<string, unknown>;
-
-type McpStatus = {
-  name: string;
-  status: "connected" | "disconnected" | "connecting" | "error" | "disabled";
-  enabled: boolean;
-};
 
 type Toast = { kind: "success" | "error" | "warn"; msg: string };
 
@@ -81,54 +72,22 @@ export default function SettingsERPPage() {
     nc: null,
   });
 
-  const [mcpStatuses, setMcpStatuses] = useState<McpStatus[]>([]);
-
   const [toast, setToast] = useState<Toast | null>(null);
   const [togglingName, setTogglingName] = useState<ErpName | null>(null);
   const [savingName, setSavingName] = useState<ErpName | null>(null);
   const [testingName, setTestingName] = useState<ErpName | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string } | null>>({});
-  const [, setDriftWarned] = useState<Record<ErpName, boolean>>({
-    yonsuite: false,
-    nc: false,
-  });
 
   useEffect(() => {
     void loadAll();
   }, []);
 
-  // 漂移检测 — toggle 操作中跳过，避免操作过程中的临时状态触发警告
-  useEffect(() => {
-    if (togglingName) return; // 正在开关操作，跳过漂移检测
-    (Object.keys(ERP_REGISTRY) as ErpName[]).forEach((name) => {
-      const cfg = configs[name];
-      if (!cfg || mcpStatuses.length === 0) return;
-      const meta = ERP_REGISTRY[name];
-      const mcp = mcpStatuses.find((s) => s.name === meta.mcpServerName);
-      if (!mcp) return;
-      const erpEnabled = !!cfg.enabled;
-      const mcpEnabled = mcp.enabled && mcp.status === "connected";
-      if (erpEnabled !== mcpEnabled) {
-        setDriftWarned((prev) => {
-          if (prev[name]) return prev; // already warned
-          showToast(
-            "warn",
-            `${meta.label} 配置与 MCP server 状态不一致（ERP ${erpEnabled ? "启用" : "停用"} ↔ MCP ${mcpEnabled ? "连接中" : "未连接"}），请点上方开关同步`,
-          );
-          return { ...prev, [name]: true };
-        });
-      }
-    });
-  }, [configs, mcpStatuses, togglingName]);
-
   const loadAll = async () => {
-    const [ys, ncData, mcp] = await Promise.all([
+    const [ys, ncData] = await Promise.all([
       api.get<ErpConfig>("/config/erp-clients/yonsuite").catch(() => null),
       api.get<ErpConfig>("/config/erp-clients/nc").catch(() => null),
-      api.get<McpStatus[]>("/config/mcp-servers").catch(() => []),
     ]);
     setConfigs({ yonsuite: ys, nc: ncData });
-    setMcpStatuses(mcp);
   };
 
   const switchTab = (tab: ErpName) => {
@@ -155,19 +114,11 @@ export default function SettingsERPPage() {
     const newEnabled = !cfg.enabled;
 
     setTogglingName(name);
-    // 重置该 ERP 的漂移警告（即将刷新状态）
-    setDriftWarned((prev) => ({ ...prev, [name]: false }));
     try {
-      // ERP PUT 后端会自动同步 MCP server 状态（连接/断开）
       const updated = await api.put<ErpConfig>(`/config/erp-clients/${name}`, {
         enabled: newEnabled,
       });
       setConfigs((prev) => ({ ...prev, [name]: updated }));
-
-      // 等待一小段时间让后端 MCP 连接/断开完成，然后刷新 MCP 状态
-      await new Promise((r) => setTimeout(r, 300));
-      const mcp = await api.get<McpStatus[]>("/config/mcp-servers").catch(() => []);
-      setMcpStatuses(mcp);
 
       showToast(
         "success",
@@ -248,7 +199,7 @@ export default function SettingsERPPage() {
         }}
       >
         ZLink Agent 通过 <strong>ERP 客户端</strong> 接入各业务系统。切换页签管理 YonSuite
-        与 NC 的连接信息，启停开关会同步联动对应 MCP server。
+        与 NC 的连接信息。
       </p>
 
       <div
@@ -306,7 +257,6 @@ export default function SettingsERPPage() {
             key={name}
             meta={ERP_REGISTRY[name]}
             config={configs[name]}
-            mcpStatus={mcpStatuses.find((s) => s.name === ERP_REGISTRY[name].mcpServerName)}
             isToggling={togglingName === name}
             isSaving={savingName === name}
             isTesting={testingName === name}
@@ -326,7 +276,6 @@ export default function SettingsERPPage() {
 type TabProps = {
   meta: ErpMeta;
   config: ErpConfig | null;
-  mcpStatus?: McpStatus;
   isToggling: boolean;
   isSaving: boolean;
   isTesting: boolean;
@@ -341,7 +290,6 @@ type TabProps = {
 function ErpTabPanel({
   meta,
   config,
-  mcpStatus,
   isToggling,
   isSaving,
   isTesting,
@@ -363,13 +311,10 @@ function ErpTabPanel({
           <div className="skeleton skeleton-text" />
         </div>
     </div>
-  );
-}
+    );
+  }
 
   const enabled = !!config.enabled;
-  const mcpExists = !!mcpStatus;
-  const mcpConnected = mcpStatus?.status === "connected";
-  const mcpDisabled = mcpStatus?.enabled === false || mcpStatus?.status === "disabled";
 
   return (
     <div className="card">
@@ -385,25 +330,6 @@ function ErpTabPanel({
           <h2 className="card-title">{meta.label}</h2>
           <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-3)" }}>
             {meta.description}
-            {mcpExists && (
-              <span style={{ marginLeft: 12 }}>
-                · MCP{" "}
-                <span
-                  style={{
-                    color: mcpConnected
-                      ? "var(--success, #00B42A)"
-                      : "var(--text-3)",
-                  }}
-                >
-                  {mcpConnected ? "已连接" : mcpDisabled ? "已停用" : "未连接"}
-                </span>
-              </span>
-            )}
-            {!mcpExists && (
-              <span style={{ marginLeft: 12, color: "var(--text-3)" }}>
-                · MCP server 未注册
-              </span>
-            )}
           </p>
         </div>
 
@@ -426,7 +352,7 @@ function ErpTabPanel({
             fontWeight: 500,
             opacity: isToggling ? 0.6 : 1,
           }}
-          title={enabled ? "点击停用（同时停用 MCP）" : "点击启用（同时启用 MCP）"}
+          title={enabled ? "点击停用" : "点击启用"}
         >
           {isToggling ? (
             <IconLoader size={14} className="spin" />
