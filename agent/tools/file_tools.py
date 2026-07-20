@@ -14,6 +14,8 @@ from pathlib import Path
 
 from agent.tools.file_mutation_queue import file_mutation_queue
 from agent.tools.registry import registry, tool_error, tool_result
+from agent.tools.binary_extensions import has_binary_extension
+from agent.tools.read_extract import extract_document_text, is_extractable_document, ExtractionError
 
 # Sensitive paths that tools should never write to
 _DENY_PATHS = [
@@ -74,6 +76,27 @@ def _handle_read_file(args: dict) -> str:
             return tool_error(f"File not found: {path}")
         if not p.is_file():
             return tool_error(f"Not a file: {path}")
+
+        # Binary file check (pure extension check, no I/O)
+        if has_binary_extension(path):
+            return tool_error(
+                f"Binary file: {path}. "
+                "This file type cannot be read as text. "
+                "Use glob or ls to find text-based files instead."
+            )
+
+        # Document extraction (.ipynb, .docx, .xlsx)
+        if is_extractable_document(path):
+            try:
+                text = extract_document_text(path)
+                return tool_result(
+                    data=text,
+                    total_lines=text.count("\n") + 1,
+                    file_size=p.stat().st_size,
+                    hint=f"Extracted {Path(path).suffix} document as text",
+                )
+            except ExtractionError as e:
+                return tool_error(f"Cannot extract document: {e}")
 
         content = p.read_text(encoding="utf-8")
     except UnicodeDecodeError:
@@ -357,7 +380,7 @@ def _handle_ls(args: dict) -> str:
 
 READ_FILE_SCHEMA = {
     "name": "read_file",
-    "description": "Read the contents of a file. Supports line offset and limit for large files.",
+    "description": "Read the contents of a file. Supports line offset and limit for large files. Automatically extracts text from Jupyter notebooks (.ipynb), Word documents (.docx), and Excel spreadsheets (.xlsx). Binary files (images, archives, etc.) are rejected with a clear error.",
     "parameters": {
         "type": "object",
         "properties": {
