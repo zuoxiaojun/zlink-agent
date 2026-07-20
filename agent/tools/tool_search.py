@@ -22,6 +22,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
+from agent.tools.registry import registry
+
 logger = logging.getLogger(__name__)
 
 # ── Bridge tool names ────────────────────────────────────────────────
@@ -84,8 +86,6 @@ def classify_tool_defs_by_toolset(tool_defs: list[dict]) -> tuple[list[dict], li
     Uses the registry to look up each tool's toolset. Core toolsets are
     always visible; everything else is deferrable.
     """
-    from agent.tools.registry import registry
-
     visible: list[dict] = []
     deferrable: list[dict] = []
     for td in tool_defs:
@@ -380,8 +380,6 @@ def dispatch_tool_describe(args: dict, *, current_tool_defs: list[dict]) -> str:
 
 def dispatch_tool_call(args: dict) -> str:
     """Execute a deferred tool by name. Dispatches through the registry."""
-    from agent.tools.registry import registry
-
     name = str(args.get("name") or "").strip()
     if not name:
         return json.dumps({"error": "tool_call requires a 'name' argument"}, ensure_ascii=False)

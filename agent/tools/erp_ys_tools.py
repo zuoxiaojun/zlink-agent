@@ -13,7 +13,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
+from agent.erp_clients.yonsuite.config import config as ys_config
+from agent.erp_clients.yonsuite.ys_client import YonSuiteClient
 from agent.tools.registry import registry, tool_error, tool_result
+from agent.utils import DATA_DIR
 
 # ═══════════════════════════════════════════════════════════════
 # 共享辅助函数 (从 mcp_server/ys_mcp_server/utils.py 迁移)
@@ -28,8 +31,6 @@ def _ensure_ys_config():
     if _YSONSUITE_CONFIG_LOADED:
         return
     _YSONSUITE_CONFIG_LOADED = True
-
-    from agent.utils import DATA_DIR
 
     config_path = DATA_DIR / "config.json"
     if config_path.exists():
@@ -70,12 +71,8 @@ def _get_ys_client():
     if _ys_client is not None:
         return _ys_client
     _ensure_ys_config()
-    from agent.erp_clients.yonsuite.config import config as ys_config
-
     if not ys_config.is_configured():
         return None
-    from agent.erp_clients.yonsuite.ys_client import YonSuiteClient
-
     _ys_client = YonSuiteClient()
     return _ys_client
 

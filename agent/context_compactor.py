@@ -45,6 +45,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from agent.events.bus import EventBus
+from agent.events.types import SessionBeforeCompactEvent
 
 logger = logging.getLogger(__name__)
 
@@ -697,8 +698,6 @@ def compact_messages(
 
     # M4: publish SessionBeforeCompactEvent so extensions can contribute.
     if event_bus is not None:
-        from agent.events.types import SessionBeforeCompactEvent
-
         ev = SessionBeforeCompactEvent(
             old_messages=old_messages,
             summary=new_summary,

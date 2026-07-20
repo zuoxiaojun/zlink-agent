@@ -15,6 +15,16 @@ import asyncio
 import json
 import logging
 
+from agent import config_manager
+from agent.config_model import MCPServerEntry
+from agent.tools.mcp_manager import (
+    _main_loop,
+    connect_server,
+    disconnect_server,
+    get_server_statuses,
+    reload_all_servers,
+    test_server_connection,
+)
 from agent.tools.registry import registry
 
 logger = logging.getLogger(__name__)
@@ -30,8 +40,6 @@ def _ensure_mcp_loop():
     """Import and return _main_loop from mcp_manager; caches success."""
     global _MCP_LOOP_IMPORTED
     try:
-        from agent.tools.mcp_manager import _main_loop
-
         if _main_loop is None:
             return None
         _MCP_LOOP_IMPORTED = True
@@ -63,8 +71,6 @@ def _run_async(coro, timeout: float = 30.0):
 def mcp_list_servers(args: dict) -> str:
     """List all configured MCP servers and their current status."""
     try:
-        from agent.tools.mcp_manager import get_server_statuses
-
         statuses = get_server_statuses()
         # Build a compact summary for the LLM
         summary = []
@@ -125,10 +131,6 @@ def mcp_add_server(args: dict) -> str:
         config["headers"] = args.get("headers", {})
 
     try:
-        from agent import config_manager
-        from agent.config_model import MCPServerEntry
-        from agent.tools.mcp_manager import connect_server
-
         # Load config
         cfg = config_manager.load()
 
@@ -152,8 +154,6 @@ def mcp_add_server(args: dict) -> str:
             )
 
         # Return status
-        from agent.tools.mcp_manager import get_server_statuses
-
         statuses = {s["name"]: s for s in get_server_statuses()}
         s = statuses.get(name, {})
         return json.dumps(
@@ -179,9 +179,6 @@ def mcp_delete_server(args: dict) -> str:
         return json.dumps({"success": False, "error": "服务器名称不能为空"}, ensure_ascii=False)
 
     try:
-        from agent import config_manager
-        from agent.tools.mcp_manager import disconnect_server
-
         cfg = config_manager.load()
         if name not in cfg.mcp_servers:
             return json.dumps(
@@ -216,9 +213,6 @@ def mcp_toggle_server(args: dict) -> str:
         return json.dumps({"success": False, "error": "服务器名称不能为空"}, ensure_ascii=False)
 
     try:
-        from agent import config_manager
-        from agent.tools.mcp_manager import connect_server, disconnect_server
-
         cfg = config_manager.load()
         if name not in cfg.mcp_servers:
             return json.dumps(
@@ -279,8 +273,6 @@ def mcp_test_server(args: dict) -> str:
     else:
         # Use existing config
         try:
-            from agent import config_manager
-
             cfg = config_manager.load()
             if name not in cfg.mcp_servers:
                 return json.dumps(
@@ -291,8 +283,6 @@ def mcp_test_server(args: dict) -> str:
             return json.dumps({"success": False, "error": str(e)[:500]}, ensure_ascii=False)
 
     try:
-        from agent.tools.mcp_manager import test_server_connection
-
         result = _run_async(
             test_server_connection(name, config), timeout=max(timeout + 5, 60)
         )
@@ -316,8 +306,6 @@ def mcp_test_server(args: dict) -> str:
 def mcp_reload_servers(args: dict) -> str:
     """Disconnect all MCP servers and reconnect enabled ones from config."""
     try:
-        from agent.tools.mcp_manager import reload_all_servers
-
         result = _run_async(reload_all_servers(), timeout=120)
         if isinstance(result, dict):
             status = result.get("status", {})

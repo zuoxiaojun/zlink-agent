@@ -9,6 +9,7 @@ from pathlib import Path
 
 import yaml
 
+from agent.fact_memory import _scan_content as _scan_threats
 from agent.tools.registry import registry, tool_error, tool_result
 from agent.utils import DATA_DIR, atomic_json_write, get_base_dir
 
@@ -298,7 +299,6 @@ def _handle_skill_install(args: dict) -> str:
 
     # Security scan on SKILL.md body (strip frontmatter)
     body = content.split("---", 2)[2].strip() if content.count("---") >= 2 else content
-    from agent.fact_memory import _scan_content as _scan_threats
 
     scan_err = _scan_threats(body)
     if scan_err:

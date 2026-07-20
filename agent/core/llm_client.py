@@ -46,8 +46,9 @@ from agent.core.llm_providers.base import (
     LLMResponse,
     ToolCallPayload,
     chat_with_retry_or_error,
+    is_transient_error,
 )
-from agent.core.llm_providers.openai_compat import OpenAICompatProvider
+from agent.core.llm_providers.openai_compat import OpenAICompatProvider, _extract_reasoning
 
 logger = logging.getLogger(__name__)
 
@@ -57,8 +58,6 @@ __all__ = ["LLMClient", "LLMResponse", "ToolCallPayload"]
 
 def _is_transient_error(error: BaseException) -> bool:
     """Heuristic: which exceptions are worth retrying?"""
-    from agent.core.llm_providers.base import is_transient_error
-
     return is_transient_error(error)
 
 
@@ -66,8 +65,6 @@ def _extract_reasoning(msg: Any) -> str | None:
     """Extract ``reasoning_content`` from an API message (DeepSeek reasoning
     models, etc.).  Kept here for backward compatibility — M3 native
     path uses :func:`agent.core.llm_providers.openai_compat._extract_reasoning`."""
-    from agent.core.llm_providers.openai_compat import _extract_reasoning
-
     return _extract_reasoning(msg)
 
 

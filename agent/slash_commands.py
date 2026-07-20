@@ -12,6 +12,10 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from agent.config_model import AppConfig
+from agent.context_compactor import resolve_context_window
+from agent.skill_manager import get_active_skills, get_all_skills, get_skill_content, set_skill_active
+
 logger = logging.getLogger(__name__)
 
 
@@ -90,13 +94,9 @@ def _cmd_help(_args: str, _ctx: dict) -> str:
 @register_command("model", "切换 LLM 模型", "/model <模型名>")
 def _cmd_model(args: str, ctx: dict) -> str:
     if not args.strip():
-        from agent.config_model import AppConfig
-
         cfg: AppConfig = ctx.get("config", {})  # type: ignore[assignment]
         current = cfg.llm_model or "未知"
         manual_override = cfg.max_context_tokens or 0
-        from agent.context_compactor import resolve_context_window
-
         if manual_override > 0:
             window = manual_override
             source = "（手动设置）"
@@ -191,8 +191,6 @@ def _cmd_cost(_args: str, ctx: dict) -> str:
 
 @register_command("skills", "列出所有技能及启用状态", "/skills")
 def _cmd_skills(_args: str, _ctx: dict) -> str:
-    from agent.skill_manager import get_active_skills, get_all_skills
-
     all_skills = get_all_skills()
     active = set(get_active_skills())
     if not all_skills:
@@ -212,8 +210,6 @@ def _cmd_skills(_args: str, _ctx: dict) -> str:
 
 @register_command("skill", "查看/启用/停用技能", "/skill <名称> [on|off]")
 def _cmd_skill(args: str, _ctx: dict) -> str:
-    from agent.skill_manager import get_active_skills, get_all_skills, get_skill_content, set_skill_active
-
     parts = args.strip().split(maxsplit=1)
     if not parts:
         return (

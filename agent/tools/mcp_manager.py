@@ -16,6 +16,9 @@ import time
 import httpx
 
 from agent.config_model import MCPServerEntry  # Pydantic model check in connect_all_servers
+from agent.config_manager import load as _load_cfg, resolve_placeholders
+from agent import config_manager as _config_manager
+from agent.tools.registry import registry
 
 logger = logging.getLogger(__name__)
 
@@ -331,16 +334,12 @@ class MCPServerConnection:
         logger.info("MCP server '%s' disconnected", self.name)
 
     def _unregister_tools(self):
-        from agent.tools.registry import registry
-
         for name in self._registered_tool_names:
             if name in registry.entries:
                 del registry.entries[name]
         self._registered_tool_names.clear()
 
     def _register_tools(self):
-        from agent.tools.registry import registry
-
         toolset = f"mcp-{self.name}"
         registered = []
         for tool in self._tools:
@@ -369,13 +368,9 @@ class MCPServerConnection:
         # v1.5.0: 解析 ${path.to.value} 占位符 (用户友好配置 → MCP env)
         user_env = self.config.get("env", {})
         try:
-            from agent.config_manager import load as _load_cfg
-
             cfg_obj = _load_cfg()
             # Pydantic model → dict (Pydantic v2 用 model_dump)
             full_config = cfg_obj.model_dump() if hasattr(cfg_obj, "model_dump") else dict(cfg_obj)
-            from agent.config_manager import resolve_placeholders
-
             user_env = resolve_placeholders(user_env, full_config)
         except Exception:
             # config 不可用时保持原样, 启动时报错定位更明确
@@ -624,10 +619,8 @@ async def disconnect_all_servers():
 
 async def reload_all_servers() -> dict:
     """Disconnect all, then reconnect enabled servers from config."""
-    from agent import config_manager
-
     await disconnect_all_servers()
-    cfg = config_manager.load()
+    cfg = _config_manager.load()
     servers_cfg = {k: v.model_dump() for k, v in cfg.mcp_servers.items()}
     status = await connect_all_servers(servers_cfg)
     return {"status": status}
@@ -635,9 +628,7 @@ async def reload_all_servers() -> dict:
 
 def get_server_statuses() -> list[dict]:
     """Return status info for all configured servers."""
-    from agent import config_manager
-
-    cfg = config_manager.load()
+    cfg = _config_manager.load()
     servers_cfg = {k: v.model_dump() for k, v in cfg.mcp_servers.items()}
 
     result = []

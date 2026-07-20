@@ -27,6 +27,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from agent.context_compactor import estimate_tokens
+
 logger = logging.getLogger(__name__)
 
 
@@ -263,8 +265,6 @@ class LLMProvider(ABC):
         """Conservative heuristic.  Providers may override with their
         own tokeniser (M4 will use tiktoken for OpenAI providers when
         available)."""
-        from agent.context_compactor import estimate_tokens
-
         return estimate_tokens(text)
 
 

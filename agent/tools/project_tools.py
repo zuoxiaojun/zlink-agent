@@ -13,7 +13,7 @@ from typing import Any
 from uuid import uuid4
 
 from agent.tools.registry import registry
-from agent.utils import DATA_DIR
+from agent.utils import DATA_DIR, atomic_json_write
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +35,6 @@ def _load_projects() -> list[dict[str, Any]]:
 
 def _save_projects(projects: list[dict[str, Any]]):
     PROJECTS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    from agent.utils import atomic_json_write
-
     atomic_json_write(PROJECTS_FILE, projects)
 
 
