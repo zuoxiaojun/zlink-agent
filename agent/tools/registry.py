@@ -46,7 +46,7 @@ def discover_tools(tools_dir: Path | None = None) -> list[str]:
     if getattr(sys, "frozen", False):
         known_tools = [
             "binary_extensions", "clarify_tool", "code_execution_tool",
-            "cronjob_tools", "delegate_tool", "erp_nc_tools",
+            "cronjob_tools", "erp_nc_tools",
             "erp_ys_tools", "file_mutation_queue", "file_tools",
             "mcp_management_tool", "mcp_manager", "memory_tool",
             "process_tool", "project_tools", "read_extract",

@@ -72,24 +72,7 @@ def build_system_prompt(
     if skill_detail:
         parts.append(skill_detail)
 
-    # 6. Sub-agent delegation guidance (if delegate_task tool is available)
-    try:
-        if "delegate_task" in registry.get_all_tool_names():
-            parts.append(
-                "## 子代理委托\n"
-                "当用户问题涉及多个独立数据源或多个可以并行的子任务时，"
-                "考虑使用 `delegate_task` 工具将子任务委托给子代理并行执行。\n\n"
-                "适用场景举例：\n"
-                "- 同时查询多个不同系统的数据（如 YonSuite 和 NC）\n"
-                "- 同时搜索多个不同领域的信息\n"
-                "- 将一个复杂任务拆成可以独立处理的子步骤\n\n"
-                "注意：每个子代理有独立的对话上下文和 15 轮迭代上限。"
-                "主代理在收到所有结果后进行合并呈现。"
-            )
-    except ImportError:
-        pass
-
-    # 7. ERP 数据源上下文（动态注入）
+    # 6. ERP 数据源上下文（动态注入）
     if erp_context:
         parts.append("## 可用数据源\n" + erp_context)
 

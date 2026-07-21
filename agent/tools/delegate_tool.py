@@ -167,19 +167,6 @@ _DELEGATE_TASK_SCHEMA = {
 }
 
 
-# Auto-register at import time
-registry.register(
-    name="delegate_task",
-    toolset="agent",
-    schema=_DELEGATE_TASK_SCHEMA,
-    handler=handle_delegate_task,
-    description="将子任务委托给子 AI Agent 并行执行",
-    emoji="🔄",
-    risk_level="medium",
-    check_fn=lambda: bool(getattr(_parent_config, "api_key", "")),
-)
-
-
 def set_parent_config(
     api_key: str = "",
     base_url: str = "",
