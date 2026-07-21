@@ -85,7 +85,7 @@ function AssistantGroupContent({
         <div className="tool-step-group">
           <ToolStepCard
             key="running"
-            call={{ id: "running", type: "function", function: { name: runningToolName, arguments: "{}" } }}
+            call={{ id: "running", type: "function", function: { name: runningToolName, arguments: `{"status": "executing"}` } }}
             onChoiceSelect={onChoiceSelect}
           />
         </div>
