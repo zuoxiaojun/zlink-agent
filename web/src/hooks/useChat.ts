@@ -34,18 +34,47 @@ export function useChat(options?: UseChatOptions) {
       const ws = new ChatWebSocket();
       wsRef.current = ws;
 
+      // token 缓冲：每 50ms 批量 flush，避免每个 token 触发全量重渲染 + markdown 重解析
+      let tokenBuf = "";
+      let reasoningBuf = "";
+      let flushTimer: number | null = null;
+
+      const flush = () => {
+        if (flushTimer !== null) {
+          clearTimeout(flushTimer);
+          flushTimer = null;
+        }
+        if (tokenBuf) {
+          dispatch({ type: "APPEND_TOKEN", token: tokenBuf });
+          tokenBuf = "";
+        }
+        if (reasoningBuf) {
+          dispatch({ type: "APPEND_REASONING", token: reasoningBuf });
+          reasoningBuf = "";
+        }
+      };
+
+      const scheduleFlush = () => {
+        if (flushTimer === null) {
+          flushTimer = window.setTimeout(flush, 50);
+        }
+      };
+
       ws.onMessage((msg: WsServerMessage) => {
         switch (msg.type) {
           case "token":
-            dispatch({ type: "APPEND_TOKEN", token: msg.content });
+            tokenBuf += msg.content;
+            scheduleFlush();
             break;
           case "reasoning_token":
-            dispatch({ type: "APPEND_REASONING", token: msg.content });
+            reasoningBuf += msg.content;
+            scheduleFlush();
             break;
           case "progress":
             dispatch({ type: "SET_PROGRESS", message: msg.message });
             break;
           case "done":
+            flush();
             runningRef.current = false;
             dispatch({
               type: "SET_RESULT",
@@ -75,6 +104,7 @@ export function useChat(options?: UseChatOptions) {
             onApprovalRequestRef.current?.(msg.payload);
             break;
           case "error":
+            flush();
             runningRef.current = false;
             dispatch({ type: "SET_ERROR", error: msg.message });
             ws.close();
