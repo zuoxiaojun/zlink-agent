@@ -100,6 +100,11 @@ export default function ToolStepCard({ call, result, onChoiceSelect }: ToolStepC
           </div>
         )}
       </button>
+      {result && !open && (
+        <div className="tool-step-preview">
+          <pre>{formatJson(raw).slice(0, 200)}{raw.length > 200 ? "…" : ""}</pre>
+        </div>
+      )}
       {open && result && (
         <div className="tool-step-body">
           <div className="tool-step-section">
