@@ -125,6 +125,7 @@ export default function ChatPage() {
               key={i}
               msgs={g}
               streaming={state.agentRunning && i === groups.length - 1}
+              progressMessage={state.progressMessage}
               onChoiceSelect={(text) => {
                 setApproval(null);
                 userScrolledUp.current = false;
@@ -169,13 +170,8 @@ export default function ChatPage() {
       {state.agentRunning && (
         <>
           <StopButton onStop={stopAgent} />
-          {state.progressMessage && (
+          {state.progressMessage && !state.progressMessage.includes("执行工具") && (
             <div className="progress-text" style={{ paddingBottom: "4px" }}>
-              <span className="thinking-indicator" style={{ display: "inline-flex", gap: "3px" }}>
-                <span style={{ width: "4px", height: "4px" }} />
-                <span style={{ width: "4px", height: "4px" }} />
-                <span style={{ width: "4px", height: "4px" }} />
-              </span>
               {state.progressMessage}
             </div>
           )}

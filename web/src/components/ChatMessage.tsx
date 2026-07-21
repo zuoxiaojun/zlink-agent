@@ -4,17 +4,25 @@ import MessageContent from "./MessageContent";
 import ReasoningBlock from "./ReasoningBlock";
 import ToolStepCard from "./ToolStepCard";
 
+function parseRunningTool(progressMessage: string): string | null {
+  const m = progressMessage.match(/🔧\s*执行工具:\s*(\S+)/);
+  return m ? m[1] : null;
+}
+
 function AssistantGroupContent({
   msgs,
   streaming,
+  progressMessage,
   onChoiceSelect,
 }: {
   msgs: Message[];
   streaming?: boolean;
+  progressMessage?: string;
   onChoiceSelect?: (text: string) => void;
 }) {
   const pending: ToolCall[] = [];
   const lastAssistantIdx = msgs.reduce((acc, m, i) => (m.role === "assistant" ? i : acc), -1);
+  const runningToolName = streaming ? parseRunningTool(progressMessage || "") : null;
 
   return (
     <div className="msg-body">
@@ -47,7 +55,7 @@ function AssistantGroupContent({
                 <div className={`msg-bubble${isStreaming ? " streaming-text" : ""}`}>
                   <MessageContent content={msg.content} />
                 </div>
-              ) : isStreaming ? (
+              ) : isStreaming && !runningToolName ? (
                 <div className="msg-bubble">
                   <div className="thinking-indicator">
                     <span />
@@ -79,6 +87,15 @@ function AssistantGroupContent({
             ))}
         </div>
       )}
+      {runningToolName && (
+        <div className="tool-step-group">
+          <ToolStepCard
+            key="running"
+            call={{ id: "running", type: "function", function: { name: runningToolName, arguments: "{}" } }}
+            onChoiceSelect={onChoiceSelect}
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -86,10 +103,12 @@ function AssistantGroupContent({
 export default function ChatMessage({
   msgs,
   streaming,
+  progressMessage,
   onChoiceSelect,
 }: {
   msgs: Message[];
   streaming?: boolean;
+  progressMessage?: string;
   onChoiceSelect?: (text: string) => void;
 }) {
   const first = msgs[0];
@@ -109,7 +128,7 @@ export default function ChatMessage({
   return (
     <div className="msg-row assistant">
       <div className="msg-avatar"><IconRobot size={18} /></div>
-      <AssistantGroupContent msgs={msgs} streaming={streaming} onChoiceSelect={onChoiceSelect} />
+      <AssistantGroupContent msgs={msgs} streaming={streaming} progressMessage={progressMessage} onChoiceSelect={onChoiceSelect} />
     </div>
   );
 }

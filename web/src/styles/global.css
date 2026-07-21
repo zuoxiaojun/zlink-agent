@@ -545,6 +545,10 @@ body {
 
 /* ── Tool step card ──────────────────────────────────── */
 
+.tool-step-group {
+  margin: 4px 0;
+}
+
 .tool-step {
   margin: 8px 0;
   border: 1px solid var(--border);
