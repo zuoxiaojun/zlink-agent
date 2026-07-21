@@ -7,6 +7,8 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 import re
 import urllib.parse
 from collections.abc import Callable
@@ -40,8 +42,6 @@ def _ensure_ys_config():
             cfg = {}
     else:
         cfg = {}
-    import os
-
     for key, env_key in [
         ("ys_app_key", "YONSUITE_APP_KEY"),
         ("ys_app_secret", "YONSUITE_APP_SECRET"),
