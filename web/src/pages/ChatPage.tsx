@@ -121,6 +121,7 @@ export default function ChatPage() {
             <ChatMessage
               key={i}
               msgs={g}
+              streaming={state.agentRunning && i === groups.length - 1}
               onChoiceSelect={(text) => {
                 setApproval(null);
                 userScrolledUp.current = false;

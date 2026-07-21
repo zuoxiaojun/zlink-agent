@@ -507,6 +507,25 @@ body {
 
 /* ── Reasoning / thinking content ─────────────────────── */
 
+.reasoning-block {
+  margin: 2px 0 4px;
+}
+.reasoning-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-3);
+  padding: 2px 0;
+  font-family: inherit;
+}
+.reasoning-header:hover {
+  color: var(--text-2);
+}
+
 .reasoning-content {
   font-size: 12px;
   color: var(--text-3);
