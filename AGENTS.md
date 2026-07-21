@@ -1,0 +1,319 @@
+# ZLink Agent (智链 Agent)
+
+> AI agent reference + developer guide. Keep this file under 32 KB — put detail in code, not here; look up signatures with Read instead of duplicating them.
+
+## 1. Project Overview
+
+ZLink Agent (智链 Agent) is an AI assistant with multi-ERP (YonSuite / NC / extensible) data retrieval, built-in MCP server management, a skill system, and long-term memory.
+
+**Stack:** Python 3.11+ / FastAPI (port 8089) / React + Vite (port 8088) / MCP JSON-RPC / SQLite FTS5 / pytest / ruff
+
+**Tests:** 371 tests, ~1.4s, zero network/LLM deps. Run: `.venv/bin/python -m pytest tests/ -v`
+
+## 2. Directory Structure
+
+```
+zlink-agent/
+├── backend/                    # FastAPI backend (port 8089)
+│   ├── main.py                 # ⚠️ app, CORS, lifespan (init search_index, connect MCP), router mounts
+│   ├── api/                    # 13 routers: chat(WS ⚠️), config, erp_clients(⚠️ env injection),
+│   │                           #   mcp, skills, tools, slash_commands, cronjob, memory, metrics,
+│   │                           #   sessions, extensions, system
+│   └── schemas/                # ✅ Pydantic models (config, chat, mcp, slash_command)
+├── agent/                      # Core logic (non-FastAPI, reusable)
+│   ├── core/
+│   │   ├── agent.py            # ⚠️ AIAgent — M7 agent loop, phase machine, TurnSnapshot
+│   │   ├── llm_client.py       # ⚠️ LLMClient shim → LLMProvider
+│   │   ├── llm_providers/      # ⚠️ base (LLMProvider ABC / LLMResponse / ToolCallPayload),
+│   │   │                       #    openai_compat (httpx SSE, reasoning_content), anthropic, factory
+│   │   ├── message_builder.py  # build_system_prompt(), build_turn_messages()
+│   │   ├── tool_dispatcher.py  # dispatch_tool() — registry dispatch + truncation
+│   │   └── iteration_budget.py # IterationBudget — turn counting
+│   ├── tools/                  # 24 files, 57 tools — one file per toolset
+│   │   ├── registry.py         # ❌ ToolRegistry singleton — extend via register() only
+│   │   ├── erp_ys_tools.py     # ⚠️ YonSuite 内置取数工具 (11 个, 替代旧 MCP 子进程)
+│   │   ├── erp_nc_tools.py     # ⚠️ NC 内置取数工具 (4 个, 替代旧 MCP 子进程)
+│   │   ├── mcp_manager.py      # ⚠️ MCP connections, circuit breaker, JSON-RPC
+│   │   ├── security_hooks.py   # ❌ three-layer security enforcement
+│   │   └── ...                 # 18 个常驻 + 36 个延迟（tool_search 桥）+ 3 个桥工具
+│   ├── events/                 # ⚠️ bus.py (EventBus singleton), types.py (8 event classes),
+│   │                           #    extensions.py (Extension base + runner)
+│   ├── extensions/             # built-in: log_everything, security_event, monitoring
+│   ├── config_manager.py       # ⚠️ load()/save() — chmod 0600 on config.json
+│   ├── config_model.py         # ⚠️ AppConfig + MCPServerEntry
+│   ├── context_compactor.py    # ⚠️ M6 three-level compaction (truncate → LLM summary → drop)
+│   ├── skill_manager.py        # ⚠️ skill CRUD, activation, prompt injection
+│   ├── session_manager.py      # session persistence (data/sessions/)
+│   ├── search_index.py         # SQLite FTS5 session search
+│   ├── memory_manager.py       # conversation summary memory (data/memory/)
+│   ├── fact_memory.py          # autonomous memory (notes + user profile)
+│   ├── slash_commands.py       # /help /model /compact /clear /login /cost
+│   ├── utils.py                # DATA_DIR, atomic_json_write, _resolve_data_dir
+│   ├── erp_clients/            # ERP SDK clients (yonsuite, nc)
+│   └── skills/                 # ❌ built-in skills (read-only, not editable/deletable)
+├── web/                        # React + Vite frontend (port 8088)
+│   ├── src/                    # App.tsx (10 routes ⚠️), pages/, api/, components/, styles/, hooks/
+│   └── vite.config.ts          # ⚠️ proxy /api + /ws → backend:8089
+├── tests/                      # 33 files, 395 tests; conftest.py = shared fixtures
+├── scripts/                    # build-electron.sh, zlink.sh, migrate.py
+└── data/                       # runtime data (~/.zlink-agent/data/):
+                                #   config.json (chmod 0600), active_skills.json, skills/,
+                                #   sessions/, memory/, logs/, backups/
+```
+
+**Legend:** ✅ safe to modify | ⚠️ modify with caution (has dependents) | ❌ do not modify
+
+**Hub nodes** (changing them affects many consumers): `agent/core/agent.py`, `agent/tools/registry.py`, `agent/tools/mcp_manager.py`, `backend/api/chat.py`, `agent/config_model.py`.
+
+## 3. Architecture & Data Flows
+
+### Flow A: Chat (WebSocket → AIAgent → LLM → response)
+
+```
+frontend WS → backend/api/chat.py (run_in_executor)
+  → slash command? → execute() → response
+  → else AIAgent.run_conversation(message, stream_cb):
+      build_turn_messages() → _take_snapshot() (freezes model/temp/tools)
+      → SessionStartEvent → _maybe_compact() [context_compactor.py]
+      → loop: _call_llm() [LLMClient.chat → LLMProvider.chat (openai_compat/anthropic)]
+          → if tool_calls: dispatch_tool() → registry.dispatch()
+              → tool handler | mcp_manager.call_tool() → append results → loop
+      → SessionEndEvent → return {final_response, messages, api_calls, token_usage, completed, error}
+```
+
+### Flow B: MCP tool execution
+
+`registry.dispatch()` → `mcp_manager.call_tool(server, tool, args)` → JSON-RPC `tools/call` over stdio (subprocess stdin/stdout, `asyncio.create_subprocess_exec`) or HTTP (httpx POST, timeout from `MCPServerEntry.timeout`).
+
+**Circuit breaker:** 3 consecutive failures → 60s cooldown (`_CIRCUIT_BREAKER_THRESHOLD = 3`, `_CIRCUIT_BREAKER_COOLDOWN_SEC = 60.0`).
+
+### Flow C: ERP config save → env injection
+
+`PUT /api/config/erp-clients/{name}` → `erp_clients_api.py` merges + writes `config.json` → `_apply_erp_env(name, cfg)`:
+- `nc` → injects `ORACLE_HOST/PORT/SERVICE/USER/PASSWORD` into `os.environ`
+- `yonsuite` → injects `YONSUITE_APP_KEY/SECRET/TENANT_ID/GATEWAY_URL`
+
+Built-in tools (`agent/tools/erp_*_tools.py`) read these env vars and connect directly.
+
+### Flow D: Skill injection into system prompt
+
+`skill_manager.get_active_instructions()` → reads `active_skills.json` → Level 0 (name+desc list, always in system prompt). `get_instructions_for_query(user_message)` → n-gram matches name/description/tags → Level 1 (full SKILL.md, on-demand). Both go into `build_system_prompt(skill_index=..., skill_detail=...)`. **Default:** on first run (file missing) all built-in skills are activated and persisted; afterwards the file is authoritative — an explicit `[]` (all off) is respected.
+
+### Events (`agent/events/bus.py`, EventBus singleton)
+
+`SessionStart → UserMessage → BeforeLLMCall → AfterLLMCall → BeforeToolCall → AfterToolCall → SessionEnd` (+ `PhaseChange`, `SessionBeforeCompact`). All Session*/PhaseChange events carry `session_id` so extensions can scope work per chat session.
+
+### Key design decisions
+
+- **Sync agent loop** runs in a `ThreadPoolExecutor` via `run_in_executor` — avoids async rewrite of the agent loop.
+- **SSE parsing** in `openai_compat.py` handles both `data: {json}` (standard) and `data:{json}` (custom gateway) formats.
+- **Reasoning pipe** is a separate channel (`reasoning_callback`), not mixed with content — frontend renders it grey italic via `.reasoning-content`.
+- **ERP isolation**: only `enabled=true` ERP 的内置工具注册进 LLM 工具列表；禁用的系统对 LLM 不可见。
+- **Version number** single source of truth: `pyproject.toml` (see §10).
+
+## 4. Key Contracts (do not break)
+
+### AIAgent (`agent/core/agent.py`)
+
+- Constructor signature is **frozen** (M1) — do not add/rename params.
+- `run_conversation(user_message, system_message, conversation_history, stream_callback, reasoning_callback, stop_event, session_id)` returns `{final_response, messages, api_calls, token_usage, completed, error}` — keys consumed by `backend/api/chat.py`.
+- **M7 phase machine:** `self.phase ∈ {"idle", "turn", "compaction", "retry"}`; `run_conversation()` rejects if phase != "idle"; resets to "idle" on completion. Call once per turn.
+- `_take_snapshot()` freezes (model, temperature, max_tokens, system_prompt, tool_defs, compaction_settings) per turn.
+- `session_id` is forwarded into Session*/PhaseChange events (empty string when not passed).
+- **WS Envelope** (`agent/core/agent.py`, Envelope class): `{seq, phase, type, payload}` — `seq` monotonic; `phase ∈ idle/turn/compaction/retry`; `type ∈ token/reasoning_token/tool_call/final/error`.
+
+### LLM layer
+
+- `LLMClient.chat(*, model, messages, temperature, max_tokens, tools, tool_choice, stream, stream_callback, reasoning_callback, stop_event)` → `LLMResponse`. **Never throws** — errors returned with `.error` set, `.failed == True`.
+- `LLMResponse` fields (consumed by `agent.py` + extensions): `content, reasoning, tool_calls, usage ({prompt_tokens, completion_tokens, total_tokens}), error, stop_reason`.
+- `ToolCallPayload`: `id, name, arguments` (arguments = raw JSON string).
+
+### ToolRegistry (`agent/tools/registry.py`, module-level singleton `registry`)
+
+- `register(name, toolset, schema, handler)`, `deregister(name)`, `dispatch(name, args) → JSON str`, `get_definitions(tool_names, disabled_tools) → OpenAI-format tools`, `get_all_tool_names()`, `add/remove_before_hook`, `add/remove_after_hook`.
+- `discover_tools()` imports all tool modules → each self-registers via `registry.register()`.
+- **Before-hook block protocol:** to block execution return `{"__block__": True, "__reason__": "..."}`; otherwise modified args pass through to the handler.
+
+### MCP (`agent/tools/mcp_manager.py`)
+
+- `MCPServerConnection`: `connect/disconnect/call_tool`; properties `connected`, `status` ("connected"/"error"/"disconnected"), `tool_count`.
+- Module helpers (called by `main.py` lifespan): `connect_all_servers`, `connect_server`, `disconnect_server`, `get_server_statuses`, `reload_all_servers`, `test_server_connection`.
+
+### Config
+
+- `config_manager.load() → AppConfig`; `save(cfg)` = atomic write + chmod 0600 (data dir 0700, best-effort); `get_erp_config(name)`; `resolve_placeholders(env, config)` resolves `${path.to.value}` in MCP env.
+- `AppConfig` (`agent/config_model.py`): `llm_*`, `ys_*`, `max_iterations (5-50)`, `compaction_enabled`, `max_context_tokens (0=auto-detect)`, `reserve_tokens`, `keep_recent_tokens`, `mcp_servers`, `erp_clients`, `disabled_extensions`. Plain JSON — **no encryption layer** (no encrypt_secret/decrypt_secret).
+- `MCPServerEntry`: `transport (stdio|http)`, `enabled`, `timeout`, `command`, `args`, `url`, `headers`, `env`, `builtin` (builtin=True → cannot be deleted via API).
+- `build_system_prompt(base, memory_store, memory_context, skill_index, skill_detail, erp_context)` — concatenates fragments; returns None if empty.
+
+## 5. Development Constraints
+
+### ❌ Do-Not-Modify Zones
+
+| Path | Reason |
+|------|--------|
+| `agent/skills/<name>/SKILL.md` | Built-in skills — API rejects DELETE/EDIT on builtin=True |
+| `agent/tools/registry.py` | Tool dispatch hub — extend via `register()`, never edit internals |
+| `agent/tools/security_hooks.py` | Three-layer security — modifying weakens the protection model |
+| `backend/schemas/*.py` | Consumed by frontend API responses — renaming fields = breaking change |
+
+### ⚠️ Modify-With-Caution Zones
+
+| Path | Risk |
+|------|------|
+| `agent/core/agent.py` | Constructor frozen; changing `run_conversation()` return keys breaks `chat.py` |
+| `agent/core/llm_providers/base.py` | LLMResponse field names consumed by `agent.py` and extensions |
+| `agent/events/types.py` | Event field names are contracts — extensions read them by name |
+| `backend/api/erp_clients_api.py` | `SECRET_FIELDS` is the source of truth for masked fields — new ERP secret fields must be added here |
+
+### Naming Conventions
+
+- **ERP 工具名**：内置工具用业务名（`ys_api`、`nc_query`）；MCP 工具用 `mcp_<server_name>_<tool_name>`（如 `mcp_chart_chart_query`）
+- **API routes**: all under `/api/*`, RESTful (`GET/POST /api/resources`), routers in `backend/api/`
+- **Test files**: `tests/test_<module_name>.py`
+- **Tool modules**: one file per toolset in `agent/tools/`
+- **ERP client modules**: named after ERP system (yonsuite, nc)
+
+### Security Three-Layer Protection
+
+```
+Layer 1: System prompt          — tells the LLM to avoid dangerous actions
+Layer 2: Before-hook chain      — security_hooks.py intercepts tool calls, blocks rm -rf etc.
+Layer 3: SecurityEventExtension — extensions/security_event.py subscribes BeforeToolCallEvent,
+                                  cancels blocked operations
+```
+
+To add a blocked pattern: edit `agent/tools/security_hooks.py` or `agent/extensions/security_event.py`. Never disable all three layers at once.
+
+### Config Secrets Convention
+
+- Everything (incl. secrets) is plain JSON in `data/config.json`, chmod 0600; protection is file permissions, not cryptography.
+- GET ERP API masks `SECRET_FIELDS` as `***`; the file always holds real values.
+- New ERP with secrets → add field names to `SECRET_FIELDS` in `backend/api/erp_clients_api.py` (single source of truth; `config_manager` keeps no parallel list).
+- Need at-rest encryption → run on encrypted filesystem (FileVault / LUKS / BitLocker).
+
+## 6. Test System
+
+- Run all: `.venv/bin/python -m pytest tests/ -v`; single file: append its path. 当前 371 tests。
+- Coverage target 70%+: `--cov=agent --cov=backend --cov-report=term-missing`.
+- **Zero-network policy:** all tests use `MockLLMProvider`, FastAPI `TestClient`, tmp-file config isolation. No real LLM/YonSuite/MCP calls.
+- Key fixtures (`tests/conftest.py`): `clean_extensions` (autouse, wipes event bus between tests), `isolated_config` (redirects config to tmp_path), `MockLLMProvider` (scripted LLMResponse).
+- Tool-registry tests snapshot/restore the registry per test; config tests `monkeypatch` CONFIG_FILE to tmp_path.
+
+## 7. Common Modification Patterns
+
+**A. Add a new ERP system:**
+1. ERP client class in `agent/erp_clients/<name>/` (if SDK needed)
+2. Entry in `ERP_REGISTRY` in `web/src/pages/SettingsERPPage.tsx` (label, badge, fields)
+3. Secret field names → `SECRET_FIELDS` in `backend/api/erp_clients_api.py` (drives read-time masking + write semantics)
+4. Built-in tools in `agent/tools/erp_<name>_tools.py` (or MCP server if required)
+5. `_apply_erp_env()` injection logic in `erp_clients_api.py`
+6. Toggle logic in `erp_clients_api.py` PUT handler
+
+**B. Add a new tool:**
+1. New file `agent/tools/<new_tool>.py`
+2. Handler `(args: dict) → str` (JSON)
+3. `registry.register(name, toolset, schema, handler)` at module level → auto-registers via `discover_tools()`
+
+**C. Add a new MCP server:**
+1. MCP server implementing JSON-RPC over stdio or HTTP
+2. `MCPServerEntry` in config.json `mcp_servers`
+3. Builtin → add to `main.py` lifespan auto-registration; `builtin=True` forbids delete, non-builtin allows full CRUD
+
+**D. Add a new API route:**
+1. `backend/api/<name>_api.py` with `APIRouter` (+ Pydantic schemas in `backend/schemas/` if needed)
+2. Mount in `backend/main.py`: `app.include_router(router)` (WebSocket → `backend/api/chat.py`)
+3. Frontend (if consumed): API client in `web/src/api/`, page in `web/src/pages/`, route in `App.tsx`
+
+## 8. Commands
+
+```bash
+# Setup
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt && cd web && npm ci && cd ..
+
+# Run
+./start.sh              # production (backend serves frontend)
+./start.sh --dev        # dev mode (backend :8089 + Vite hot-reload :8088)
+./start.sh stop         # stop services
+
+# Verify: http://localhost:8089/api/health, http://localhost:8088, ws://localhost:8089/ws/chat/{session_id}
+
+# Test & lint
+.venv/bin/python -m pytest tests/ -v
+ruff check . && ruff format --check .     # check
+ruff check --fix . && ruff format .       # auto-fix
+
+# Verify tool registration (expect ~57 tools)
+.venv/bin/python -c "from agent.tools.registry import registry, discover_tools; discover_tools(); print(len(registry.get_all_tool_names()), 'tools')"
+
+# Build
+bash scripts/build-electron.sh            # macOS .dmg; --win → .exe; --linux → .AppImage
+```
+
+## 9. ERP Setup (UI)
+
+Settings → ERP → `yonsuite` / `nc` tab.
+
+- **YonSuite:** App Key / App Secret / Tenant ID → Save (written to `config.json`, 0600) → Test Connection → Enable → 11 tools (`ys_api`, `query_sale_orders`, …) become available.
+- **NC:** Host / Port (1521) / Service (Oracle SID) / User / Password, optional Max Rows (100) → Save (`_apply_erp_env()` injects Oracle env vars) → Test (via oracledb) → Enable → 4 tools (`nc_query`, `nc_list_tables`, …).
+
+**Troubleshooting:** tools missing after enable → check `GET /api/config/mcp-servers`; connection errors → `~/.zlink-agent/data/logs/app.log`.
+
+## 10. Build & Release
+
+Version bump (`pyproject.toml` = single source of truth):
+1. `pyproject.toml` version field
+2. `CHANGELOG.md` release notes
+3. `README.md` version + feature list + structure
+4. `git tag vX.Y.Z && git push origin vX.Y.Z`
+
+Build: `bash scripts/build-electron.sh` = frontend build → Python bundle → electron-builder → .dmg/.exe/.AppImage.
+
+## 11. Debugging
+
+- **Logs:** backend runtime + MCP subprocess stderr → `~/.zlink-agent/data/logs/app.log`; frontend → browser DevTools Console/Network.
+- **WebSocket frames:** DevTools → Network → WS → Messages at `ws://localhost:8089/ws/chat/{session_id}` (Envelope format, see §4).
+- **Config direct edit:** `vim ~/.zlink-agent/data/config.json` then restart backend (or save from UI). Secrets are visible — file is owner-only.
+- **MCP debugging:** `GET /api/config/mcp-servers` for status; circuit breaker = 3 failures → 60s cooldown. `mcp_server/` was removed in v1.7.0 (YonSuite/NC are built-in tools now); Chart MCP is bundled in Electron builds only — for source dev use `mcp_add_server` or Settings → MCP.
+
+## 12. 会话交接（Session Handover）
+
+当单个 Kimi Code 会话积累了大量工具调用和文件改动后，应在 `HANDOVER.md` 记录当前状态以便新会话快速接续。
+
+**何时写：** 以下任一条件满足时：
+- 会话涉及 5+ 个 commit 或 3+ 个文件改动
+- 有重要的架构决策、设计文档或用户明确的策略选择
+- 当前会话即将结束、或上下文已明显变大
+
+**HANDOVER.md 应包含：**
+- 当前分支、版本、测试状态、构建产物
+- 改动摘要（commit 列表 + 一句话说明）
+- 关键决策记录（为什么做了/没做什么）
+- 遗留待办 & 已知问题
+- 新会话入口提示（第一个命令或 Read 什么文件）
+
+**新会话流程：** `Read HANDOVER.md` → `git log --oneline -5` 确认分支 → `git diff --stat <last_tag>..HEAD` 看变更范围。如果 `HANDOVER.md` 不存在，说明上一个会话没有留下需要交接的工作。
+
+## 13. Project-Specific Notes
+
+- **Git remote**: atomgit.com/gcw_cJbJuamU/zlink-agent.git (NOT GitHub)
+- **BROWSER_URL**: start.sh 的 `open` 不能用 `$HOST`（默认 0.0.0.0），设 `BROWSER_URL="http://127.0.0.1:$PORT"`
+- **NC65**: DBILLDATE 是 CHAR 类型，字符串比较；PO_ORDER 用 FORDERSTATUS（0=自由~5=输出）；SO_SALEORDER 用 FSTATUSFLAG
+- **桌面端网络绑定（2026-07-18）**：PyInstaller 入口默认 bind `127.0.0.1`（可用 `ZLINK_AGENT_HOST` 覆盖）；后端无鉴权，绝不能绑 0.0.0.0 暴露给局域网。Electron 生产模式启动顺序：loading.html → `electron/port.js` 抢占 8089（只杀命令行含 `zlink-backend` 的残留进程，外来进程则弹窗报错）→ 启动后端 → `/api/health` 就绪后加载前端。
+- **`-webkit-app-region` 禁令（2026-07-18 事故）**：任何页面都不得设整页 `-webkit-app-region: drag`——拖拽区是窗口级状态，`loadURL` 换页后残留，整窗点击/悬停全被系统拿去拖窗口且 CDP 查不到（loading.html 曾因此导致打包版点击全灭）。标准做法：仅 `.electron .top-bar` 设 drag（`global.css`，顶栏纯文本无按钮）；hiddenInset 无原生拖动区，需要拖动必须靠此类小区域 CSS。
+- **Chart MCP 打包（2026-07-18）**：build-electron.sh 对 `node_modules/@antv/mcp-server-chart` 跑 `npm install --omit=dev --ignore-scripts` 把依赖装进包目录（extraResources 一并拷贝，约 +29MB）。运行时 node 来源：`ELECTRON_NODE_PATH`（electron/main.js 注入 = Electron 二进制，配 `ELECTRON_RUN_AS_NODE=1`）优先，回退系统 `node`；两个都没有则跳过。内置 chart 条目是**应用托管**的：每次启动强制刷新 command/args/env（只保留用户的 enabled），防止 app 移动位置后旧路径残留导致 chart 永久失效。
+
+### ERP 数据源路由（2026-07-13）
+
+两个 Layer 确保 LLM 正确选择 ERP 取数，不再擅自猜测：
+- **Layer 1 — System prompt 动态注入**（`message_builder.py` + `agent.py`）：`build_system_prompt()` 的 `erp_context` 参数；`_build_erp_context()` 读 `cfg.erp_clients` 生成启用状态（✅/❌）。1 个启用 → 直接用对应工具；多个启用 → 用户未指明时先问查哪个。每轮重新读配置，开关即时生效。
+- **Layer 2 — 工具描述标注**（`mcp_manager.py`）：`_convert_mcp_tool_schema()` 自动追加 `【数据源：YonSuite/NC】`；仅已知 ERP（`erp_source_labels = {"yonsuite": "YonSuite", "mcp-nc": "NC"}`）加标签，chart 等不加。
+
+### 缓存路径（2026-07-13 修复）
+
+所有运行时缓存必须写入 `~/.zlink-agent/data/`，而非源码目录（打包后不可写）：
+- YonSuite 账簿缓存：`DATA_DIR / "yonsuite_cache" / "cache_accbook.json"`（修复前在 `agent/erp_clients/yonsuite/cache/`）
+- YonSuite Token 缓存：`DATA_DIR / "yonsuite_cache"`（由 `main.py` 设置环境变量 `YONSUITE_CACHE_DIR`）
+
+<!-- END_DOCUMENT -->
