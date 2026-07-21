@@ -125,7 +125,6 @@ export default function ChatPage() {
               key={i}
               msgs={g}
               streaming={state.agentRunning && i === groups.length - 1}
-              progressMessage={state.progressMessage}
               onChoiceSelect={(text) => {
                 setApproval(null);
                 userScrolledUp.current = false;

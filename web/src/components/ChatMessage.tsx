@@ -3,6 +3,7 @@ import type { Message, ToolCall } from "../types";
 import MessageContent from "./MessageContent";
 import ReasoningBlock from "./ReasoningBlock";
 import ToolStepCard from "./ToolStepCard";
+import { useAppState } from "../context/AppContext";
 
 function parseRunningTool(progressMessage: string): string | null {
   const m = progressMessage.match(/🔧\s*执行工具:\s*(\S+)/);
@@ -12,17 +13,16 @@ function parseRunningTool(progressMessage: string): string | null {
 function AssistantGroupContent({
   msgs,
   streaming,
-  progressMessage,
+  runningToolName,
   onChoiceSelect,
 }: {
   msgs: Message[];
   streaming?: boolean;
-  progressMessage?: string;
+  runningToolName?: string | null;
   onChoiceSelect?: (text: string) => void;
 }) {
   const pending: ToolCall[] = [];
   const lastAssistantIdx = msgs.reduce((acc, m, i) => (m.role === "assistant" ? i : acc), -1);
-  const runningToolName = streaming ? parseRunningTool(progressMessage || "") : null;
 
   return (
     <div className="msg-body">
@@ -35,7 +35,6 @@ function AssistantGroupContent({
           }
           if (!call) call = pending.shift();
           if (!call) {
-            // 无配对的历史 tool 消息：用兜底 call，保证 clarify chips 等仍能渲染
             call = { id: msg.tool_call_id || "", type: "function", function: { name: "tool", arguments: "{}" } };
           }
           return <ToolStepCard key={i} call={call} result={msg} onChoiceSelect={onChoiceSelect} />;
@@ -103,14 +102,15 @@ function AssistantGroupContent({
 export default function ChatMessage({
   msgs,
   streaming,
-  progressMessage,
   onChoiceSelect,
 }: {
   msgs: Message[];
   streaming?: boolean;
-  progressMessage?: string;
   onChoiceSelect?: (text: string) => void;
 }) {
+  const { state } = useAppState();
+  const runningToolName = streaming ? parseRunningTool(state.progressMessage || "") : null;
+
   const first = msgs[0];
   if (first.role === "user") {
     return (
@@ -128,7 +128,7 @@ export default function ChatMessage({
   return (
     <div className="msg-row assistant">
       <div className="msg-avatar"><IconRobot size={18} /></div>
-      <AssistantGroupContent msgs={msgs} streaming={streaming} progressMessage={progressMessage} onChoiceSelect={onChoiceSelect} />
+      <AssistantGroupContent msgs={msgs} streaming={streaming} runningToolName={runningToolName} onChoiceSelect={onChoiceSelect} />
     </div>
   );
 }
