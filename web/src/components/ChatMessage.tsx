@@ -5,11 +5,6 @@ import ReasoningBlock from "./ReasoningBlock";
 import ToolStepCard from "./ToolStepCard";
 import { useAppState } from "../context/AppContext";
 
-function parseRunningTool(progressMessage: string): string | null {
-  const m = progressMessage.match(/🔧\s*执行工具:\s*(\S+)/);
-  return m ? m[1] : null;
-}
-
 function AssistantGroupContent({
   msgs,
   streaming,
@@ -109,7 +104,7 @@ export default function ChatMessage({
   onChoiceSelect?: (text: string) => void;
 }) {
   const { state } = useAppState();
-  const runningToolName = streaming ? parseRunningTool(state.progressMessage || "") : null;
+  const runningToolName = streaming ? state.currentToolName : null;
 
   const first = msgs[0];
   if (first.role === "user") {
