@@ -1,6 +1,5 @@
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { IconRobot, IconUser, IconTool, IconFileText, IconBolt, IconChartBar } from "@tabler/icons-react";
+import MessageContent from "./MessageContent";
 import type { Message } from "../types";
 
 function ToolResult({ msg, onChoiceSelect }: { msg: Message; onChoiceSelect?: (text: string) => void }) {
@@ -59,22 +58,6 @@ function ToolCallCard({ tc }: { tc: NonNullable<Message["tool_calls"]>[number] }
       </div>
     </details>
   );
-}
-
-function MessageContent({ content }: { content: Message["content"] }) {
-  if (typeof content === "string") {
-    return <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>;
-  }
-  if (Array.isArray(content)) {
-    return content.map((part, i) =>
-      part.type === "text" ? (
-        <ReactMarkdown remarkPlugins={[remarkGfm]} key={i}>{part.text || ""}</ReactMarkdown>
-      ) : part.type === "image_url" ? (
-        <img key={i} src={part.image_url?.url} alt="" style={{ maxWidth: "100%", borderRadius: "8px" }} />
-      ) : null
-    );
-  }
-  return <>{String(content)}</>;
 }
 
 function AssistantGroupContent({ msgs, onChoiceSelect }: { msgs: Message[]; onChoiceSelect?: (text: string) => void }) {
