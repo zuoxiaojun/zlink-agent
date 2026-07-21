@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
-import { IconSend, IconPaperclip, IconX } from "@tabler/icons-react";
+import { IconSend, IconPaperclip, IconFile, IconX } from "@tabler/icons-react";
 import { api } from "../api/http";
 import type { ContentPart, SlashCommandInfo, SlashCommandsResponse } from "../types";
 import SlashCommandPopup from "./SlashCommandPopup";
@@ -8,6 +8,7 @@ interface AttachedFile {
   id: string;
   name: string;
   dataUrl: string;
+  isImage: boolean;
 }
 
 interface Props {
@@ -63,7 +64,12 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
       const parts: ContentPart[] = [];
       if (trimmed) parts.push({ type: "text", text: trimmed });
       for (const f of files) {
-        parts.push({ type: "image_url", image_url: { url: f.dataUrl } });
+        if (f.isImage) {
+          parts.push({ type: "image_url", image_url: { url: f.dataUrl } });
+        } else {
+          // Non-image files: embed as text with filename marker
+          parts.push({ type: "text", text: `\n\n--- 文件: ${f.name} ---\n${f.dataUrl}\n--- 文件结束 ---\n` });
+        }
       }
       onSubmit(parts);
     }
@@ -109,14 +115,27 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
   };
 
   const addFile = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      setFiles((prev) => [
-        ...prev,
-        { id: `${Date.now()}-${Math.random()}`, name: file.name, dataUrl: reader.result as string },
-      ]);
-    };
-    reader.readAsDataURL(file);
+    const isImage = file.type.startsWith("image/");
+    if (isImage) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setFiles((prev) => [
+          ...prev,
+          { id: `${Date.now()}-${Math.random()}`, name: file.name, dataUrl: reader.result as string, isImage: true },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // Non-image files: read as text
+      const reader = new FileReader();
+      reader.onload = () => {
+        setFiles((prev) => [
+          ...prev,
+          { id: `${Date.now()}-${Math.random()}`, name: file.name, dataUrl: reader.result as string, isImage: false },
+        ]);
+      };
+      reader.readAsText(file);
+    }
   }, []);
 
   const addFiles = useCallback(
@@ -136,7 +155,7 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
     if (!items) return;
     for (let i = 0; i < items.length; i++) {
       const file = items[i].getAsFile();
-      if (file && file.type.startsWith("image/")) {
+      if (file) {
         e.preventDefault();
         addFile(file);
       }
@@ -232,7 +251,14 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
           <div className="chat-attachments">
             {files.map((f) => (
               <div key={f.id} className="chat-attachment-item">
-                <img src={f.dataUrl} alt={f.name} />
+                {f.isImage ? (
+                  <img src={f.dataUrl} alt={f.name} />
+                ) : (
+                  <div className="chat-attachment-file">
+                    <IconFile size={16} />
+                    <span className="chat-attachment-name">{f.name}</span>
+                  </div>
+                )}
                 <button className="chat-attachment-remove" onClick={() => removeFile(f.id)} type="button">
                   <IconX size={12} />
                 </button>
@@ -261,14 +287,13 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
               className="chat-attach-btn"
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled}
-              title="添加图片"
+              title="上传文件"
             >
               <IconPaperclip size={16} />
             </button>
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
               multiple
               onChange={handleFileSelect}
               style={{ display: "none" }}
