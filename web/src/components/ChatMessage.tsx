@@ -35,16 +35,19 @@ function AssistantGroupContent({
         if (msg.role === "assistant") {
           if (msg.tool_calls) pending.push(...msg.tool_calls);
           const isStreaming = streaming === true && i === lastAssistantIdx;
+          const hasContent =
+            (typeof msg.content === "string" && msg.content.trim().length > 0) ||
+            (Array.isArray(msg.content) && msg.content.length > 0);
           return (
             <div key={i}>
               {msg.reasoning_content && (
                 <ReasoningBlock text={msg.reasoning_content} streaming={isStreaming} />
               )}
-              {typeof msg.content === "string" && msg.content.trim() ? (
+              {hasContent ? (
                 <div className={`msg-bubble${isStreaming ? " streaming-text" : ""}`}>
                   <MessageContent content={msg.content} />
                 </div>
-              ) : (
+              ) : isStreaming ? (
                 <div className="msg-bubble">
                   <div className="thinking-indicator">
                     <span />
@@ -52,7 +55,7 @@ function AssistantGroupContent({
                     <span />
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
           );
         }
