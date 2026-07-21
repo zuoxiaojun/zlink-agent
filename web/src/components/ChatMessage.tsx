@@ -9,11 +9,13 @@ function AssistantGroupContent({
   msgs,
   streaming,
   runningToolName,
+  runningToolArgs,
   onChoiceSelect,
 }: {
   msgs: Message[];
   streaming?: boolean;
   runningToolName?: string | null;
+  runningToolArgs?: string | null;
   onChoiceSelect?: (text: string) => void;
 }) {
   const pending: ToolCall[] = [];
@@ -85,7 +87,7 @@ function AssistantGroupContent({
         <div className="tool-step-group">
           <ToolStepCard
             key="running"
-            call={{ id: "running", type: "function", function: { name: runningToolName, arguments: `{"status": "executing"}` } }}
+            call={{ id: "running", type: "function", function: { name: runningToolName, arguments: runningToolArgs || "{}" } }}
             onChoiceSelect={onChoiceSelect}
           />
         </div>
@@ -105,6 +107,7 @@ export default function ChatMessage({
 }) {
   const { state } = useAppState();
   const runningToolName = streaming ? state.currentToolName : null;
+  const runningToolArgs = streaming ? state.currentToolArgs : null;
 
   const first = msgs[0];
   if (first.role === "user") {
@@ -123,7 +126,7 @@ export default function ChatMessage({
   return (
     <div className="msg-row assistant">
       <div className="msg-avatar"><IconRobot size={18} /></div>
-      <AssistantGroupContent msgs={msgs} streaming={streaming} runningToolName={runningToolName} onChoiceSelect={onChoiceSelect} />
+      <AssistantGroupContent msgs={msgs} streaming={streaming} runningToolName={runningToolName} runningToolArgs={runningToolArgs} onChoiceSelect={onChoiceSelect} />
     </div>
   );
 }

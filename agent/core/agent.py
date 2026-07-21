@@ -664,7 +664,11 @@ class AIAgent:
                     args_str = str(args)[:300]
                 stream_callback(f"\n\n---\n🔧 **调用工具:** `{tc.name}`\n```json\n{args_str}\n```\n")
 
-            self._report(f"🔧 执行工具: {tc.name}")
+            try:
+                args_str = json.dumps(args, ensure_ascii=False)[:200]
+            except (TypeError, ValueError):
+                args_str = str(args)[:200]
+            self._report(f"🔧 执行工具: {tc.name} | {args_str}")
 
             if stream_callback:
                 preview = result[:200] + ("\n\n..." if len(result) > 200 else "")

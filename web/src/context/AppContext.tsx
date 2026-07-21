@@ -28,6 +28,7 @@ export interface AppState {
   reasoningText: string;
   progressMessage: string;
   currentToolName: string;
+  currentToolArgs: string;
   tokenUsage: TokenUsage | null;
   apiCalls: number;
   config: ConfigResponse | null;
@@ -42,6 +43,7 @@ const initialState: AppState = {
   reasoningText: "",
   progressMessage: "",
   currentToolName: "",
+  currentToolArgs: "",
   tokenUsage: null,
   apiCalls: 0,
   config: null,
@@ -56,6 +58,7 @@ export type AppAction =
   | { type: "APPEND_REASONING"; token: string }
   | { type: "SET_PROGRESS"; message: string }
   | { type: "SET_CURRENT_TOOL"; toolName: string }
+  | { type: "SET_CURRENT_TOOL_ARGS"; args: string }
   | { type: "SET_RESULT"; messages: Message[]; tokenUsage: TokenUsage | null; apiCalls: number; error: string | null }
   | { type: "SET_ERROR"; error: string }
   | { type: "CLEAR_STREAMING" }
@@ -86,7 +89,7 @@ function reducer(state: AppState, action: AppAction): AppState {
     case "SET_MESSAGES":
       return { ...state, messages: action.messages };
     case "SET_RUNNING":
-      return { ...state, agentRunning: action.running, streamingText: "", reasoningText: "", progressMessage: "", currentToolName: "" };
+      return { ...state, agentRunning: action.running, streamingText: "", reasoningText: "", progressMessage: "", currentToolName: "", currentToolArgs: "" };
     case "APPEND_TOKEN":
       return { ...state, streamingText: state.streamingText + action.token };
     case "APPEND_REASONING":
@@ -95,6 +98,8 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, progressMessage: action.message };
     case "SET_CURRENT_TOOL":
       return { ...state, currentToolName: action.toolName };
+    case "SET_CURRENT_TOOL_ARGS":
+      return { ...state, currentToolArgs: action.args };
     case "SET_RESULT": {
       const msgs = [...state.messages];
       for (const m of action.messages) {
@@ -114,6 +119,7 @@ function reducer(state: AppState, action: AppAction): AppState {
         reasoningText: "",
         progressMessage: "",
         currentToolName: "",
+        currentToolArgs: "",
         tokenUsage: action.tokenUsage,
         apiCalls: action.apiCalls,
       };
@@ -126,6 +132,7 @@ function reducer(state: AppState, action: AppAction): AppState {
         reasoningText: "",
         progressMessage: "",
         currentToolName: "",
+        currentToolArgs: "",
         messages: [...state.messages, { role: "assistant", content: `❌ ${action.error}` }],
       };
     case "CLEAR_STREAMING":

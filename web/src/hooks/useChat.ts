@@ -72,11 +72,12 @@ export function useChat(options?: UseChatOptions) {
             break;
           case "progress":
             dispatch({ type: "SET_PROGRESS", message: msg.message });
-            // 从 progress 消息中提取正在执行的工具名，用于实时显示旋转工具卡
+            // 从 progress 消息中提取正在执行的工具名和参数
             if (msg.message.includes("执行工具")) {
-              const m = msg.message.match(/🔧\s*执行工具:\s*(\S+)/);
+              const m = msg.message.match(/🔧\s*执行工具:\s*(\S+)\s*\|\s*(.*)/);
               if (m) {
                 dispatch({ type: "SET_CURRENT_TOOL", toolName: m[1] });
+                dispatch({ type: "SET_CURRENT_TOOL_ARGS", args: m[2] });
               }
             }
             break;
@@ -114,6 +115,7 @@ export function useChat(options?: UseChatOptions) {
             flush();
             runningRef.current = false;
             dispatch({ type: "SET_CURRENT_TOOL", toolName: "" });
+            dispatch({ type: "SET_CURRENT_TOOL_ARGS", args: "" });
             dispatch({ type: "SET_ERROR", error: msg.message });
             ws.close();
             wsRef.current = null;
