@@ -49,7 +49,7 @@ def _run_sub_agent(task: str, context: str, parent_cfg: dict) -> str:
             ``model``, ``temperature`` captured on the calling thread.
     """
     from agent.core.agent import AIAgent
-    from agent.tools.registry import discover_tools, registry
+    from agent.tools.registry import discover_tools
 
     # Guard redundant discover_tools: parent already discovered tools,
     # but ensure we don't miss any if tools were loaded after parent init.

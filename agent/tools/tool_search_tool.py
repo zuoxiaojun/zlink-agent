@@ -8,17 +8,13 @@ Three bridge tools that replace deferred toolsets:
 
 from __future__ import annotations
 
-import json
 import logging
 
-from agent.tools.registry import registry, tool_error, tool_result
+from agent.tools.registry import registry, tool_error
 from agent.tools.tool_search import (
     TOOL_CALL_NAME,
     TOOL_DESCRIBE_NAME,
     TOOL_SEARCH_NAME,
-    dispatch_tool_call,
-    dispatch_tool_describe,
-    dispatch_tool_search,
 )
 
 logger = logging.getLogger(__name__)

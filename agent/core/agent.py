@@ -300,7 +300,7 @@ class AIAgent:
         self._snapshot: TurnSnapshot | None = None
         self._envelope_seq: int = 0
 
-        
+
 
     # ── Envelope helper ──
 

@@ -30,8 +30,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from agent.tools.registry import registry
-
 
 def build_system_prompt(
     base: str,
