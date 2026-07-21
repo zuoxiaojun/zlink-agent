@@ -602,6 +602,13 @@ class AIAgent:
             except json.JSONDecodeError:
                 result = json.dumps({"success": False, "error": "Invalid JSON arguments"})
             else:
+                # 工具执行前报告进度，前端实时显示旋转工具卡
+                try:
+                    args_str = json.dumps(args, ensure_ascii=False)[:200]
+                except (TypeError, ValueError):
+                    args_str = str(args)[:200]
+                self._report(f"🔧 执行工具: {tc.name} | {args_str}")
+
                 pre_event = BeforeToolCallEvent(tool_name=tc.name, args=args)
                 event_bus.publish(pre_event)
                 if pre_event.cancelled:
@@ -663,12 +670,6 @@ class AIAgent:
                 except (TypeError, ValueError):
                     args_str = str(args)[:300]
                 stream_callback(f"\n\n---\n🔧 **调用工具:** `{tc.name}`\n```json\n{args_str}\n```\n")
-
-            try:
-                args_str = json.dumps(args, ensure_ascii=False)[:200]
-            except (TypeError, ValueError):
-                args_str = str(args)[:200]
-            self._report(f"🔧 执行工具: {tc.name} | {args_str}")
 
             if stream_callback:
                 preview = result[:200] + ("\n\n..." if len(result) > 200 else "")
