@@ -67,10 +67,10 @@ from agent.events import (
 )
 from agent.tools.registry import discover_tools, registry
 from agent.tools.tool_search import (
+    BRIDGE_TOOL_NAMES,
     TOOL_CALL_NAME,
     TOOL_DESCRIBE_NAME,
     TOOL_SEARCH_NAME,
-    BRIDGE_TOOL_NAMES,
     assemble_tool_defs,
     dispatch_tool_call,
     dispatch_tool_describe,

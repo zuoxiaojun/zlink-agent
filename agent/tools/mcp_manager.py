@@ -15,9 +15,10 @@ import time
 
 import httpx
 
-from agent.config_model import MCPServerEntry  # Pydantic model check in connect_all_servers
-from agent.config_manager import load as _load_cfg, resolve_placeholders
 from agent import config_manager as _config_manager
+from agent.config_manager import load as _load_cfg
+from agent.config_manager import resolve_placeholders
+from agent.config_model import MCPServerEntry  # Pydantic model check in connect_all_servers
 from agent.tools.registry import registry
 
 logger = logging.getLogger(__name__)

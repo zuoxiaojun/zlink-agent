@@ -12,10 +12,10 @@ import os
 import re
 from pathlib import Path
 
-from agent.tools.file_mutation_queue import file_mutation_queue
-from agent.tools.registry import registry, tool_error, tool_result
 from agent.tools.binary_extensions import has_binary_extension
-from agent.tools.read_extract import extract_document_text, is_extractable_document, ExtractionError
+from agent.tools.file_mutation_queue import file_mutation_queue
+from agent.tools.read_extract import ExtractionError, extract_document_text, is_extractable_document
+from agent.tools.registry import registry, tool_error, tool_result
 
 # Sensitive paths that tools should never write to
 _DENY_PATHS = [
