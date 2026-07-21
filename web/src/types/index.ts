@@ -16,6 +16,7 @@ export interface Message {
   role: "user" | "assistant" | "tool";
   content: string | ContentPart[];
   tool_calls?: ToolCall[];
+  tool_call_id?: string;
   reasoning_content?: string;
   _agent_info?: AgentInfo;
 }
