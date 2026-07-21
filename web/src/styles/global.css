@@ -659,15 +659,6 @@ body {
 
 /* ── Streaming indicator ─────────────────────────────── */
 
-.streaming-bubble {
-  padding: 12px 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  min-height: 24px;
-}
-
 .streaming-text {
   color: var(--text-1);
   line-height: 1.65;

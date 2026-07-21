@@ -41,7 +41,7 @@ function AssistantGroupContent({
                 <ReasoningBlock text={msg.reasoning_content} streaming={isStreaming} />
               )}
               {typeof msg.content === "string" && msg.content.trim() ? (
-                <div className="msg-bubble">
+                <div className={`msg-bubble${isStreaming ? " streaming-text" : ""}`}>
                   <MessageContent content={msg.content} />
                 </div>
               ) : (
