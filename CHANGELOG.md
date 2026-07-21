@@ -1,5 +1,33 @@
 # Changelog
 
+## v1.7.2 — 2026-07-21 (聊天流式输出美化 + 图标统一)
+
+**范围**: 聊天页流式输出体验全量美化（纯前端，后端零改动）；修复启动页图标与主图标不一致。
+
+### 新增
+
+- **代码块升级** (`web/src/components/CodeBlock.tsx`): 语法高亮（新增依赖 rehype-highlight + highlight.js github 浅色主题）、语言标签、复制按钮；`MessageContent` 从 ChatMessage 抽取为独立文件并 memo
+- **工具调用卡重做** (`web/src/components/ToolStepCard.tsx`): 工具名 + 完成/失败状态图标，参数与返回 JSON 格式化默认折叠，调用与结果按 tool_call_id（缺失时按顺序）配对；clarify choices 可点 chips 行为保留
+- **推理内容折叠** (`web/src/components/ReasoningBlock.tsx`): "思考过程"流式时自动展开、回合结束自动收起、可手动切换
+- **回到底部按钮** (`web/src/pages/ChatPage.tsx`): 上滚超过 150px 出现悬浮按钮，点击平滑回底并恢复跟随
+- **图标生成脚本** (`scripts/gen_loading_icon.py`): 从 `packaging/app-icon.png` 一键同步启动页内嵌图标与 favicon（macOS sips，零第三方依赖，幂等）
+
+### 改动
+
+- **流式渲染性能** (`web/src/hooks/useChat.ts`): token/reasoning_token 50ms 批量缓冲 flush，取代每 token 一次 dispatch 导致的全量重渲染 + 整段 markdown 重解析
+- **宽表格**: markdown 表格外包 `.table-wrap` 横向滚动容器，`table-layout` fixed → auto，宽表不再被压扁
+- **图标统一** (`electron/loading.html`): 启动页手画 SVG 近似图替换为真实图标的内嵌 base64 PNG（CSP 放行 `img-src data:`）；`web/public/favicon.png` 用 app-icon.png 重新导出为 256px 真 PNG（原文件实为 JPEG 冒充 PNG）
+
+### 修复
+
+- **流式光标从不生效**: `StreamingText.tsx` 是死代码导致 `.streaming-text` 闪烁光标样式永远挂不上；已将类挂到流式气泡并删除死文件
+- **思考完成后三点动画永久跳动** (`web/src/components/ChatMessage.tsx`): 空内容 assistant 消息（如纯 tool_calls 消息）无条件渲染 thinking-indicator，改为仅流式进行中且无内容时显示
+- **`--text-muted` 未定义** (`web/src/styles/global.css`): blockquote 引用了不存在的 CSS 变量，已在 `:root` 补充定义
+
+### 删除
+
+- 死代码/死资源: `web/src/components/StreamingText.tsx`、`web/public/logo-ios5.png`、`web/src/assets/react.svg`；`.streaming-bubble` / `.tool-card` / `.tool-result-inline` 无引用样式
+
 ## v1.7.1 — 2026-07-18 (打包版点击修复 + 启动体验)
 
 **范围**: 修复打包版窗口点击完全无响应的严重 bug（loading.html 整页拖拽区残留），重设计启动加载页，全新安装默认启用内置技能。
