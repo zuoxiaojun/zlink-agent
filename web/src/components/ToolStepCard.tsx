@@ -39,7 +39,7 @@ function isErrorResult(text: string): boolean {
 }
 
 export default function ToolStepCard({ call, result, onChoiceSelect }: ToolStepCardProps) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const raw = result ? resultText(result) : "";
 
   // clarify 工具的 choices 特判：渲染为可点 chips（行为与原 ToolResult 一致）
