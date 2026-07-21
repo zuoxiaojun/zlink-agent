@@ -1,10 +1,11 @@
 import { useState } from "react";
 import {
-  IconTool,
   IconChevronDown,
   IconChevronRight,
   IconCircleCheck,
   IconAlertCircle,
+  IconPlayerPlay,
+  IconClock,
 } from "@tabler/icons-react";
 import type { Message, ToolCall } from "../types";
 
@@ -70,35 +71,49 @@ export default function ToolStepCard({ call, result, onChoiceSelect }: ToolStepC
     );
   }
 
+  const running = !result;
   const failed = result ? isErrorResult(raw) : false;
 
   return (
-    <div className="tool-step">
-      <button type="button" className="tool-step-header" onClick={() => setOpen(!open)}>
-        {open ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
-        <IconTool size={13} />
-        <span className="tool-step-name">{call.function.name}</span>
-        {result &&
-          (failed ? (
-            <span className="tool-step-status error">
-              <IconAlertCircle size={13} /> 失败
-            </span>
-          ) : (
-            <span className="tool-step-status ok">
-              <IconCircleCheck size={13} /> 完成
-            </span>
-          ))}
+    <div className={`tool-step${running ? " tool-step-running" : ""}${failed ? " tool-step-error" : ""}`}>
+      <button type="button" className="tool-step-header" onClick={running ? undefined : () => setOpen(!open)}>
+        <div className="tool-step-header-left">
+          <div className="tool-step-icon">
+            {running ? (
+              <div className="tool-step-spinner" />
+            ) : failed ? (
+              <IconAlertCircle size={16} />
+            ) : (
+              <IconCircleCheck size={16} />
+            )}
+          </div>
+          <div>
+            <div className="tool-step-name">{call.function.name}</div>
+            <div className="tool-step-desc">
+              {running ? "正在执行…" : failed ? "执行失败" : "执行完成"}
+            </div>
+          </div>
+        </div>
+        {result && (
+          <div className="tool-step-header-right">
+            {open ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+          </div>
+        )}
       </button>
-      {open && (
+      {open && result && (
         <div className="tool-step-body">
-          <div className="tool-step-label">参数</div>
-          <pre>{formatJson(call.function.arguments)}</pre>
-          {result && (
-            <>
-              <div className="tool-step-label">返回</div>
-              <pre>{formatJson(raw)}</pre>
-            </>
-          )}
+          <div className="tool-step-section">
+            <div className="tool-step-section-title">
+              <IconPlayerPlay size={11} /> 参数
+            </div>
+            <pre>{formatJson(call.function.arguments)}</pre>
+          </div>
+          <div className="tool-step-section">
+            <div className="tool-step-section-title">
+              <IconClock size={11} /> 返回
+            </div>
+            <pre>{formatJson(raw)}</pre>
+          </div>
         </div>
       )}
     </div>

@@ -546,58 +546,110 @@ body {
 /* ── Tool step card ──────────────────────────────────── */
 
 .tool-step {
-  margin: 6px 0;
+  margin: 8px 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--bg-hover);
+  background: var(--bg-card);
   overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+.tool-step:hover {
+  box-shadow: var(--shadow);
 }
 .tool-step-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
   width: 100%;
-  padding: 7px 12px;
+  padding: 10px 14px;
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-3);
   font-family: inherit;
   text-align: left;
+  transition: background 0.15s;
 }
 .tool-step-header:hover {
-  background: var(--border-light);
+  background: var(--bg-hover);
 }
-.tool-step-name {
-  color: var(--text-2);
-  font-family: var(--font-mono);
-}
-.tool-step-status {
-  display: inline-flex;
+.tool-step-header-left {
+  display: flex;
   align-items: center;
-  gap: 3px;
-  margin-left: auto;
-  font-size: 11px;
+  gap: 10px;
+  min-width: 0;
 }
-.tool-step-status.ok {
+.tool-step-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.tool-step:not(.tool-step-running):not(.tool-step-error) .tool-step-icon {
+  background: var(--success-bg);
   color: var(--success);
 }
-.tool-step-status.error {
+.tool-step-error .tool-step-icon {
+  background: var(--danger-bg);
   color: var(--danger);
+}
+.tool-step-running .tool-step-icon {
+  background: var(--primary-bg);
+  color: var(--primary);
+}
+.tool-step-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--primary);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: tool-step-spin 0.7s linear infinite;
+}
+@keyframes tool-step-spin {
+  to { transform: rotate(360deg); }
+}
+.tool-step-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  font-family: var(--font-mono);
+  line-height: 1.3;
+}
+.tool-step-desc {
+  font-size: 11px;
+  color: var(--text-3);
+  line-height: 1.3;
+  margin-top: 1px;
+}
+.tool-step-error .tool-step-desc {
+  color: var(--danger);
+}
+.tool-step-header-right {
+  color: var(--text-4);
+  flex-shrink: 0;
+  margin-left: 12px;
 }
 .tool-step-body {
   border-top: 1px solid var(--border-light);
-  padding: 8px 12px 12px;
+  padding: 4px 14px 14px;
 }
-.tool-step-label {
+.tool-step-section {
+  margin-top: 10px;
+}
+.tool-step-section-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
+  font-weight: 500;
   color: var(--text-3);
-  margin: 6px 0 4px;
+  margin-bottom: 6px;
 }
 .tool-step-body pre {
   background: var(--bg-page);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   padding: 8px 12px;
   font-size: 12px;
