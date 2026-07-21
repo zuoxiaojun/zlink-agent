@@ -45,6 +45,7 @@ import base64
 import hashlib
 import hmac
 import logging
+import os
 import sys
 import time
 from typing import Any
@@ -112,12 +113,12 @@ class YonSuiteClient:
             YonSuiteConfigError: 配置不完整时抛出
         """
         # 验证配置
-        self.app_key = app_key or config.APP_KEY
-        self.app_secret = app_secret or config.APP_SECRET
-        self.tenant_id = tenant_id or config.TENANT_ID
-        self.gateway_url = gateway_url or config.GATEWAY_URL
-        self.token_url = config.TOKEN_URL
-        self.default_token_url = config.DEFAULT_TOKEN_URL
+        self.app_key = app_key or os.getenv("YONSUITE_APP_KEY", "")
+        self.app_secret = app_secret or os.getenv("YONSUITE_APP_SECRET", "")
+        self.tenant_id = tenant_id or os.getenv("YONSUITE_TENANT_ID", "")
+        self.gateway_url = gateway_url or os.getenv("YONSUITE_GATEWAY_URL", "https://c2.yonyoucloud.com/iuap-api-gateway")
+        self.token_url = os.getenv("YONSUITE_TOKEN_URL", "https://c2.yonyoucloud.com/iuap-api-auth")
+        self.default_token_url = os.getenv("YONSUITE_DEFAULT_TOKEN_URL", "https://c2.yonyoucloud.com/iuap-api-auth")
 
         # 验证必需配置
         if not all([self.app_key, self.app_secret, self.tenant_id]):

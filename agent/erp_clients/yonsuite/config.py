@@ -51,11 +51,11 @@ class Config:
     def validate(cls) -> None:
         """验证必需配置是否存在"""
         missing = []
-        if not cls.APP_KEY:
+        if not os.getenv("YONSUITE_APP_KEY"):
             missing.append("YONSUITE_APP_KEY")
-        if not cls.APP_SECRET:
+        if not os.getenv("YONSUITE_APP_SECRET"):
             missing.append("YONSUITE_APP_SECRET")
-        if not cls.TENANT_ID:
+        if not os.getenv("YONSUITE_TENANT_ID"):
             missing.append("YONSUITE_TENANT_ID")
 
         if missing:
@@ -70,8 +70,12 @@ class Config:
 
     @classmethod
     def is_configured(cls) -> bool:
-        """检查配置是否完整"""
-        return bool(cls.APP_KEY and cls.APP_SECRET and cls.TENANT_ID)
+        """检查配置是否完整（实时读取环境变量，支持运行时注入）"""
+        return bool(
+            os.getenv("YONSUITE_APP_KEY")
+            and os.getenv("YONSUITE_APP_SECRET")
+            and os.getenv("YONSUITE_TENANT_ID")
+        )
 
 
 # 快捷访问

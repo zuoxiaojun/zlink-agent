@@ -7,6 +7,7 @@
 
 import json
 import logging
+import os
 import time
 import urllib.error
 import urllib.parse
@@ -95,9 +96,9 @@ class BaseAPIClient:
             gateway_url: API 网关 URL
             token_url: Token URL
         """
-        self.gateway_url = gateway_url or config.GATEWAY_URL
-        self.token_url = token_url or config.TOKEN_URL
-        self.timeout = config.HTTP_TIMEOUT
+        self.gateway_url = gateway_url or os.getenv("YONSUITE_GATEWAY_URL", "https://c2.yonyoucloud.com/iuap-api-gateway")
+        self.token_url = token_url or os.getenv("YONSUITE_TOKEN_URL", "https://c2.yonyoucloud.com/iuap-api-auth")
+        self.timeout = int(os.getenv("YONSUITE_HTTP_TIMEOUT", "30"))
 
     def _http_get(self, url: str, params: dict | None = None, headers: dict | None = None) -> dict:
         """
