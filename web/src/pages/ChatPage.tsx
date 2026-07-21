@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import { IconBolt, IconChartBar } from "@tabler/icons-react";
+import { IconBolt, IconChartBar, IconArrowDown } from "@tabler/icons-react";
 import { useAppState } from "../context/AppContext";
 import { useChat } from "../hooks/useChat";
 import { api } from "../api/http";
@@ -21,6 +21,7 @@ export default function ChatPage() {
   });
   const scrollRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
+  const [showBackToBottom, setShowBackToBottom] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Derive active approval from state — no setState in effects
@@ -87,7 +88,9 @@ export default function ChatPage() {
   const handleScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
-    userScrolledUp.current = el.scrollHeight - el.scrollTop - el.clientHeight > 150;
+    const up = el.scrollHeight - el.scrollTop - el.clientHeight > 150;
+    userScrolledUp.current = up;
+    setShowBackToBottom(up);
   };
 
   return (
@@ -133,6 +136,21 @@ export default function ChatPage() {
 
 
       </div>
+
+      {showBackToBottom && (
+        <button
+          type="button"
+          className="back-to-bottom"
+          title="回到底部"
+          onClick={() => {
+            userScrolledUp.current = false;
+            setShowBackToBottom(false);
+            scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+          }}
+        >
+          <IconArrowDown size={16} />
+        </button>
+      )}
 
       {activeApproval && (
         <ApprovalCard
