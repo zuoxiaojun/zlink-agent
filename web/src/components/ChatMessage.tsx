@@ -3,14 +3,17 @@ import type { Message, ToolCall } from "../types";
 import MessageContent from "./MessageContent";
 import ReasoningBlock from "./ReasoningBlock";
 import ToolStepCard from "./ToolStepCard";
+import { useAppState } from "../context/AppContext";
 
 function AssistantGroupContent({
   msgs,
   streaming,
+  runningToolCard,
   onChoiceSelect,
 }: {
   msgs: Message[];
   streaming?: boolean;
+  runningToolCard?: React.ReactNode;
   onChoiceSelect?: (text: string) => void;
 }) {
   const pending: ToolCall[] = [];
@@ -27,17 +30,7 @@ function AssistantGroupContent({
           }
           if (!call) call = pending.shift();
           if (!call) {
-            const toolName = msg.tool_call_id?.startsWith("running:")
-              ? msg.tool_call_id.replace("running:", "")
-              : "tool";
-            call = {
-              id: msg.tool_call_id || "",
-              type: "function" as const,
-              function: {
-                name: toolName,
-                arguments: typeof msg.content === "string" ? msg.content : "{}",
-              },
-            };
+            call = { id: msg.tool_call_id || "", type: "function", function: { name: "tool", arguments: "{}" } };
           }
           return <ToolStepCard key={i} call={call} result={msg} onChoiceSelect={onChoiceSelect} />;
         }
@@ -88,6 +81,7 @@ function AssistantGroupContent({
             ))}
         </div>
       )}
+      {runningToolCard}
     </div>
   );
 }
@@ -101,6 +95,18 @@ export default function ChatMessage({
   streaming?: boolean;
   onChoiceSelect?: (text: string) => void;
 }) {
+  const { state } = useAppState();
+  const runningToolName = (streaming || state.currentToolName) && state.currentToolName ? state.currentToolName : null;
+  const runningToolArgs = (streaming || state.currentToolName) && state.currentToolArgs ? state.currentToolArgs : null;
+
+  const runningToolCard = runningToolName ? (
+    <div className="tool-step-group">
+      <ToolStepCard
+        call={{ id: "running", type: "function", function: { name: runningToolName, arguments: runningToolArgs || "{}" } }}
+        onChoiceSelect={onChoiceSelect}
+      />
+    </div>
+  ) : null;
 
   const first = msgs[0];
   if (first.role === "user") {
@@ -119,7 +125,7 @@ export default function ChatMessage({
   return (
     <div className="msg-row assistant">
       <div className="msg-avatar"><IconRobot size={18} /></div>
-      <AssistantGroupContent msgs={msgs} streaming={streaming} onChoiceSelect={onChoiceSelect} />
+      <AssistantGroupContent msgs={msgs} streaming={streaming} runningToolCard={runningToolCard} onChoiceSelect={onChoiceSelect} />
     </div>
   );
 }

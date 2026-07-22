@@ -72,21 +72,11 @@ export function useChat(options?: UseChatOptions) {
             break;
           case "progress":
             dispatch({ type: "SET_PROGRESS", message: msg.message });
-            // 收到执行工具进度时，直接插入 pending tool 消息并强制拆分 render
-            // 用 setTimeout(0) 确保浏览器先绘制 pending 卡片，再处理后续 done 消息
             if (msg.message.includes("执行工具")) {
               const m = msg.message.match(/🔧\s*执行工具:\s*(\S+)\s*\|\s*(.*)/);
               if (m) {
-                const toolName = m[1];
-                const toolArgs = m[2];
-                const pendingToolMsg: import("../types").Message = {
-                  role: "tool",
-                  content: toolArgs,
-                  tool_call_id: "running:" + toolName,
-                };
-                dispatch({ type: "ADD_PENDING_TOOL", message: pendingToolMsg });
-                dispatch({ type: "SET_CURRENT_TOOL", toolName });
-                dispatch({ type: "SET_CURRENT_TOOL_ARGS", args: toolArgs });
+                dispatch({ type: "SET_CURRENT_TOOL", toolName: m[1] });
+                dispatch({ type: "SET_CURRENT_TOOL_ARGS", args: m[2] });
               }
             }
             break;
