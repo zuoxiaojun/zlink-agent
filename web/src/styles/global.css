@@ -357,6 +357,8 @@ body {
   line-height: 1.65;
   word-break: break-word;
   overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .msg-row.assistant .msg-body {
@@ -386,6 +388,7 @@ body {
   border-radius: var(--radius);
   padding: 12px 16px;
   overflow-x: auto;
+  max-width: 100%;
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.5;
@@ -416,7 +419,9 @@ body {
   margin: 8px 0;
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
-  overflow: hidden;
+  overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
   background: var(--bg-page);
 }
 .code-block-header {
@@ -455,8 +460,7 @@ body {
   border: none;
   border-radius: 0;
   background: transparent;
-  white-space: pre-wrap;
-  word-break: break-all;
+  white-space: pre;
 }
 
 /* ── Markdown tables ─────────────────────────────────── */
