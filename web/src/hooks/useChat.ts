@@ -1,4 +1,5 @@
 import { useRef, useCallback, useEffect } from "react";
+import { flushSync } from "react-dom";
 import { useAppState } from "../context/AppContext";
 import { ChatWebSocket } from "../api/ws";
 import type { WsServerMessage } from "../types";
@@ -75,8 +76,12 @@ export function useChat(options?: UseChatOptions) {
             if (msg.message.includes("执行工具")) {
               const m = msg.message.match(/🔧\s*执行工具:\s*(\S+)\s*\|\s*(.*)/);
               if (m) {
-                dispatch({ type: "SET_CURRENT_TOOL", toolName: m[1] });
-                dispatch({ type: "SET_CURRENT_TOOL_ARGS", args: m[2] });
+                // flushSync: 强制 React 立即提交渲染，让浏览器先绘制执行中卡片
+                // 再处理后续 done 消息，避免 React 18 批处理吞掉中间状态
+                flushSync(() => {
+                  dispatch({ type: "SET_CURRENT_TOOL", toolName: m[1] });
+                  dispatch({ type: "SET_CURRENT_TOOL_ARGS", args: m[2] });
+                });
               }
             }
             break;
