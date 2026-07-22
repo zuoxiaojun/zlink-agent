@@ -264,6 +264,7 @@ class AIAgent:
         temperature: float = 0.7,
         progress_callback: Callable | None = None,
         tool_call_callback: Callable | None = None,
+        tool_result_callback: Callable | None = None,
         compaction_settings: CompactionSettings | None = None,
         max_retries: int = 3,
         max_retry_delay: float = 30.0,
@@ -281,6 +282,7 @@ class AIAgent:
         self.disabled_tools = disabled_tools or set()
         self.progress_callback = progress_callback
         self.tool_call_callback = tool_call_callback
+        self.tool_result_callback = tool_result_callback
         self.compaction_settings = compaction_settings or CompactionSettings()
         self.max_retries = max_retries
         self.max_retry_delay = max_retry_delay
@@ -691,6 +693,10 @@ class AIAgent:
             )
             event_bus.publish(post_event)
             result = post_event.result
+
+            # 工具执行后通知前端（渐进式 tool_result）
+            if self.tool_result_callback:
+                self.tool_result_callback(tc.name, result)
 
             messages.append(
                 {

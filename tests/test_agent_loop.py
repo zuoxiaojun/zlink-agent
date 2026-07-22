@@ -539,3 +539,80 @@ def test_run_conversation_phase_resets_on_reentrant_failure(monkeypatch):
     assert "User message rejected" in result["error"]
     assert agent.phase == "idle", f"phase leaked: {agent.phase!r}"
     assert agent._snapshot is None
+
+
+# ────────────────────────────────────────────────────────────────────
+# 10) tool_result_callback — 渐进式工具结果推送
+# ────────────────────────────────────────────────────────────────────
+
+
+def test_tool_result_callback_invoked(monkeypatch):
+    """tool_result_callback must be called with (tool_name, result_str)
+    after a tool executes."""
+    from agent.config_model import AppConfig
+
+    monkeypatch.setattr("agent.config_manager.load", lambda: AppConfig(approval_mode="allow_all"))
+
+    captured: list[tuple[str, str]] = []
+
+    def spy(name: str, result: str) -> None:
+        captured.append((name, result))
+
+    provider = MockLLMProvider(
+        responses=[
+            make_tool_call_response("terminal", {"command": "echo hi"}),
+            make_text_response("done"),
+        ]
+    )
+    agent = AIAgent(
+        api_key="sk-fake",
+        base_url="x",
+        model="gpt-4o",
+        max_iterations=3,
+        tool_result_callback=spy,
+    )
+    agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+
+    result = agent.run_conversation("run echo")
+    assert result["completed"] is True
+    assert len(captured) == 1, f"expected 1 call, got {captured}"
+    name, res = captured[0]
+    assert name == "terminal"
+    payload = json.loads(res)
+    assert payload["success"] is True
+
+
+def test_tool_call_and_result_callbacks_both_invoked_in_order(monkeypatch):
+    """tool_call_callback must fire before tool_result_callback,
+    in the same execution pass."""
+    from agent.config_model import AppConfig
+
+    monkeypatch.setattr("agent.config_manager.load", lambda: AppConfig(approval_mode="allow_all"))
+
+    order: list[str] = []
+
+    def call_cb(name: str, args: str) -> None:
+        order.append(f"call:{name}")
+
+    def result_cb(name: str, result: str) -> None:
+        order.append(f"result:{name}")
+
+    provider = MockLLMProvider(
+        responses=[
+            make_tool_call_response("terminal", {"command": "echo hi"}),
+            make_text_response("done"),
+        ]
+    )
+    agent = AIAgent(
+        api_key="sk-fake",
+        base_url="x",
+        model="gpt-4o",
+        max_iterations=3,
+        tool_call_callback=call_cb,
+        tool_result_callback=result_cb,
+    )
+    agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+
+    result = agent.run_conversation("run echo")
+    assert result["completed"] is True
+    assert order == ["call:terminal", "result:terminal"], f"unexpected order: {order}"
