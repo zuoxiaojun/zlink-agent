@@ -60,6 +60,7 @@ export type AppAction =
   | { type: "SET_CURRENT_TOOL"; toolName: string }
   | { type: "SET_CURRENT_TOOL_ARGS"; args: string }
   | { type: "ADD_PENDING_TOOL"; message: Message }
+  | { type: "REPLACE_PENDING_TOOL"; name: string; result: string }
   | { type: "SET_RESULT"; messages: Message[]; tokenUsage: TokenUsage | null; apiCalls: number; error: string | null }
   | { type: "SET_ERROR"; error: string }
   | { type: "CLEAR_STREAMING" }
@@ -117,14 +118,29 @@ function reducer(state: AppState, action: AppAction): AppState {
       }
       return { ...state, messages: [...state.messages, action.message] };
     }
+    case "REPLACE_PENDING_TOOL": {
+      const id = "pending:" + action.name;
+      // 从后往前遍历，替换最新一条匹配的 pending 卡
+      let targetIdx = -1;
+      for (let i = state.messages.length - 1; i >= 0; i--) {
+        const m = state.messages[i];
+        if (m.role === "tool" && m.tool_call_id === id) {
+          targetIdx = i;
+          break;
+        }
+      }
+      if (targetIdx < 0) return state;
+      const msgs = [...state.messages];
+      msgs[targetIdx] = { ...msgs[targetIdx], content: action.result, _tool_done: true };
+      return { ...state, messages: msgs };
+    }
     case "SET_RESULT": {
       // 先移除 pending 工具消息（tool_call_id 以 "pending:" 开头）
       const msgs = state.messages.filter(m => !(m.role === "tool" && m.tool_call_id && m.tool_call_id.startsWith("pending:")));
       for (const m of action.messages) {
-        const key = m.role + (typeof m.content === "string" ? m.content : "");
-        if (!msgs.some(existing => existing.role + (typeof existing.content === "string" ? existing.content : "") === key)) {
-          msgs.push(m);
-        }
+        // 用户消息前端已通过 SET_MESSAGES 加入，避免重复
+        if (m.role === "user") continue;
+        msgs.push(m);
       }
       if (action.error) {
         msgs.push({ role: "assistant", content: `❌ ${action.error}` });

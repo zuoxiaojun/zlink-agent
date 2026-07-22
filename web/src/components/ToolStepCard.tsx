@@ -101,7 +101,7 @@ function extractSubtitle(toolName: string, args: string): string | null {
 
 export default function ToolStepCard({ call, result, onChoiceSelect }: ToolStepCardProps) {
   const [open, setOpen] = useState(false);
-  const isPendingTool = result && result.tool_call_id && (result.tool_call_id.startsWith("running:") || result.tool_call_id.startsWith("pending:"));
+  const isPendingTool = result && result.tool_call_id && (result.tool_call_id.startsWith("running:") || result.tool_call_id.startsWith("pending:")) && !result._tool_done;
   // 直接从 result.content 提取文本内容
   const rawText = (() => {
     if (!result) return "";

@@ -19,6 +19,7 @@ export interface Message {
   tool_call_id?: string;
   reasoning_content?: string;
   _agent_info?: AgentInfo;
+  _tool_done?: boolean;  // 前端临时标记：工具已执行完成
 }
 
 export interface ContentPart {
@@ -191,6 +192,7 @@ export type WsServerMessage =
   | { type: "token"; content: string }
   | { type: "reasoning_token"; content: string }
   | { type: "tool_call"; name: string; arguments: string }
+  | { type: "tool_result"; name: string; result: string }
   | { type: "progress"; message: string }
   | {
       type: "done";

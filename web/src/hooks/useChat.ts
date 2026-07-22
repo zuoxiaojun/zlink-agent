@@ -76,6 +76,9 @@ export function useChat(options?: UseChatOptions) {
           case "progress":
             dispatch({ type: "SET_PROGRESS", message: msg.message });
             break;
+          case "tool_result":
+            dispatch({ type: "REPLACE_PENDING_TOOL", name: msg.name, result: msg.result });
+            break;
           case "done":
             flush();
             runningRef.current = false;
