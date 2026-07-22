@@ -118,8 +118,8 @@ function reducer(state: AppState, action: AppAction): AppState {
         streamingText: "",
         reasoningText: "",
         progressMessage: "",
-        currentToolName: "",
-        currentToolArgs: "",
+        // 保留 currentToolName/currentToolArgs，由下一轮 SET_RUNNING(true) 清空
+        // 避免工具执行太快时浏览器来不及绘制执行中状态
         tokenUsage: action.tokenUsage,
         apiCalls: action.apiCalls,
       };
@@ -131,8 +131,7 @@ function reducer(state: AppState, action: AppAction): AppState {
         streamingText: "",
         reasoningText: "",
         progressMessage: "",
-        currentToolName: "",
-        currentToolArgs: "",
+        // 保留 currentToolName/currentToolArgs
         messages: [...state.messages, { role: "assistant", content: `❌ ${action.error}` }],
       };
     case "CLEAR_STREAMING":

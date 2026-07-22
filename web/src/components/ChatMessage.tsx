@@ -106,8 +106,9 @@ export default function ChatMessage({
   onChoiceSelect?: (text: string) => void;
 }) {
   const { state } = useAppState();
-  const runningToolName = streaming ? state.currentToolName : null;
-  const runningToolArgs = streaming ? state.currentToolArgs : null;
+  const showRunningTool = streaming && state.agentRunning && state.currentToolName;
+  const runningToolName = showRunningTool ? state.currentToolName : null;
+  const runningToolArgs = showRunningTool ? state.currentToolArgs : null;
 
   const first = msgs[0];
   if (first.role === "user") {
