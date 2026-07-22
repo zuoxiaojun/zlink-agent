@@ -1,5 +1,4 @@
 import { useRef, useCallback, useEffect } from "react";
-import { flushSync } from "react-dom";
 import { useAppState } from "../context/AppContext";
 import { ChatWebSocket } from "../api/ws";
 import type { WsServerMessage } from "../types";
@@ -37,6 +36,8 @@ export function useChat(options?: UseChatOptions) {
       let tokenBuf = "";
       let reasoningBuf = "";
       let flushTimer: number | null = null;
+      let doneData: WsServerMessage | null = null;
+      let doneTimer: number | null = null;
 
       const flush = () => {
         if (flushTimer !== null) {
@@ -59,6 +60,38 @@ export function useChat(options?: UseChatOptions) {
         }
       };
 
+      const processDone = () => {
+        if (!doneData) return;
+        const msg = doneData as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+        doneData = null;
+        doneTimer = null;
+
+        flush();
+        runningRef.current = false;
+        dispatch({
+          type: "SET_RESULT",
+          messages: msg.messages.length > 0
+            ? msg.messages
+            : msg.final_response
+              ? [{ role: "assistant" as const, content: msg.final_response }]
+              : [],
+          tokenUsage: msg.token_usage,
+          apiCalls: msg.api_calls,
+          error: msg.error,
+        });
+        dispatch({ type: "SET_RUNNING", running: false });
+        if (msg.session_id && msg.session_id !== "_new") {
+          sessionStorage.setItem("zlink_agent_last_session", msg.session_id);
+          dispatch({
+            type: "SET_SESSION",
+            sessionId: msg.session_id,
+            title: msg.session_title,
+          });
+        }
+        ws.close();
+        wsRef.current = null;
+      };
+
       ws.onMessage((msg: WsServerMessage) => {
         switch (msg.type) {
           case "token":
@@ -74,38 +107,18 @@ export function useChat(options?: UseChatOptions) {
             if (msg.message.includes("执行工具")) {
               const m = msg.message.match(/🔧\s*执行工具:\s*(\S+)\s*\|\s*(.*)/);
               if (m) {
-                flushSync(() => {
-                  dispatch({ type: "SET_CURRENT_TOOL", toolName: m[1] });
-                  dispatch({ type: "SET_CURRENT_TOOL_ARGS", args: m[2] });
-                });
+                dispatch({ type: "SET_CURRENT_TOOL", toolName: m[1] });
+                dispatch({ type: "SET_CURRENT_TOOL_ARGS", args: m[2] });
               }
             }
             break;
           case "done":
-            flush();
-            runningRef.current = false;
-            dispatch({
-              type: "SET_RESULT",
-              messages: msg.messages.length > 0
-                ? msg.messages
-                : msg.final_response
-                  ? [{ role: "assistant" as const, content: msg.final_response }]
-                  : [],
-              tokenUsage: msg.token_usage,
-              apiCalls: msg.api_calls,
-              error: msg.error,
-            });
-            dispatch({ type: "SET_RUNNING", running: false });
-            if (msg.session_id && msg.session_id !== "_new") {
-              sessionStorage.setItem("zlink_agent_last_session", msg.session_id);
-              dispatch({
-                type: "SET_SESSION",
-                sessionId: msg.session_id,
-                title: msg.session_title,
-              });
+            // 存下 done 数据，用 setTimeout(0) 延迟处理
+            // 给浏览器一次绘制机会，让 progress 触发的旋转卡片先渲染出来
+            doneData = msg;
+            if (doneTimer === null) {
+              doneTimer = window.setTimeout(processDone, 0);
             }
-            ws.close();
-            wsRef.current = null;
             break;
           case "approval_request":
             onApprovalRequestRef.current?.(msg.payload);
