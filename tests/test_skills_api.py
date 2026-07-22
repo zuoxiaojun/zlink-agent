@@ -31,13 +31,11 @@ def client(isolated_config, monkeypatch):
     import agent.skill_manager as sm
 
     monkeypatch.setattr(sm, "get_all_skills", lambda: mock_skills)
-    monkeypatch.setattr(sm, "get_active_skills", lambda: ["skill-a"])
     monkeypatch.setattr(
         sm,
         "get_skill_content",
         lambda name: f"---\nname: {name}\n---\nContent for {name}" if name in ("skill-a", "skill-b") else None,
     )
-    monkeypatch.setattr(sm, "set_skill_active", lambda name, active: name in ("skill-a", "skill-b"))
     monkeypatch.setattr(sm, "update_skill_content", _mock_update_skill)
     monkeypatch.setattr(sm, "uninstall_skill", _mock_uninstall_skill)
     monkeypatch.setattr(sm, "install_skill_from_zip", lambda path: "installed-skill")
@@ -97,12 +95,11 @@ def test_list_skills_shape(client):
 
 
 def test_list_skills_active_status(client):
+    """All skills are always active."""
     resp = client.get("/api/skills")
     data = resp.json()
-    skill_a = next(s for s in data if s["name"] == "skill-a")
-    skill_b = next(s for s in data if s["name"] == "skill-b")
-    assert skill_a["active"] is True  # in active list
-    assert skill_b["active"] is False  # not in active list
+    for s in data:
+        assert s["active"] is True
 
 
 def test_list_skills_builtin_flag(client):
@@ -134,30 +131,7 @@ def test_get_skill_not_found(client):
 
 
 # ────────────────────────────────────────────────────────────────────
-# 3) PUT /api/skills/{name}/toggle
-# ────────────────────────────────────────────────────────────────────
-
-
-def test_toggle_skill_enable(client):
-    resp = client.put("/api/skills/skill-b/toggle", json={"active": True})
-    assert resp.status_code == 200
-    assert resp.json()["ok"] is True
-
-
-def test_toggle_skill_disable(client):
-    resp = client.put("/api/skills/skill-a/toggle", json={"active": False})
-    assert resp.status_code == 200
-    assert resp.json()["ok"] is True
-
-
-def test_toggle_skill_not_found(client):
-    """Toggle a non-existent skill returns 404."""
-    resp = client.put("/api/skills/does-not-exist/toggle", json={"active": True})
-    assert resp.status_code == 404
-
-
-# ────────────────────────────────────────────────────────────────────
-# 4) PUT /api/skills/{name} — update content
+# 3) PUT /api/skills/{name} — update content
 # ────────────────────────────────────────────────────────────────────
 
 
@@ -180,7 +154,7 @@ def test_update_skill_not_found(client):
 
 
 # ────────────────────────────────────────────────────────────────────
-# 5) DELETE /api/skills/{name}
+# 4) DELETE /api/skills/{name}
 # ────────────────────────────────────────────────────────────────────
 
 
@@ -202,7 +176,7 @@ def test_delete_skill_not_found(client):
 
 
 # ────────────────────────────────────────────────────────────────────
-# 6) POST /api/skills/install
+# 5) POST /api/skills/install
 # ────────────────────────────────────────────────────────────────────
 
 

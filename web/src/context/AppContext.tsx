@@ -61,7 +61,7 @@ export type AppAction =
   | { type: "SET_CURRENT_TOOL_ARGS"; args: string }
   | { type: "ADD_PENDING_TOOL"; message: Message }
   | { type: "REPLACE_PENDING_TOOL"; name: string; result: string }
-  | { type: "SET_RESULT"; messages: Message[]; tokenUsage: TokenUsage | null; apiCalls: number; error: string | null }
+  | { type: "SET_RESULT"; final_response: string; final_reasoning?: string; tokenUsage: TokenUsage | null; apiCalls: number; error: string | null }
   | { type: "SET_ERROR"; error: string }
   | { type: "CLEAR_STREAMING" }
   | { type: "SET_CONFIG"; config: ConfigResponse };
@@ -135,13 +135,18 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, messages: msgs };
     }
     case "SET_RESULT": {
-      // 先移除 pending 工具消息（tool_call_id 以 "pending:" 开头）
-      const msgs = state.messages.filter(m => !(m.role === "tool" && m.tool_call_id && m.tool_call_id.startsWith("pending:")));
-      for (const m of action.messages) {
-        // 用户消息前端已通过 SET_MESSAGES 加入，避免重复
-        if (m.role === "user") continue;
-        msgs.push(m);
+      // 移除 pending 工具消息（tool_call_id 以 "pending:" 开头）
+      let msgs = state.messages.filter(m => !(m.role === "tool" && m.tool_call_id && m.tool_call_id.startsWith("pending:")));
+
+      // 用 action 传入的最终文本构建 assistant 消息（避免依赖异步的 state.streamingText）
+      if (action.final_response) {
+        const assistantMsg: Message = { role: "assistant", content: action.final_response };
+        if (action.final_reasoning) {
+          assistantMsg.reasoning_content = action.final_reasoning;
+        }
+        msgs = [...msgs, assistantMsg];
       }
+
       if (action.error) {
         msgs.push({ role: "assistant", content: `❌ ${action.error}` });
       }

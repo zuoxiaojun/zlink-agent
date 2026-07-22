@@ -2,7 +2,6 @@
 
 Port of Hermes skill system — loads SKILL.md files from the skills directory."""
 
-import json
 import logging
 import re
 from pathlib import Path
@@ -11,7 +10,7 @@ import yaml
 
 from agent.fact_memory import _scan_content as _scan_threats
 from agent.tools.registry import registry, tool_error, tool_result
-from agent.utils import DATA_DIR, atomic_json_write, get_base_dir
+from agent.utils import DATA_DIR, get_base_dir
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +97,16 @@ def _handle_skill_list(args: dict) -> str:
     )
 
 
+def _handle_skill_activate(args: dict) -> str:
+    """All skills are always active — this is a no-op."""
+    return tool_result(data="✅ 所有技能始终可用，无需手动启用。")
+
+
+def _handle_skill_deactivate(args: dict) -> str:
+    """All skills are always active — this is a no-op."""
+    return tool_result(data="✅ 所有技能始终可用，无法停用。")
+
+
 def _handle_skill_view(args: dict) -> str:
     """View the full content of a skill."""
     name = args.get("name", "")
@@ -116,51 +125,6 @@ def _handle_skill_view(args: dict) -> str:
         body = content
 
     return tool_result(data=f"# {name}\n\n{body}")
-
-
-def _load_active_skills() -> list[str]:
-    """Read active skill names from persistent file."""
-    path = DATA_DIR / "active_skills.json"
-    if not path.exists():
-        return []
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return []
-
-
-def _save_active_skills(names: list[str]):
-    """Persist active skill names."""
-    path = DATA_DIR / "active_skills.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_json_write(path, names)
-
-
-def _handle_skill_activate(args: dict) -> str:
-    """Enable a skill so its instructions are injected into the agent prompt."""
-    name = args.get("name", "")
-    if not name:
-        return tool_error("name is required")
-    skills = _load_skill_index()
-    if not any(s["name"] == name for s in skills):
-        return tool_error(f"未找到技能: {name}")
-    active = _load_active_skills()
-    if name not in active:
-        active.append(name)
-        _save_active_skills(active)
-    return tool_result(data=f"✅ 已启用技能「{name}」，其指令将在后续对话中生效。")
-
-
-def _handle_skill_deactivate(args: dict) -> str:
-    """Disable a skill, removing its instructions from the agent prompt."""
-    name = args.get("name", "")
-    if not name:
-        return tool_error("name is required")
-    active = _load_active_skills()
-    if name in active:
-        active.remove(name)
-        _save_active_skills(active)
-    return tool_result(data=f"已停用技能「{name}」。")
 
 
 SKILL_LIST_SCHEMA = {
@@ -333,12 +297,7 @@ def _handle_skill_install(args: dict) -> str:
         ftmp.replace(fpath)
         written.append(safe_name)
 
-    active = _load_active_skills()
-    if name not in active:
-        active.append(name)
-        _save_active_skills(active)
-
-    parts = [f"✅ 技能「{name}」安装成功并已启用"]
+    parts = [f"✅ 技能「{name}」安装成功（所有技能始终可用）"]
     if written:
         parts.append(f"附带文件: {', '.join(written)}")
     return tool_result(data="\n".join(parts))

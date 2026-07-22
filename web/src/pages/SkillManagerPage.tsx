@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { IconArrowLeft, IconUpload, IconPackage, IconToggleLeft, IconToggleRight, IconTrash, IconChevronDown, IconSearch, IconEdit, IconDownload, IconX } from "@tabler/icons-react";
+import { IconArrowLeft, IconUpload, IconPackage, IconChevronDown, IconSearch, IconEdit, IconDownload, IconX } from "@tabler/icons-react";
 import { api } from "../api/http";
 import { getErrorMessage } from "../utils/errors";
 import type { SkillInfo } from "../types";
@@ -38,17 +38,6 @@ export default function SkillManagerPage() {
       s.tags.some((t) => t.toLowerCase().includes(q))
     );
   }, [skills, search]);
-
-  const handleToggle = async (name: string, active: boolean) => {
-    await api.put(`/skills/${name}/toggle`, { active: !active });
-    loadSkills();
-  };
-
-  const handleDelete = async (name: string) => {
-    if (!confirm(`确认删除技能「${name}」？此操作不可撤销。`)) return;
-    await api.del(`/skills/${name}`);
-    loadSkills();
-  };
 
   const handleExpand = async (name: string) => {
     if (!skillContent[name]) {
@@ -196,24 +185,6 @@ export default function SkillManagerPage() {
                       }}
                     />
                   </button>
-                  <button
-                    className="btn btn-ghost"
-                    style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
-                    onClick={() => handleToggle(s.name, s.active)}
-                    title={s.active ? "停用" : "启用"}
-                  >
-                    {s.active ? <IconToggleRight size={16} color="var(--success)" /> : <IconToggleLeft size={16} color="var(--text-4)" />}
-                  </button>
-                  {!s.builtin && (
-                    <button
-                      className="btn btn-ghost"
-                      style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
-                      onClick={() => handleDelete(s.name)}
-                      title="删除技能"
-                    >
-                      <IconTrash size={14} color="var(--text-3)" />
-                    </button>
-                  )}
                 </div>
               </div>
 

@@ -393,7 +393,22 @@ async def _run_agent(
             title = session_manager.auto_title(all_msgs)
             session_manager.save_session(session_id, all_msgs, title)
 
-            # Generate summary if enough assistant messages
+            # ── 先发 done，让前端立即显示结果 ──
+            loop.call_soon_threadsafe(
+                queue.put_nowait,
+                {
+                    "type": "done",
+                    "final_response": result.get("final_response", ""),
+                    "api_calls": result.get("api_calls", 0),
+                    "token_usage": result.get("token_usage"),
+                    "completed": result.get("completed", False),
+                    "error": result.get("error"),
+                    "session_id": session_id,
+                    "session_title": title,
+                },
+            )
+
+            # ── 后台异步生成摘要（不阻塞前端）──
             asst_count = len(
                 [
                     m
@@ -403,22 +418,8 @@ async def _run_agent(
             )
             if asst_count >= 2:
                 summary = _generate_summary(all_msgs, api_key, base_url, model)
-                memory_manager.store_conversation_summary(session_id, title, all_msgs, summary=summary)
-
-            loop.call_soon_threadsafe(
-                queue.put_nowait,
-                {
-                    "type": "done",
-                    "final_response": result.get("final_response", ""),
-                    "messages": result.get("messages", []),
-                    "api_calls": result.get("api_calls", 0),
-                    "token_usage": result.get("token_usage"),
-                    "completed": result.get("completed", False),
-                    "error": result.get("error"),
-                    "session_id": session_id,
-                    "session_title": title,
-                },
-            )
+                if summary:
+                    memory_manager.store_conversation_summary(session_id, title, all_msgs, summary=summary)
         except Exception as e:
             logger.exception("Agent execution failed")
             loop.call_soon_threadsafe(

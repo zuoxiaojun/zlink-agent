@@ -2,12 +2,12 @@
 
 > **Smart Link to Your Business Systems** — 把 LLM 连接到你的业务系统的智能中枢。
 
-基于 FastAPI + React (Vite) 的独立 AI Agent，通过 MCP 协议对接 YonSuite、NC 等多种 ERP 系统，提供 AI 驱动的取数与分析能力。
+基于 FastAPI + React (Vite) 的独立 AI Agent，内置 YonSuite、NC 等多种 ERP 取数工具，提供 AI 驱动的取数与分析能力。
 
 ## 功能
 
-- **AI 对话** — WebSocket 流式聊天，54 个内置工具 + YonSuite/NC MCP 自动调用，支持推理过程实时显示
-- **多 ERP 接入** — 内置 YonSuite MCP + NC MCP（Oracle 直连，无需外部包）；新 ERP 按 MCP 包规范添加即可
+- **AI 对话** — WebSocket 流式聊天，57 个内置工具 + YonSuite/NC 内置取数，支持推理过程实时显示
+- **多 ERP 接入** — 内置 YonSuite 取数工具 + NC 取数工具（Oracle 直连，无需外部包）；新 ERP 按内置工具规范添加即可
 - **配置驱动路由** — 用户在 `/settings/erp` 选择启用哪个 ERP，AI 自动从对应系统取数
 - **Pydantic 配置** — 类型安全的配置模型，敏感字段以文件权限保护
 - **Phase 状态机** — 4 阶段生命周期 + Envelope SSE 消息包装
@@ -63,27 +63,23 @@ ruff check . && ruff format --check .
 zlink-agent/
 ├── agent/
 │   ├── core/                       # LLM 核心 (agent.py / llm_providers/ / message_builder / tool_dispatcher)
-│   ├── erp_clients/                # 声明性 ERP 客户端父目录
-│   │   ├── base.py                 # ERPClient Protocol + 通用异常 + MCPStarterConfig
-│   │   ├── __init__.py             # 声明性注册中心
-│   │   └── yonsuite/               # 从 yonsuite_client/ 整体迁移
-│   ├── tools/                      # 54 个内置工具 (file/web/skills/todo/clarify/cronjob/code_exec/project/vision/process)
+│   ├── erp_clients/                # ERP 客户端 (yonsuite)
+│   │   ├── base.py                 # ERPClient Protocol + 通用异常
+│   │   ├── __init__.py
+│   │   └── yonsuite/               # YonSuite SDK 客户端
+│   ├── tools/                      # 57 个内置工具 (file/web/skills/todo/clarify/cronjob/code_exec/project/vision/process/erp_ys/erp_nc)
 │   ├── skills/                     # 20 个内置技能 (yonsuite/nc/china-hotdata/anysearch/...)
 │   ├── events/                     # EventBus + 9 个事件类型
-│   └── extensions/                 # log_everything/security_event/monitoring
+│   └── extensions/                 # log_everything/security_event/monitoring/audit_log
 ├── backend/
 │   ├── main.py                     # FastAPI app + CORS + 路由挂载
-│   ├── api/                        # /api/chat /api/tools /api/skills /api/memory /api/mcp /api/config(含 /erp-clients)
-│   ├── core/llm_providers/         # openai_compat / anthropic
+│   ├── api/                        # /api/chat /api/tools /api/skills /api/memory /api/mcp /api/config(含 /erp-clients) /api/cronjobs /api/extensions /api/system
 │   └── schemas/                    # Pydantic 模型
 ├── web/                            # React + Vite (端口 8088)
 │   ├── App.tsx                     # 路由: / /history /tools /skills /memory /cronjobs /mcp /settings/llm /settings/agent /settings/erp /settings/extensions
-│   └── pages/                      # ChatPage / HistoryPage / ToolsPage / SkillManagerPage / MemoryPage / McpPage / SettingsLLMPage / SettingsAgentPage / SettingsERPPage [新] / SettingsYSPage / SettingsExtensionsPage
-├── mcp_server/
-│   ├── ys_mcp_server/              # builtin YonSuite MCP (11 个 query 工具)
-│   └── nc_mcp/                     # NC MCP 集成入口 (Oracle 直连，内置)
+│   └── pages/                      # ChatPage / HistoryPage / ToolsPage / SkillManagerPage / MemoryPage / McpPage / CronJobPage / SettingsLLMPage / SettingsAgentPage / SettingsERPPage / SettingsExtensionsPage
 ├── data/                           # 运行时数据 (源码模式; .app 模式用 ~/.zlink-agent/data/)
-└── tests/                          # pytest (387 个)
+└── tests/                          # pytest (373 个)
 ```
 
 ## 版本

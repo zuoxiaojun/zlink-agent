@@ -80,15 +80,20 @@ export function useChat(options?: UseChatOptions) {
             dispatch({ type: "REPLACE_PENDING_TOOL", name: msg.name, result: msg.result });
             break;
           case "done":
-            flush();
+            // 内联 flush：直接构建最终文本，避免 React 状态异步造成 streamingText 为空
+            if (flushTimer !== null) {
+              clearTimeout(flushTimer);
+              flushTimer = null;
+            }
+            const finalContent = tokenBuf || msg.final_response || "";
+            const finalReasoning = reasoningBuf || "";
+            tokenBuf = "";
+            reasoningBuf = "";
             runningRef.current = false;
             dispatch({
               type: "SET_RESULT",
-              messages: msg.messages.length > 0
-                ? msg.messages
-                : msg.final_response
-                  ? [{ role: "assistant" as const, content: msg.final_response }]
-                  : [],
+              final_response: finalContent,
+              final_reasoning: finalReasoning,
               tokenUsage: msg.token_usage,
               apiCalls: msg.api_calls,
               error: msg.error,

@@ -363,7 +363,7 @@ body {
 }
 
 .msg-row.assistant .msg-body {
-  max-width: 85%;
+  max-width: 100%;
   min-width: 0;
 }
 

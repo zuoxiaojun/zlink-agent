@@ -1,8 +1,6 @@
-"""Tests for ``agent.skill_manager`` — active skills persistence and
-prompt injection logic.
+"""Tests for ``agent.skill_manager`` — all skills are always available.
 
-Uses ``tmp_path`` to redirect the active-skills file, and creates
-temporary skill directories with ``SKILL.md`` files.
+Uses ``tmp_path`` to create temporary skill directories with ``SKILL.md`` files.
 """
 
 from __future__ import annotations
@@ -20,10 +18,6 @@ def sm(tmp_path: Path, monkeypatch):
     """Return the skill_manager module with all file paths redirected
     to a temp directory."""
     from agent import skill_manager as sm
-
-    fake_active = tmp_path / "active_skills.json"
-    fake_active.write_text("[]")
-    monkeypatch.setattr(sm, "ACTIVE_SKILLS_FILE", fake_active)
 
     # Redirect SKILLS_DIR and USER_SKILLS_DIR in skills_tool
     from agent.tools import skills_tool
@@ -112,62 +106,31 @@ def _create_skill(
 
 
 # ────────────────────────────────────────────────────────────────────
-# 1) Active skills persistence
+# 1) Active skills — all skills are always active
 # ────────────────────────────────────────────────────────────────────
 
 
-def test_active_skills_empty_initially(sm):
-    sm_mod, _, _ = sm
-    assert sm_mod.get_active_skills() == []
+def test_get_active_skills_returns_all(sm):
+    sm_mod, builtin_skills, _ = sm
+    _create_skill(builtin_skills, "skill-a")
+    _create_skill(builtin_skills, "skill-b")
+    active = sm_mod.get_active_skills()
+    assert "skill-a" in active
+    assert "skill-b" in active
 
 
-def test_set_skill_active_returns_false_for_unknown(sm):
-    sm_mod, _, _ = sm
-    assert sm_mod.set_skill_active("nonexistent", True) is False
-
-
-def test_set_skill_active_activate(sm):
+def test_set_skill_active_is_noop(sm):
     sm_mod, builtin_skills, _ = sm
     _create_skill(builtin_skills, "my-skill")
+    # All skills are always active — set_skill_active is a no-op
     assert sm_mod.set_skill_active("my-skill", True) is True
+    assert sm_mod.set_skill_active("my-skill", False) is True
     assert "my-skill" in sm_mod.get_active_skills()
 
 
-def test_set_skill_active_deactivate(sm):
-    sm_mod, builtin_skills, _ = sm
-    _create_skill(builtin_skills, "my-skill")
-    sm_mod.set_skill_active("my-skill", True)
-    sm_mod.set_skill_active("my-skill", False)
-    assert "my-skill" not in sm_mod.get_active_skills()
-
-
-def test_active_skills_persisted_on_disk(sm):
-    sm_mod, builtin_skills, _ = sm
-    _create_skill(builtin_skills, "persist-skill")
-    sm_mod.set_skill_active("persist-skill", True)
-    # Load a fresh reference to verify persistence
-    assert "persist-skill" in sm_mod._load_active()
-
-
-def test_fresh_install_defaults_to_builtin_skills(sm):
-    """active_skills.json 不存在（全新安装）→ 默认启用全部内置技能并落盘。"""
-    sm_mod, builtin_skills, user_skills = sm
-    _create_skill(builtin_skills, "builtin-a")
-    _create_skill(builtin_skills, "builtin-b")
-    _create_skill(user_skills, "user-x")
-    sm_mod.ACTIVE_SKILLS_FILE.unlink()  # 模拟全新安装：文件不存在
-    assert sm_mod.get_active_skills() == ["builtin-a", "builtin-b"]
-    # 用户安装的技能不默认启用
-    assert "user-x" not in sm_mod.get_active_skills()
-    # 初始值已落盘，后续以文件为准
-    assert json.loads(sm_mod.ACTIVE_SKILLS_FILE.read_text()) == ["builtin-a", "builtin-b"]
-
-
-def test_explicit_empty_active_file_respected(sm):
-    """文件存在且为 []（用户显式全关）→ 不触发默认启用。"""
-    sm_mod, builtin_skills, _ = sm
-    _create_skill(builtin_skills, "builtin-a")
-    assert sm_mod.get_active_skills() == []  # fixture 已预写 []
+def test_set_skill_active_unknown_returns_false(sm):
+    sm_mod, _, _ = sm
+    assert sm_mod.set_skill_active("nonexistent", True) is False
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -221,43 +184,45 @@ def test_get_skill_content_returns_none_for_unknown(sm):
 
 
 # ────────────────────────────────────────────────────────────────────
-# 4) get_active_instructions (Level 0 injection)
+# 4) get_skill_index_text (Level 0 injection)
 # ────────────────────────────────────────────────────────────────────
 
 
-def test_get_active_instructions_empty_when_no_active(sm):
-    sm_mod, builtin_skills, _ = sm
-    _create_skill(builtin_skills, "idle-skill")
-    result = sm_mod.get_active_instructions()
-    assert result == ""
+def test_get_skill_index_text_empty_when_no_skills(sm):
+    sm_mod, _, _ = sm
+    assert sm_mod.get_skill_index_text() == ""
 
 
-def test_get_active_instructions_mentions_active_skill(sm):
+def test_get_skill_index_text_mentions_skill(sm):
     sm_mod, builtin_skills, _ = sm
     _create_skill(builtin_skills, "active-one", "The active skill")
-    sm_mod.set_skill_active("active-one", True)
-    result = sm_mod.get_active_instructions()
+    result = sm_mod.get_skill_index_text()
     assert "active-one" in result
     assert "The active skill" in result
 
 
-def test_get_active_instructions_includes_tags(sm):
+def test_get_skill_index_text_includes_tags(sm):
     sm_mod, builtin_skills, _ = sm
     _create_skill(builtin_skills, "tagged", "Has tags", ["python", "data"])
-    sm_mod.set_skill_active("tagged", True)
-    result = sm_mod.get_active_instructions()
+    result = sm_mod.get_skill_index_text()
     assert "python" in result
     assert "data" in result
 
 
-def test_get_active_instructions_skips_inactive(sm):
+def test_get_skill_index_text_lists_all_skills(sm):
     sm_mod, builtin_skills, _ = sm
-    _create_skill(builtin_skills, "active-one", "Active")
-    _create_skill(builtin_skills, "inactive-one", "Inactive")
-    sm_mod.set_skill_active("active-one", True)
-    result = sm_mod.get_active_instructions()
-    assert "active-one" in result
-    assert "inactive-one" not in result
+    _create_skill(builtin_skills, "skill-a", "Skill A")
+    _create_skill(builtin_skills, "skill-b", "Skill B")
+    result = sm_mod.get_skill_index_text()
+    assert "skill-a" in result
+    assert "skill-b" in result
+
+
+def test_get_active_instructions_alias(sm):
+    """get_active_instructions() is an alias for get_skill_index_text()."""
+    sm_mod, builtin_skills, _ = sm
+    _create_skill(builtin_skills, "my-skill", "My desc")
+    assert sm_mod.get_active_instructions() == sm_mod.get_skill_index_text()
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -265,7 +230,7 @@ def test_get_active_instructions_skips_inactive(sm):
 # ────────────────────────────────────────────────────────────────────
 
 
-def test_instructions_for_query_empty_no_active(sm):
+def test_instructions_for_query_empty_no_skills(sm):
     sm_mod, _, _ = sm
     assert sm_mod.get_instructions_for_query("python") == ""
 
@@ -273,7 +238,6 @@ def test_instructions_for_query_empty_no_active(sm):
 def test_instructions_for_query_no_match(sm):
     sm_mod, builtin_skills, _ = sm
     _create_skill(builtin_skills, "web-dev", "HTML CSS JS", ["frontend"])
-    sm_mod.set_skill_active("web-dev", True)
     result = sm_mod.get_instructions_for_query("chemistry")
     assert result == ""
 
@@ -281,7 +245,6 @@ def test_instructions_for_query_no_match(sm):
 def test_instructions_for_query_matches_description(sm):
     sm_mod, builtin_skills, _ = sm
     _create_skill(builtin_skills, "python-dev", "Python programming", ["python"])
-    sm_mod.set_skill_active("python-dev", True)
     result = sm_mod.get_instructions_for_query("python")
     assert "python-dev" in result
     assert "Do the thing" in result
@@ -290,7 +253,6 @@ def test_instructions_for_query_matches_description(sm):
 def test_instructions_for_query_matches_name(sm):
     sm_mod, builtin_skills, _ = sm
     _create_skill(builtin_skills, "data-viz", "Charts", ["visualization"])
-    sm_mod.set_skill_active("data-viz", True)
     result = sm_mod.get_instructions_for_query("viz")
     # "viz" is in tags[0] → should match via n-grams
     assert "data-viz" in result
@@ -306,7 +268,6 @@ def test_chinese_keywords_extracts_bigrams():
 
     result = _chinese_keywords("数据分析")
     assert len(result) >= 1
-    # Should contain overlapping 2-char bigrams
     assert "数据" in result
     assert "分析" in result
     assert "数据分析" in result or "据分" in result
@@ -325,7 +286,7 @@ def test_chinese_keywords_skips_short():
 
 
 # ────────────────────────────────────────────────────────────────────
-# 7) install_skill_from_zip (via skill_manager)
+# 7) install_skill_from_zip
 # ────────────────────────────────────────────────────────────────────
 
 
@@ -403,9 +364,8 @@ def test_uninstall_skill_builtin_returns_none(sm):
 def test_uninstall_skill_user_returns_true(sm):
     sm_mod, _, user_skills = sm
     _create_skill(user_skills, "user-del")
-    sm_mod.set_skill_active("user-del", True)
     assert sm_mod.uninstall_skill("user-del") is True
-    # Should no longer be active
+    # Still "active" (all skills are active) but directory is gone
     assert "user-del" not in sm_mod.get_active_skills()
 
 
