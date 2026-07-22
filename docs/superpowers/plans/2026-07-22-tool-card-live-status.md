@@ -14,7 +14,7 @@
 
 | 任务 | 状态 |
 |------|------|
-| Task 1: 后端 — tool_result_callback 接入 + 测试 | `[ ]` |
+| Task 1: 后端 — tool_result_callback 接入 + 测试 | `[x]` |
 | Task 2: 前端 — SET_RESULT 去重修复 + REPLACE_PENDING_TOOL + types + ToolStepCard | `[ ]` |
 | Task 3: 端到端验证 — pytest + build/lint + chrome-devtools 实测 | `[ ]` |
 
