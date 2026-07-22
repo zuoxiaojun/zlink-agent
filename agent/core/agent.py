@@ -683,7 +683,7 @@ class AIAgent:
                 stream_callback(f"\n\n---\n🔧 **调用工具:** `{tc.name}`\n```json\n{args_str}\n```\n")
 
             if stream_callback:
-                preview = result[:200] + ("\n\n..." if len(result) > 200 else "")
+                preview = result[:500] + ("\n\n..." if len(result) > 500 else "")
                 stream_callback(f"📤 **返回结果:**\n```\n{preview}\n```\n")
 
             post_event = AfterToolCallEvent(
