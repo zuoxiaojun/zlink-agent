@@ -75,20 +75,20 @@ function extractSubtitle(toolName: string, args: string): string | null {
   let parsed: Record<string, unknown>;
   try { parsed = JSON.parse(args); } catch { return null; }
   if (toolName === "terminal") {
-    return String(parsed.command || "").slice(0, 60) || null;
+    return String(parsed.command || "").slice(0, 200) || null;
   }
   if (toolName === "execute_code") {
-    return String(parsed.code || "").slice(0, 60) || null;
+    return String(parsed.code || "").slice(0, 200) || null;
   }
   if (["read_file", "write_file", "patch"].includes(toolName)) {
-    return String(parsed.path || parsed.file_path || "").slice(0, 60) || null;
+    return String(parsed.path || parsed.file_path || "").slice(0, 200) || null;
   }
   if (toolName === "web_search") {
     const q = String(parsed.query || parsed.search_term || "");
-    return q ? `"${q.slice(0, 40)}"` : null;
+    return q ? `"${q.slice(0, 80)}"` : null;
   }
   if (toolName === "web_extract") {
-    return String(parsed.url || "").slice(0, 60) || null;
+    return String(parsed.url || "").slice(0, 200) || null;
   }
   if (toolName.startsWith("query_") || toolName.startsWith("nc_")) {
     const dateFrom = String(parsed.date_from || "");
