@@ -27,7 +27,17 @@ function AssistantGroupContent({
           }
           if (!call) call = pending.shift();
           if (!call) {
-            call = { id: msg.tool_call_id || "", type: "function", function: { name: "tool", arguments: "{}" } };
+            const toolName = msg.tool_call_id?.startsWith("running:")
+              ? msg.tool_call_id.replace("running:", "")
+              : "tool";
+            call = {
+              id: msg.tool_call_id || "",
+              type: "function" as const,
+              function: {
+                name: toolName,
+                arguments: typeof msg.content === "string" ? msg.content : "{}",
+              },
+            };
           }
           return <ToolStepCard key={i} call={call} result={msg} onChoiceSelect={onChoiceSelect} />;
         }
