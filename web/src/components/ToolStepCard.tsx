@@ -15,8 +15,6 @@ interface ToolStepCardProps {
   onChoiceSelect?: (text: string) => void;
 }
 
-// ── 工具名称映射 ──────────────────────────────────────
-
 const TOOL_DISPLAY_NAMES: Record<string, string> = {
   terminal: "执行命令",
   execute_code: "执行代码",
@@ -54,8 +52,6 @@ const TOOL_DISPLAY_NAMES: Record<string, string> = {
   tool_call: "调用工具",
 };
 
-// ── 工具函数 ──────────────────────────────────────────
-
 function formatJson(raw: string): string {
   try {
     return JSON.stringify(JSON.parse(raw), null, 2);
@@ -79,26 +75,24 @@ function isErrorResult(text: string): boolean {
   );
 }
 
-function extractSubtitle(toolName: string, raw: string): string | null {
+function extractSubtitle(toolName: string, args: string): string | null {
   let parsed: Record<string, unknown>;
-  try { parsed = JSON.parse(raw); } catch { return null; }
-
-  if (["read_file", "write_file", "patch"].includes(toolName)) {
-    const path = String(parsed.path || parsed.file_path || "");
-    return path || null;
-  }
+  try { parsed = JSON.parse(args); } catch { return null; }
   if (toolName === "terminal") {
-    return String(parsed.command || "").slice(0, 60);
+    return String(parsed.command || "").slice(0, 60) || null;
   }
   if (toolName === "execute_code") {
-    return String(parsed.code || "").slice(0, 60);
+    return String(parsed.code || "").slice(0, 60) || null;
+  }
+  if (["read_file", "write_file", "patch"].includes(toolName)) {
+    return String(parsed.path || parsed.file_path || "").slice(0, 60) || null;
   }
   if (toolName === "web_search") {
     const q = String(parsed.query || parsed.search_term || "");
     return q ? `"${q.slice(0, 40)}"` : null;
   }
   if (toolName === "web_extract") {
-    return String(parsed.url || "").slice(0, 60);
+    return String(parsed.url || "").slice(0, 60) || null;
   }
   if (toolName.startsWith("query_") || toolName.startsWith("nc_")) {
     const dateFrom = String(parsed.date_from || "");
@@ -109,114 +103,68 @@ function extractSubtitle(toolName: string, raw: string): string | null {
   return null;
 }
 
-function extractCount(raw: string): string | null {
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return `${parsed.length} 条`;
-    if (parsed?.data && Array.isArray(parsed.data)) return `${parsed.data.length} 条`;
-    if (parsed?.total !== undefined) return `${parsed.total} 条`;
-    if (parsed?.count !== undefined) return `${parsed.count} 条`;
-    if (parsed?.records && Array.isArray(parsed.records)) return `${parsed.records.length} 条`;
-  } catch { /* ignore */ }
-  return null;
-}
-
-// ── 主组件 ────────────────────────────────────────────
-
 export default function ToolStepCard({ call, result, onChoiceSelect }: ToolStepCardProps) {
   const [open, setOpen] = useState(false);
-  const raw = result ? resultText(result) : "";
-
-  // clarify 工具的 choices 特判：先解析，再渲染
-  if (result) {
-    let parsed: { choices?: string[]; question?: string; data?: string } | null = null;
-    try {
-      const candidate = JSON.parse(raw) as { choices?: string[]; question?: string; data?: string };
-      if (candidate && Array.isArray(candidate.choices)) parsed = candidate;
-    } catch { /* 非 JSON，走普通渲染 */ }
-    if (parsed) {
-      return (
-        <div className="clarify-prompt">
-          <p className="clarify-question">{parsed.question || parsed.data || ""}</p>
-          {parsed.choices && parsed.choices.length > 0 && (
-            <div className="clarify-choices">
-              {parsed.choices.map((choice, i) => (
-                <button key={i} className="clarify-chip" onClick={() => onChoiceSelect?.(choice)}>
-                  {choice}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      );
-    }
-  }
-
   const running = !result;
+  const raw = result ? resultText(result) : "";
   const failed = result ? isErrorResult(raw) : false;
   const toolName = call.function.name;
   const displayName = TOOL_DISPLAY_NAMES[toolName] || toolName;
-  const subtitle = extractSubtitle(toolName, running ? call.function.arguments : raw);
-  const countLabel = result ? extractCount(raw) : null;
+  const subtitle = extractSubtitle(toolName, call.function.arguments);
+
+  // 提前解析 clarify 结果，避免 JSX 在 try/catch 内
+  let clarifyParsed: { choices?: string[]; question?: string; data?: string } | null = null;
+  if (result) {
+    try {
+      const candidate = JSON.parse(raw) as { choices?: string[]; question?: string; data?: string };
+      if (candidate && Array.isArray(candidate.choices)) clarifyParsed = candidate;
+    } catch { /* ignore */ }
+  }
+  if (clarifyParsed) {
+    return (
+      <div className="clarify-prompt">
+        <p className="clarify-question">{clarifyParsed.question || clarifyParsed.data || ""}</p>
+        {clarifyParsed.choices && clarifyParsed.choices.length > 0 && (
+          <div className="clarify-choices">
+            {clarifyParsed.choices.map((choice, i) => (
+              <button key={i} className="clarify-chip" onClick={() => onChoiceSelect?.(choice)}>
+                {choice}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={`tool-step${running ? " tool-step-running" : ""}${failed ? " tool-step-error" : ""}`}>
-      {/* 标题行 */}
-      <button
-        type="button"
-        className="tool-step-header"
-        onClick={running ? undefined : () => setOpen(!open)}
-      >
+      <button type="button" className="tool-step-header" onClick={running ? undefined : () => setOpen(!open)}>
         <div className="tool-step-header-left">
           <div className="tool-step-icon">
-            {running ? (
-              <div className="tool-step-spinner" />
-            ) : failed ? (
-              <IconAlertCircle size={16} />
-            ) : (
-              <IconCircleCheck size={16} />
-            )}
+            {running ? <div className="tool-step-spinner" /> : failed ? <IconAlertCircle size={16} /> : <IconCircleCheck size={16} />}
           </div>
           <div className="tool-step-header-text">
             <div className="tool-step-title-row">
               <span className="tool-step-name">{displayName}</span>
-              {result && countLabel && (
-                <span className="tool-step-count">{countLabel}</span>
-              )}
             </div>
-            <div className="tool-step-desc">
-              {running ? "正在执行…" : failed ? "执行失败" : "执行完成"}
-            </div>
+            <div className="tool-step-desc">{running ? "正在执行…" : failed ? "执行失败" : "执行完成"}</div>
           </div>
         </div>
-        {result && (
-          <div className="tool-step-header-right">
-            {open ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
-          </div>
-        )}
+        {result && <div className="tool-step-header-right">{open ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}</div>}
       </button>
-
-      {/* 子标题行（文件路径 / 搜索词 / 命令等） */}
-      {subtitle && (
-        <div className="tool-step-subtitle">{subtitle}</div>
-      )}
-
-      {/* 展开详情 */}
+      {subtitle && <div className="tool-step-subtitle">{subtitle}</div>}
       {open && result && (
         <div className="tool-step-body">
           {call.function.arguments && call.function.arguments !== "{}" && (
             <div className="tool-step-section">
-              <div className="tool-step-section-title">
-                <IconPlayerPlay size={11} /> 参数
-              </div>
+              <div className="tool-step-section-title"><IconPlayerPlay size={11} /> 参数</div>
               <pre>{formatJson(call.function.arguments)}</pre>
             </div>
           )}
           {raw && (
             <div className="tool-step-section">
-              <div className="tool-step-section-title">
-                <IconClock size={11} /> 返回
-              </div>
+              <div className="tool-step-section-title"><IconClock size={11} /> 返回</div>
               <pre>{formatJson(raw)}</pre>
             </div>
           )}
