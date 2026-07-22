@@ -190,9 +190,7 @@ export interface ExtensionReloadResult {
 export type WsServerMessage =
   | { type: "token"; content: string }
   | { type: "reasoning_token"; content: string }
-  | { type: "tool_call"; tool_name: string; arguments_preview: string }
-  | { type: "tool_result"; result_preview: string }
-  | { type: "tool_done" }
+  | { type: "tool_call"; name: string; arguments: string }
   | { type: "progress"; message: string }
   | {
       type: "done";

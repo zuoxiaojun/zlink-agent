@@ -118,7 +118,8 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, messages: [...state.messages, action.message] };
     }
     case "SET_RESULT": {
-      const msgs = [...state.messages];
+      // 先移除 pending 工具消息（tool_call_id 以 "pending:" 开头）
+      const msgs = state.messages.filter(m => !(m.role === "tool" && m.tool_call_id && m.tool_call_id.startsWith("pending:")));
       for (const m of action.messages) {
         const key = m.role + (typeof m.content === "string" ? m.content : "");
         if (!msgs.some(existing => existing.role + (typeof existing.content === "string" ? existing.content : "") === key)) {

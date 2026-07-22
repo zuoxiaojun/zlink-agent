@@ -311,6 +311,12 @@ async def _run_agent(
     def progress_callback(msg: str):
         loop.call_soon_threadsafe(queue.put_nowait, {"type": "progress", "message": msg})
 
+    def tool_call_callback(name: str, args: str):
+        loop.call_soon_threadsafe(
+            queue.put_nowait,
+            {"type": "tool_call", "name": name, "arguments": args},
+        )
+
     # Approval callback — called from agent thread when ApprovalBlockedError is caught
     def _on_approval_request(req: ApprovalRequest) -> None:
         """Called by agent thread when a high-risk tool needs approval."""
@@ -335,6 +341,7 @@ async def _run_agent(
                 model=model,
                 max_iterations=max_iterations,
                 progress_callback=progress_callback,
+                tool_call_callback=tool_call_callback,
                 compaction_settings=compaction_settings,
                 approval_callback=_on_approval_request,
             )

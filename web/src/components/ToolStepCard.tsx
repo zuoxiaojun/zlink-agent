@@ -105,12 +105,12 @@ function extractSubtitle(toolName: string, args: string): string | null {
 
 export default function ToolStepCard({ call, result, onChoiceSelect }: ToolStepCardProps) {
   const [open, setOpen] = useState(false);
-  const isPendingTool = result && result.tool_call_id && result.tool_call_id.startsWith("running:");
+  const isPendingTool = result && result.tool_call_id && (result.tool_call_id.startsWith("running:") || result.tool_call_id.startsWith("pending:"));
   const raw = result && !isPendingTool && typeof result.content === "string" && result.content.trim() ? resultText(result) : "";
   const running = !result || isPendingTool;
   const failed = !running && result && typeof result.content === "string" && result.content.trim() ? isErrorResult(raw) : false;
   // 如果是 pending 工具，从 tool_call_id 提取工具名，从 content 提取参数
-  const effectiveCallName = isPendingTool && result ? (result.tool_call_id || "").replace("running:", "") : call.function.name;
+  const effectiveCallName = isPendingTool && result ? (result.tool_call_id || "").replace(/^(running:|pending:)/, "") : call.function.name;
   const effectiveArgs = isPendingTool && result ? (typeof result.content === "string" ? result.content : "") : call.function.arguments;
   const toolName = effectiveCallName;
   const displayName = TOOL_DISPLAY_NAMES[toolName] || toolName;

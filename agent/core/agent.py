@@ -263,6 +263,7 @@ class AIAgent:
         disabled_tools: set[str] | None = None,
         temperature: float = 0.7,
         progress_callback: Callable | None = None,
+        tool_call_callback: Callable | None = None,
         compaction_settings: CompactionSettings | None = None,
         max_retries: int = 3,
         max_retry_delay: float = 30.0,
@@ -279,6 +280,7 @@ class AIAgent:
         self.enabled_tools = enabled_tools
         self.disabled_tools = disabled_tools or set()
         self.progress_callback = progress_callback
+        self.tool_call_callback = tool_call_callback
         self.compaction_settings = compaction_settings or CompactionSettings()
         self.max_retries = max_retries
         self.max_retry_delay = max_retry_delay
@@ -602,6 +604,13 @@ class AIAgent:
             except json.JSONDecodeError:
                 result = json.dumps({"success": False, "error": "Invalid JSON arguments"})
             else:
+                # 工具执行前通过 tool_call_callback 通知前端
+                if self.tool_call_callback:
+                    try:
+                        args_str = json.dumps(args, ensure_ascii=False)[:200]
+                    except (TypeError, ValueError):
+                        args_str = str(args)[:200]
+                    self.tool_call_callback(tc.name, args_str)
                 # 工具执行前报告进度，前端实时显示旋转工具卡
                 try:
                     args_str = json.dumps(args, ensure_ascii=False)[:200]

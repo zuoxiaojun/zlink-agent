@@ -30,7 +30,18 @@ function AssistantGroupContent({
           }
           if (!call) call = pending.shift();
           if (!call) {
-            call = { id: msg.tool_call_id || "", type: "function", function: { name: "tool", arguments: "{}" } };
+            // 从 tool_call_id 提取工具名（pending:xx 格式）
+            const toolName = msg.tool_call_id?.startsWith("pending:")
+              ? msg.tool_call_id.replace("pending:", "")
+              : "tool";
+            call = {
+              id: msg.tool_call_id || "",
+              type: "function" as const,
+              function: {
+                name: toolName,
+                arguments: typeof msg.content === "string" ? msg.content : "{}",
+              },
+            };
           }
           return <ToolStepCard key={i} call={call} result={msg} onChoiceSelect={onChoiceSelect} />;
         }
