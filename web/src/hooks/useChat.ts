@@ -1,4 +1,5 @@
 import { useRef, useCallback, useEffect } from "react";
+import { flushSync } from "react-dom";
 import { useAppState } from "../context/AppContext";
 import { ChatWebSocket } from "../api/ws";
 import type { WsServerMessage } from "../types";
@@ -25,7 +26,6 @@ export function useChat(options?: UseChatOptions) {
       runningRef.current = true;
       stopRequestedRef.current = false;
 
-      // Add user message to display immediately
       dispatch({
         type: "SET_MESSAGES",
         messages: [...state.messages, { role: "user", content }],
@@ -34,7 +34,6 @@ export function useChat(options?: UseChatOptions) {
       const ws = new ChatWebSocket();
       wsRef.current = ws;
 
-      // token 缓冲：每 50ms 批量 flush，避免每个 token 触发全量重渲染 + markdown 重解析
       let tokenBuf = "";
       let reasoningBuf = "";
       let flushTimer: number | null = null;
@@ -75,8 +74,10 @@ export function useChat(options?: UseChatOptions) {
             if (msg.message.includes("执行工具")) {
               const m = msg.message.match(/🔧\s*执行工具:\s*(\S+)\s*\|\s*(.*)/);
               if (m) {
-                dispatch({ type: "SET_CURRENT_TOOL", toolName: m[1] });
-                dispatch({ type: "SET_CURRENT_TOOL_ARGS", args: m[2] });
+                flushSync(() => {
+                  dispatch({ type: "SET_CURRENT_TOOL", toolName: m[1] });
+                  dispatch({ type: "SET_CURRENT_TOOL_ARGS", args: m[2] });
+                });
               }
             }
             break;
@@ -94,7 +95,6 @@ export function useChat(options?: UseChatOptions) {
               apiCalls: msg.api_calls,
               error: msg.error,
             });
-            // Ensure running state is off (SET_RESULT also does this, but double-safety)
             dispatch({ type: "SET_RUNNING", running: false });
             if (msg.session_id && msg.session_id !== "_new") {
               sessionStorage.setItem("zlink_agent_last_session", msg.session_id);
@@ -113,8 +113,6 @@ export function useChat(options?: UseChatOptions) {
           case "error":
             flush();
             runningRef.current = false;
-            dispatch({ type: "SET_CURRENT_TOOL", toolName: "" });
-            dispatch({ type: "SET_CURRENT_TOOL_ARGS", args: "" });
             dispatch({ type: "SET_ERROR", error: msg.message });
             ws.close();
             wsRef.current = null;

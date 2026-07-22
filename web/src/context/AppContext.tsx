@@ -96,9 +96,8 @@ function reducer(state: AppState, action: AppAction): AppState {
         streamingText: "",
         reasoningText: "",
         progressMessage: "",
-        // 只有新轮开始时清空 currentToolName，结束时保留（给浏览器一次渲染机会）
-        currentToolName: action.running ? "" : state.currentToolName,
-        currentToolArgs: action.running ? "" : state.currentToolArgs,
+        currentToolName: "",
+        currentToolArgs: "",
       };
     case "APPEND_TOKEN":
       return { ...state, streamingText: state.streamingText + action.token };
@@ -119,8 +118,7 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, messages: [...state.messages, action.message] };
     }
     case "SET_RESULT": {
-      // 先移除所有 pending tool 消息（tool_call_id 以 "running:" 开头）
-      const msgs = state.messages.filter(m => !(m.role === "tool" && m.tool_call_id && m.tool_call_id.startsWith("running:")));
+      const msgs = [...state.messages];
       for (const m of action.messages) {
         const key = m.role + (typeof m.content === "string" ? m.content : "");
         if (!msgs.some(existing => existing.role + (typeof existing.content === "string" ? existing.content : "") === key)) {
@@ -137,8 +135,8 @@ function reducer(state: AppState, action: AppAction): AppState {
         streamingText: "",
         reasoningText: "",
         progressMessage: "",
-        // 保留 currentToolName/currentToolArgs，由下一轮 SET_RUNNING(true) 清空
-        // 避免工具执行太快时浏览器来不及绘制执行中状态
+        currentToolName: "",
+        currentToolArgs: "",
         tokenUsage: action.tokenUsage,
         apiCalls: action.apiCalls,
       };
@@ -150,7 +148,8 @@ function reducer(state: AppState, action: AppAction): AppState {
         streamingText: "",
         reasoningText: "",
         progressMessage: "",
-        // 保留 currentToolName/currentToolArgs
+        currentToolName: "",
+        currentToolArgs: "",
         messages: [...state.messages, { role: "assistant", content: `❌ ${action.error}` }],
       };
     case "CLEAR_STREAMING":
