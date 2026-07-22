@@ -96,9 +96,8 @@ function reducer(state: AppState, action: AppAction): AppState {
         streamingText: "",
         reasoningText: "",
         progressMessage: "",
-        // 新轮开始时清理 currentToolName，结束时保留（给浏览器一次渲染机会）
-        currentToolName: action.running ? "" : state.currentToolName,
-        currentToolArgs: action.running ? "" : state.currentToolArgs,
+        currentToolName: "",
+        currentToolArgs: "",
       };
     case "APPEND_TOKEN":
       return { ...state, streamingText: state.streamingText + action.token };
@@ -136,8 +135,8 @@ function reducer(state: AppState, action: AppAction): AppState {
         streamingText: "",
         reasoningText: "",
         progressMessage: "",
-        // 不清理 currentToolName，由 ChatMessage 用 streaming 门控
-        // 确保浏览器在 done 后仍有足够时间渲染卡片
+        currentToolName: "",
+        currentToolArgs: "",
         tokenUsage: action.tokenUsage,
         apiCalls: action.apiCalls,
       };
@@ -149,7 +148,8 @@ function reducer(state: AppState, action: AppAction): AppState {
         streamingText: "",
         reasoningText: "",
         progressMessage: "",
-        // 不清理 currentToolName
+        currentToolName: "",
+        currentToolArgs: "",
         messages: [...state.messages, { role: "assistant", content: `❌ ${action.error}` }],
       };
     case "CLEAR_STREAMING":

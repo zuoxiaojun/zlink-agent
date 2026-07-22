@@ -96,8 +96,8 @@ export default function ChatMessage({
   onChoiceSelect?: (text: string) => void;
 }) {
   const { state } = useAppState();
-  // 显示运行中卡片：currentToolName 有值且在流式进行中
-  const showRunning = (streaming || state.currentToolName) && state.currentToolName ? true : false;
+  // 只在流式进行中且当前有工具时显示运行中卡片
+  const showRunning = streaming && state.currentToolName ? true : false;
 
   const runningToolCard = showRunning ? (
     <div className="tool-step-group">
