@@ -163,11 +163,6 @@ export default function ToolStepCard({ call, result, onChoiceSelect }: ToolStepC
         {result && <div className="tool-step-header-right">{open ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}</div>}
       </button>
       {subtitle && <div className="tool-step-subtitle">{subtitle}</div>}
-      {result && !open && raw && (
-        <div className="tool-step-preview">
-          <pre>{formatJson(raw)}</pre>
-        </div>
-      )}
       {open && result && (
         <div className="tool-step-body">
           {call.function.arguments && call.function.arguments !== "{}" && (
