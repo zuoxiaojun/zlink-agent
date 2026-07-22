@@ -455,6 +455,8 @@ body {
   border: none;
   border-radius: 0;
   background: transparent;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 /* ── Markdown tables ─────────────────────────────────── */

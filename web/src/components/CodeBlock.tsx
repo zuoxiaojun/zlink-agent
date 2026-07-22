@@ -22,14 +22,6 @@ export default function CodeBlock({ children }: { children?: React.ReactNode }) 
   }
   const raw = extractText(children).replace(/\n$/, "");
 
-  // Auto-format JSON content for display
-  let display = raw;
-  if (language === "json" || raw.match(/^[{[]/)) {
-    try {
-      display = JSON.stringify(JSON.parse(raw), null, 2);
-    } catch { /* keep raw */ }
-  }
-
   const onCopy = async () => {
     try {
       await navigator.clipboard.writeText(raw);
@@ -49,7 +41,7 @@ export default function CodeBlock({ children }: { children?: React.ReactNode }) 
           {copied ? "已复制" : "复制"}
         </button>
       </div>
-      <pre>{display !== raw ? display : children}</pre>
+      <pre>{children}</pre>
     </div>
   );
 }
