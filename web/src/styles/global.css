@@ -679,6 +679,25 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.tool-step-preview {
+  padding: 0 14px 10px;
+  margin-top: -2px;
+}
+.tool-step-preview pre {
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.4;
+  max-height: 5.6em;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+}
 .tool-step-header-right {
   color: var(--text-4);
   flex-shrink: 0;
