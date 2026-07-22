@@ -3,19 +3,14 @@ import type { Message, ToolCall } from "../types";
 import MessageContent from "./MessageContent";
 import ReasoningBlock from "./ReasoningBlock";
 import ToolStepCard from "./ToolStepCard";
-import { useAppState } from "../context/AppContext";
 
 function AssistantGroupContent({
   msgs,
   streaming,
-  runningToolName,
-  runningToolArgs,
   onChoiceSelect,
 }: {
   msgs: Message[];
   streaming?: boolean;
-  runningToolName?: string | null;
-  runningToolArgs?: string | null;
   onChoiceSelect?: (text: string) => void;
 }) {
   const pending: ToolCall[] = [];
@@ -51,7 +46,7 @@ function AssistantGroupContent({
                 <div className={`msg-bubble${isStreaming ? " streaming-text" : ""}`}>
                   <MessageContent content={msg.content} />
                 </div>
-              ) : isStreaming && !runningToolName ? (
+              ) : isStreaming ? (
                 <div className="msg-bubble">
                   <div className="thinking-indicator">
                     <span />
@@ -83,15 +78,6 @@ function AssistantGroupContent({
             ))}
         </div>
       )}
-      {runningToolName && (
-        <div className="tool-step-group">
-          <ToolStepCard
-            key="running"
-            call={{ id: "running", type: "function", function: { name: runningToolName, arguments: runningToolArgs || "{}" } }}
-            onChoiceSelect={onChoiceSelect}
-          />
-        </div>
-      )}
     </div>
   );
 }
@@ -105,10 +91,6 @@ export default function ChatMessage({
   streaming?: boolean;
   onChoiceSelect?: (text: string) => void;
 }) {
-  const { state } = useAppState();
-  const showRunningTool = streaming && state.agentRunning && state.currentToolName;
-  const runningToolName = showRunningTool ? state.currentToolName : null;
-  const runningToolArgs = showRunningTool ? state.currentToolArgs : null;
 
   const first = msgs[0];
   if (first.role === "user") {
@@ -127,7 +109,7 @@ export default function ChatMessage({
   return (
     <div className="msg-row assistant">
       <div className="msg-avatar"><IconRobot size={18} /></div>
-      <AssistantGroupContent msgs={msgs} streaming={streaming} runningToolName={runningToolName} runningToolArgs={runningToolArgs} onChoiceSelect={onChoiceSelect} />
+      <AssistantGroupContent msgs={msgs} streaming={streaming} onChoiceSelect={onChoiceSelect} />
     </div>
   );
 }

@@ -72,12 +72,23 @@ export function useChat(options?: UseChatOptions) {
             break;
           case "progress":
             dispatch({ type: "SET_PROGRESS", message: msg.message });
-            // 从 progress 消息中提取正在执行的工具名和参数
+            // 收到执行工具进度时，直接插入一条 pending 的 tool 消息到列表
+            // 这样在浏览器绘制前卡片就已挂载，不会被 done 的批处理吞掉
             if (msg.message.includes("执行工具")) {
               const m = msg.message.match(/🔧\s*执行工具:\s*(\S+)\s*\|\s*(.*)/);
               if (m) {
-                dispatch({ type: "SET_CURRENT_TOOL", toolName: m[1] });
-                dispatch({ type: "SET_CURRENT_TOOL_ARGS", args: m[2] });
+                const toolName = m[1];
+                const toolArgs = m[2];
+                // 插入 pending tool 消息，id 固定为 "running" + 工具名
+                // done 消息到达时尝试匹配并替换
+                const pendingToolMsg: import("../types").Message = {
+                  role: "tool",
+                  content: "",
+                  tool_call_id: "running:" + toolName,
+                };
+                dispatch({ type: "ADD_PENDING_TOOL", message: pendingToolMsg });
+                dispatch({ type: "SET_CURRENT_TOOL", toolName });
+                dispatch({ type: "SET_CURRENT_TOOL_ARGS", args: toolArgs });
               }
             }
             break;

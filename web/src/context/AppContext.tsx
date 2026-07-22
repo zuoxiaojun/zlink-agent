@@ -59,6 +59,7 @@ export type AppAction =
   | { type: "SET_PROGRESS"; message: string }
   | { type: "SET_CURRENT_TOOL"; toolName: string }
   | { type: "SET_CURRENT_TOOL_ARGS"; args: string }
+  | { type: "ADD_PENDING_TOOL"; message: Message }
   | { type: "SET_RESULT"; messages: Message[]; tokenUsage: TokenUsage | null; apiCalls: number; error: string | null }
   | { type: "SET_ERROR"; error: string }
   | { type: "CLEAR_STREAMING" }
@@ -89,7 +90,16 @@ function reducer(state: AppState, action: AppAction): AppState {
     case "SET_MESSAGES":
       return { ...state, messages: action.messages };
     case "SET_RUNNING":
-      return { ...state, agentRunning: action.running, streamingText: "", reasoningText: "", progressMessage: "", currentToolName: "", currentToolArgs: "" };
+      return {
+        ...state,
+        agentRunning: action.running,
+        streamingText: "",
+        reasoningText: "",
+        progressMessage: "",
+        // 只有新轮开始时清空 currentToolName，结束时保留（给浏览器一次渲染机会）
+        currentToolName: action.running ? "" : state.currentToolName,
+        currentToolArgs: action.running ? "" : state.currentToolArgs,
+      };
     case "APPEND_TOKEN":
       return { ...state, streamingText: state.streamingText + action.token };
     case "APPEND_REASONING":
@@ -100,8 +110,17 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, currentToolName: action.toolName };
     case "SET_CURRENT_TOOL_ARGS":
       return { ...state, currentToolArgs: action.args };
+    case "ADD_PENDING_TOOL": {
+      // 避免重复插入同名的 pending tool
+      const id = action.message.tool_call_id || "";
+      if (state.messages.some(m => m.role === "tool" && m.tool_call_id === id)) {
+        return state;
+      }
+      return { ...state, messages: [...state.messages, action.message] };
+    }
     case "SET_RESULT": {
-      const msgs = [...state.messages];
+      // 先移除所有 pending tool 消息（tool_call_id 以 "running:" 开头）
+      const msgs = state.messages.filter(m => !(m.role === "tool" && m.tool_call_id && m.tool_call_id.startsWith("running:")));
       for (const m of action.messages) {
         const key = m.role + (typeof m.content === "string" ? m.content : "");
         if (!msgs.some(existing => existing.role + (typeof existing.content === "string" ? existing.content : "") === key)) {
