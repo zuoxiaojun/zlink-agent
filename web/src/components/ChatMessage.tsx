@@ -96,15 +96,27 @@ export default function ChatMessage({
   onChoiceSelect?: (text: string) => void;
 }) {
   const { state } = useAppState();
-  const runningToolName = (streaming || state.currentToolName) && state.currentToolName ? state.currentToolName : null;
-  const runningToolArgs = (streaming || state.currentToolName) && state.currentToolArgs ? state.currentToolArgs : null;
+  // 只要有 currentToolName 就显示运行中卡片
+  // 不依赖 streaming 或 agentRunning，因为 SET_RESULT 批处理后它们会被设为 false
+  const showRunning = state.currentToolName ? true : false;
 
-  const runningToolCard = runningToolName ? (
+  const runningToolCard = showRunning ? (
     <div className="tool-step-group">
-      <ToolStepCard
-        call={{ id: "running", type: "function", function: { name: runningToolName, arguments: runningToolArgs || "{}" } }}
-        onChoiceSelect={onChoiceSelect}
-      />
+      <div className="tool-step tool-step-running">
+        <div className="tool-step-header" style={{ cursor: 'default' }}>
+          <div className="tool-step-header-left">
+            <div className="tool-step-icon">
+              <div className="tool-step-spinner" />
+            </div>
+            <div className="tool-step-header-text">
+              <div className="tool-step-title-row">
+                <span className="tool-step-name">{state.currentToolName}</span>
+              </div>
+              <div className="tool-step-desc">正在执行…</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   ) : null;
 
