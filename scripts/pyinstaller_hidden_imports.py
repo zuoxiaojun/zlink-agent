@@ -82,7 +82,7 @@ AGENT_TOOLS = [
     "agent.tools.clarify_tool",
     "agent.tools.code_execution_tool",
     "agent.tools.cronjob_tools",
-    "agent.tools.delegate_tool",
+    
     "agent.tools.erp_nc_tools",
     "agent.tools.erp_ys_tools",
     "agent.tools.file_mutation_queue",

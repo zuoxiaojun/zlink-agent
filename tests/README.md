@@ -21,7 +21,7 @@ Or just the file you touched:
 | Area | Files | What it locks down |
 |---|---|---|
 | Agent loop & phase machine | `test_agent_loop.py` | `AIAgent.run_conversation`, phase transitions, event sequence, reentrancy, config isolation |
-| Tools & registry | `test_tool_registry.py`, `test_approval.py`, `test_file_tools.py`, `test_delegate_tool.py`, `test_process_tool.py`, `test_project_tools.py`, `test_vision_tool.py`, `test_web_tools.py`, `test_web_extract_tool.py`, `test_session_search_tool.py` | Tool dispatch, hooks, risk-level approval, file safety, delegation, process/project/vision/web tools |
+| Tools & registry | `test_tool_registry.py`, `test_approval.py`, `test_file_tools.py`, `test_process_tool.py`, `test_project_tools.py`, `test_vision_tool.py`, `test_web_tools.py`, `test_web_extract_tool.py`, `test_session_search_tool.py` | Tool dispatch, hooks, risk-level approval, file safety, delegation, process/project/vision/web tools |
 | Config & ERP | `test_config_manager.py`, `test_config_api.py`, `test_config_manager_erp.py`, `test_erp_clients_base.py`, `test_erp_clients_api.py` | Config load/save, ERP client registry, API endpoints, permission handling |
 | Extensions & events | `test_extensions.py`, `test_api_extensions.py` | Event types, Extension register/disable, `apply_config_overrides`, toggle API |
 | Context & memory | `test_compactor.py`, `test_memory_tool.py`, `test_message_builder.py` | Token estimation, file tracking, compaction events, memory tool, message building |
