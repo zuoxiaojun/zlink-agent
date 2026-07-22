@@ -61,7 +61,11 @@ function formatJson(raw: string): string {
 }
 
 function resultText(msg: Message): string {
-  return typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content, null, 2);
+  if (typeof msg.content === "string") return msg.content;
+  if (Array.isArray(msg.content)) {
+    return msg.content.map(p => p.type === "text" ? p.text || "" : "").join("\n");
+  }
+  return JSON.stringify(msg.content, null, 2);
 }
 
 function isErrorResult(text: string): boolean {
@@ -106,9 +110,10 @@ function extractSubtitle(toolName: string, args: string): string | null {
 export default function ToolStepCard({ call, result, onChoiceSelect }: ToolStepCardProps) {
   const [open, setOpen] = useState(false);
   const isPendingTool = result && result.tool_call_id && (result.tool_call_id.startsWith("running:") || result.tool_call_id.startsWith("pending:"));
-  const raw = result && !isPendingTool && typeof result.content === "string" && result.content.trim() ? resultText(result) : "";
+  const resultContent = result ? resultText(result) : "";
+  const raw = result && !isPendingTool && resultContent.trim() ? resultContent : "";
   const running = !result || isPendingTool;
-  const failed = !running && result && typeof result.content === "string" && result.content.trim() ? isErrorResult(raw) : false;
+  const failed = !running && result && resultContent.trim() ? isErrorResult(raw) : false;
   // 如果是 pending 工具，从 tool_call_id 提取工具名，从 content 提取参数
   const effectiveCallName = isPendingTool && result ? (result.tool_call_id || "").replace(/^(running:|pending:)/, "") : call.function.name;
   const effectiveArgs = isPendingTool && result ? (typeof result.content === "string" ? result.content : "") : call.function.arguments;
@@ -118,9 +123,9 @@ export default function ToolStepCard({ call, result, onChoiceSelect }: ToolStepC
 
   // 提前解析 clarify 结果，避免 JSX 在 try/catch 内
   let clarifyParsed: { choices?: string[]; question?: string; data?: string } | null = null;
-  if (result) {
+  if (result && resultContent.trim()) {
     try {
-      const candidate = JSON.parse(raw) as { choices?: string[]; question?: string; data?: string };
+      const candidate = JSON.parse(resultContent) as { choices?: string[]; question?: string; data?: string };
       if (candidate && Array.isArray(candidate.choices)) clarifyParsed = candidate;
     } catch { /* ignore */ }
   }
