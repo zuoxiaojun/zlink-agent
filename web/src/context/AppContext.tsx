@@ -61,23 +61,30 @@ export type AppAction =
   | { type: "SET_CURRENT_TOOL_ARGS"; args: string }
   | { type: "ADD_PENDING_TOOL"; message: Message }
   | { type: "REPLACE_PENDING_TOOL"; name: string; result: string }
-  | { type: "SET_RESULT"; final_response: string; final_reasoning?: string; tokenUsage: TokenUsage | null; apiCalls: number; error: string | null }
+  | { type: "SET_RESULT"; final_response: string; final_reasoning?: string; tokenUsage: TokenUsage | null; apiCalls: number; error: string | null; sessionId?: string; sessionTitle?: string }
   | { type: "SET_ERROR"; error: string }
   | { type: "CLEAR_STREAMING" }
   | { type: "SET_CONFIG"; config: ConfigResponse };
 
 function reducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
-    case "SET_SESSION":
+    case "SET_SESSION": {
+      const sessionMsgs = action.messages ?? state.messages;
+      // 如果消息来自后端（没有 WELCOME），自动在最前面加上 WELCOME
+      const hasWelcome = sessionMsgs.length > 0
+        && sessionMsgs[0].role === "assistant"
+        && typeof sessionMsgs[0].content === "string"
+        && (sessionMsgs[0].content as string).startsWith("你好！我是 **ZLink Agent");
       return {
         ...state,
         currentSessionId: action.sessionId,
         currentSessionTitle: action.title,
-        messages: action.messages ?? state.messages,
+        messages: hasWelcome ? sessionMsgs : [...WELCOME_MESSAGE, ...sessionMsgs],
         streamingText: "",
         reasoningText: "",
         agentRunning: false,
       };
+    }
     case "NEW_SESSION":
       return {
         ...state,
@@ -135,8 +142,8 @@ function reducer(state: AppState, action: AppAction): AppState {
       return { ...state, messages: msgs };
     }
     case "SET_RESULT": {
-      // 移除 pending 工具消息（tool_call_id 以 "pending:" 开头）
-      let msgs = state.messages.filter(m => !(m.role === "tool" && m.tool_call_id && m.tool_call_id.startsWith("pending:")));
+      // 移除尚未完成的 pending 工具消息；已完成（_tool_done: true）的保留显示
+      let msgs = state.messages.filter(m => !(m.role === "tool" && m.tool_call_id && m.tool_call_id.startsWith("pending:") && !m._tool_done));
 
       // 用 action 传入的最终文本构建 assistant 消息（避免依赖异步的 state.streamingText）
       if (action.final_response) {
@@ -152,6 +159,8 @@ function reducer(state: AppState, action: AppAction): AppState {
       }
       return {
         ...state,
+        currentSessionId: action.sessionId ?? state.currentSessionId,
+        currentSessionTitle: action.sessionTitle ?? state.currentSessionTitle,
         messages: msgs,
         agentRunning: false,
         streamingText: "",

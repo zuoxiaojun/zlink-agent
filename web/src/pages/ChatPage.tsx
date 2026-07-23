@@ -77,11 +77,13 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!userScrolledUp.current && scrollRef.current) {
-      requestAnimationFrame(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      const el = scrollRef.current;
+      // 使用 setTimeout 代替 requestAnimationFrame，确保在 DOM 更新后执行
+      setTimeout(() => {
+        if (el) {
+          el.scrollTop = el.scrollHeight;
         }
-      });
+      }, 0);
     }
   }, [state.messages, state.streamingText]);
 

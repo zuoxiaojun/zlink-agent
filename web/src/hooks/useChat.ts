@@ -85,7 +85,7 @@ export function useChat(options?: UseChatOptions) {
               clearTimeout(flushTimer);
               flushTimer = null;
             }
-            const finalContent = tokenBuf || msg.final_response || "";
+            const finalContent = msg.final_response || tokenBuf || "";
             const finalReasoning = reasoningBuf || "";
             tokenBuf = "";
             reasoningBuf = "";
@@ -97,15 +97,11 @@ export function useChat(options?: UseChatOptions) {
               tokenUsage: msg.token_usage,
               apiCalls: msg.api_calls,
               error: msg.error,
+              sessionId: msg.session_id && msg.session_id !== "_new" ? msg.session_id : undefined,
+              sessionTitle: msg.session_title || undefined,
             });
-            dispatch({ type: "SET_RUNNING", running: false });
             if (msg.session_id && msg.session_id !== "_new") {
               sessionStorage.setItem("zlink_agent_last_session", msg.session_id);
-              dispatch({
-                type: "SET_SESSION",
-                sessionId: msg.session_id,
-                title: msg.session_title,
-              });
             }
             ws.close();
             wsRef.current = null;
