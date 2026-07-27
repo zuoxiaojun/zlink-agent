@@ -9,6 +9,7 @@ import httpx
 from agent.core.llm_providers.base import LLMResponse
 from agent.core.llm_providers.openai_compat import (
     OpenAICompatProvider,
+    _extract_inline_thinking,
     _extract_reasoning,
 )
 
@@ -47,6 +48,55 @@ class TestExtractReasoning:
     def test_handles_non_openai_object(self):
         assert _extract_reasoning("string") is None
         assert _extract_reasoning(42) is None
+
+
+# ── _extract_inline_thinking (<think>...</think> / thinking...response) ──
+
+
+class TestExtractInlineThinking:
+    """Inline-thinking extraction for models that don't return reasoning_content.
+
+    Handles two marker conventions:
+      • ``<think>...</think>`` (Qwen-style)
+      • ``thinking\\n...\\nresponse\\n...`` (DeepSeek-paw-style)
+    """
+
+    def test_qwen_style_strips_markers_and_splits(self):
+        content = "<think>用户简单打了个招呼。</think>你好！我是 ZLink Agent。"
+        cleaned, reasoning = _extract_inline_thinking(content)
+        assert cleaned == "你好！我是 ZLink Agent。"
+        assert reasoning == "用户简单打了个招呼。"
+
+    def test_qwen_style_with_leading_whitespace(self):
+        content = "\n<think>\n用户问好\n</think>\n你好呀"
+        cleaned, reasoning = _extract_inline_thinking(content)
+        assert cleaned == "你好呀"
+        assert reasoning == "用户问好"
+
+    def test_deepseek_style_still_works(self):
+        """Existing thinking/response marker style preserved."""
+        content = "thinking\nstep by step\nresponse\nfinal answer"
+        cleaned, reasoning = _extract_inline_thinking(content)
+        assert cleaned == "final answer"
+        assert reasoning == "step by step"
+
+    def test_plain_content_unchanged(self):
+        content = "Just a normal answer with no markers."
+        cleaned, reasoning = _extract_inline_thinking(content)
+        assert cleaned == content
+        assert reasoning is None
+
+    def test_empty_content(self):
+        cleaned, reasoning = _extract_inline_thinking("")
+        assert cleaned == ""
+        assert reasoning is None
+
+    def test_unclosed_think_treated_as_thinking(self):
+        """Stream cut off mid-thinking → all content is reasoning."""
+        content = "<think>the model was still thinking when stream ended"
+        cleaned, reasoning = _extract_inline_thinking(content)
+        assert cleaned == ""
+        assert reasoning == "the model was still thinking when stream ended"
 
 
 # ── Helpers ───────────────────────────────────────────────────────
@@ -200,6 +250,65 @@ class TestOpenAICompatProvider:
         )
         assert resp.content == "answer"
         assert resp.reasoning == "thinking"
+
+    def test_chat_stream_inline_qwen_think_extracts_reasoning(self, monkeypatch):
+        """Streaming <think>...</think> → reasoning_callback gets text,
+        stream_callback gets only cleaned content."""
+        # Build markers from ASCII fragments — the source editor strips
+        # `` as if it were an HTML tag otherwise.
+        _open = "<" + "think" + ">"
+        _close = "<" + "/" + "think" + ">"
+        _delta_open = 'data: {"choices":[{"delta":{"content":"' + _open + '"},"index":0}]}'
+        _delta_close = 'data: {"choices":[{"delta":{"content":"' + _close + '"},"index":0}]}'
+        lines = [
+            _delta_open,
+            'data: {"choices":[{"delta":{"content":"用户问好"},"index":0}]}',
+            'data: {"choices":[{"delta":{"content":"，简单回应"},"index":0}]}',
+            _delta_close,
+            'data: {"choices":[{"delta":{"content":"你好！我是 ZLink Agent。"},"index":0}]}',
+            "data: [DONE]",
+        ]
+        content_parts = []
+        reasoning_parts = []
+
+        monkeypatch.setattr(self.provider, "_request_stream", lambda body: iter(lines))
+        resp = self.provider._chat_stream(
+            body={"model": "qwen"},
+            stream_callback=content_parts.append,
+            reasoning_callback=reasoning_parts.append,
+            stop_event=threading.Event(),
+        )
+        # Cleaned content has no markers
+        assert resp.content == "你好！我是 ZLink Agent。"
+        # Reasoning text joined from chunks
+        assert "用户问好" in resp.reasoning
+        assert "简单回应" in resp.reasoning
+        # stream_callback never sees raw open/close markers
+        joined_content = "".join(content_parts)
+        assert _open not in joined_content
+        assert _close not in joined_content
+
+    def test_chat_stream_inline_deepseek_markers_extracts_reasoning(self, monkeypatch):
+        """Streaming thinking\\n...\\nresponse\\n... → reasoning separated."""
+        lines = [
+            'data: {"choices":[{"delta":{"content":"thinking\\n"},"index":0}]}',
+            'data: {"choices":[{"delta":{"content":"step 1, step 2"},"index":0}]}',
+            'data: {"choices":[{"delta":{"content":"\\nresponse\\n"},"index":0}]}',
+            'data: {"choices":[{"delta":{"content":"final answer"},"index":0}]}',
+            "data: [DONE]",
+        ]
+        content_parts = []
+        reasoning_parts = []
+
+        monkeypatch.setattr(self.provider, "_request_stream", lambda body: iter(lines))
+        resp = self.provider._chat_stream(
+            body={"model": "deepseek"},
+            stream_callback=content_parts.append,
+            reasoning_callback=reasoning_parts.append,
+            stop_event=threading.Event(),
+        )
+        assert resp.content == "final answer"
+        assert "step 1, step 2" in resp.reasoning
 
     def test_chat_stream_tool_calls(self, monkeypatch):
         """SSE delta with tool_calls accumulates correctly."""

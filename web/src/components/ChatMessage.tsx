@@ -54,7 +54,7 @@ function AssistantGroupContent({
           return (
             <div key={i}>
               {msg.reasoning_content && (
-                <ReasoningBlock text={msg.reasoning_content} streaming={isStreaming} />
+                <ReasoningBlock text={msg.reasoning_content} />
               )}
               {hasContent ? (
                 <div className={`msg-bubble${isStreaming ? " streaming-text" : ""}`}>
