@@ -35,6 +35,7 @@ export function useChat(options?: UseChatOptions) {
 
       let tokenBuf = "";
       let reasoningBuf = "";
+      let reasoningAll = "";
       let flushTimer: number | null = null;
 
       const flush = () => {
@@ -66,6 +67,7 @@ export function useChat(options?: UseChatOptions) {
             break;
           case "reasoning_token":
             reasoningBuf += msg.content;
+            reasoningAll += msg.content;
             scheduleFlush();
             break;
           case "tool_call":
@@ -86,7 +88,7 @@ export function useChat(options?: UseChatOptions) {
               flushTimer = null;
             }
             const finalContent = msg.final_response || tokenBuf || "";
-            const finalReasoning = reasoningBuf || "";
+            const finalReasoning = reasoningAll || reasoningBuf || "";
             tokenBuf = "";
             reasoningBuf = "";
             runningRef.current = false;
