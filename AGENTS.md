@@ -264,9 +264,10 @@ Settings → ERP → `yonsuite` / `nc` tab.
 
 Version bump (`pyproject.toml` = single source of truth):
 1. `pyproject.toml` version field
-2. `CHANGELOG.md` release notes
-3. `README.md` version + feature list + structure
-4. `git tag vX.Y.Z && git push origin vX.Y.Z`
+2. 根目录 `package.json` version 字段（electron-builder 用它命名 DMG/App 版本，漏改会导致包名版本落后）
+3. `CHANGELOG.md` release notes
+4. `README.md` version + feature list + structure
+5. `git tag vX.Y.Z && git push origin vX.Y.Z`
 
 Build: `bash scripts/build-electron.sh` = frontend build → Python bundle → electron-builder → .dmg/.exe/.AppImage.
 
