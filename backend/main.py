@@ -45,6 +45,16 @@ _logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
+    import time
+
+    _t = time.monotonic()
+
+    def _lap(stage: str) -> None:
+        nonlocal _t
+        now = time.monotonic()
+        _logger.info("[startup] lifespan %s: %.0fms", stage, (now - _t) * 1000)
+        _t = now
+
     # Startup
     from agent import config_manager, search_index
     from agent.tools.mcp_manager import connect_all_servers
@@ -55,9 +65,11 @@ async def lifespan(application: FastAPI):
         n = search_index.migrate_from_json()
         if n:
             _logger.info("搜索索引迁移完成: %d 个会话", n)
+    _lap("search_index")
 
     cfg = config_manager.load()
     servers_cfg = cfg.mcp_servers
+    _lap("config_load")
 
     # ── YonSuite: 注入环境变量（内置工具 agent/tools/erp_ys_tools.py 读取） ──
     ys_cfg_erp = cfg.erp_clients.get("yonsuite", {})
@@ -82,6 +94,7 @@ async def lifespan(application: FastAPI):
             os.environ.setdefault("ORACLE_USER", str(nc_cfg_erp.get("user", "") or ""))
             os.environ.setdefault("ORACLE_PASSWORD", str(nc_cfg_erp.get("password", "") or ""))
             os.environ.setdefault("NC_MCP_MAX_ROWS", str(nc_cfg_erp.get("max_rows", 200) or 200))
+    _lap("erp_env")
 
     # ── Chart MCP server（预置，打包在 Resources/mcp-chart/） ──
     # 开发模式: node_modules/@antv/mcp-server-chart/build/index.js
@@ -141,11 +154,13 @@ async def lifespan(application: FastAPI):
     # 持久化配置（不含已移除的 ERP 条目）
     cfg.mcp_servers = servers_cfg
     config_manager.save(cfg)
+    _lap("chart_mcp_config")
 
     if servers_cfg:
         import asyncio
 
         asyncio.ensure_future(connect_all_servers(servers_cfg))
+    _lap("mcp_connect_scheduled")
 
     # Start cron job scheduler
     try:
