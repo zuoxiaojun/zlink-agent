@@ -89,20 +89,28 @@ function getLoadURL() {
 }
 
 /** Poll until the backend answers /api/health. */
-async function waitForBackend(maxRetries = 60) {
+async function waitForBackend(maxRetries = 300) {
   for (let i = 0; i < maxRetries; i++) {
     try {
       const res = await fetch(`${BACKEND_HOST}/api/health`);
       if (res.ok) return true;
     } catch { /* not ready yet */ }
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 100));
   }
   return false;
+}
+
+const _T0 = Date.now();
+function logStartup(stage) {
+  console.log(`[startup] ${stage} ${Date.now() - _T0}ms`);
 }
 
 let mainWindow = null;
 
 async function createWindow() {
+  // 端口检查与窗口创建/loading 渲染并行：先发起（不 await），spawn 前再等结果
+  const portPromise = IS_DEV ? null : ensurePortFree(BACKEND_PORT);
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -122,6 +130,7 @@ async function createWindow() {
   // 先显示加载页：PyInstaller onefile 解包 + 后端启动需要十几秒，
   // 避免用户双击后长时间看不到任何反馈。
   await mainWindow.loadFile(path.join(__dirname, "loading.html"));
+  logStartup("window created");
 
   if (IS_DEV) {
     mainWindow.loadURL(getLoadURL());
@@ -131,7 +140,8 @@ async function createWindow() {
 
   // 端口被占用：杀掉上次异常退出残留的 zlink-backend；
   // 占用者是外来进程时不做破坏性操作，提示用户自行处理。
-  const port = await ensurePortFree(BACKEND_PORT);
+  const port = await portPromise;
+  logStartup("port ready");
   if (!port.ok) {
     const detail = port.foreignPids.length
       ? `端口 ${BACKEND_PORT} 被其他程序占用（PID: ${port.foreignPids.join(", ")}）。\n请关闭该程序后重新打开 ZLink Agent。`
@@ -142,8 +152,10 @@ async function createWindow() {
   }
 
   startBackend();
+  logStartup("backend spawned");
 
   const ready = await waitForBackend();
+  logStartup(`backend healthy ready=${ready}`);
   if (!mainWindow) return; // 用户在启动期间关闭了窗口
   if (!ready) {
     dialog.showErrorBox(
@@ -154,6 +166,7 @@ async function createWindow() {
     return;
   }
   mainWindow.loadURL(getLoadURL());
+  logStartup("frontend loadURL");
 }
 
 // ── App lifecycle ─────────────────────────────────────────────────
