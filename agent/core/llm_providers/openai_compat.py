@@ -367,7 +367,10 @@ class OpenAICompatProvider(LLMProvider):
                                 else:
                                     stream_callback(after_marker)
                             _thinking_buf = ""
-                        elif len(_thinking_buf) > 100:
+                        elif not (_THINK_OPEN.startswith(stripped) or "thinking".startswith(stripped)):
+                            # Buffer can never become a thinking marker —
+                            # flush as normal content immediately so plain
+                            # text streams without waiting for 100 chars.
                             _thinking_mode = False
                             _close_marker = None
                             content += _thinking_buf
