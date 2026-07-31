@@ -21,15 +21,14 @@ from agent.context_compactor import CompactionSettings
 from agent.core.agent import ApprovalRequest
 from agent.core.message_builder import build_system_prompt
 from agent.slash_commands import execute, parse_command
-from agent.tools.registry import discover_tools
 from agent.utils import DATA_DIR
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Ensure tools are discovered at import time
-discover_tools()
+# 工具发现由 AIAgent._ensure_discovered() 懒加载，无需在模块顶层调用
+# discover_tools() —— 保持在后端启动关键路径之外。
 
 # Per-session token usage tracking (for /cost command)
 _session_usage: dict[str, dict] = {}
