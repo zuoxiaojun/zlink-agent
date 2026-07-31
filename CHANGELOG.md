@@ -1,5 +1,28 @@
 # Changelog
 
+## v1.8.0 — 2026-07-31 (桌面端冷启动优化：十几秒 → 1 秒级)
+
+**范围**: 打包版 Electron 桌面客户端冷启动从十几秒优化到 1 秒级（实测 0.8~1.8s，目标 ≤5s）。
+
+### 改动
+
+- **PyInstaller onefile → onedir** (`scripts/build-pyinstaller.sh`, `electron-builder.yml`, `electron/main.js`): 后端默认打包为目录形式，消除每次启动的自解压（最大耗时项）；`--onefile` 保留为显式回退；冒烟测试等待上限 45s → 15s 作为回归保护
+- **延迟工具发现** (`backend/api/chat.py`, `backend/api/tools_api.py`): `discover_tools()` 从模块顶层移到首次使用时（`threading.Lock` 幂等），24 个工具模块不再阻塞后端启动；对话路径本就走 `AIAgent._ensure_discovered()` 懒加载
+- **Electron 启动并行化** (`electron/main.js`): 端口检查与窗口创建/loading 渲染并行；健康轮询 1000ms → 100ms；全链路 `[startup]` 计时日志
+- **启动计时埋点** (`backend/pyinstaller_entry.py`, `backend/main.py`): import 各阶段 + lifespan 各步骤耗时日志；uvicorn 日志级别 info → warning
+
+### 修复
+
+- **onedir 布局下 Chart MCP 路径错层** (`backend/main.py`): onedir 时 `sys.executable` 位于 `Resources/zlink-backend/` 内，Resources 目录定位需向上一层，否则打包版 Chart MCP 永久失效
+
+### 已知现象
+
+- onedir 首次启动（安装后第一次运行）macOS 会对 `_internal/` 内所有 dylib 做一次性校验，可能超过 10 秒；仅发生一次，之后即进入 1 秒级
+
+### 测试
+
+- 新增 `tests/test_tools_api.py`（3 个：懒发现幂等 / 线程安全 / 端点触发发现）
+
 ## v1.7.2 — 2026-07-21 (聊天流式输出美化 + 图标统一)
 
 **范围**: 聊天页流式输出体验全量美化（纯前端，后端零改动）；修复启动页图标与主图标不一致。
