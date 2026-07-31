@@ -2,14 +2,14 @@
 # build-pyinstaller.sh — PyInstaller 打包 ZLink Agent Python 后端
 #
 # 用法:
-#   bash scripts/build-pyinstaller.sh            # 打包为单文件
-#   bash scripts/build-pyinstaller.sh --onedir   # 打包为单目录（调试用）
+#   bash scripts/build-pyinstaller.sh            # 打包为单目录（默认，启动快）
+#   bash scripts/build-pyinstaller.sh --onefile  # 打包为单文件（回退项，启动慢）
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$(dirname "$0")/.."
 
-MODE="${1:---onefile}"
+MODE="${1:---onedir}"
 PLATFORM_TAG=""
 case "$(uname -s)" in
   Darwin) PLATFORM_TAG="macos-$(uname -m)" ;;
@@ -91,11 +91,13 @@ ls -lh dist/zlink-backend*
 echo ""
 echo "▶ 冒烟测试..."
 
-# 启动新打包的后端
-if [[ "$(uname -s)" =~ MINGW*|MSYS* ]]; then
-    EXE_PATH="dist/zlink-backend.exe"
+# 启动新打包的后端（onedir 产物是目录，可执行文件在目录内）
+if [ "$MODE" = "--onedir" ]; then
+    EXE_PATH="dist/zlink-backend/zlink-backend"
+    [[ "$(uname -s)" =~ MINGW*|MSYS* ]] && EXE_PATH="dist/zlink-backend/zlink-backend.exe"
 else
     EXE_PATH="dist/zlink-backend"
+    [[ "$(uname -s)" =~ MINGW*|MSYS* ]] && EXE_PATH="dist/zlink-backend.exe"
 fi
 
 if [ ! -f "$EXE_PATH" ]; then
@@ -112,8 +114,8 @@ export ZLINK_AGENT_PORT="$TEST_PORT"
 TEST_PID=$!
 echo "   测试后端 PID: $TEST_PID (端口: $TEST_PORT)"
 
-# 等待启动（onefile 自解压冷启动可达 20 秒，留足余量）
-for i in {1..45}; do
+# 等待启动（onedir 免自解压，预期几秒内就绪；15 秒上限作为回归保护）
+for i in {1..15}; do
     if curl -s "http://127.0.0.1:${TEST_PORT}/api/system/version" > /dev/null 2>&1; then
         break
     fi
@@ -122,7 +124,7 @@ done
 
 # 检查是否启动成功
 if ! curl -s "http://127.0.0.1:${TEST_PORT}/api/system/version" > /dev/null 2>&1; then
-    echo "❌ 冒烟测试失败：后端未在 45 秒内启动"
+    echo "❌ 冒烟测试失败：后端未在 15 秒内启动"
     kill "$TEST_PID" 2>/dev/null || true
     exit 1
 fi

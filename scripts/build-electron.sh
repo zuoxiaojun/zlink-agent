@@ -64,7 +64,7 @@ if $IS_WIN_HOST || [[ "$PLATFORM" == "--mac" && "$IS_MAC_HOST" == "true" ]]; the
     echo "✅ PyInstaller 打包完成"
 elif [[ "$PLATFORM" == "--win" && "$IS_MAC_HOST" == "true" ]]; then
     echo "  ⚠️  macOS 上无法交叉编译 Windows PyInstaller 二进制。"
-    echo "  ℹ️  请准备预编译的 dist/zlink-backend.exe 后再运行此脚本。"
+    echo "  ℹ️  请准备预编译的 dist/zlink-backend/ 目录（onedir 模式）后再运行此脚本。"
     echo "  ℹ️  或者在 Windows 主机上原生构建。"
 fi
 

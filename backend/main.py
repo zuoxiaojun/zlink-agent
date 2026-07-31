@@ -103,9 +103,15 @@ async def lifespan(application: FastAPI):
         _PROJECT_ROOT / "node_modules" / "@antv" / "mcp-server-chart" / "build" / "index.js",
     ]
     # 检查是否是 Electron 打包环境（Resources/mcp-chart/）
-    # PyInstaller frozen 模式: sys.executable 在 Resources/ 下
+    # PyInstaller frozen 模式:
+    #   onefile: sys.executable = Resources/zlink-backend → parent = Resources/
+    #   onedir:  sys.executable = Resources/zlink-backend/zlink-backend → parent.parent = Resources/
     if getattr(sys, "frozen", False):
-        _resources_dir = Path(sys.executable).resolve().parent
+        _exe_dir = Path(sys.executable).resolve().parent
+        if (_exe_dir / "mcp-chart").exists():
+            _resources_dir = _exe_dir
+        else:
+            _resources_dir = _exe_dir.parent
     else:
         _resources_dir = Path(__file__).resolve().parent.parent.parent / "Resources"
     _resources_chart = _resources_dir / "mcp-chart" / "build" / "index.js"

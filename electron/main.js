@@ -28,10 +28,11 @@ function findBackendBinary() {
   if (IS_DEV) return null;
   const dir = process.resourcesPath;
   const candidates = [
+    // onedir 布局：Resources/zlink-backend/ 目录内
     // macOS/Linux
-    path.join(dir, "zlink-backend"),
+    path.join(dir, "zlink-backend", "zlink-backend"),
     // Windows
-    path.join(dir, "zlink-backend.exe"),
+    path.join(dir, "zlink-backend", "zlink-backend.exe"),
   ];
   for (const p of candidates) {
     if (fs.existsSync(p)) return p;
@@ -127,7 +128,7 @@ async function createWindow() {
   mainWindow.once("ready-to-show", () => mainWindow.show());
   mainWindow.on("closed", () => { mainWindow = null; });
 
-  // 先显示加载页：PyInstaller onefile 解包 + 后端启动需要十几秒，
+  // 先显示加载页：后端启动需要几秒，
   // 避免用户双击后长时间看不到任何反馈。
   await mainWindow.loadFile(path.join(__dirname, "loading.html"));
   logStartup("window created");
