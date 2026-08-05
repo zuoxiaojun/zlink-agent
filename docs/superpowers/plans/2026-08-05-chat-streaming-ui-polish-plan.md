@@ -1009,6 +1009,8 @@ git commit -m "style: add breathing cursor and smooth tool card transitions"
 
 ## Task 9: `global.css` 删除重复的 `.tool-step-title-row` / `.tool-step-count`（第 599-613 行）
 
+> ✅ 已完成（2026-08-05，commit `d0ee644`）
+
 **目标:** 删除旧定义（gap 6px / font-size 10px / radius 3px / 含 `flex-shrink: 0`），保留第 657-670 行更完整定义（gap 8px / font-size 11px / radius 4px）。`.tool-step-count` 无组件引用（grep 确认仅 CSS 内部），后者不含 `flex-shrink: 0` 无功能影响，按 spec §4.5 批准决定原样保留后者。
 
 **改动文件:**
@@ -1018,7 +1020,7 @@ git commit -m "style: add breathing cursor and smooth tool card transitions"
 - Consumes: 无
 - Produces: 无
 
-- [ ] **Step 9.1: 删除重复块**
+- [x] **Step 9.1: 删除重复块**
 
 **当前代码:**
 ```css
@@ -1045,7 +1047,7 @@ git commit -m "style: add breathing cursor and smooth tool card transitions"
 .tool-step-icon {
 ```
 
-- [ ] **Step 9.2: 验证构建与 lint + 类名引用核对**
+- [x] **Step 9.2: 验证构建与 lint + 类名引用核对**
 
 ```bash
 npm run build
@@ -1055,7 +1057,7 @@ rg -n "tool-step-title-row" web/src --glob '!**/global.css'  # 预期：ChatMess
 ```
 预期：build/lint 零错误；第一条 rg 无输出；第二条 rg 只显示 `web/src/components/ToolStepCard.tsx:157`。
 
-- [ ] **Step 9.3: 提交**
+- [x] **Step 9.3: 提交**
 
 ```bash
 git add web/src/styles/global.css
