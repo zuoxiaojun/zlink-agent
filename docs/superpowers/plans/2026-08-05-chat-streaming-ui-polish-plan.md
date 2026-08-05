@@ -1068,30 +1068,32 @@ git commit -m "style: remove duplicate tool-step title/count CSS"
 
 ## Task 10: 全量回归验证（无代码改动，不产生 commit）
 
+> ✅ 已完成（2026-08-05，全量回归：build ✅ / lint 全绿 ✅ / 切分断言 16 PASS ✅ / pytest 378 passed ✅ / 历史会话视觉抽查无回归 ✅；真实 LLM 流式人工体验项留给用户日常使用确认）
+
 **目标:** 确认全部改动无回归：前端构建 + lint、后端 pytest 冒烟、10 项人工验证清单逐项截图留证。
 
-- [ ] **Step 10.1: 前端构建 + lint**
+- [x] **Step 10.1: 前端构建 + lint**
 
 ```bash
 cd web && npm run build && npm run lint
 ```
 预期：`tsc -b && vite build` 零错误、lint 零 error/warning。
 
-- [ ] **Step 10.2: 切分算法回归**
+- [x] **Step 10.2: 切分算法回归**
 
 ```bash
 cd web && node scripts/verify-streaming-split.ts
 ```
 预期：16 行 `PASS` + `Done`，退出码 0。
 
-- [ ] **Step 10.3: 后端回归冒烟**
+- [x] **Step 10.3: 后端回归冒烟**
 
 ```bash
 .venv/bin/python -m pytest tests/ -q
 ```
 预期：全部通过（仓库当前 371 tests，零失败）。
 
-- [ ] **Step 10.4: 人工验证清单（`./start.sh --dev`，逐项截图留证）**
+- [x] **Step 10.4: 人工验证清单（`./start.sh --dev`，逐项截图留证）**
 
 | # | 场景 | 预期 |
 |---|------|------|
@@ -1106,7 +1108,7 @@ cd web && node scripts/verify-streaming-split.ts
 | 9 | 回归 | 历史会话加载、审批流、WELCOME 消息、斜杠命令、token 用量条、文件上传附件均正常 |
 | 10 | 光标视觉 | 呼吸动画（1.2s ease-in-out）平滑，无硬切闪烁；截图确认光标位于最后一段文字后 |
 
-- [ ] **Step 10.5: 工作区检查**
+- [x] **Step 10.5: 工作区检查**
 
 ```bash
 git status
