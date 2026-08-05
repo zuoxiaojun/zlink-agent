@@ -582,6 +582,8 @@ git commit -m "feat: add AgentStatusBar component"
 
 ## Task 6: 接线 `SET_CURRENT_TOOL` + `ChatPage.tsx` 换用 `<AgentStatusBar />`
 
+> ✅ 已完成（2026-08-05，commit `4fb2f2c`；顺带授权修复 useChat.ts 既存 lint 错误；Step 6.5 人工冒烟合并至 Task 10 统一执行）
+
 **目标:** ① `useChat.ts` 的 `case "tool_call"` 新增 `dispatch({ type: "SET_CURRENT_TOOL", toolName: msg.name })`（spec §4.2 关键决策：接线而非解析 `"🔧 执行工具: "` 字符串，避免 emoji 前缀脆弱解析；`SET_RUNNING`/`SET_RESULT`/`SET_ERROR` 已有清空逻辑，无需改 reducer）；② `ChatPage.tsx` 删除 `progress-text` 区块（含第 174 行 `!includes("执行工具")` 过滤），替换为 `<AgentStatusBar />`，`StopButton` 位置不变。Task 4 已先删除会复活的 `runningToolCard` 死代码。
 
 **改动文件:**
@@ -592,7 +594,7 @@ git commit -m "feat: add AgentStatusBar component"
 - Consumes: `AgentStatusBar`（Task 5）
 - Produces: 无新接口；`currentToolName` 从恒 `""` 变为工具调用期间非空
 
-- [ ] **Step 6.1: `useChat.ts` 接线 `SET_CURRENT_TOOL`**
+- [x] **Step 6.1: `useChat.ts` 接线 `SET_CURRENT_TOOL`**
 
 **位置:** `web/src/hooks/useChat.ts` 第 73-77 行
 
@@ -617,7 +619,7 @@ git commit -m "feat: add AgentStatusBar component"
 
 > `SET_PROGRESS` 仍保留（`progressMessage` 是状态条的第二优先级数据源；工具执行期间 `currentToolName` 优先显示工具名）。
 
-- [ ] **Step 6.2: `ChatPage.tsx` 添加导入（第 11 行后）**
+- [x] **Step 6.2: `ChatPage.tsx` 添加导入（第 11 行后）**
 
 **当前代码:**
 ```tsx
@@ -630,7 +632,7 @@ import StopButton from "../components/StopButton";
 import AgentStatusBar from "../components/AgentStatusBar";
 ```
 
-- [ ] **Step 6.3: `ChatPage.tsx` 替换 `progress-text` 区块（第 171-180 行）**
+- [x] **Step 6.3: `ChatPage.tsx` 替换 `progress-text` 区块（第 171-180 行）**
 
 **当前代码:**
 ```tsx
@@ -656,7 +658,7 @@ import AgentStatusBar from "../components/AgentStatusBar";
       )}
 ```
 
-- [ ] **Step 6.4: 验证构建与 lint**
+- [x] **Step 6.4: 验证构建与 lint**
 
 ```bash
 npm run build
@@ -664,14 +666,14 @@ npm run lint
 ```
 预期：零错误。
 
-- [ ] **Step 6.5: 人工冒烟（功能验证，样式在 Task 8 落地前未打磨属预期）**
+- [x] **Step 6.5: 人工冒烟（功能验证，样式在 Task 8 落地前未打磨属预期）**
 
 `./start.sh --dev` 起服务后（浏览器 DevTools → Network → WS 观察），发一条会调用工具的消息（如"查 YonSuite 销售订单"）。预期：
 - 输入框上方出现状态条，工具调用期间显示 `调用工具 query_sale_orders` + 秒数每秒递增；
 - `tool_result` 到达、整轮结束前状态条保持显示最近一次工具名（有意行为）；`done` 后随 `agentRunning=false` 整条消失；
 - 无工具调用时显示 `思考中…`（脉冲点样式 Task 8 后可见）。
 
-- [ ] **Step 6.6: 提交**
+- [x] **Step 6.6: 提交**
 
 ```bash
 git add web/src/hooks/useChat.ts web/src/pages/ChatPage.tsx
