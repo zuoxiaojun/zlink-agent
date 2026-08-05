@@ -73,6 +73,7 @@ export function useChat(options?: UseChatOptions) {
           case "tool_call":
             // 收到后端发来的 tool_call 消息，立即插入 pending 工具卡片
             dispatch({ type: "SET_PROGRESS", message: `🔧 执行工具: ${msg.name}` });
+            dispatch({ type: "SET_CURRENT_TOOL", toolName: msg.name });
             dispatch({ type: "ADD_PENDING_TOOL", message: { role: "tool", content: msg.arguments, tool_call_id: "pending:" + msg.name } });
             break;
           case "progress":
@@ -81,7 +82,7 @@ export function useChat(options?: UseChatOptions) {
           case "tool_result":
             dispatch({ type: "REPLACE_PENDING_TOOL", name: msg.name, result: msg.result });
             break;
-          case "done":
+          case "done": {
             // 内联 flush：直接构建最终文本，避免 React 状态异步造成 streamingText 为空
             if (flushTimer !== null) {
               clearTimeout(flushTimer);
@@ -108,6 +109,7 @@ export function useChat(options?: UseChatOptions) {
             ws.close();
             wsRef.current = null;
             break;
+          }
           case "approval_request":
             onApprovalRequestRef.current?.(msg.payload);
             break;

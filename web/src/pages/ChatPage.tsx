@@ -9,6 +9,7 @@ import ChatInput from "../components/ChatInput";
 import ApprovalCard from "../components/ApprovalCard";
 import type { Message, SessionDetail, ApprovalState } from "../types";
 import StopButton from "../components/StopButton";
+import AgentStatusBar from "../components/AgentStatusBar";
 
 export default function ChatPage() {
   const { state, dispatch } = useAppState();
@@ -171,11 +172,7 @@ export default function ChatPage() {
       {state.agentRunning && (
         <>
           <StopButton onStop={stopAgent} />
-          {state.progressMessage && !state.progressMessage.includes("执行工具") && (
-            <div className="progress-text" style={{ paddingBottom: "4px" }}>
-              {state.progressMessage}
-            </div>
-          )}
+          <AgentStatusBar />
         </>
       )}
 
