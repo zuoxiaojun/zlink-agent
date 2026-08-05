@@ -263,7 +263,9 @@ git commit -m "feat: add streaming markdown split algorithm with edge-case verif
 
 ---
 
-## Task 3: `components/StreamingMarkdown.tsx` — 切分渲染组件
+## Task 3: `components/StreamingMarkdown.tsx`
+
+> ✅ 已完成（2026-08-05，commit `9032568`） — 切分渲染组件
 
 **目标:** 新增流式专用渲染组件：`useMemo` 调 `splitStreamingText` 切分为 `closed`（冻结块）+ `tail`（实时块），两个容器分别用共享 memoized `Markdown` 渲染。props 仅 `text`；`closed` 字符串不变时 React.memo 浅比较跳过整段重解析，每 50ms flush 只重解析 tail。
 
@@ -274,7 +276,7 @@ git commit -m "feat: add streaming markdown split algorithm with edge-case verif
 - Consumes: `Markdown`（Task 1 导出，`{ text: string }`）；`splitStreamingText`（Task 2 导出，`(text: string) => StreamingSplit`）
 - Produces: `default function StreamingMarkdown({ text }: { text: string })`，渲染 `.streaming-split > .streaming-closed + .streaming-tail` —— Task 4 消费；CSS 类名 `.streaming-split` / `.streaming-closed` / `.streaming-tail` 被 Task 8 的光标规则引用
 
-- [ ] **Step 3.1: 创建 `web/src/components/StreamingMarkdown.tsx`**
+- [x] **Step 3.1: 创建 `web/src/components/StreamingMarkdown.tsx`**
 
 ```tsx
 import { useMemo } from "react";
@@ -302,7 +304,7 @@ export default function StreamingMarkdown({ text }: { text: string }) {
 
 > 说明：spec §4.1 伪代码中的 `MemoizedMarkdown` 由 Task 1 导出的 memoized `Markdown` 直接承担（`Markdown` 本身已 `React.memo` 且 props 仅 `text` 字符串，浅比较即值比较），无需在组件内再包一层——"单一导出点、共用同一实例配置"（spec §7 风险表）由 `MessageContent.tsx` 导出保证。不存在循环导入：`MessageContent` 不引用本组件。
 
-- [ ] **Step 3.2: 验证构建与 lint**
+- [x] **Step 3.2: 验证构建与 lint**
 
 ```bash
 npm run build
@@ -310,7 +312,7 @@ npm run lint
 ```
 预期：零错误。
 
-- [ ] **Step 3.3: 提交**
+- [x] **Step 3.3: 提交**
 
 ```bash
 git add web/src/components/StreamingMarkdown.tsx
