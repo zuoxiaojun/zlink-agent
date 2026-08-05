@@ -1,5 +1,21 @@
 # Changelog
 
+## v1.8.1 — 2026-08-05 (对话流式输出界面优化)
+
+**范围**: Web 前端对话页流式渲染体验优化与样式清理（纯前端，无后端/协议改动）。
+
+### 改动
+
+- **流式渲染防闪烁** (`web/src/components/StreamingMarkdown.tsx`, `web/src/utils/streamingSplit.ts`, `MessageContent.tsx`, `ChatMessage.tsx`): 流式文本按"已闭合块 + 尾部实时块"切分，闭合块 memo 冻结不再重复解析，长回复时消除代码块/表格中途跳变并降低 CPU 占用；附 16 条边界断言验证脚本 (`web/scripts/verify-streaming-split.ts`)
+- **Agent 状态条** (`web/src/components/AgentStatusBar.tsx`, `useChat.ts`, `ChatPage.tsx`): 输入框上方新增状态条，显示当前阶段（思考中/调用工具/progress 消息）+ mm:ss 耗时 + 脉冲动画，替换原灰色 progress 小字；接线了从未 dispatch 的 `SET_CURRENT_TOOL` 并删除 `ChatMessage` 中的死代码 `runningToolCard`
+- **滚动跟随节流** (`ChatPage.tsx`, `global.css`): setTimeout 直赋改 requestAnimationFrame 节流；移除 `.chat-messages` 的 `scroll-behavior: smooth` 消除流式顿挫（smooth 仅保留"回到底部"按钮）
+- **视觉细节** (`global.css`): 流式光标改呼吸辉光动画（限定 `.streaming-tail` 作用域）；msg-in 动画微调；工具卡 running→完成增加背景/边框过渡
+
+### 修复
+
+- **重复 CSS 定义** (`global.css`): 删除重复的 `.tool-step-title-row` / `.tool-step-count` 第一处定义
+- **既存 lint 错误** (`useChat.ts`): `case "done"` 块加花括号，消除 `no-case-declarations`，lint 恢复全绿
+
 ## v1.8.0 — 2026-07-31 (桌面端冷启动优化：十几秒 → 1 秒级)
 
 **范围**: 打包版 Electron 桌面客户端冷启动从十几秒优化到 1 秒级（实测 0.8~1.8s，目标 ≤5s）。
