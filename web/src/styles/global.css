@@ -595,21 +595,6 @@ body {
   min-width: 0;
   flex: 1;
 }
-.tool-step-title-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.tool-step-count {
-  font-size: 10px;
-  color: var(--text-3);
-  background: var(--bg-hover);
-  padding: 0 5px;
-  border-radius: 3px;
-  line-height: 1.6;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
 .tool-step-icon {
   width: 28px;
   height: 28px;
