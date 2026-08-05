@@ -494,6 +494,8 @@ git commit -m "refactor: use StreamingMarkdown during streaming and drop dead ru
 
 ## Task 5: `components/AgentStatusBar.tsx` — Agent 状态条组件
 
+> ✅ 已完成（2026-08-05，commit `681e766`；偏差：`IconWrench`→`IconTool`（依赖版本无此图标）、effect 内 setElapsed(0) 改为派生值 displayElapsed（过 lint））
+
 **目标:** 新增状态条组件：优先级 `currentToolName`（工具图标 + `调用工具 <名>`）> `progressMessage`（原文）> `思考中…`（脉冲点）；`useEffect` 依赖 `[state.agentRunning]` 自持已耗时（`setInterval` 每秒推进，从 `Date.now()` 起始点计算避免累加漂移；false 时清零），`mm:ss` 展示。
 
 **改动文件:**
@@ -503,7 +505,7 @@ git commit -m "refactor: use StreamingMarkdown during streaming and drop dead ru
 - Consumes: `useAppState()`（`AppContext.tsx:202`，返回 `{ state, dispatch }`）；`state.currentToolName` / `state.progressMessage` / `state.agentRunning`
 - Produces: `default function AgentStatusBar()`，渲染 `.agent-status-bar`（`role="status"` `aria-live="polite"`）> `.agent-status-icon` + `.agent-status-label` + `.agent-status-elapsed` —— Task 6 消费；这些类名被 Task 8 样式引用
 
-- [ ] **Step 5.1: 创建 `web/src/components/AgentStatusBar.tsx`**
+- [x] **Step 5.1: 创建 `web/src/components/AgentStatusBar.tsx`**
 
 ```tsx
 import { useEffect, useState } from "react";
@@ -561,7 +563,7 @@ export default function AgentStatusBar() {
 
 > 说明：样式（含 `.agent-status-dots` 脉冲动画复用现有 `think-bounce` keyframes）在 Task 8 落地，本任务先保证组件可编译。`tool_result` 到达、下一工具或 `done` 到来前 `currentToolName` 保持最近一次工具名（`SET_RESULT`/`SET_RUNNING` 才清空，见 `AppContext.tsx:107/169/182`）——spec §4.2 明确这是有意保留的行为；`done` 后随 `agentRunning=false` 整条消失。
 
-- [ ] **Step 5.2: 验证构建与 lint**
+- [x] **Step 5.2: 验证构建与 lint**
 
 ```bash
 npm run build
@@ -569,7 +571,7 @@ npm run lint
 ```
 预期：零错误。
 
-- [ ] **Step 5.3: 提交**
+- [x] **Step 5.3: 提交**
 
 ```bash
 git add web/src/components/AgentStatusBar.tsx
