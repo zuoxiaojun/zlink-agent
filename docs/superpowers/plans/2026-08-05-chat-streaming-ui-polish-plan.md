@@ -777,6 +777,8 @@ git commit -m "perf: throttle auto-scroll with requestAnimationFrame"
 
 ## Task 8: `global.css` 视觉细节 — 光标呼吸 / msg-in / 工具卡过渡 / 状态条样式 / 删 `.progress-text`
 
+> ✅ 已完成（2026-08-05，commit `a97a67e`；Step 8.8 人工截图合并至 Task 10）
+
 **目标:** 按 spec §4.4/§4.5 落地视觉细节，全部复用 `:root` 现有变量，不新增变量/颜色。
 
 **改动文件:**
@@ -786,7 +788,7 @@ git commit -m "perf: throttle auto-scroll with requestAnimationFrame"
 - Consumes: `.streaming-split` / `.streaming-closed` / `.streaming-tail`（Task 3 输出）；`.agent-status-bar` / `.agent-status-icon` / `.agent-status-label` / `.agent-status-elapsed` / `.agent-status-dots`（Task 5 输出）
 - Produces: 无新接口
 
-- [ ] **Step 8.1: `msg-in` 微调（第 307、310-313 行）**
+- [x] **Step 8.1: `msg-in` 微调（第 307、310-313 行）**
 
 **当前代码:**
 ```css
@@ -812,7 +814,7 @@ git commit -m "perf: throttle auto-scroll with requestAnimationFrame"
 }
 ```
 
-- [ ] **Step 8.2: `.tool-step` 过渡扩展（第 561-568 行，整块替换以保证 old-string 唯一——`transition: box-shadow 0.2s` 在文件中另有 1191/1490 两处出现）**
+- [x] **Step 8.2: `.tool-step` 过渡扩展（第 561-568 行，整块替换以保证 old-string 唯一——`transition: box-shadow 0.2s` 在文件中另有 1191/1490 两处出现）**
 
 **当前代码:**
 ```css
@@ -837,7 +839,7 @@ git commit -m "perf: throttle auto-scroll with requestAnimationFrame"
 }
 ```
 
-- [ ] **Step 8.3: `.tool-step-icon` 新增过渡（第 614-623 行）**
+- [x] **Step 8.3: `.tool-step-icon` 新增过渡（第 614-623 行）**
 
 **当前代码:**
 ```css
@@ -867,7 +869,7 @@ git commit -m "perf: throttle auto-scroll with requestAnimationFrame"
 }
 ```
 
-- [ ] **Step 8.4: 光标改呼吸 + 作用域限定 tail + 冻结块段间距修复（第 784-798 行）**
+- [x] **Step 8.4: 光标改呼吸 + 作用域限定 tail + 冻结块段间距修复（第 784-798 行）**
 
 **当前代码:**
 ```css
@@ -915,7 +917,7 @@ git commit -m "perf: throttle auto-scroll with requestAnimationFrame"
 
 > 说明：原 `.streaming-text p:last-child::after` 在双容器下会出现双光标，新选择器只匹配 tail 的最后一个 `p`；tail 恒非空（最后一段永不闭合）保证光标持续存在。`.msg-bubble p` 的 `margin: 0 0 6px` 依然作用于两个容器内所有 p；但 `.msg-bubble p:last-child { margin-bottom: 0 }` 会把冻结块的末段下边距清零，导致与 tail 首段粘连，故补一条 `.streaming-closed p:last-child` 规则恢复 6px。
 
-- [ ] **Step 8.5: 新增 `.agent-status-bar` 系列样式（追加到 Streaming indicator 分区，紧跟 Step 8.4 的光标块之后）**
+- [x] **Step 8.5: 新增 `.agent-status-bar` 系列样式（追加到 Streaming indicator 分区，紧跟 Step 8.4 的光标块之后）**
 
 ```css
 /* ── Agent status bar ─────────────────────────────────── */
@@ -960,7 +962,7 @@ git commit -m "perf: throttle auto-scroll with requestAnimationFrame"
 
 > 脉冲点动画复用现有 `think-bounce` keyframes（第 817-820 行），不新增 keyframes、不新增颜色。
 
-- [ ] **Step 8.6: 删除孤儿 `.progress-text`（第 1049-1055 行）**
+- [x] **Step 8.6: 删除孤儿 `.progress-text`（第 1049-1055 行）**
 
 **当前代码:**
 ```css
@@ -980,7 +982,7 @@ git commit -m "perf: throttle auto-scroll with requestAnimationFrame"
 /* ── Token usage footer ──────────────────────────────── */
 ```
 
-- [ ] **Step 8.7: 验证构建与 lint**
+- [x] **Step 8.7: 验证构建与 lint**
 
 ```bash
 npm run build
@@ -988,7 +990,7 @@ npm run lint
 ```
 预期：零错误（CSS 不参与 tsc，lint 通过即可）。
 
-- [ ] **Step 8.8: 人工截图核验（本轮视觉验收）**
+- [x] **Step 8.8: 人工截图核验（本轮视觉验收）**
 
 `./start.sh --dev` 下逐项截图留证：
 - 流式输出最后一段文字后出现呼吸光标（1.2s ease-in-out，无硬切闪烁）；冻结块末尾无光标（单光标）；
@@ -996,7 +998,7 @@ npm run lint
 - 工具卡 running→完成切换时图标容器背景 `--primary-bg`→`--success-bg` 平滑过渡；
 - 状态条图标/文字/耗时布局正常，脉冲点在"思考中"时跳动。
 
-- [ ] **Step 8.9: 提交**
+- [x] **Step 8.9: 提交**
 
 ```bash
 git add web/src/styles/global.css
