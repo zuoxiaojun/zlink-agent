@@ -77,15 +77,14 @@ export default function ChatPage() {
   }, [state.currentSessionId, searchParams, setSearchParams]);
 
   useEffect(() => {
-    if (!userScrolledUp.current && scrollRef.current) {
-      const el = scrollRef.current;
-      // 使用 setTimeout 代替 requestAnimationFrame，确保在 DOM 更新后执行
-      setTimeout(() => {
-        if (el) {
-          el.scrollTop = el.scrollHeight;
-        }
-      }, 0);
-    }
+    if (userScrolledUp.current || !scrollRef.current) return;
+    const el = scrollRef.current;
+    const rafId = requestAnimationFrame(() => {
+      if (!userScrolledUp.current) {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+    return () => cancelAnimationFrame(rafId);
   }, [state.messages, state.streamingText]);
 
   const handleScroll = () => {
