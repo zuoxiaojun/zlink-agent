@@ -42,6 +42,8 @@
 
 ## Task 1: `MessageContent.tsx` — 导出共享 memoized `Markdown` 组件
 
+> ✅ 已完成（2026-08-05，commit `b971d15`）
+
 **目标:** 把 `MessageContent.tsx:10-17` 的 `markdownComponents` 与插件配置（`remarkGfm` + `rehypeHighlight`）抽成可导出的 memoized `Markdown` 组件（props 仅 `text: string`，`React.memo` 浅比较），供 `StreamingMarkdown` 复用；`MessageContent` 的渲染行为保持不变。
 
 **改动文件:**
@@ -51,7 +53,7 @@
 - Consumes: 现有 `CodeBlock`、`Components`、`remarkGfm`、`rehypeHighlight` 导入（已存在）
 - Produces: `export const Markdown: React.MemoExoticComponent<(props: { text: string }) => ReactElement>` —— Task 3 直接消费
 
-- [ ] **Step 1.1: 修改 `MessageContent.tsx`**
+- [x] **Step 1.1: 修改 `MessageContent.tsx`**
 
 **位置:** 文件全文（50 行）。当前代码（第 19-48 行）:
 
@@ -131,7 +133,7 @@ export default memo(MessageContent);
 
 > 说明：数组分支（`ContentPart[]`）保持原样，`markdownComponents` 仍被它引用，不会产生未用变量；该分支继续直接使用 `ReactMarkdown`，输出与修改前逐字节一致。文件头部导入无需改动（`memo`、`ReactMarkdown`、`Components`、`remarkGfm`、`rehypeHighlight`、`CodeBlock`、`Message` 全部仍被使用）。
 
-- [ ] **Step 1.2: 验证构建与 lint**
+- [x] **Step 1.2: 验证构建与 lint**
 
 运行（工作目录 `web/`）:
 ```bash
@@ -140,7 +142,7 @@ npm run lint
 ```
 预期：`tsc -b && vite build` 零错误（出现 `built in` 输出与 `vite build` 完成信息）；`npm run lint` 输出无 error、无 warning。
 
-- [ ] **Step 1.3: 提交**
+- [x] **Step 1.3: 提交**（已完成：`b971d15`）
 
 ```bash
 git add web/src/components/MessageContent.tsx
