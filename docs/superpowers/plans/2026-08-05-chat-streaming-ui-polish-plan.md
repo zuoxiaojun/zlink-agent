@@ -323,6 +323,8 @@ git commit -m "feat: add StreamingMarkdown split-rendering component"
 
 ## Task 4: `ChatMessage.tsx` — 流式分支换 `StreamingMarkdown` + 删除死代码 `runningToolCard`
 
+> ✅ 已完成（2026-08-05，commit `125916b`）
+
 **目标:** ① `isStreaming` 分支（原第 60-62 行）改渲染 `<StreamingMarkdown text={msg.content} />`（仅当 `typeof content === "string"`，满足 TS 收窄）；② 删除死代码 `runningToolCard`（原第 8-17/95/109-131/150 行相关片段）——它在 `currentToolName` 恒空时不可达，Task 6 接线 `SET_CURRENT_TOOL` 后必与 `ADD_PENDING_TOOL` 插入的 pending 卡重复渲染，故必须在本任务删干净（`noUnusedLocals` 会强制验证）。
 
 **改动文件:**
@@ -332,7 +334,7 @@ git commit -m "feat: add StreamingMarkdown split-rendering component"
 - Consumes: `StreamingMarkdown`（Task 3）
 - Produces: 无新接口；删除 `AssistantGroupContent` 的 `runningToolCard` prop（Task 6 不依赖它）
 
-- [ ] **Step 4.1: 修改导入（原第 3-6 行）**
+- [x] **Step 4.1: 修改导入（原第 3-6 行）**
 
 **当前代码:**
 ```tsx
@@ -350,7 +352,7 @@ import StreamingMarkdown from "./StreamingMarkdown";
 import ToolStepCard from "./ToolStepCard";
 ```
 
-- [ ] **Step 4.2: 删除 `AssistantGroupContent` 的 `runningToolCard` prop（原第 8-17 行）**
+- [x] **Step 4.2: 删除 `AssistantGroupContent` 的 `runningToolCard` prop（原第 8-17 行）**
 
 **当前代码:**
 ```tsx
@@ -380,7 +382,7 @@ function AssistantGroupContent({
 }) {
 ```
 
-- [ ] **Step 4.3: 删除渲染尾部 `{runningToolCard}`（原第 95 行）**
+- [x] **Step 4.3: 删除渲染尾部 `{runningToolCard}`（原第 95 行）**
 
 **当前代码:**
 ```tsx
@@ -399,7 +401,7 @@ function AssistantGroupContent({
 }
 ```
 
-- [ ] **Step 4.4: 流式分支换 `StreamingMarkdown`（原第 59-63 行）**
+- [x] **Step 4.4: 流式分支换 `StreamingMarkdown`（原第 59-63 行）**
 
 **当前代码:**
 ```tsx
@@ -425,7 +427,7 @@ function AssistantGroupContent({
 
 > `thinking-indicator` 分支与其余代码不变。`MessageContent` 仍被非流式分支与用户消息分支使用，导入保留。
 
-- [ ] **Step 4.5: 删除 `useAppState`/`showRunning`/`runningToolCard` 定义（原第 109-131 行）**
+- [x] **Step 4.5: 删除 `useAppState`/`showRunning`/`runningToolCard` 定义（原第 109-131 行）**
 
 **当前代码:**
 ```tsx
@@ -461,7 +463,7 @@ function AssistantGroupContent({
   const first = msgs[0];
 ```
 
-- [ ] **Step 4.6: 删除 `runningToolCard` 透传（原第 150 行）**
+- [x] **Step 4.6: 删除 `runningToolCard` 透传（原第 150 行）**
 
 **当前代码:**
 ```tsx
@@ -473,7 +475,7 @@ function AssistantGroupContent({
       <AssistantGroupContent msgs={msgs} streaming={streaming} onChoiceSelect={onChoiceSelect} />
 ```
 
-- [ ] **Step 4.7: 验证构建与 lint**
+- [x] **Step 4.7: 验证构建与 lint**
 
 ```bash
 npm run build
@@ -481,7 +483,7 @@ npm run lint
 ```
 预期：零错误（`streaming` prop 仍被 `isStreaming` 使用；若残留 `state`/`runningToolCard` 等未用变量，`noUnusedLocals` 会报错）。
 
-- [ ] **Step 4.8: 提交**
+- [x] **Step 4.8: 提交**
 
 ```bash
 git add web/src/components/ChatMessage.tsx
