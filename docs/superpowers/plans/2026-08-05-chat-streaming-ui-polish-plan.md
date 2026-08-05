@@ -153,6 +153,8 @@ git commit -m "refactor: extract shared memoized Markdown component from Message
 
 ## Task 2: `utils/streamingSplit.ts` — 切分算法 + 独立验证脚本
 
+> ✅ 已完成（2026-08-05，commit `020edcc`）
+
 **目标:** 实现 spec §4.1 的 `splitStreamingText(text): {closed, tail}` 纯函数（`\n\n` 分段 + 反引号奇偶游标 + 缩进/列表续行合并，**最后一段永不闭合**，闭合判定依赖下一段）。独立成纯 TS 文件，配合 `web/scripts/verify-streaming-split.ts` 用 Node 26 原生 TS 执行做自动化断言（16 条边界用例，全部已在本计划编写时预跑验证通过）。
 
 **改动文件:**
@@ -163,7 +165,7 @@ git commit -m "refactor: extract shared memoized Markdown component from Message
 - Consumes: 无
 - Produces: `splitStreamingText(text: string): StreamingSplit`，`StreamingSplit = { closed: string; tail: string }` —— Task 3 消费
 
-- [ ] **Step 2.1: 创建 `web/src/utils/streamingSplit.ts`**
+- [x] **Step 2.1: 创建 `web/src/utils/streamingSplit.ts`**
 
 ```ts
 export interface StreamingSplit {
@@ -198,7 +200,7 @@ export function splitStreamingText(text: string): StreamingSplit {
 
 > 算法说明（与 spec §4.1 规则逐条对应）：`lastClosable` 取**最后一个**可闭合下标而非"遇首个不可闭合即 break"——这样才能满足 spec 边界表"闭合 ``` 到来才整体冻结"（围栏段在 fence 未闭合时不可闭合但**不终止扫描**）与"列表遇到非列表段才整体冻结"（连续列表项合并为一块，扫描跳过，到块末才判定）。已冻结前缀单调增长：每个 segment 的判定只依赖它与下一段，追加新段不改旧判定，`closed` 只增不减——这是 memo 跳过的正确性前提。16 条断言已预跑全 PASS（见 Step 2.3 预期输出）。
 
-- [ ] **Step 2.2: 创建 `web/scripts/verify-streaming-split.ts`**
+- [x] **Step 2.2: 创建 `web/scripts/verify-streaming-split.ts`**
 
 ```ts
 // splitStreamingText 独立验证脚本（项目无前端测试框架，Node >= 23.6 原生执行 .ts）
@@ -236,7 +238,7 @@ check("p1\n\np2\n\n```python\n\ncode", "p1\n\np2", "```python\n\ncode", "paragra
 console.log("Done");
 ```
 
-- [ ] **Step 2.3: 运行验证脚本**
+- [x] **Step 2.3: 运行验证脚本**
 
 运行（工作目录 `web/`）:
 ```bash
@@ -244,7 +246,7 @@ node scripts/verify-streaming-split.ts
 ```
 预期：16 行 `PASS ...` + 最后一行 `Done`，进程退出码 0（断言失败会抛异常，退出码非 0 并打印 `FAIL` 行）。
 
-- [ ] **Step 2.4: 验证构建与 lint**
+- [x] **Step 2.4: 验证构建与 lint**
 
 ```bash
 npm run build
@@ -252,7 +254,7 @@ npm run lint
 ```
 预期：零错误。`tsconfig.app.json` 的 `include` 仅含 `src`，`scripts/` 不参与 tsc；eslint 会检查 `scripts/verify-streaming-split.ts`，须零 error/warning（脚本未引用 `process`/`window` 等非浏览器全局，使用 throw 而非 exitCode 就是为了通过 lint）。
 
-- [ ] **Step 2.5: 提交**
+- [x] **Step 2.5: 提交**
 
 ```bash
 git add web/src/utils/streamingSplit.ts web/scripts/verify-streaming-split.ts
