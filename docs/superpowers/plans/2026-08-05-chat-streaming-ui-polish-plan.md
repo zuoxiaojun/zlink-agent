@@ -684,6 +684,8 @@ git commit -m "feat: wire current tool name and replace progress-text with Agent
 
 ## Task 7: `ChatPage.tsx` 自动滚动改 rAF 节流 + 移除 `.chat-messages` smooth
 
+> ✅ 已完成（2026-08-05，commit `e5fd587`）
+
 **目标:** 滚动 effect（原第 78-88 行）从 `setTimeout(0)` 直赋改为 `requestAnimationFrame` 节流；同时移除 `global.css:289` `.chat-messages` 的 `scroll-behavior: smooth`——若不移除，CSS 平滑会让 rAF 里的 `scrollTop` 直赋仍触发平滑动画，逐 token 动画重启恰是顿挫源，与 spec §4.3 "流式跟随滚动始终用 scrollTop 直赋（不累积 smooth 动画队列）" 直接冲突；"回到底部"按钮显式 `behavior: "smooth"`（第 150 行）不受影响，smooth 仅保留给用户触发。
 
 **改动文件:**
@@ -694,7 +696,7 @@ git commit -m "feat: wire current tool name and replace progress-text with Agent
 - Consumes: `scrollRef`（`ChatPage.tsx:22`）、`userScrolledUp`（第 23 行 ref，`handleScroll` 第 90-96 行维持不变）
 - Produces: 无新接口
 
-- [ ] **Step 7.1: `ChatPage.tsx` 滚动 effect 改 rAF**
+- [x] **Step 7.1: `ChatPage.tsx` 滚动 effect 改 rAF**
 
 **位置:** `web/src/pages/ChatPage.tsx` 第 78-88 行
 
@@ -729,7 +731,7 @@ git commit -m "feat: wire current tool name and replace progress-text with Agent
 
 > **spec 伪代码勘误**：spec §4.3 给出的外层守卫 `if (!userScrolledUp.current || ...) return;` 与现状语义（在底部才跟随滚动）及 rAF 内层二次校验（`!userScrolledUp.current` 才滚）矛盾，属笔误。本计划按意图修正为 `if (userScrolledUp.current || !scrollRef.current) return;`。rAF 合并多次 flush 的滚动到同一帧（约 60Hz 节流）；effect 在 React commit 后运行、rAF 回调在绘制前执行，DOM 已就绪；`userScrolledUp` 在 rAF 回调内二次校验（帧内用户可能上滚）。依赖数组与现状一致，不触发 eslint exhaustive-deps。
 
-- [ ] **Step 7.2: 移除 `.chat-messages` 的 `scroll-behavior: smooth`**
+- [x] **Step 7.2: 移除 `.chat-messages` 的 `scroll-behavior: smooth`**
 
 **位置:** `web/src/styles/global.css` 第 285-290 行
 
@@ -752,7 +754,7 @@ git commit -m "feat: wire current tool name and replace progress-text with Agent
 }
 ```
 
-- [ ] **Step 7.3: 验证构建与 lint**
+- [x] **Step 7.3: 验证构建与 lint**
 
 ```bash
 npm run build
@@ -760,11 +762,11 @@ npm run lint
 ```
 预期：零错误。
 
-- [ ] **Step 7.4: 人工冒烟（滚动行为）**
+- [x] **Step 7.4: 人工冒烟（滚动行为）**
 
 `./start.sh --dev` 下：流式输出时页面跟随滚动流畅无逐 token 顿挫（可对比改动前）；用户上滚超过 150px 后不再被抢滚，"回到底部"按钮出现，点击后 smooth 回底；继续流式输出不再劫持滚动。
 
-- [ ] **Step 7.5: 提交**
+- [x] **Step 7.5: 提交**
 
 ```bash
 git add web/src/pages/ChatPage.tsx web/src/styles/global.css
