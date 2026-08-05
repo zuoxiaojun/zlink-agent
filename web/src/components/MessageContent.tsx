@@ -16,17 +16,21 @@ const markdownComponents: Components = {
   ),
 };
 
+export const Markdown = memo(function Markdown({ text }: { text: string }) {
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      rehypePlugins={[rehypeHighlight]}
+      components={markdownComponents}
+    >
+      {text}
+    </ReactMarkdown>
+  );
+});
+
 function MessageContent({ content }: { content: Message["content"] }) {
   if (typeof content === "string") {
-    return (
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
-        components={markdownComponents}
-      >
-        {content}
-      </ReactMarkdown>
-    );
+    return <Markdown text={content} />;
   }
   if (Array.isArray(content)) {
     return content.map((part, i) =>
