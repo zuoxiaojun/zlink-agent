@@ -2,18 +2,16 @@ import { IconRobot, IconUser, IconBolt, IconChartBar } from "@tabler/icons-react
 import type { Message, ToolCall } from "../types";
 import MessageContent from "./MessageContent";
 import ReasoningBlock from "./ReasoningBlock";
+import StreamingMarkdown from "./StreamingMarkdown";
 import ToolStepCard from "./ToolStepCard";
-import { useAppState } from "../context/AppContext";
 
 function AssistantGroupContent({
   msgs,
   streaming,
-  runningToolCard,
   onChoiceSelect,
 }: {
   msgs: Message[];
   streaming?: boolean;
-  runningToolCard?: React.ReactNode;
   onChoiceSelect?: (text: string) => void;
 }) {
   const pending: ToolCall[] = [];
@@ -58,7 +56,11 @@ function AssistantGroupContent({
               )}
               {hasContent ? (
                 <div className={`msg-bubble${isStreaming ? " streaming-text" : ""}`}>
-                  <MessageContent content={msg.content} />
+                  {isStreaming && typeof msg.content === "string" ? (
+                    <StreamingMarkdown text={msg.content} />
+                  ) : (
+                    <MessageContent content={msg.content} />
+                  )}
                 </div>
               ) : isStreaming ? (
                 <div className="msg-bubble">
@@ -92,7 +94,6 @@ function AssistantGroupContent({
             ))}
         </div>
       )}
-      {runningToolCard}
     </div>
   );
 }
@@ -106,30 +107,6 @@ export default function ChatMessage({
   streaming?: boolean;
   onChoiceSelect?: (text: string) => void;
 }) {
-  const { state } = useAppState();
-  // 只在流式进行中且当前有工具时显示运行中卡片
-  const showRunning = streaming && state.currentToolName ? true : false;
-
-  const runningToolCard = showRunning ? (
-    <div className="tool-step-group">
-      <div className="tool-step tool-step-running">
-        <div className="tool-step-header" style={{ cursor: 'default' }}>
-          <div className="tool-step-header-left">
-            <div className="tool-step-icon">
-              <div className="tool-step-spinner" />
-            </div>
-            <div className="tool-step-header-text">
-              <div className="tool-step-title-row">
-                <span className="tool-step-name">{state.currentToolName}</span>
-              </div>
-              <div className="tool-step-desc">正在执行…</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  ) : null;
-
   const first = msgs[0];
   if (first.role === "user") {
     return (
@@ -147,7 +124,7 @@ export default function ChatMessage({
   return (
     <div className="msg-row assistant">
       <div className="msg-avatar"><IconRobot size={18} /></div>
-      <AssistantGroupContent msgs={msgs} streaming={streaming} runningToolCard={runningToolCard} onChoiceSelect={onChoiceSelect} />
+      <AssistantGroupContent msgs={msgs} streaming={streaming} onChoiceSelect={onChoiceSelect} />
     </div>
   );
 }
