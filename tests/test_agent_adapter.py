@@ -15,7 +15,7 @@ from agent.core.agent_adapter import AIAgent
 from agent.core.llm_client import LLMClient
 from agent.core.llm_providers.base import ToolCallPayload
 from agent.tools.registry import registry
-from tests.conftest import MockLLMProvider, make_text_response
+from tests.conftest import MockLLMProvider, make_text_response, make_tool_call_response
 
 
 @pytest.fixture(autouse=True)
@@ -377,6 +377,63 @@ class TestNewKernelPath:
         assert agent.agent.state.running is False
         assert agent.agent.state.pendingToolCalls == 0
         assert agent.phase == "idle"
+
+    def test_cancel_keeps_partial_streamed_content(self, monkeypatch):
+        import time
+
+        def _sleepy(args: dict) -> str:
+            time.sleep(0.5)
+            return json.dumps({"success": True})
+
+        registry.register(name="partial_sleepy", toolset="test", schema={"type": "object"}, handler=_sleepy)
+
+        class _StreamingProvider:
+            """First call streams chunks through stream_callback then returns a
+            tool-call response (content ""); the sleepy tool then blocks the run
+            so the test can cancel mid-run while _partial_response is populated."""
+
+            def __init__(self, inner):
+                self.inner = inner
+                self.first = True
+
+            def chat(self, **kwargs):
+                stream_cb = kwargs.get("stream_callback")
+                if self.first:
+                    self.first = False
+                    if stream_cb:
+                        stream_cb("streamed-")
+                        stream_cb("partial")
+                    return make_tool_call_response("partial_sleepy", {})
+                return self.inner.chat(**kwargs)
+
+        agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+        agent._llm = LLMClient(
+            api_key="sk-fake",
+            base_url="x",
+            provider=_StreamingProvider(MockLLMProvider()),
+        )
+
+        async def _scenario() -> dict:
+            task = asyncio.create_task(
+                agent.run_conversation_async(
+                    user_message="go",
+                    conversation_history=[],
+                    session_id="s1",
+                    stream_callback=lambda t: None,
+                )
+            )
+            await asyncio.sleep(0.1)
+            agent.cancel()
+            result = await task
+            await agent.agent.wait_idle()
+            return result
+
+        result = asyncio.run(_scenario())
+        assert result["final_response"] == ""
+        assert result["completed"] is False
+        assert result["error"] == "用户已手动停止"
+        contents = [m.get("content") for m in result["messages"]]
+        assert contents.count("streamed-partial") == 1
 
     def test_steer_injected_next_turn(self, monkeypatch):
         import threading

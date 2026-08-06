@@ -297,6 +297,7 @@ class AIAgent:
         self._reasoning_cb: Callable | None = None
         self._error: str | None = None
         self._final_response = ""
+        self._partial_response = ""
         self._api_calls = 0
         self._turn_count = 0
         self._retry_count = 0
@@ -538,6 +539,7 @@ class AIAgent:
         self._reasoning_cb = reasoning_callback
         self._error = None
         self._final_response = ""
+        self._partial_response = ""
         self._api_calls = 0
         self._turn_count = 0
         self._retry_count = 0
@@ -645,6 +647,8 @@ class AIAgent:
             except asyncio.CancelledError:
                 self._error = self._error or "用户已手动停止"
                 self._result_messages = list(self._agent.state.messages)
+                if self._partial_response:
+                    self._result_messages.append({"role": "assistant", "content": self._partial_response})
                 await self._agent._emit(AgentEnd(list(self._result_messages)))
             except Exception as e:  # noqa: BLE001 — Agent.handleRunFailure fallback
                 logger.exception("Agent run failed")
@@ -801,6 +805,7 @@ class AIAgent:
                 _loop: asyncio.AbstractEventLoop = loop,
             ) -> None:
                 _parts.append(chunk)
+                self._partial_response = "".join(_parts)
                 partial = {"role": "assistant", "content": "".join(_parts)}
                 asyncio.run_coroutine_threadsafe(
                     _safe_emit(MessageUpdate(message=partial, delta=chunk, reasoning_delta=None)),
