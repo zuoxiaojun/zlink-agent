@@ -662,6 +662,16 @@ body {
 .tool-step-error .tool-step-desc {
   color: var(--danger);
 }
+.tool-step-denied {
+  border-color: var(--warning);
+}
+.tool-step-denied .tool-step-icon {
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+.tool-step-denied .tool-step-desc {
+  color: var(--warning);
+}
 .tool-step-subtitle {
   padding: 0 14px 8px;
   margin-top: -4px;

@@ -60,7 +60,7 @@ export type AppAction =
   | { type: "SET_CURRENT_TOOL"; toolName: string }
   | { type: "SET_CURRENT_TOOL_ARGS"; args: string }
   | { type: "ADD_PENDING_TOOL"; message: Message }
-  | { type: "REPLACE_PENDING_TOOL"; name: string; result: string }
+  | { type: "REPLACE_PENDING_TOOL"; name: string; result: string; denied?: boolean }
   | { type: "SET_RESULT"; final_response: string; final_reasoning?: string; tokenUsage: TokenUsage | null; apiCalls: number; error: string | null; sessionId?: string; sessionTitle?: string }
   | { type: "SET_ERROR"; error: string }
   | { type: "CLEAR_STREAMING" }
@@ -138,7 +138,7 @@ function reducer(state: AppState, action: AppAction): AppState {
       }
       if (targetIdx < 0) return state;
       const msgs = [...state.messages];
-      msgs[targetIdx] = { ...msgs[targetIdx], content: action.result, _tool_done: true };
+      msgs[targetIdx] = { ...msgs[targetIdx], content: action.result, _tool_done: true, ...(action.denied ? { _denied: true } : {}) };
       return { ...state, messages: msgs };
     }
     case "SET_RESULT": {

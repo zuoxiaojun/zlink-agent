@@ -80,7 +80,7 @@ export function useChat(options?: UseChatOptions) {
             dispatch({ type: "SET_PROGRESS", message: msg.message });
             break;
           case "tool_result":
-            dispatch({ type: "REPLACE_PENDING_TOOL", name: msg.name, result: msg.result });
+            dispatch({ type: "REPLACE_PENDING_TOOL", name: msg.name, result: msg.result, denied: msg.denied });
             break;
           case "done": {
             // 内联 flush：直接构建最终文本，避免 React 状态异步造成 streamingText 为空

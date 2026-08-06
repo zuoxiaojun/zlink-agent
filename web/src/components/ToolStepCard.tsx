@@ -4,6 +4,7 @@ import {
   IconChevronRight,
   IconCircleCheck,
   IconAlertCircle,
+  IconAlertTriangle,
   IconPlayerPlay,
   IconClock,
 } from "@tabler/icons-react";
@@ -113,7 +114,8 @@ export default function ToolStepCard({ call, result, onChoiceSelect }: ToolStepC
   })();
   const raw = result && !isPendingTool && rawText.trim() ? rawText : "";
   const running = !result || isPendingTool;
-  const failed = !running && raw.trim() ? isErrorResult(raw) : false;
+  const denied = result?._denied === true;
+  const failed = !running && !denied && raw.trim() ? isErrorResult(raw) : false;
   // 如果是 pending 工具，从 tool_call_id 提取工具名，从 content 提取参数
   const effectiveCallName = isPendingTool && result ? (result.tool_call_id || "").replace(/^(running:|pending:)/, "") : call.function.name;
   const effectiveArgs = isPendingTool && result ? (typeof result.content === "string" ? result.content : "") : call.function.arguments;
@@ -147,17 +149,17 @@ export default function ToolStepCard({ call, result, onChoiceSelect }: ToolStepC
   }
 
   return (
-    <div className={`tool-step${running ? " tool-step-running" : ""}${failed ? " tool-step-error" : ""}`}>
+    <div className={`tool-step${running ? " tool-step-running" : ""}${denied ? " tool-step-denied" : ""}${failed ? " tool-step-error" : ""}`}>
       <button type="button" className="tool-step-header" onClick={running ? undefined : () => setOpen(!open)}>
         <div className="tool-step-header-left">
           <div className="tool-step-icon">
-            {running ? <div className="tool-step-spinner" /> : failed ? <IconAlertCircle size={16} /> : <IconCircleCheck size={16} />}
+            {running ? <div className="tool-step-spinner" /> : denied ? <IconAlertTriangle size={16} /> : failed ? <IconAlertCircle size={16} /> : <IconCircleCheck size={16} />}
           </div>
           <div className="tool-step-header-text">
             <div className="tool-step-title-row">
               <span className="tool-step-name">{displayName}</span>
             </div>
-            <div className="tool-step-desc">{running ? "正在执行…" : failed ? "执行失败" : "执行完成"}</div>
+            <div className="tool-step-desc">{running ? "正在执行…" : denied ? "已拒绝" : failed ? "执行失败" : "执行完成"}</div>
           </div>
         </div>
         {result && <div className="tool-step-header-right">{open ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}</div>}

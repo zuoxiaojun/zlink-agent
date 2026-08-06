@@ -402,9 +402,10 @@ async def _run_agent_new(
                 )
             )
         elif t == "tool_execution_end":
-            send_tasks.append(
-                asyncio.create_task(_send({"type": "tool_result", "name": event.tool_name, "result": event.result}))
-            )
+            payload: dict = {"type": "tool_result", "name": event.tool_name, "result": event.result}
+            if event.denied:
+                payload["denied"] = True
+            send_tasks.append(asyncio.create_task(_send(payload)))
         elif t == "turn_end" and event.tool_results:
             tool_no += 1
             send_tasks.append(

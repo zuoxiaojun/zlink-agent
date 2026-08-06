@@ -20,6 +20,7 @@ export interface Message {
   reasoning_content?: string;
   _agent_info?: AgentInfo;
   _tool_done?: boolean;  // 前端临时标记：工具已执行完成
+  _denied?: boolean;     // 前端临时标记：工具调用被用户拒绝
 }
 
 export interface ContentPart {
@@ -193,7 +194,7 @@ export type WsServerMessage =
   | { type: "token"; content: string }
   | { type: "reasoning_token"; content: string }
   | { type: "tool_call"; name: string; arguments: string }
-  | { type: "tool_result"; name: string; result: string }
+  | { type: "tool_result"; name: string; result: string; denied?: boolean }
   | { type: "progress"; message: string }
   | {
       type: "done";
