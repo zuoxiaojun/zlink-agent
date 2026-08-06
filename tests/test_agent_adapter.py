@@ -302,6 +302,45 @@ class TestNewKernelPath:
         assert len(spy.messages) == 2
         assert any(m.get("content", "").startswith("[上下文压缩摘要]") for m in spy.messages[1])
 
+    def test_compaction_phase_change_has_session_id(self, monkeypatch):
+        from agent.context_compactor import CompactionSettings
+        from agent.events.bus import event_bus
+        from agent.events.types import PhaseChangeEvent
+
+        long_user = "长" * 400  # ~333 tokens under the character heuristic
+
+        class _SpyProvider:
+            def __init__(self, inner):
+                self.inner = inner
+                self.messages: list[list[dict]] = []
+
+            def chat(self, **kwargs):
+                self.messages.append(list(kwargs.get("messages", [])))
+                return self.inner.chat(**kwargs)
+
+        inner = MockLLMProvider(responses=[make_text_response("summary"), make_text_response("ok")])
+        spy = _SpyProvider(inner)
+        agent = AIAgent(
+            api_key="sk-fake",
+            base_url="x",
+            model="gpt-4o",
+            max_iterations=3,
+            compaction_settings=CompactionSettings(
+                enabled=True, max_context_tokens=120, reserve_tokens=20, keep_recent_tokens=50
+            ),
+        )
+        agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=spy)
+
+        captured: list[PhaseChangeEvent] = []
+        event_bus.subscribe(lambda e: captured.append(e) if isinstance(e, PhaseChangeEvent) else None)
+
+        result = agent.run_conversation(long_user, session_id="chat-42")
+        assert result["completed"] is True
+        phases = [p.to_phase for p in captured]
+        assert "compaction" in phases
+        for p in captured:
+            assert p.session_id == "chat-42"
+
     def test_new_length_stop_reason_skips_tool_execution(self, monkeypatch):
         from agent.config_model import AppConfig
 

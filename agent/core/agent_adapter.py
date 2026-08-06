@@ -890,7 +890,11 @@ class AIAgent:
         )
         if total_est <= threshold:
             return messages
-        self._set_phase(AgentPhase.COMPACTION, f"context over threshold ({total_est} > {threshold})")
+        self._set_phase(
+            AgentPhase.COMPACTION,
+            f"context over threshold ({total_est} > {threshold})",
+            session_id=self._session_id,
+        )
 
         def _do_compact() -> tuple[list[dict], int]:
             def summary_caller(prompt: str) -> str:
@@ -914,7 +918,7 @@ class AIAgent:
         compacted, saved = await asyncio.to_thread(_do_compact)
         if saved > 0:
             self._report(f"📦 上下文已压缩 —— 节省约 {saved} tokens")
-        self._set_phase(AgentPhase.IDLE, f"compaction saved {saved} tokens")
+        self._set_phase(AgentPhase.IDLE, f"compaction saved {saved} tokens", session_id=self._session_id)
         return compacted
 
     async def _before_tool_call_hook(self, tool_name: str, args: dict, token: CancelToken) -> dict:
