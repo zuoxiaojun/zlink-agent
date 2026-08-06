@@ -648,7 +648,12 @@ class AIAgent:
                 self._error = self._error or "用户已手动停止"
                 self._result_messages = list(self._agent.state.messages)
                 if self._partial_response:
-                    self._result_messages.append({"role": "assistant", "content": self._partial_response})
+                    last = self._result_messages[-1] if self._result_messages else None
+                    last_content = (
+                        last.get("content") if isinstance(last, dict) and last.get("role") == "assistant" else None
+                    )
+                    if last_content != self._partial_response:
+                        self._result_messages.append({"role": "assistant", "content": self._partial_response})
                 await self._agent._emit(AgentEnd(list(self._result_messages)))
             except Exception as e:  # noqa: BLE001 — Agent.handleRunFailure fallback
                 logger.exception("Agent run failed")
@@ -792,6 +797,10 @@ class AIAgent:
             loop = asyncio.get_running_loop()
             content_parts: list[str] = []
             reasoning_parts: list[str] = []
+            # Per-turn reset: _partial_response tracks only the in-flight stream
+            # of THIS LLM call.  The previous turn's stream is already committed
+            # to the loop transcript — keep it out of the cancel branch's append.
+            self._partial_response = ""
 
             async def _safe_emit(event: AgentEvent) -> None:
                 try:

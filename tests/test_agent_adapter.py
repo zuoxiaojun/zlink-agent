@@ -435,6 +435,72 @@ class TestNewKernelPath:
         contents = [m.get("content") for m in result["messages"]]
         assert contents.count("streamed-partial") == 1
 
+    def test_cancel_after_committed_stream_does_not_duplicate(self, monkeypatch):
+        import time
+
+        from agent.core.llm_providers import LLMResponse
+
+        def _sleepy(args: dict) -> str:
+            time.sleep(0.5)
+            return json.dumps({"success": True})
+
+        registry.register(name="committed_sleepy", toolset="test", schema={"type": "object"}, handler=_sleepy)
+
+        class _StreamingCommittedProvider:
+            """Mimics the real OpenAI-compat streaming path: streams chunks
+            through stream_callback AND returns them in response.content (so
+            the loop commits that content as an assistant message), then issues
+            a tool call; the sleepy tool blocks so the test can cancel during
+            tool execution — the persisted messages must not end up with a
+            second assistant bubble carrying the same streamed content."""
+
+            def __init__(self, inner):
+                self.inner = inner
+                self.first = True
+
+            def chat(self, **kwargs):
+                stream_cb = kwargs.get("stream_callback")
+                if self.first:
+                    self.first = False
+                    if stream_cb:
+                        stream_cb("streamed-")
+                        stream_cb("committed")
+                    return LLMResponse(
+                        content="streamed-committed",
+                        tool_calls=[ToolCallPayload(id="c1", name="committed_sleepy", arguments="{}")],
+                        usage={"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+                    )
+                return self.inner.chat(**kwargs)
+
+        agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+        agent._llm = LLMClient(
+            api_key="sk-fake",
+            base_url="x",
+            provider=_StreamingCommittedProvider(MockLLMProvider()),
+        )
+
+        async def _scenario() -> dict:
+            task = asyncio.create_task(
+                agent.run_conversation_async(
+                    user_message="go",
+                    conversation_history=[],
+                    session_id="s1",
+                    stream_callback=lambda t: None,
+                )
+            )
+            await asyncio.sleep(0.1)
+            agent.cancel()
+            result = await task
+            await agent.agent.wait_idle()
+            return result
+
+        result = asyncio.run(_scenario())
+        assert result["final_response"] == ""
+        assert result["completed"] is False
+        assert result["error"] == "用户已手动停止"
+        contents = [m.get("content") for m in result["messages"]]
+        assert contents.count("streamed-committed") == 1
+
     def test_steer_injected_next_turn(self, monkeypatch):
         import threading
 
