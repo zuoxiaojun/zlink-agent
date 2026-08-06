@@ -22,13 +22,16 @@ zlink-agent/
 │   └── schemas/                # ✅ Pydantic models (config, chat, mcp, slash_command)
 ├── agent/                      # Core logic (non-FastAPI, reusable)
 │   ├── core/
-│   │   ├── agent.py            # ⚠️ AIAgent — M7 agent loop, phase machine, TurnSnapshot
+│   │   ├── kernel_types.py     # ⚠️ AgentLoopConfig 钩子契约 / 9 种 AgentEvent / CancelToken / ToolResult
+│   │   ├── loop.py             # ⚠️ run_agent_loop — 零策略双层 async loop（AgentEnd 保证任何路径收尾）
+│   │   ├── agent.py            # ⚠️ 有状态 Agent 包装（subscribe/steer/follow_up/cancel/wait_idle）+ 兼容 re-export
+│   │   ├── agent_adapter.py    # ⚠️ AIAgent 兼容层（run_conversation_async + EventBus 8 事件映射 + Phase 机）
 │   │   ├── llm_client.py       # ⚠️ LLMClient shim → LLMProvider
 │   │   ├── llm_providers/      # ⚠️ base (LLMProvider ABC / LLMResponse / ToolCallPayload),
 │   │   │                       #    openai_compat (httpx SSE, reasoning_content), anthropic, factory
 │   │   ├── message_builder.py  # build_system_prompt(), build_turn_messages()
-│   │   ├── tool_dispatcher.py  # dispatch_tool() — registry dispatch + truncation
-│   │   └── iteration_budget.py # IterationBudget — turn counting
+│   │   ├── tool_dispatcher.py  # dispatch_tool() + dispatch_tool_batch()（并行/保序/sequential 降级）
+│   │   └── iteration_budget.py # IterationBudget — 纯计数器（消费点在 should_stop_after_turn 钩子）
 │   ├── tools/                  # 24 files, 57 tools — one file per toolset
 │   │   ├── registry.py         # ❌ ToolRegistry singleton — extend via register() only
 │   │   ├── erp_ys_tools.py     # ⚠️ YonSuite 内置取数工具 (11 个, 替代旧 MCP 子进程)
@@ -67,18 +70,22 @@ zlink-agent/
 
 ## 3. Architecture & Data Flows
 
-### Flow A: Chat (WebSocket → AIAgent → LLM → response)
+### Flow A: Chat (WebSocket → AIAgent → 新内核 loop → LLM → response)
 
 ```
-frontend WS → backend/api/chat.py (run_in_executor)
+frontend WS → backend/api/chat.py (_run_agent_new 直接 await)
   → slash command? → execute() → response
-  → else AIAgent.run_conversation(message, stream_cb):
-      build_turn_messages() → _take_snapshot() (freezes model/temp/tools)
-      → SessionStartEvent → _maybe_compact() [context_compactor.py]
-      → loop: _call_llm() [LLMClient.chat → LLMProvider.chat (openai_compat/anthropic)]
-          → if tool_calls: dispatch_tool() → registry.dispatch()
-              → tool handler | mcp_manager.call_tool() → append results → loop
-      → SessionEndEvent → return {final_response, messages, api_calls, token_usage, completed, error}
+  → else agent.run_conversation_async(message, history, session_id):
+      build_turn_messages() → SessionStartEvent → UserMessageEvent（取消门）
+      → Agent.run_async → run_agent_loop [agent/core/loop.py]:
+          turn 循环: transform_context 钩子(compaction) → _stream_assistant_response
+          → LLMResponse → tool_calls? → dispatch_tool_batch [tool_dispatcher.py]
+              → prepare 串行(before_tool_call 钩子=BeforeToolCallEvent)
+              → registry.dispatch()（security_hooks hook 链原样运行）
+              → 并行 gather / sequential 降级 → 保序组装 tool 消息
+          → should_stop_after_turn 钩子（IterationBudget 消费点）→ steering 钩子
+      → AgentEnd → SessionEndEvent
+      → 返回 {final_response, messages, api_calls, token_usage, completed, error}
 ```
 
 ### Flow B: MCP tool execution
@@ -105,7 +112,7 @@ Built-in tools (`agent/tools/erp_*_tools.py`) read these env vars and connect di
 
 ### Key design decisions
 
-- **Sync agent loop** runs in a `ThreadPoolExecutor` via `run_in_executor` — avoids async rewrite of the agent loop.
+- **Pi 风格新内核**：`agent/core/loop.py` 零策略 async loop + `kernel_types.py` 类型契约；`chat.py` 直接 await（`_run_agent_new` → `run_conversation_async`），不再跑 `run_in_executor`。
 - **SSE parsing** in `openai_compat.py` handles both `data: {json}` (standard) and `data:{json}` (custom gateway) formats.
 - **Reasoning pipe** is a separate channel (`reasoning_callback`), not mixed with content — frontend renders it grey italic via `.reasoning-content`.
 - **ERP isolation**: only `enabled=true` ERP 的内置工具注册进 LLM 工具列表；禁用的系统对 LLM 不可见。
@@ -113,14 +120,13 @@ Built-in tools (`agent/tools/erp_*_tools.py`) read these env vars and connect di
 
 ## 4. Key Contracts (do not break)
 
-### AIAgent (`agent/core/agent.py`)
+### AIAgent (`agent/core/agent_adapter.py`，经 `agent/core/agent.py` re-export)
 
 - Constructor signature is **frozen** (M1) — do not add/rename params.
-- `run_conversation(user_message, system_message, conversation_history, stream_callback, reasoning_callback, stop_event, session_id)` returns `{final_response, messages, api_calls, token_usage, completed, error}` — keys consumed by `backend/api/chat.py`.
-- **M7 phase machine:** `self.phase ∈ {"idle", "turn", "compaction", "retry"}`; `run_conversation()` rejects if phase != "idle"; resets to "idle" on completion. Call once per turn.
-- `_take_snapshot()` freezes (model, temperature, max_tokens, system_prompt, tool_defs, compaction_settings) per turn.
-- `session_id` is forwarded into Session*/PhaseChange events (empty string when not passed).
-- **WS Envelope** (`agent/core/agent.py`, Envelope class): `{seq, phase, type, payload}` — `seq` monotonic; `phase ∈ idle/turn/compaction/retry`; `type ∈ token/reasoning_token/tool_call/final/error`.
+- `run_conversation(...)` 返回 keys（`{final_response, messages, api_calls, token_usage, completed, error}`）由 `backend/api/chat.py` 消费——冻结。
+- 新内核入口：`async run_conversation_async(...)`（签名同 `run_conversation`）；`agent.core.agent` 暴露 `Agent` 句柄（`subscribe`/`steer`/`cancel`）。
+- **Phase 机**（`idle/turn/compaction/retry`）：由适配层根据 AgentEvent 流维护，`run_conversation` 仍拒绝非 idle 重入。
+- **策略钩子**（`AgentLoopConfig`）：`transform_context`（compaction）/`before_tool_call`/`after_tool_call`/`prepare_next_turn`/`should_stop_after_turn`（IterationBudget 消费点）/`get_steering_messages`/`get_follow_up_messages`/`bridge_dispatch`/`on_approval_blocked`——全部在 `agent/core/kernel_types.py` 定义。
 
 ### LLM layer
 
@@ -274,7 +280,7 @@ Build: `bash scripts/build-electron.sh` = frontend build → Python bundle → e
 ## 11. Debugging
 
 - **Logs:** backend runtime + MCP subprocess stderr → `~/.zlink-agent/data/logs/app.log`; frontend → browser DevTools Console/Network.
-- **WebSocket frames:** DevTools → Network → WS → Messages at `ws://localhost:8089/ws/chat/{session_id}` (Envelope format, see §4).
+- **WebSocket frames:** DevTools → Network → WS → Messages at `ws://localhost:8089/ws/chat/{session_id}` (Envelope format — see `agent/core/agent_adapter.py` Envelope).
 - **Config direct edit:** `vim ~/.zlink-agent/data/config.json` then restart backend (or save from UI). Secrets are visible — file is owner-only.
 - **MCP debugging:** `GET /api/config/mcp-servers` for status; circuit breaker = 3 failures → 60s cooldown. `mcp_server/` was removed in v1.7.0 (YonSuite/NC are built-in tools now); Chart MCP is bundled in Electron builds only — for source dev use `mcp_add_server` or Settings → MCP.
 

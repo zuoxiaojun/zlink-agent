@@ -1,13 +1,14 @@
 """Tool dispatch — sync single-tool path + async batch execution.
 
 Pi-style kernel redesign (spec 2026-08-06-pi-style-kernel-design).
-The sync :func:`dispatch_tool` is preserved verbatim for the legacy
-kernel path (``ZLINK_KERNEL=old``).  The new kernel uses
-:func:`dispatch_tool_batch`, which runs every tool through
+The sync :func:`dispatch_tool` is kept as a thin single-tool entry
+point (re-exported for backwards compatibility).  The new kernel
+drives :func:`dispatch_tool_batch`: every tool runs through
 ``registry.dispatch`` in a worker thread so the security before/after
 hook chain and the ``__block__`` protocol stay intact (Layer 2), then
-applies truncation per result.  P1 executes batches strictly
-sequentially; P2 adds parallel dispatch with the same public API.
+results are truncated per entry and returned in original order.
+Batches run in parallel, degrading to strict sequential execution when
+a batch contains an ``execution_mode == "sequential"`` tool.
 """
 
 from __future__ import annotations
