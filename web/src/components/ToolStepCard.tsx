@@ -91,6 +91,12 @@ function extractSubtitle(toolName: string, args: string): string | null {
   if (toolName === "web_extract") {
     return String(parsed.url || "").slice(0, 200) || null;
   }
+  if (toolName === "tool_search") {
+    return String(parsed.query || "").slice(0, 200) || null;
+  }
+  if (toolName === "tool_describe" || toolName === "tool_call") {
+    return String(parsed.name || "").slice(0, 200) || null;
+  }
   if (toolName.startsWith("query_") || toolName.startsWith("nc_")) {
     const dateFrom = String(parsed.date_from || "");
     const dateTo = String(parsed.date_to || "");
@@ -118,7 +124,13 @@ export default function ToolStepCard({ call, result, onChoiceSelect }: ToolStepC
   const failed = !running && !denied && raw.trim() ? isErrorResult(raw) : false;
   // 如果是 pending 工具，从 tool_call_id 提取工具名，从 content 提取参数
   const effectiveCallName = isPendingTool && result ? (result.tool_call_id || "").replace(/^(running:|pending:)/, "") : call.function.name;
-  const effectiveArgs = isPendingTool && result ? (typeof result.content === "string" ? result.content : "") : call.function.arguments;
+  const effectiveArgs = (() => {
+    if (isPendingTool && result) {
+      if (typeof result.content === "string" && result.content.trim()) return result.content;
+      return call.function.arguments;   // 回退：pending 内容为空/空白时用 LLM 原始参数
+    }
+    return call.function.arguments;
+  })();
   const toolName = effectiveCallName;
   const displayName = TOOL_DISPLAY_NAMES[toolName] || toolName;
   const subtitle = extractSubtitle(toolName, effectiveArgs);
