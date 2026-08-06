@@ -21,6 +21,9 @@ export interface Message {
   _agent_info?: AgentInfo;
   _tool_done?: boolean;  // 前端临时标记：工具已执行完成
   _denied?: boolean;     // 前端临时标记：工具调用被用户拒绝
+  _tool_duration_ms?: number;  // 前端临时标记：工具执行耗时（本次运行）
+  _tool_started_at?: number;   // 前端临时标记：工具开始时间（epoch ms）
+  _tool_args?: string;         // 前端临时标记：工具调用原始参数（本次运行，完成后 content 已被结果覆盖）
 }
 
 export interface ContentPart {

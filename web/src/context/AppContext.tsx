@@ -59,8 +59,8 @@ export type AppAction =
   | { type: "SET_PROGRESS"; message: string }
   | { type: "SET_CURRENT_TOOL"; toolName: string }
   | { type: "SET_CURRENT_TOOL_ARGS"; args: string }
-  | { type: "ADD_PENDING_TOOL"; message: Message }
-  | { type: "REPLACE_PENDING_TOOL"; name: string; result: string; denied?: boolean }
+  | { type: "ADD_PENDING_TOOL"; message: Message; startedAt?: number }
+  | { type: "REPLACE_PENDING_TOOL"; name: string; result: string; denied?: boolean; durationMs?: number }
   | { type: "SET_RESULT"; final_response: string; final_reasoning?: string; tokenUsage: TokenUsage | null; apiCalls: number; error: string | null; sessionId?: string; sessionTitle?: string }
   | { type: "SET_ERROR"; error: string }
   | { type: "CLEAR_STREAMING" }
@@ -118,12 +118,15 @@ function reducer(state: AppState, action: AppAction): AppState {
     case "SET_CURRENT_TOOL_ARGS":
       return { ...state, currentToolArgs: action.args };
     case "ADD_PENDING_TOOL": {
-      // 避免重复插入同名的 pending tool
+      // 避免重复插入同名的 pending 工具（仅拦截仍在 pending 的，已完成的同名工具不拦截）
       const id = action.message.tool_call_id || "";
-      if (state.messages.some(m => m.role === "tool" && m.tool_call_id === id)) {
+      if (state.messages.some(m => m.role === "tool" && m.tool_call_id === id && !m._tool_done)) {
         return state;
       }
-      return { ...state, messages: [...state.messages, action.message] };
+      const pendingMsg: Message = action.startedAt != null
+        ? { ...action.message, _tool_started_at: action.startedAt }
+        : action.message;
+      return { ...state, messages: [...state.messages, pendingMsg] };
     }
     case "REPLACE_PENDING_TOOL": {
       const id = "pending:" + action.name;
@@ -138,7 +141,13 @@ function reducer(state: AppState, action: AppAction): AppState {
       }
       if (targetIdx < 0) return state;
       const msgs = [...state.messages];
-      msgs[targetIdx] = { ...msgs[targetIdx], content: action.result, _tool_done: true, ...(action.denied ? { _denied: true } : {}) };
+      msgs[targetIdx] = {
+        ...msgs[targetIdx],
+        content: action.result,
+        _tool_done: true,
+        ...(action.denied ? { _denied: true } : {}),
+        ...(action.durationMs != null ? { _tool_duration_ms: action.durationMs } : {}),
+      };
       return { ...state, messages: msgs };
     }
     case "SET_RESULT": {

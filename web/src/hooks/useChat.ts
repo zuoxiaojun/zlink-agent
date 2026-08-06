@@ -12,6 +12,7 @@ export function useChat(options?: UseChatOptions) {
   const wsRef = useRef<ChatWebSocket | null>(null);
   const stopRequestedRef = useRef(false);
   const runningRef = useRef(false);
+  const toolStartRef = useRef<Map<string, number[]>>(new Map());
   const onApprovalRequestRef = useRef(options?.onApprovalRequest);
   useEffect(() => {
     onApprovalRequestRef.current = options?.onApprovalRequest;
@@ -24,6 +25,7 @@ export function useChat(options?: UseChatOptions) {
       dispatch({ type: "SET_RUNNING", running: true });
       runningRef.current = true;
       stopRequestedRef.current = false;
+      toolStartRef.current.clear();
 
       dispatch({
         type: "SET_MESSAGES",
@@ -70,18 +72,32 @@ export function useChat(options?: UseChatOptions) {
             reasoningAll += msg.content;
             scheduleFlush();
             break;
-          case "tool_call":
+          case "tool_call": {
             // 收到后端发来的 tool_call 消息，立即插入 pending 工具卡片
+            const startedAt = Date.now();
+            const queue = toolStartRef.current.get(msg.name) ?? [];
+            queue.push(startedAt);
+            toolStartRef.current.set(msg.name, queue);
             dispatch({ type: "SET_PROGRESS", message: `🔧 执行工具: ${msg.name}` });
             dispatch({ type: "SET_CURRENT_TOOL", toolName: msg.name });
-            dispatch({ type: "ADD_PENDING_TOOL", message: { role: "tool", content: msg.arguments, tool_call_id: "pending:" + msg.name } });
+            dispatch({ type: "ADD_PENDING_TOOL", message: { role: "tool", content: msg.arguments, tool_call_id: "pending:" + msg.name, _tool_args: msg.arguments }, startedAt });
             break;
+          }
           case "progress":
             dispatch({ type: "SET_PROGRESS", message: msg.message });
             break;
-          case "tool_result":
-            dispatch({ type: "REPLACE_PENDING_TOOL", name: msg.name, result: msg.result, denied: msg.denied });
+          case "tool_result": {
+            const queue = toolStartRef.current.get(msg.name);
+            const startedAt = queue && queue.length > 0 ? queue.shift() : undefined;
+            dispatch({
+              type: "REPLACE_PENDING_TOOL",
+              name: msg.name,
+              result: msg.result,
+              denied: msg.denied,
+              ...(startedAt != null ? { durationMs: Date.now() - startedAt } : {}),
+            });
             break;
+          }
           case "done": {
             // 内联 flush：直接构建最终文本，避免 React 状态异步造成 streamingText 为空
             if (flushTimer !== null) {
