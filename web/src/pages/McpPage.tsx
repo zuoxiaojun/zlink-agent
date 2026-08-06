@@ -221,39 +221,38 @@ export default function McpPage() {
         <h1 className="page-title">MCP 服务器</h1>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
+      <div className="toolbar-md">
         <button className="btn btn-primary" onClick={() => setShowAdd(!showAdd)}>
           <IconPlus size={14} /> 添加服务器
         </button>
         <button className="btn btn-ghost" onClick={handleReload} disabled={reloading}>
+          {/* dynamic: reloading */}
           <IconRefresh size={14} style={{ animation: reloading ? "spin 1s linear infinite" : undefined }} />
           {reloading ? "重载中..." : "重载所有"}
         </button>
-        <span style={{ fontSize: "13px", color: "var(--text-3)" }}>共 {servers.length} 个服务器</span>
+        <span className="text-meta">共 {servers.length} 个服务器</span>
       </div>
 
       {error && (
-        <div className="toast toast-error" style={{ marginBottom: "12px" }}>
+        <div className="toast toast-error mb-md">
           {error}
-          <button onClick={() => setError("")} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "inherit" }}>×</button>
+          <button onClick={() => setError("")} className="toast-close">×</button>
         </div>
       )}
 
       {showAdd && (
-        <div className="skill-card" style={{ marginBottom: "16px", padding: "16px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-            <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600 }}>添加 MCP 服务器</h3>
-            <div style={{ display: "flex", gap: "4px", background: "var(--bg-2)", borderRadius: "6px", padding: "2px" }}>
+        <div className="skill-card mb-lg p-md">
+          <div className="flex-between">
+            <h3 className="card-title-sm">添加 MCP 服务器</h3>
+            <div className="seg-group">
               <button
-                className={`btn ${addMode === "form" ? "btn-primary" : "btn-ghost"}`}
-                style={{ height: "28px", padding: "0 10px", fontSize: "12px" }}
+                className={`btn ${addMode === "form" ? "btn-primary" : "btn-ghost"} seg-btn`}
                 onClick={() => { setAddMode("form"); setError(""); }}
               >
                 <IconForms size={12} /> 表单
               </button>
               <button
-                className={`btn ${addMode === "json" ? "btn-primary" : "btn-ghost"}`}
-                style={{ height: "28px", padding: "0 10px", fontSize: "12px" }}
+                className={`btn ${addMode === "json" ? "btn-primary" : "btn-ghost"} seg-btn`}
                 onClick={() => { setAddMode("json"); setError(""); }}
               >
                 <IconCode size={12} /> JSON
@@ -261,24 +260,24 @@ export default function McpPage() {
             </div>
           </div>
 
-          <div style={{ marginBottom: "16px" }}>
-            <span style={{ fontSize: "12px", color: "var(--text-3)", fontWeight: 500 }}>推荐预设</span>
-            <div style={{ display: "flex", gap: "8px", marginTop: "8px", flexWrap: "wrap" }}>
-              <button className="btn btn-ghost" style={{ fontSize: "12px", padding: "4px 12px" }}
+          <div className="mb-lg">
+            <span className="label-sm">推荐预设</span>
+            <div className="chip-row">
+              <button className="btn btn-ghost btn-xs"
                 onClick={() => {
                   setForm({ name: "mcp-server-chart", transport: "stdio", command: "npx", args: ["-y", "@antv/mcp-server-chart"], url: "", headers: {}, env: {}, enabled: true, timeout: 120 });
                   setAddMode("form");
                 }}>
                 📊 Chart 图表
               </button>
-              <button className="btn btn-ghost" style={{ fontSize: "12px", padding: "4px 12px" }}
+              <button className="btn btn-ghost btn-xs"
                 onClick={() => {
                   setJsonText(JSON.stringify({ name: "playwright", transport: "stdio", command: "npx", args: ["-y", "@playwright/mcp@latest"], timeout: 120, enabled: true }, null, 2));
                   setAddMode("json");
                 }}>
                 🌐 Playwright 浏览器
               </button>
-              <button className="btn btn-ghost" style={{ fontSize: "12px", padding: "4px 12px" }}
+              <button className="btn btn-ghost btn-xs"
                 onClick={() => {
                   setForm({ name: "my-mcp-server", transport: "stdio", command: "", args: [], url: "", headers: {}, env: {}, enabled: true, timeout: 120 });
                   setAddMode("form");
@@ -289,7 +288,7 @@ export default function McpPage() {
           </div>
 
           {addMode === "form" ? (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div className="grid-2">
               <div>
                 <label className="form-label">名称 *</label>
                 <input className="form-input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="my-mcp-server" />
@@ -327,9 +326,8 @@ export default function McpPage() {
             <div>
               <label className="form-label">JSON 配置</label>
               <textarea
-                className="form-input"
+                className="form-input mono-input"
                 rows={14}
-                style={{ fontFamily: "var(--mono-font, monospace)", fontSize: "12px", resize: "vertical", minHeight: "260px" }}
                 value={jsonText}
                 onChange={(e) => setJsonText(e.target.value)}
                 placeholder={`{
@@ -341,13 +339,13 @@ export default function McpPage() {
   "enabled": true
 }`}
               />
-              <p style={{ fontSize: "11px", color: "var(--text-4)", marginTop: "4px" }}>
+              <p className="text-tiny-mt">
                 必填: name、transport，以及对应传输方式的 command (stdio) 或 url (HTTP)
               </p>
             </div>
           )}
 
-          <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+          <div className="row-actions">
             <button className="btn btn-primary" onClick={handleAdd} disabled={submitting}>
               {submitting ? "添加中..." : "添加并连接"}
             </button>
@@ -365,11 +363,11 @@ export default function McpPage() {
         </>
       ) : servers.length === 0 ? (
         <div className="empty-state">
-          <IconServer size={40} className="empty-state-icon" style={{ opacity: 0.3 }} />
+          <IconServer size={40} className="empty-state-icon empty-state-icon-dim" />
           <p>暂无 MCP 服务器，点击上方按钮添加</p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div className="flex-col-gap">
           {servers.map((s) => (
             <div key={s.name} className="skill-card">
               <div className="skill-card-header">
@@ -378,23 +376,22 @@ export default function McpPage() {
                     width: "8px",
                     height: "8px",
                     borderRadius: "50%",
-                    background: statusColor(s.status),
+                    background: statusColor(s.status), // dynamic: statusColor
                     flexShrink: 0,
                   }} />
-                  <span style={{ fontSize: "14px", fontWeight: 600 }}>{s.name}</span>
+                  <span className="text-name">{s.name}</span>
                   {s.builtin && (
-                    <span className="badge badge-primary" style={{ fontSize: 11 }}>内置</span>
+                    <span className="badge badge-primary badge-xs">内置</span>
                   )}
-                  <span style={{ fontSize: "11px", color: "var(--text-4)" }}>{s.transport}</span>
-                  <span style={{ fontSize: "12px", color: statusColor(s.status) }}>{statusText(s.status)}</span>
+                  <span className="text-tiny">{s.transport}</span>
+                  <span style={{ fontSize: "12px", color: statusColor(s.status) /* dynamic: statusColor */ }}>{statusText(s.status)}</span>
                   {s.status === "connected" && (
-                    <span style={{ fontSize: "12px", color: "var(--text-3)" }}>{s.tool_count} 个工具</span>
+                    <span className="text-hint">{s.tool_count} 个工具</span>
                   )}
                 </div>
                 <div className="skill-card-actions">
                   <button
-                    className="btn btn-ghost"
-                    style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
+                    className="btn btn-ghost icon-btn-sm"
                     onClick={() => handleTest(s.name)}
                     title="测试连接"
                   >
@@ -402,8 +399,7 @@ export default function McpPage() {
                   </button>
                   {!s.builtin && (
                     <button
-                      className="btn btn-ghost"
-                      style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
+                      className="btn btn-ghost icon-btn-sm"
                       onClick={() => startEdit(s)}
                       title="编辑配置"
                     >
@@ -411,8 +407,7 @@ export default function McpPage() {
                     </button>
                   )}
                   <button
-                    className="btn btn-ghost"
-                    style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
+                    className="btn btn-ghost icon-btn-sm"
                     onClick={() => handleReconnect(s.name)}
                     disabled={reconnecting[s.name]}
                     title="重新连接"
@@ -420,8 +415,7 @@ export default function McpPage() {
                     {reconnecting[s.name] ? <IconLoader size={14} className="spin" /> : <IconRefresh size={13} color="var(--text-3)" />}
                   </button>
                   <button
-                    className="btn btn-ghost"
-                    style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
+                    className="btn btn-ghost icon-btn-sm"
                     onClick={() => handleToggle(s.name)}
                     title={s.enabled ? "停用" : "启用"}
                   >
@@ -429,8 +423,7 @@ export default function McpPage() {
                   </button>
                   {!s.builtin && (
                     <button
-                      className="btn btn-ghost"
-                      style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
+                      className="btn btn-ghost icon-btn-sm"
                       onClick={() => handleDelete(s.name)}
                       title="删除服务器"
                     >
@@ -441,27 +434,26 @@ export default function McpPage() {
               </div>
 
               {s.error_message && (
-                <p className="skill-card-desc" style={{ color: "var(--error)" }}>{s.error_message}</p>
+                <p className="skill-card-desc" style={{ color: "var(--error)" /* --error 未定义，当前为继承父级颜色，保持现状 */ }}>{s.error_message}</p>
               )}
 
               {testResults[s.name] !== undefined && testResults[s.name] !== null && (
-                <div style={{ marginTop: "8px", padding: "8px 12px", background: "var(--bg-2)", borderRadius: "6px", fontSize: "13px" }}>
+                <div className="test-panel">
                   {testResults[s.name]!.success ? (
                     <>
-                      <span style={{ color: "var(--success)", fontWeight: 600 }}>测试通过</span>
-                      <span style={{ color: "var(--text-3)", marginLeft: "8px" }}>
+                      <span className="text-success">测试通过</span>
+                      <span className="text-muted ml-sm">
                         发现 {testResults[s.name]!.tools_discovered} 个工具
                       </span>
                       <button
-                        className="action-link"
-                        style={{ marginLeft: "8px" }}
+                        className="action-link ml-sm"
                         onClick={() => toggleTools(s.name)}
                       >
                         {expandedTools[s.name] ? <IconChevronDown size={12} /> : <IconChevronRight size={12} />}
                         {expandedTools[s.name] ? "收起" : "展开"}
                       </button>
                       {expandedTools[s.name] && (
-                        <div style={{ marginTop: "4px", display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                        <div className="tag-row">
                           {testResults[s.name]!.tool_names.map((t) => (
                             <span key={t} className="skill-card-tag">{t}</span>
                           ))}
@@ -469,26 +461,24 @@ export default function McpPage() {
                       )}
                     </>
                   ) : (
-                    <span style={{ color: "var(--error)" }}>测试失败: {testResults[s.name]!.error_message}</span>
+                    <span style={{ color: "var(--error)" /* --error 未定义，当前为继承父级颜色，保持现状 */ }}>测试失败: {testResults[s.name]!.error_message}</span>
                   )}
                 </div>
               )}
 
               {editingServer === s.name && (
-                <div style={{ marginTop: "12px", padding: "12px", background: "var(--bg-2)", borderRadius: "6px" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-                    <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>编辑配置</h4>
-                    <div style={{ display: "flex", gap: "4px", background: "var(--bg-page)", borderRadius: "6px", padding: "2px" }}>
+                <div className="panel-pad">
+                  <div className="flex-between">
+                    <h4 className="card-title-xs">编辑配置</h4>
+                    <div className="seg-group-page">
                       <button
-                        className={`btn ${editJsonMode === "form" ? "btn-primary" : "btn-ghost"}`}
-                        style={{ height: "26px", padding: "0 8px", fontSize: "11px" }}
+                        className={`btn ${editJsonMode === "form" ? "btn-primary" : "btn-ghost"} icon-btn-xs`}
                         onClick={() => { setEditJsonMode("form"); setError(""); }}
                       >
                         <IconForms size={11} /> 表单
                       </button>
                       <button
-                        className={`btn ${editJsonMode === "json" ? "btn-primary" : "btn-ghost"}`}
-                        style={{ height: "26px", padding: "0 8px", fontSize: "11px" }}
+                        className={`btn ${editJsonMode === "json" ? "btn-primary" : "btn-ghost"} icon-btn-xs`}
                         onClick={() => { setEditJsonMode("json"); setError(""); }}
                       >
                         <IconCode size={11} /> JSON
@@ -499,15 +489,14 @@ export default function McpPage() {
                   {editJsonMode === "json" ? (
                     <div>
                       <textarea
-                        className="form-input"
+                        className="form-input mono-input"
                         rows={14}
-                        style={{ fontFamily: "var(--mono-font, monospace)", fontSize: "12px", resize: "vertical", minHeight: "260px" }}
                         value={editJsonText}
                         onChange={(e) => setEditJsonText(e.target.value)}
                       />
                     </div>
                   ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div className="grid-2-sm">
                     <div>
                       <label className="form-label">名称</label>
                       <input className="form-input" value={editForm.name} disabled />
@@ -542,7 +531,7 @@ export default function McpPage() {
                     </div>
                   </div>
                   )}
-                  <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+                  <div className="row-actions">
                     <button className="btn btn-primary" onClick={saveEdit} disabled={submitting}>
                       {submitting ? "保存中..." : "保存并重连"}
                     </button>

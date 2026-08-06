@@ -1858,3 +1858,80 @@ textarea.form-input {
   color: var(--primary);
   border-color: var(--primary);
 }
+
+/* ── Utility classes (C-2: inline-style consolidation) ── */
+
+/* layout containers */
+.toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.toolbar-lg { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.toolbar-md { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.flex-col-gap { display: flex; flex-direction: column; gap: 12px; }
+.flex-col-gap-sm { display: flex; flex-direction: column; gap: 8px; }
+.flex-row-gap { display: flex; gap: 12px; }
+.flex-row-gap-sm { display: flex; gap: 8px; }
+.flex-row-gap-6 { display: flex; align-items: center; gap: 6px; }
+.flex-between { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.radio-label { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; }
+.row-actions { margin-top: 12px; display: flex; gap: 8px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-2-sm { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* text */
+.text-meta { font-size: 13px; color: var(--text-3); }
+.text-hint { font-size: 12px; color: var(--text-3); }
+.text-hint-mt { font-size: 12px; color: var(--text-3); margin-top: 4px; }
+.text-tiny { font-size: 11px; color: var(--text-4); }
+.text-tiny-mt { font-size: 11px; color: var(--text-4); margin-top: 4px; }
+.text-name { font-size: 14px; font-weight: 600; }
+.text-muted { color: var(--text-3); }
+.text-muted-mt { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+.text-sep { color: var(--border); }
+.text-success { color: var(--success); font-weight: 600; }
+
+/* spacing */
+.mt-sm { margin-top: 4px; }
+.mb-sm { margin-bottom: 8px; }
+.mb-md { margin-bottom: 12px; }
+.mb-lg { margin-bottom: 16px; }
+.mr-sm { margin-right: 8px; }
+.ml-sm { margin-left: 8px; }
+.p-md { padding: 16px; }
+.p-lg { padding: 24px; }
+
+/* controls */
+.icon-btn-sm { height: 28px; width: 28px; padding: 0; justify-content: center; }
+.icon-btn-xs { height: 26px; padding: 0 8px; font-size: 11px; }
+.seg-btn { height: 28px; padding: 0 10px; font-size: 12px; }
+.seg-group { display: flex; gap: 4px; background: var(--bg-2); border-radius: 6px; padding: 2px; }
+.seg-group-page { display: flex; gap: 4px; background: var(--bg-page); border-radius: 6px; padding: 2px; }
+.btn-xs { font-size: 12px; padding: 4px 12px; }
+.badge-xs { font-size: 11px; }
+.toast-close { margin-left: auto; background: none; border: none; cursor: pointer; color: inherit; }
+
+/* misc */
+.mono-input { font-family: var(--mono-font, monospace); font-size: 12px; resize: vertical; min-height: 260px; }
+.editor-textarea { width: 100%; min-height: 300px; font-family: var(--mono-font, monospace); font-size: 12px; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); resize: vertical; }
+.chip { padding: 8px 12px; background: var(--bg-hover); border-radius: var(--radius-sm); font-size: 13px; color: var(--text-2); }
+.section-pad { padding: 8px 16px 12px; }
+.list-row { padding: 6px 0; border-bottom: 1px solid var(--border-light); }
+.card-title-sm { margin: 0; font-size: 15px; font-weight: 600; }
+.card-title-xs { margin: 0; font-size: 14px; font-weight: 600; }
+.label-sm { font-size: 12px; color: var(--text-3); font-weight: 500; }
+.chip-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.tag-row { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+.empty-state-icon-dim { opacity: 0.3; }
+.test-panel { margin-top: 8px; padding: 8px 12px; background: var(--bg-2); border-radius: 6px; font-size: 13px; }
+.panel-pad { margin-top: 12px; padding: 12px; background: var(--bg-2); border-radius: 6px; }
+.dot-success { width: 8px; height: 8px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
+.iter-value { font-size: 14px; font-weight: 600; color: var(--text-1); min-width: 24px; }
+.value-label { font-size: 13px; font-weight: 600; margin-left: 8px; }
+.skill-card-desc-pad { padding: 0 14px 14px; font-size: 12px; color: var(--text-3); line-height: 1.6; }
+.footnote { margin-top: 24px; font-size: 12px; color: var(--text-3); line-height: 1.6; }
+.footnote-list { margin-top: 6px; padding-left: 20px; }
+.page-intro { margin: 0 0 20px; color: var(--text-2); line-height: 1.6; font-size: 14px; }
+.erp-tabs { display: inline-flex; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px; margin-bottom: 20px; gap: 4px; }
+.card-subtitle-sm { margin: 4px 0 0; font-size: 12px; color: var(--text-3); }
+.field-value { padding: 8px 0; font-size: 14px; }
+.error-inline { color: var(--danger); margin-bottom: 12px; }
+.job-edit-card { margin: 8px; padding: 16px; }
+.link-btn { margin-left: 6px; font-size: 12px; color: var(--primary); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
