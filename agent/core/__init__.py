@@ -11,7 +11,6 @@ Modules
 from agent.core.iteration_budget import IterationBudget
 from agent.core.llm_client import LLMClient, LLMResponse, ToolCallPayload
 from agent.core.message_builder import build_system_prompt, build_turn_messages
-from agent.core.tool_dispatcher import dispatch_tool
 
 __all__ = [
     "build_system_prompt",
@@ -19,6 +18,5 @@ __all__ = [
     "LLMClient",
     "LLMResponse",
     "ToolCallPayload",
-    "dispatch_tool",
     "IterationBudget",
 ]

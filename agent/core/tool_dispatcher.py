@@ -1,14 +1,12 @@
-"""Tool dispatch — sync single-tool path + async batch execution.
+"""Tool dispatch — async batch execution.
 
 Pi-style kernel redesign (spec 2026-08-06-pi-style-kernel-design).
-The sync :func:`dispatch_tool` is kept as a thin single-tool entry
-point (re-exported for backwards compatibility).  The new kernel
-drives :func:`dispatch_tool_batch`: every tool runs through
-``registry.dispatch`` in a worker thread so the security before/after
-hook chain and the ``__block__`` protocol stay intact (Layer 2), then
-results are truncated per entry and returned in original order.
-Batches run in parallel, degrading to strict sequential execution when
-a batch contains an ``execution_mode == "sequential"`` tool.
+:func:`dispatch_tool_batch` runs every tool through ``registry.dispatch``
+in a worker thread so the security before/after hook chain and the
+``__block__`` protocol stay intact (Layer 2), then results are truncated
+per entry and returned in original order.  Batches run in parallel,
+degrading to strict sequential execution when a batch contains an
+``execution_mode == "sequential"`` tool.
 """
 
 from __future__ import annotations
@@ -16,7 +14,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import sys
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
@@ -57,27 +54,6 @@ def _is_error_result(result: str) -> bool:
     except (json.JSONDecodeError, TypeError):
         return False
     return isinstance(payload, dict) and payload.get("success") is False
-
-
-def dispatch_tool(
-    name: str,
-    args: dict,
-    *,
-    max_result_length: int = sys.maxsize,
-    preview_length: int = 200,
-) -> tuple[str, str]:
-    """Execute *name* through the global registry (legacy sync path).
-
-    Returns ``(full_result, preview)`` — the full result is appended to
-    the message list (possibly truncated at *max_result_length*), the
-    preview is what we stream back to the client for display.
-    """
-    result = registry.dispatch(name, args)
-    if not isinstance(result, str):
-        result = json.dumps(result, ensure_ascii=False)
-    truncated = _truncate(result, max_result_length)
-    preview = _truncate(truncated, preview_length)
-    return truncated, preview
 
 
 async def _await_maybe(value):
@@ -345,4 +321,4 @@ async def _finalize(
     return result
 
 
-__all__ = ["dispatch_tool", "dispatch_tool_batch"]
+__all__ = ["dispatch_tool_batch"]
