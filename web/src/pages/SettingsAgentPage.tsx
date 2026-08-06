@@ -60,7 +60,7 @@ export default function SettingsAgentPage() {
             <span className="form-label">模型上下文窗口上限</span>
             <div className="card-body">
               {cfg?.max_context_tokens_auto !== false ? (
-                <span>自动检测 <span style={{ color: "var(--text-3)" }}>({fmt(cfg?.max_context_tokens || 128000)} tokens)</span></span>
+                <span>自动检测 <span className="text-muted">({fmt(cfg?.max_context_tokens || 128000)} tokens)</span></span>
               ) : (
                 <span>{fmt(cfg?.max_context_tokens || 128000)} tokens</span>
               )}
@@ -100,14 +100,14 @@ export default function SettingsAgentPage() {
                 value={maxIter}
                 onChange={(e) => setMaxIter(Number(e.target.value))}
               />
-              <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text-1)", minWidth: "24px" }}>{maxIter}</span>
+              <span className="iter-value">{maxIter}</span>
             </div>
           </div>
 
           <div className="form-group">
             <label className="form-label">上下文自动压缩</label>
-            <div style={{ display: "flex", gap: "12px" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "14px" }}>
+            <div className="flex-row-gap">
+              <label className="radio-label">
                 <input
                   type="radio"
                   name="compaction"
@@ -116,7 +116,7 @@ export default function SettingsAgentPage() {
                 />
                 启用
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "14px" }}>
+              <label className="radio-label">
                 <input
                   type="radio"
                   name="compaction"
@@ -126,15 +126,15 @@ export default function SettingsAgentPage() {
                 关闭
               </label>
             </div>
-            <div style={{ fontSize: "12px", color: "var(--text-3)", marginTop: "4px" }}>
+            <div className="text-hint-mt">
               对话接近上下文窗口上限时自动压缩历史消息
             </div>
           </div>
 
           <div className="form-group">
             <label className="form-label">模型上下文窗口上限</label>
-            <div style={{ display: "flex", gap: "12px", marginBottom: "8px" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "14px" }}>
+            <div className="flex-row-gap mb-sm">
+              <label className="radio-label">
                 <input
                   type="radio"
                   name="ctxAuto"
@@ -143,7 +143,7 @@ export default function SettingsAgentPage() {
                 />
                 自动检测
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "14px" }}>
+              <label className="radio-label">
                 <input
                   type="radio"
                   name="ctxAuto"
@@ -164,10 +164,10 @@ export default function SettingsAgentPage() {
                   value={maxContextTokens}
                   onChange={(e) => setMaxContextTokens(Number(e.target.value))}
                 />
-                <span style={{ fontSize: "13px", fontWeight: 600, marginLeft: "8px" }}>{fmt(maxContextTokens)} tokens</span>
+                <span className="value-label">{fmt(maxContextTokens)} tokens</span>
               </>
             )}
-            <div style={{ fontSize: "12px", color: "var(--text-3)", marginTop: "4px" }}>
+            <div className="text-hint-mt">
               自动检测根据当前使用的模型自动匹配上下文窗口大小
             </div>
           </div>
@@ -183,7 +183,7 @@ export default function SettingsAgentPage() {
               value={reserveTokens}
               onChange={(e) => setReserveTokens(Number(e.target.value))}
             />
-            <div style={{ fontSize: "12px", color: "var(--text-3)" }}>为模型回复预留的 token 空间，压缩阈值 = 窗口上限 - 预留空间</div>
+            <div className="text-hint">为模型回复预留的 token 空间，压缩阈值 = 窗口上限 - 预留空间</div>
           </div>
 
           <div className="form-group">
@@ -197,13 +197,13 @@ export default function SettingsAgentPage() {
               value={keepRecentTokens}
               onChange={(e) => setKeepRecentTokens(Number(e.target.value))}
             />
-            <div style={{ fontSize: "12px", color: "var(--text-3)" }}>压缩时保留最近多少 tokens 的对话不被压缩</div>
+            <div className="text-hint">压缩时保留最近多少 tokens 的对话不被压缩</div>
           </div>
 
           <div className="form-group">
             <label className="form-label">命令审批模式</label>
-            <div style={{ display: "flex", gap: "12px" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "14px" }}>
+            <div className="flex-row-gap">
+              <label className="radio-label">
                 <input
                   type="radio"
                   name="approvalMode"
@@ -213,7 +213,7 @@ export default function SettingsAgentPage() {
                 />
                 自动放行
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "14px" }}>
+              <label className="radio-label">
                 <input
                   type="radio"
                   name="approvalMode"
@@ -223,7 +223,7 @@ export default function SettingsAgentPage() {
                 />
                 高风险需审批
               </label>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "14px" }}>
+              <label className="radio-label">
                 <input
                   type="radio"
                   name="approvalMode"
@@ -234,7 +234,7 @@ export default function SettingsAgentPage() {
                 全部拒绝
               </label>
             </div>
-            <div style={{ fontSize: "12px", color: "var(--text-3)", marginTop: "4px" }}>
+            <div className="text-hint-mt">
               {approvalMode === "allow_all" && "所有工具直接执行，无需审批（默认）"}
               {approvalMode === "approve" && "高风险操作（终端命令、文件删除等）需要用户批准后才能执行"}
               {approvalMode === "reject_all" && "拒绝所有中高风险操作，仅允许低风险工具执行"}

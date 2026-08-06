@@ -59,12 +59,12 @@ export default function MemoryPage() {
         </>
       ) : (
         <>
-      <div style={{ marginBottom: "16px", display: "flex", alignItems: "center", gap: "12px" }}>
-        <span style={{ fontSize: "13px", color: "var(--text-3)" }}>
+      <div className="toolbar-md">
+        <span className="text-meta">
           共 {total} 条记忆，{SECTIONS.length} 个分类
         </span>
         <button onClick={expandAll} className="action-link">全部展开</button>
-        <span style={{ color: "var(--border)" }}>|</span>
+        <span className="text-sep">|</span>
         <button onClick={collapseAll} className="action-link">全部收起</button>
       </div>
 
@@ -79,13 +79,13 @@ export default function MemoryPage() {
             </span>
           </div>
           {!collapsed.has("notes") && (
-            <div style={{ padding: "8px 16px 12px" }}>
+            <div className="section-pad">
               {facts.memory.length === 0 ? (
-                <div style={{ color: "var(--text-3)", fontSize: "13px" }}>暂无笔记</div>
+                <div className="text-meta">暂无笔记</div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div className="flex-col-gap-sm">
                   {facts.memory.map((e, i) => (
-                    <div key={i} style={{ padding: "8px 12px", background: "var(--bg-hover)", borderRadius: "var(--radius-sm)", fontSize: "13px", color: "var(--text-2)" }}>{e}</div>
+                    <div key={i} className="chip">{e}</div>
                   ))}
                 </div>
               )}
@@ -103,13 +103,13 @@ export default function MemoryPage() {
             </span>
           </div>
           {!collapsed.has("profile") && (
-            <div style={{ padding: "8px 16px 12px" }}>
+            <div className="section-pad">
               {facts.user.length === 0 ? (
-                <div style={{ color: "var(--text-3)", fontSize: "13px" }}>暂无画像</div>
+                <div className="text-meta">暂无画像</div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div className="flex-col-gap-sm">
                   {facts.user.map((e, i) => (
-                    <div key={i} style={{ padding: "8px 12px", background: "var(--bg-hover)", borderRadius: "var(--radius-sm)", fontSize: "13px", color: "var(--text-2)" }}>{e}</div>
+                    <div key={i} className="chip">{e}</div>
                   ))}
                 </div>
               )}
@@ -127,14 +127,14 @@ export default function MemoryPage() {
             </span>
           </div>
           {!collapsed.has("summaries") && (
-            <div style={{ padding: "8px 16px 12px" }}>
+            <div className="section-pad">
               {summaries.length === 0 ? (
-                <div style={{ color: "var(--text-3)", fontSize: "13px" }}>暂无摘要</div>
+                <div className="text-meta">暂无摘要</div>
               ) : (
                 summaries.map((s) => (
-                  <div key={s.session_id} style={{ padding: "6px 0", borderBottom: "1px solid var(--border-light)" }}>
+                  <div key={s.session_id} className="list-row">
                     <div className="card-subtitle">{s.title}</div>
-                    <div style={{ fontSize: "13px", color: "var(--text-2)", marginTop: "2px" }}>{s.summary}</div>
+                    <div className="text-muted-mt">{s.summary}</div>
                   </div>
                 ))
               )}

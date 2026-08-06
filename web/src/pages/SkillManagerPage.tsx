@@ -107,7 +107,7 @@ export default function SkillManagerPage() {
         <h1 className="page-title">技能管理</h1>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "20px", flexWrap: "wrap" }}>
+      <div className="toolbar-lg">
         <label className="btn btn-primary" style={{ padding: "0 16px", cursor: "pointer" }}>
           <IconUpload size={14} />
           {uploading ? "安装中..." : "安装技能"}
@@ -122,7 +122,7 @@ export default function SkillManagerPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <span style={{ fontSize: "13px", color: "var(--text-3)" }}>
+        <span className="text-meta">
           {search.trim() ? `找到 ${filtered.length} 个` : `共 ${skills.length} 个技能`}
         </span>
       </div>
@@ -135,7 +135,7 @@ export default function SkillManagerPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
-          <IconPackage size={40} className="empty-state-icon" style={{ opacity: 0.3 }} />
+          <IconPackage size={40} className="empty-state-icon empty-state-icon-dim" />
           <p>暂无已安装的技能，点击上方按钮上传 .zip 技能包</p>
         </div>
       ) : (
@@ -151,19 +151,18 @@ export default function SkillManagerPage() {
                     background: s.active ? "var(--success)" : "var(--text-4)",
                     flexShrink: 0,
                   }} />
-                  <span style={{ fontSize: "14px", fontWeight: 600 }}>{s.name}</span>
+                  <span className="text-name">{s.name}</span>
                   {s.version && (
-                    <span style={{ fontSize: "11px", color: "var(--text-4)" }}>v{s.version}</span>
+                    <span className="text-tiny">v{s.version}</span>
                   )}
                   {s.builtin && (
-                    <span className="badge badge-primary" style={{ fontSize: 11 }}>内置</span>
+                    <span className="badge badge-primary badge-xs">内置</span>
                   )}
                 </div>
                 <div className="skill-card-actions">
                   {!s.builtin && (
                     <button
-                      className="btn btn-ghost"
-                      style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
+                      className="btn btn-ghost icon-btn-sm"
                       onClick={() => handleEdit(s.name)}
                       title="编辑内容"
                     >
@@ -171,8 +170,7 @@ export default function SkillManagerPage() {
                     </button>
                   )}
                   <button
-                    className="btn btn-ghost"
-                    style={{ height: "28px", width: "28px", padding: "0", justifyContent: "center" }}
+                    className="btn btn-ghost icon-btn-sm"
                     onClick={() => handleExpand(s.name)}
                     title="查看详情"
                   >
@@ -203,21 +201,13 @@ export default function SkillManagerPage() {
               {expanded[s.name] && (
                 <div className="skill-card-body">
                   {editing === s.name ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <div className="flex-col-gap-sm">
                       <textarea
-                        style={{
-                          width: "100%", minHeight: "300px",
-                          fontFamily: "var(--mono-font, monospace)", fontSize: "12px",
-                          padding: "8px", borderRadius: "6px",
-                          border: "1px solid var(--border)",
-                          background: "var(--bg)",
-                          color: "var(--text)",
-                          resize: "vertical",
-                        }}
+                        className="editor-textarea"
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
                       />
-                      <div style={{ display: "flex", gap: "8px" }}>
+                      <div className="flex-row-gap-sm">
                         <button className="btn btn-primary" onClick={() => handleSave(s.name)} disabled={saving}>
                           {saving ? "保存中..." : "保存"}
                         </button>
@@ -239,7 +229,7 @@ export default function SkillManagerPage() {
                       <pre>{skillContent[s.name]}</pre>
                     </>
                   ) : (
-                    <span style={{ fontSize: "12px", color: "var(--text-4)" }}>加载中...</span>
+                    <span className="text-tiny">加载中...</span>
                   )}
                 </div>
               )}
