@@ -115,6 +115,7 @@ class TestAgentEvents:
         )
         assert ToolExecutionEnd(tool_call_id="c1", tool_name="ls", result="[]").type == "tool_execution_end"
         assert ToolExecutionEnd(tool_call_id="c1", tool_name="ls", result="err", is_error=True).is_error is True
+        assert ToolExecutionEnd(tool_call_id="c1", tool_name="ls", result="err", is_error=True).denied is False
 
     def test_events_are_frozen(self):
         with pytest.raises(Exception, match="cannot assign to field"):

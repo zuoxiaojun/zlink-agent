@@ -103,6 +103,12 @@ class _Prepared:
     immediate: str | None = None
 
 
+@dataclass
+class _HandlerResult:
+    result: str
+    denied: bool = False
+
+
 async def dispatch_tool_batch(
     calls: list[ToolCallPayload],
     *,
@@ -155,16 +161,16 @@ async def _dispatch_parallel(
     for p in runnable:
         await emit(ToolExecutionStart(tool_call_id=p.tc.id, tool_name=p.tc.name, args=p.args))
 
-    async def _run(prep: _Prepared) -> tuple[int, str, bool]:
-        raw = await _run_handler(prep.tc.name, prep.args, config, token)
-        finalized = await _finalize(prep.tc.name, prep.args, raw, config, token)
-        return prep.index, _truncate(finalized, max_result_length), _is_error_result(finalized)
+    async def _run(prep: _Prepared) -> tuple[int, str, bool, bool]:
+        res = await _run_handler(prep.tc.name, prep.args, config, token)
+        finalized = await _finalize(prep.tc.name, prep.args, res.result, config, token)
+        return prep.index, _truncate(finalized, max_result_length), _is_error_result(finalized), res.denied
 
     if runnable:
         completed = await asyncio.gather(*(_run(p) for p in runnable))
     else:
         completed = []
-    by_index = {idx: (truncated, is_error) for idx, truncated, is_error in completed}
+    by_index = {idx: (truncated, is_error, denied) for idx, truncated, is_error, denied in completed}
 
     # Restore original order: immediate errors + executed results
     results: list[ToolResult] = []
@@ -179,13 +185,14 @@ async def _dispatch_parallel(
                 )
             )
             continue
-        truncated, is_error = by_index[p.index]
+        truncated, is_error, denied = by_index[p.index]
         await emit(
             ToolExecutionEnd(
                 tool_call_id=p.tc.id,
                 tool_name=p.tc.name,
                 result=truncated,
                 is_error=is_error,
+                denied=denied,
             )
         )
         results.append(
@@ -224,7 +231,7 @@ async def _dispatch_sequential(
             continue
         await emit(ToolExecutionStart(tool_call_id=tc.id, tool_name=tc.name, args=args))
         raw = await _run_handler(tc.name, args, config, token)
-        finalized = await _finalize(tc.name, args, raw, config, token)
+        finalized = await _finalize(tc.name, args, raw.result, config, token)
         truncated = _truncate(finalized, max_result_length)
         is_error = _is_error_result(finalized)
         await emit(
@@ -233,6 +240,7 @@ async def _dispatch_sequential(
                 tool_name=tc.name,
                 result=truncated,
                 is_error=is_error,
+                denied=raw.denied,
             )
         )
         results.append(
@@ -278,7 +286,7 @@ async def _run_handler(
     args: dict,
     config: AgentLoopConfig,
     token: CancelToken,
-) -> str:
+) -> _HandlerResult:
     """Execute one tool.
 
     Bridge tools go through ``config.bridge_dispatch`` (progressive
@@ -286,11 +294,13 @@ async def _run_handler(
     worker thread so the security hook chain and the ``__block__``
     protocol are preserved (Layer 2).  ApprovalBlockedError is routed to
     ``config.on_approval_blocked``; an approved retry calls the raw
-    handler directly (mirrors the legacy approved path).
+    handler directly (mirrors the legacy approved path).  A denial is
+    flagged via ``_HandlerResult.denied`` so the frontend can show
+    "已拒绝" instead of a generic failure.
     """
     if config.bridge_dispatch is not None and name in BRIDGE_TOOL_NAMES:
         raw = await _await_maybe(config.bridge_dispatch(name, args))
-        return raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False)
+        return _HandlerResult(raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False))
     try:
         raw = await asyncio.to_thread(registry.dispatch, name, args)
     except Exception as e:  # noqa: BLE001
@@ -300,11 +310,11 @@ async def _run_handler(
                 decision = await _await_maybe(config.on_approval_blocked(name, str(e)))
             if decision == "approved":
                 raw = await asyncio.to_thread(_dispatch_bypassing_hooks, name, args)
-                return raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False)
-            return tool_error("用户拒绝了操作")
+                return _HandlerResult(raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False))
+            return _HandlerResult(tool_error("用户拒绝了操作"), denied=True)
         logger.exception("Tool %s failed", name)
-        return tool_error(str(e))
-    return raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False)
+        return _HandlerResult(tool_error(str(e)))
+    return _HandlerResult(raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False))
 
 
 def _dispatch_bypassing_hooks(name: str, args: dict) -> str:

@@ -267,12 +267,13 @@ def test_approval_blocked_denied_returns_denial():
             decisions.append(name)
             return "denied"
 
+        recorder = _EventRecorder()
         batch = _run(
             dispatch_tool_batch(
                 [ToolCallPayload(id="c1", name="t_approve", arguments="{}")],
                 max_result_length=sys.maxsize,
                 token=CancelToken(),
-                emit=_EventRecorder(),
+                emit=recorder,
                 config=_make_config(on_approval_blocked=_on_blocked),
             )
         )
@@ -282,6 +283,12 @@ def test_approval_blocked_denied_returns_denial():
     assert decisions == ["t_approve"]
     assert batch.messages[0].is_error is True
     assert "用户拒绝了操作" in batch.messages[0].result
+    starts = [e for e in recorder.events if isinstance(e, ToolExecutionStart)]
+    ends = [e for e in recorder.events if isinstance(e, ToolExecutionEnd)]
+    assert len(starts) == 1, "denial path must emit exactly one ToolExecutionStart"
+    assert len(ends) == 1
+    assert ends[0].denied is True
+    assert ends[0].is_error is True
 
 
 def test_approval_blocked_approved_runs_handler_directly():
@@ -293,7 +300,14 @@ def test_approval_blocked_approved_runs_handler_directly():
         ran.append("handler")
         return tool_result(data={"approved": True})
 
-    registry.register(name="t_approve2", toolset="test", schema={"type": "object"}, handler=handler, risk_level="high")
+    registry.register(
+        name="t_approve2",
+        toolset="test",
+        schema={"type": "object"},
+        handler=handler,
+        risk_level="high",
+        execution_mode="sequential",
+    )
 
     def _raise_hook(name, args):
         raise ApprovalBlockedError(tool_name=name, tool_args=args, reason="need approval")
@@ -304,12 +318,13 @@ def test_approval_blocked_approved_runs_handler_directly():
         async def _on_blocked(name: str, reason: str) -> str:
             return "approved"
 
+        recorder = _EventRecorder()
         batch = _run(
             dispatch_tool_batch(
                 [ToolCallPayload(id="c1", name="t_approve2", arguments="{}")],
                 max_result_length=sys.maxsize,
                 token=CancelToken(),
-                emit=_EventRecorder(),
+                emit=recorder,
                 config=_make_config(on_approval_blocked=_on_blocked),
             )
         )
@@ -318,6 +333,9 @@ def test_approval_blocked_approved_runs_handler_directly():
 
     assert ran == ["handler"]
     assert json.loads(batch.messages[0].result)["data"]["approved"] is True
+    ends = [e for e in recorder.events if isinstance(e, ToolExecutionEnd)]
+    assert len(ends) == 1
+    assert ends[0].denied is False
 
 
 def test_parallel_batch_sleeps_are_concurrent():

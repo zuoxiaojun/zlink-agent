@@ -190,6 +190,7 @@ class ToolExecutionEnd:
     tool_name: str
     result: str
     is_error: bool = False
+    denied: bool = False
     type: str = "tool_execution_end"
 
 
