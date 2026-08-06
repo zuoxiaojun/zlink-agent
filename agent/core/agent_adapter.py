@@ -16,13 +16,20 @@ import logging
 import os
 import sys
 import threading
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 from agent import fact_memory
 from agent.context_compactor import CompactionSettings, compact_messages, estimate_message_tokens
 from agent.core.iteration_budget import IterationBudget
+from agent.core.kernel_types import (
+    AgentEvent,
+    AgentLoopConfig,
+    CancelToken,
+    MessageUpdate,
+    TurnUpdate,
+)
 from agent.core.llm_client import LLMClient, LLMResponse, ToolCallPayload
 from agent.core.message_builder import build_system_prompt, build_turn_messages, strip_images_from_messages
 from agent.core.tool_dispatcher import dispatch_tool
@@ -275,6 +282,29 @@ class AIAgent:
         self.phase: str = Phase.IDLE
         self._snapshot: TurnSnapshot | None = None
         self._envelope_seq: int = 0
+
+        # ── New-kernel per-run state (P1-T6) ──
+        from agent.core.agent import Agent
+
+        self._agent = Agent()
+        self._agent.subscribe(self._map_event_to_bus)
+        self._token: CancelToken | None = None
+        self._token_watcher: asyncio.Task | None = None
+        self._llm_stop_event: threading.Event | None = None
+        self._budget: IterationBudget | None = None
+        self._session_id = ""
+        self._history: list[dict] = []
+        self._session_started = False
+        self._saw_agent_start = False
+        self._stream_cb: Callable | None = None
+        self._reasoning_cb: Callable | None = None
+        self._error: str | None = None
+        self._final_response = ""
+        self._api_calls = 0
+        self._turn_count = 0
+        self._retry_count = 0
+        self._total_usage: dict = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        self._result_messages: list[dict] = []
 
     # ── Envelope helper ──
 
@@ -699,7 +729,472 @@ class AIAgent:
             return None
         return "approved"
 
+    # ── New kernel path (P1-T6) ────────────────────────────────────
+
     def run_conversation(
+        self,
+        user_message: str | list,
+        system_message: str | None = None,
+        conversation_history: list[dict] | None = None,
+        stream_callback: Callable[[str], None] | None = None,
+        reasoning_callback: Callable[[str], None] | None = None,
+        stop_event: threading.Event | None = None,
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Frozen C1 entry point.  Delegates to the active kernel:
+        ``ZLINK_KERNEL=old`` → the inline legacy algorithm; default →
+        the new async kernel via ``asyncio.run``."""
+        if kernel_mode() == "old":
+            return self._run_conversation_legacy(
+                user_message=user_message,
+                system_message=system_message,
+                conversation_history=conversation_history,
+                stream_callback=stream_callback,
+                reasoning_callback=reasoning_callback,
+                stop_event=stop_event,
+                session_id=session_id,
+            )
+        return asyncio.run(
+            self.run_conversation_async(
+                user_message=user_message,
+                system_message=system_message,
+                conversation_history=conversation_history,
+                stream_callback=stream_callback,
+                reasoning_callback=reasoning_callback,
+                stop_event=stop_event,
+                session_id=session_id,
+            )
+        )
+
+    async def run_conversation_async(
+        self,
+        user_message: str | list,
+        system_message: str | None = None,
+        conversation_history: list[dict] | None = None,
+        stream_callback: Callable[[str], None] | None = None,
+        reasoning_callback: Callable[[str], None] | None = None,
+        stop_event: threading.Event | None = None,
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Async equivalent of :meth:`run_conversation` (new kernel).
+
+        Drives :class:`agent.core.agent.Agent` around
+        :func:`agent.core.loop.run_agent_loop`; maps every AgentEvent to
+        the EventBus (C3) via :meth:`_map_event_to_bus`; returns the same
+        6-key dict as :meth:`run_conversation` (C1).  ``system_message``
+        is honored as the system prompt (the old kernel accepted and
+        ignored it — a latent bug this rewrite fixes).
+        """
+        effective_session_id = session_id or ""
+        self._session_id = effective_session_id
+        self._history = list(conversation_history or [])
+        self._stream_cb = stream_callback
+        self._reasoning_cb = reasoning_callback
+        self._error = None
+        self._final_response = ""
+        self._api_calls = 0
+        self._turn_count = 0
+        self._retry_count = 0
+        self._total_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        self._session_started = False
+        self._saw_agent_start = False
+        self._result_messages = []
+
+        self._assert_idle("run_conversation_async")
+        self._set_phase(AgentPhase.TURN, "conversation start", session_id=effective_session_id)
+
+        try:
+            if not self.api_key:
+                self._set_phase(AgentPhase.IDLE, "no api key", session_id=effective_session_id)
+                return {
+                    "final_response": "",
+                    "messages": [],
+                    "api_calls": 0,
+                    "token_usage": None,
+                    "completed": False,
+                    "error": "API Key 未配置",
+                }
+
+            messages = build_turn_messages(conversation_history, user_message)
+            snap = self._take_snapshot()
+
+            # ── Session start + user message gate (C3 cancel semantics) ──
+            event_bus.publish(
+                SessionStartEvent(
+                    session_id=effective_session_id,
+                    history=conversation_history or [],
+                )
+            )
+            self._session_started = True
+
+            user_evt = UserMessageEvent(content=user_message)
+            event_bus.publish(user_evt)
+            if user_evt.cancelled:
+                self._set_phase(AgentPhase.IDLE, "user message rejected", session_id=effective_session_id)
+                return {
+                    "final_response": "",
+                    "messages": messages,
+                    "api_calls": 0,
+                    "token_usage": None,
+                    "completed": False,
+                    "error": f"User message rejected: {user_evt.cancel_reason}",
+                }
+            if user_evt.content != user_message and isinstance(user_evt.content, str):
+                messages[-1] = {"role": "user", "content": user_evt.content}
+
+            # ── Vision guard (unchanged behaviour) ──
+            if not snap.supports_vision:
+                total_image = sum(
+                    sum(1 for b in m["content"] if isinstance(b, dict) and b.get("type") == "image_url")
+                    for m in messages
+                    if isinstance(m.get("content"), list)
+                )
+                if total_image > 0:
+                    messages = strip_images_from_messages(messages)
+                    self._report(f"🖼️ 当前模型不支持图片输入，已自动过滤 {total_image} 张图片")
+                    if stream_callback:
+                        stream_callback(f"\n\n---\n🖼️ **当前模型不支持图片输入，已自动过滤 {total_image} 张图片**\n")
+
+            # ── Per-run cancellation plumbing ──
+            self._budget = IterationBudget(self.max_iterations)
+            self._token = CancelToken()
+            self._llm_stop_event = threading.Event()
+
+            if stop_event is not None:
+
+                def _watch_legacy_stop() -> None:
+                    stop_event.wait()
+                    self._token.cancel()
+
+                threading.Thread(target=_watch_legacy_stop, daemon=True, name="zlk-stop-watcher").start()
+
+            async def _watch_token() -> None:
+                await self._token.wait()
+                self._llm_stop_event.set()
+
+            self._token_watcher = asyncio.create_task(_watch_token())
+
+            config = AgentLoopConfig(
+                model=snap.model,
+                temperature=snap.temperature,
+                max_tokens=snap.max_tokens,
+                system_prompt=system_message if system_message is not None else snap.system_prompt,
+                tool_defs=snap.tool_defs,
+                max_tool_result_length=snap.max_tool_result_length,
+                call_llm=self._call_llm_hook,
+                transform_context=self._transform_context_hook,
+                before_tool_call=self._before_tool_call_hook,
+                after_tool_call=self._after_tool_call_hook,
+                prepare_next_turn=self._prepare_next_turn_hook,
+                should_stop_after_turn=self._should_stop_after_turn_hook,
+                bridge_dispatch=self._dispatch_bridge_tool,
+                on_approval_blocked=self._on_approval_blocked_hook,
+            )
+
+            try:
+                new_messages = await self._agent.run_async(messages, config, self._token)
+                self._result_messages = new_messages
+            except asyncio.CancelledError:
+                self._error = self._error or "用户已手动停止"
+                self._result_messages = list(self._agent.state.messages)
+                self._publish_session_end()
+            except Exception as e:  # noqa: BLE001 — Agent.handleRunFailure fallback
+                logger.exception("Agent run failed")
+                self._error = f"Unexpected agent error: {e}"
+                self._result_messages = list(self._agent.state.messages)
+                self._publish_session_end()
+
+            has_usage = self._total_usage.get("total_tokens", 0) > 0
+            return {
+                "final_response": self._final_response,
+                "messages": self._result_messages,
+                "api_calls": self._api_calls,
+                "token_usage": self._total_usage if has_usage else None,
+                "completed": bool(self._final_response) and self._error is None,
+                "error": self._error,
+            }
+        finally:
+            self._drop_snapshot()
+            self._budget = None
+            if self._token_watcher is not None:
+                self._token_watcher.cancel()
+            if self.phase != AgentPhase.IDLE:
+                self._set_phase(
+                    AgentPhase.IDLE,
+                    "conversation cleanup",
+                    session_id=effective_session_id,
+                )
+
+    def cancel(self) -> None:
+        """Cancel the in-flight run (WS stop)."""
+        if self._agent is not None:
+            self._agent.cancel()
+        elif self._token is not None:
+            self._token.cancel()
+
+    def steer(self, message: dict) -> None:
+        """Inject a steering message (consumed one-at-a-time, next turn)."""
+        self._agent.steer(message)
+
+    def follow_up(self, message: dict) -> None:
+        self._agent.follow_up(message)
+
+    def clear_steering_queue(self) -> None:
+        self._agent.clear_steering_queue()
+
+    @property
+    def agent(self):
+        """The internal new-kernel Agent (listener/steer/cancel handle)."""
+        return self._agent
+
+    def _publish_session_end(self) -> None:
+        if self._error is None and not self._final_response:
+            self._error = "Max iterations reached without final response"
+        event_bus.publish(
+            SessionEndEvent(
+                session_id=self._session_id,
+                final_response=self._final_response,
+                error=self._error,
+                api_calls=self._api_calls,
+            )
+        )
+
+    def _map_event_to_bus(self, event: AgentEvent) -> None:
+        """Map AgentEvents → EventBus 8 events (C3) + legacy WS callbacks."""
+        t = event.type
+        if t == "agent_start":
+            self._saw_agent_start = True
+        elif t == "turn_start":
+            if self._saw_agent_start and not self._session_started:
+                self._session_started = True
+                event_bus.publish(SessionStartEvent(session_id=self._session_id, history=self._history))
+        elif t == "message_update":
+            if event.delta and self._stream_cb:
+                self._stream_cb(event.delta)
+            if event.reasoning_delta and self._reasoning_cb:
+                self._reasoning_cb(event.reasoning_delta)
+        elif t == "message_end":
+            m = event.message
+            if m.get("role") == "assistant" and "tool_calls" not in m and not m.get("is_error"):
+                self._final_response = m.get("content", "")
+        elif t == "tool_execution_start":
+            try:
+                args_str = json.dumps(event.args, ensure_ascii=False)[:200]
+            except (TypeError, ValueError):
+                args_str = str(event.args)[:200]
+            if self.tool_call_callback:
+                self.tool_call_callback(event.tool_name, args_str)
+            self._report(f"🔧 执行工具: {event.tool_name} | {args_str}")
+        elif t == "tool_execution_end":
+            if self.tool_result_callback:
+                self.tool_result_callback(event.tool_name, event.result)
+        elif t == "turn_end":
+            if event.tool_results:
+                self._report(f"✅ 工具执行完成 (第 {self._turn_count} 轮)")
+                if self._stream_cb:
+                    self._stream_cb("\n\n---\n✅ **工具执行完成**\n")
+        elif t == "agent_end":
+            self._publish_session_end()
+
+    async def _call_llm_hook(
+        self,
+        full_messages: list[dict],
+        *,
+        emit: Callable[[AgentEvent], Awaitable[None]],
+        message: dict,
+        token: CancelToken,
+    ) -> LLMResponse:
+        """One LLM call with retry + EventBus events + usage/api_calls.
+
+        The sync provider call runs in a worker thread; streaming
+        MessageUpdate events are pushed back to the event loop via
+        ``run_coroutine_threadsafe`` (ordering preserved — tasks are
+        scheduled FIFO).  ``token.check()`` after the call turns a
+        stop-mid-stream into a clean cancellation.
+        """
+        snap = self._snapshot
+        assert snap is not None, "snapshot must exist during a run"
+        while True:
+            api_kwargs: dict = {
+                "model": snap.model,
+                "messages": full_messages,
+                "temperature": snap.temperature,
+            }
+            if snap.max_tokens is not None:
+                api_kwargs["max_tokens"] = snap.max_tokens
+            if snap.tool_defs:
+                api_kwargs["tools"] = snap.tool_defs
+                api_kwargs["tool_choice"] = "auto"
+
+            pre_llm = BeforeLLMCallEvent(model=snap.model, messages=full_messages, api_kwargs=api_kwargs)
+            event_bus.publish(pre_llm)
+            if pre_llm.cancelled:
+                return LLMResponse(
+                    error=f"LLM call cancelled by extension: {pre_llm.cancel_reason}",
+                    stop_reason="aborted",
+                )
+
+            self._turn_count += 1
+            self._report(f"🤔 思考中...（第 {self._turn_count}/{self.max_iterations} 轮）")
+
+            loop = asyncio.get_running_loop()
+            content_parts: list[str] = []
+            reasoning_parts: list[str] = []
+
+            async def _safe_emit(event: AgentEvent) -> None:
+                try:
+                    await emit(event)
+                except Exception:  # noqa: BLE001
+                    logger.exception("emit failed for %s", event.type)
+
+            def _stream_cb(
+                chunk: str,
+                _parts: list[str] = content_parts,
+                _loop: asyncio.AbstractEventLoop = loop,
+            ) -> None:
+                _parts.append(chunk)
+                partial = {"role": "assistant", "content": "".join(_parts)}
+                asyncio.run_coroutine_threadsafe(
+                    _safe_emit(MessageUpdate(message=partial, delta=chunk, reasoning_delta=None)),
+                    _loop,
+                )
+
+            def _reasoning_cb(
+                chunk: str,
+                _content: list[str] = content_parts,
+                _reasoning: list[str] = reasoning_parts,
+                _loop: asyncio.AbstractEventLoop = loop,
+            ) -> None:
+                _reasoning.append(chunk)
+                partial = {
+                    "role": "assistant",
+                    "content": "".join(_content),
+                    "reasoning_content": "".join(_reasoning),
+                }
+                asyncio.run_coroutine_threadsafe(
+                    _safe_emit(MessageUpdate(message=partial, delta="", reasoning_delta=chunk)),
+                    _loop,
+                )
+
+            stream_cb = self._stream_cb
+            reasoning_cb = self._reasoning_cb
+            response = await asyncio.to_thread(
+                self._llm.chat,
+                model=snap.model,
+                messages=full_messages,
+                temperature=snap.temperature,
+                max_tokens=snap.max_tokens,
+                tools=snap.tool_defs or None,
+                tool_choice="auto" if snap.tool_defs else None,
+                stream=stream_cb is not None,
+                stream_callback=_stream_cb if stream_cb is not None else None,
+                reasoning_callback=_reasoning_cb if reasoning_cb is not None else None,
+                stop_event=self._llm_stop_event,
+            )
+            self._api_calls += 1
+
+            # Stop mid-LLM-call: the sync call returns early (stop_event) —
+            # surface it as cancellation so the run ends with AgentEnd.
+            token.check()
+
+            event_bus.publish(AfterLLMCallEvent(model=snap.model, response=response))
+            if response.usage:
+                for k in self._total_usage:
+                    self._total_usage[k] += response.usage.get(k, 0)
+
+            if response.failed and self._retry_count < self.max_retries:
+                self._retry_count += 1
+                self._set_phase(AgentPhase.RETRY, f"LLM error: {response.error}", session_id=self._session_id)
+                continue
+
+            self._set_phase(AgentPhase.TURN, "llm call completed", session_id=self._session_id)
+            return response
+
+    async def _transform_context_hook(self, messages: list[dict], token: CancelToken) -> list[dict]:
+        """Compaction policy — the old ``_maybe_compact`` moved into a hook.
+
+        The summary LLM call runs in a worker thread so the event loop is
+        never blocked; ``SessionBeforeCompactEvent`` is still published by
+        :func:`compact_messages` (C3, unchanged).
+        """
+        if not self.compaction_settings.enabled:
+            return messages
+        snap = self._snapshot
+        if snap is None:
+            return messages
+        total_est = estimate_message_tokens(messages, model=snap.model)
+        threshold = (
+            snap.compaction_settings.effective_max_context_tokens(snap.model) - snap.compaction_settings.reserve_tokens
+        )
+        if total_est <= threshold:
+            return messages
+        self._set_phase(AgentPhase.COMPACTION, f"context over threshold ({total_est} > {threshold})")
+
+        def _do_compact() -> tuple[list[dict], int]:
+            def summary_caller(prompt: str) -> str:
+                resp = self._llm.chat(
+                    model=snap.model,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.3,
+                    max_tokens=600,
+                )
+                return resp.content
+
+            compacted, _, saved = compact_messages(
+                messages,
+                snap.compaction_settings,
+                summary_caller,
+                snap.model,
+                event_bus=event_bus,
+            )
+            return compacted, saved
+
+        compacted, saved = await asyncio.to_thread(_do_compact)
+        if saved > 0:
+            self._report(f"📦 上下文已压缩 —— 节省约 {saved} tokens")
+        self._set_phase(AgentPhase.IDLE, f"compaction saved {saved} tokens")
+        return compacted
+
+    async def _before_tool_call_hook(self, tool_name: str, args: dict, token: CancelToken) -> dict:
+        """Layer 3: BeforeToolCallEvent (C3).  Registry before-hooks run
+        inside ``registry.dispatch`` (Layer 2) — unchanged."""
+        pre_event = BeforeToolCallEvent(tool_name=tool_name, args=args)
+        event_bus.publish(pre_event)
+        if pre_event.cancelled:
+            return {"__block__": True, "__reason__": f"Blocked by extension: {pre_event.cancel_reason}"}
+        return pre_event.args
+
+    async def _after_tool_call_hook(self, tool_name: str, args: dict, result: str, token: CancelToken) -> str:
+        post_event = AfterToolCallEvent(tool_name=tool_name, args=args, result=result)
+        event_bus.publish(post_event)
+        return post_event.result
+
+    async def _prepare_next_turn_hook(self, ctx: dict, token: CancelToken) -> TurnUpdate | None:
+        """P1: no per-turn overrides — the run keeps the frozen snapshot
+        (same as the old kernel's per-run snapshot)."""
+        return None
+
+    async def _should_stop_after_turn_hook(self, ctx: dict, token: CancelToken) -> bool:
+        """IterationBudget consumption point (spec §3.4)."""
+        if self._budget is None:
+            return False
+        return not self._budget.consume()
+
+    async def _on_approval_blocked_hook(self, tool_name: str, reason: str) -> str:
+        """Approval flow (R4: threading.Event → asyncio wait).
+        Returns ``"approved"`` | ``"denied"``."""
+        req = ApprovalRequest(tool_name=tool_name, reason=reason)
+        if self.approval_callback:
+            self.approval_callback(req)
+        loop = asyncio.get_running_loop()
+        timed_out = await loop.run_in_executor(None, req.event.wait, 120)
+        if timed_out or req.result != "approved":
+            return "denied"
+        return "approved"
+
+    # ── Legacy kernel path (verbatim pre-P1 algorithm) ─────────────
+
+    def _run_conversation_legacy(
         self,
         user_message: str | list,
         system_message: str | None = None,
