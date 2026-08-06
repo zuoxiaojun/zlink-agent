@@ -3,7 +3,7 @@
 Pi-style kernel redesign (spec 2026-08-06-pi-style-kernel-design).  This
 module mirrors Pi's ``packages/agent/src/types.ts``: pure types + constants,
 no logic.  ``AgentLoopConfig`` carries every strategy hook; ``CancelToken``
-replaces Pi's AbortSignal; the 9 ``AgentEvent`` classes are the kernel's
+replaces Pi's AbortSignal; the 10 ``AgentEvent`` classes are the kernel's
 only outward event channel.
 """
 

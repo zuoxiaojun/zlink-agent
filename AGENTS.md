@@ -22,7 +22,7 @@ zlink-agent/
 │   └── schemas/                # ✅ Pydantic models (config, chat, mcp, slash_command)
 ├── agent/                      # Core logic (non-FastAPI, reusable)
 │   ├── core/
-│   │   ├── kernel_types.py     # ⚠️ AgentLoopConfig 钩子契约 / 9 种 AgentEvent / CancelToken / ToolResult
+│   │   ├── kernel_types.py     # ⚠️ AgentLoopConfig 钩子契约 / 10 种 AgentEvent / CancelToken / ToolResult
 │   │   ├── loop.py             # ⚠️ run_agent_loop — 零策略双层 async loop（AgentEnd 保证任何路径收尾）
 │   │   ├── agent.py            # ⚠️ 有状态 Agent 包装（subscribe/steer/follow_up/cancel/wait_idle）+ 兼容 re-export
 │   │   ├── agent_adapter.py    # ⚠️ AIAgent 兼容层（run_conversation_async + EventBus 8 事件映射 + Phase 机）

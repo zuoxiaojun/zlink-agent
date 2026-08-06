@@ -501,6 +501,6 @@ async def _run_agent_new(
         [m for m in all_msgs if m.get("role") == "assistant" and isinstance(m.get("content"), str) and m["content"]]
     )
     if asst_count >= 2:
-        summary = _generate_summary(all_msgs, api_key, base_url, model)
+        summary = await asyncio.to_thread(_generate_summary, all_msgs, api_key, base_url, model)
         if summary:
             memory_manager.store_conversation_summary(session_id, title, all_msgs, summary=summary)

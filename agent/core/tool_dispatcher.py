@@ -299,7 +299,8 @@ async def _run_handler(
             if config.on_approval_blocked is not None:
                 decision = await _await_maybe(config.on_approval_blocked(name, str(e)))
             if decision == "approved":
-                return _dispatch_bypassing_hooks(name, args)
+                raw = await asyncio.to_thread(_dispatch_bypassing_hooks, name, args)
+                return raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False)
             return tool_error("用户拒绝了操作")
         logger.exception("Tool %s failed", name)
         return tool_error(str(e))
