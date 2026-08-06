@@ -229,7 +229,8 @@ export default function SkillManagerPage() {
                       <pre>{skillContent[s.name]}</pre>
                     </>
                   ) : (
-                    <span className="text-tiny">加载中...</span>
+                    /* keep inline: no C-2 utility class provides 12px font-size (text-tiny is 11px) */
+                    <span style={{ fontSize: "12px", color: "var(--text-4)" }}>加载中...</span>
                   )}
                 </div>
               )}
