@@ -26,13 +26,13 @@ export default function Layout() {
         <div className="top-bar">
           <span className="top-bar-title">{title}</span>
           {state.currentSessionId && state.currentSessionTitle && location.pathname === "/" && (
-            <span style={{ fontSize: "12px", color: "var(--text-3)", marginLeft: "8px" }}>
+            <span className="text-hint ml-sm">
               · {state.currentSessionTitle}
             </span>
           )}
           <span className="top-bar-meta">
             {state.agentRunning ? (
-              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <span className="flex-row-gap-6">
                 <span className="sidebar-footer-dot" style={{ display: "inline-block" }} />
                 思考中
               </span>

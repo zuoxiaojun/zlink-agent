@@ -190,29 +190,12 @@ export default function SettingsERPPage() {
         </div>
       )}
 
-      <p
-        style={{
-          margin: "0 0 20px",
-          color: "var(--text-2)",
-          lineHeight: 1.6,
-          fontSize: 14,
-        }}
-      >
+      <p className="page-intro">
         ZLink Agent 通过 <strong>ERP 客户端</strong> 接入各业务系统。切换页签管理 YonSuite
         与 NC 的连接信息。
       </p>
 
-      <div
-        style={{
-          display: "inline-flex",
-          background: "var(--bg-card)",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius)",
-          padding: 4,
-          marginBottom: 20,
-          gap: 4,
-        }}
-      >
+      <div className="erp-tabs">
         {(Object.keys(ERP_REGISTRY) as ErpName[]).map((name) => {
           const meta = ERP_REGISTRY[name];
           const isActive = activeTab === name;
@@ -224,10 +207,10 @@ export default function SettingsERPPage() {
                 padding: "6px 16px",
                 borderRadius: "calc(var(--radius) - 4px)",
                 border: "none",
-                background: isActive ? "var(--primary)" : "transparent",
-                color: isActive ? "#fff" : "var(--text-2)",
+                background: isActive ? "var(--primary)" : "transparent", // dynamic: isActive
+                color: isActive ? "#fff" : "var(--text-2)", // dynamic: isActive
                 fontSize: 13,
-                fontWeight: isActive ? 500 : 400,
+                fontWeight: isActive ? 500 : 400, // dynamic: isActive
                 cursor: "pointer",
                 display: "inline-flex",
                 alignItems: "center",
@@ -240,8 +223,8 @@ export default function SettingsERPPage() {
                   fontSize: 11,
                   padding: "1px 6px",
                   borderRadius: 10,
-                  background: isActive ? "rgba(255,255,255,0.25)" : "var(--bg-hover)",
-                  color: isActive ? "#fff" : "var(--text-3)",
+                  background: isActive ? "rgba(255,255,255,0.25)" : "var(--bg-hover)", // dynamic: isActive
+                  color: isActive ? "#fff" : "var(--text-3)", // dynamic: isActive
                 }}
               >
                 {meta.badge}
@@ -305,7 +288,7 @@ function ErpTabPanel({
   if (!config) {
     return (
       <div className="card">
-        <div className="card-body" style={{ padding: 24 }}>
+        <div className="card-body p-lg">
           <div className="skeleton skeleton-title" />
           <div className="skeleton skeleton-text" />
           <div className="skeleton skeleton-text" />
@@ -318,17 +301,10 @@ function ErpTabPanel({
 
   return (
     <div className="card form-grid-2">
-      <div
-        className="card-header"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
+      <div className="card-header">
         <div>
           <h2 className="card-title">{meta.label}</h2>
-          <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--text-3)" }}>
+          <p className="card-subtitle-sm">
             {meta.description}
           </p>
         </div>
@@ -344,9 +320,9 @@ function ErpTabPanel({
             background: "transparent",
             border: `1px solid ${
               enabled ? "var(--success, #00B42A)" : "var(--border)"
-            }`,
+            }`, // dynamic: enabled
             borderRadius: "var(--radius-sm)",
-            color: enabled ? "var(--success, #00B42A)" : "var(--text-2)",
+            color: enabled ? "var(--success, #00B42A)" : "var(--text-2)", // dynamic: enabled
             cursor: isToggling ? "wait" : "pointer",
             fontSize: 13,
             fontWeight: 500,
@@ -370,7 +346,7 @@ function ErpTabPanel({
           {meta.fields.map((field) => (
             <div key={field.key} className="form-group">
               <label className="form-label">{field.label}</label>
-              <div className="card-body" style={{ padding: "8px 0", fontSize: 14 }}>
+              <div className="card-body field-value">
                 {field.secret && config[field.key]
                   ? "••••••••"
                   : (config[field.key] == null ? "（未设置）" : String(config[field.key]))}

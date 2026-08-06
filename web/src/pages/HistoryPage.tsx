@@ -69,10 +69,10 @@ export default function HistoryPage() {
               <div className="card-header">
                 <div>
                   <div className="card-title">
-                    {isCurrent && <span className="badge badge-primary" style={{ marginRight: "8px" }}>当前</span>}
+                    {isCurrent && <span className="badge badge-primary mr-sm">当前</span>}
                     {s.title || "未命名对话"}
                   </div>
-                  <div className="card-subtitle" style={{ marginTop: "4px" }}>
+                  <div className="card-subtitle mt-sm">
                     {new Date(s.created_at).toLocaleString()} · {s.message_count} 条消息
                   </div>
                 </div>

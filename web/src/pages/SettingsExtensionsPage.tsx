@@ -82,12 +82,12 @@ export default function SettingsExtensionsPage() {
       </div>
 
       {toast && (
-        <div className="toast toast-success" style={{ marginBottom: "16px" }}>
+        <div className="toast toast-success mb-lg">
           {toast}
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "20px", flexWrap: "wrap" }}>
+      <div className="toolbar">
         <input
           className="form-input"
           style={{ maxWidth: "280px" }}
@@ -95,7 +95,7 @@ export default function SettingsExtensionsPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <span style={{ fontSize: "13px", color: "var(--text-3)" }}>
+        <span className="text-meta">
           {search.trim() ? `找到 ${filtered.length} 个` : `共 ${extensions.length} 个扩展`}
         </span>
         <button
@@ -111,7 +111,7 @@ export default function SettingsExtensionsPage() {
       {extensions.length === 0 ? (
         <div className="card">
           <div className="empty-state">
-            <IconPlug size={40} className="empty-state-icon" style={{ opacity: 0.3 }} />
+            <IconPlug size={40} className="empty-state-icon empty-state-icon-dim" />
             <p>暂无已注册的扩展。重启后端服务以触发内置扩展自动注册。</p>
           </div>
         </div>
@@ -132,15 +132,15 @@ export default function SettingsExtensionsPage() {
                       width: "8px",
                       height: "8px",
                       borderRadius: "50%",
-                      background: ext.enabled ? "var(--success)" : "var(--text-4)",
+                      background: ext.enabled ? "var(--success)" : "var(--text-4)", // dynamic: ext.enabled
                       flexShrink: 0,
                     }}
                   />
-                  <span style={{ fontSize: "14px", fontWeight: 600 }}>{ext.name}</span>
+                  <span className="text-name">{ext.name}</span>
                   <span
                     className="badge"
                     style={{
-                      background: KIND_COLOR[ext.kind],
+                      background: KIND_COLOR[ext.kind], // dynamic: KIND_COLOR
                       color: "#fff",
                       fontSize: "10px",
                       padding: "1px 6px",
@@ -153,8 +153,7 @@ export default function SettingsExtensionsPage() {
                 </div>
                 <div className="skill-card-actions">
                   <button
-                    className="btn btn-ghost"
-                    style={{ height: "28px", width: "28px", padding: 0, justifyContent: "center" }}
+                    className="btn btn-ghost icon-btn-sm"
                     onClick={() => handleToggle(ext)}
                     disabled={busy}
                     title={ext.enabled ? "停用" : "启用"}
@@ -167,7 +166,7 @@ export default function SettingsExtensionsPage() {
                   </button>
                 </div>
               </div>
-              <div style={{ padding: "0 14px 14px", fontSize: "12px", color: "var(--text-3)", lineHeight: 1.6 }}>
+              <div className="skill-card-desc-pad">
                 {ext.description || "（暂无描述）"}
               </div>
             </div>
@@ -175,9 +174,9 @@ export default function SettingsExtensionsPage() {
         </div>
       )}
 
-      <div style={{ marginTop: "24px", fontSize: "12px", color: "var(--text-3)", lineHeight: 1.6 }}>
+      <div className="footnote">
         <strong>说明：</strong>
-        <ul style={{ marginTop: "6px", paddingLeft: "20px" }}>
+        <ul className="footnote-list">
           <li>停用会立即从事件总线摘除，无需重启服务</li>
           <li>状态保存在 <code>config.json</code> 的 <code>disabled_extensions</code> 字段</li>
           <li>"策略"类扩展（如 security-event）和 <code>agent/tools/security_hooks.py</code> 的 registry 钩子<strong>并行工作</strong>，互相作为冗余备份</li>

@@ -67,7 +67,7 @@ export default function ToolsPage() {
         <h1 className="page-title">内置工具</h1>
       </div>
 
-      <div style={{ marginBottom: "16px", display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+      <div className="toolbar-md">
         <div className="search-input-wrap">
           <IconSearch size={14} className="search-input-icon" />
           <input
@@ -77,17 +77,17 @@ export default function ToolsPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <span style={{ fontSize: "13px", color: "var(--text-3)" }}>
+        <span className="text-meta">
           {search.trim() ? `找到 ${filtered.length} 个` : `共 ${tools.length} 个工具`}，{toolsets.size} 个工具集
         </span>
         <button onClick={expandAll} className="action-link">全部展开</button>
-        <span style={{ color: "var(--border)" }}>|</span>
+        <span className="text-sep">|</span>
         <button onClick={collapseAll} className="action-link">全部收起</button>
       </div>
 
       {tools.length === 0 ? (
         <div className="empty-state">
-          <IconHammer size={40} className="empty-state-icon" style={{ opacity: 0.3 }} />
+          <IconHammer size={40} className="empty-state-icon empty-state-icon-dim" />
           <p>暂无已注册的内置工具</p>
         </div>
       ) : (
@@ -111,14 +111,8 @@ export default function ToolsPage() {
                       <div key={t.name} className="skill-card">
                         <div className="skill-card-header">
                           <div className="skill-card-name">
-                            <span style={{
-                              width: "8px",
-                              height: "8px",
-                              borderRadius: "50%",
-                              background: "var(--success)",
-                              flexShrink: 0,
-                            }} />
-                            <span style={{ fontSize: "14px", fontWeight: 600 }}>{t.emoji} {t.name}</span>
+                            <span className="dot-success" />
+                            <span className="text-name">{t.emoji} {t.name}</span>
                           </div>
                         </div>
                         {t.description && (

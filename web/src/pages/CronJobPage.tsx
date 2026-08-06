@@ -156,14 +156,14 @@ export default function CronJobPage() {
       </div>
 
       {toast && (
-        <div className={`toast toast-${toast.type}`} style={{ marginBottom: 12 }}>
+        <div className={`toast toast-${toast.type} mb-md`}>
           {toast.msg}
         </div>
       )}
-      {error && <div className="form-error" style={{ color: "var(--danger)", marginBottom: 12 }}>{error}</div>}
+      {error && <div className="error-inline">{error}</div>}
 
       {showCreate && (
-        <div className="card" style={{ marginBottom: 16, padding: 16 }}>
+        <div className="card mb-lg p-md">
           <div className="form-group">
             <label>任务名称</label>
             <input
@@ -181,7 +181,7 @@ export default function CronJobPage() {
               onChange={(e) => setForm({ ...form, schedule: e.target.value })}
               placeholder="every day at 09:00 / every 30 minutes / ISO时间戳"
             />
-            <small style={{ color: "var(--text-3)" }}>
+            <small className="text-muted">
               支持: "every N minutes/hours/days", "every day at HH:MM", ISO时间戳
             </small>
           </div>
@@ -195,7 +195,7 @@ export default function CronJobPage() {
               rows={3}
             />
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="flex-row-gap-sm">
             <button className="btn btn-primary" onClick={handleCreate}>创建</button>
             <button className="btn" onClick={() => { setShowCreate(false); setError(""); }}>取消</button>
           </div>
@@ -205,7 +205,7 @@ export default function CronJobPage() {
       {jobs.length === 0 ? (
         <div className="empty-state">
           <p>暂无定时任务</p>
-          <small style={{ color: "var(--text-3)" }}>点击上方「新建任务」创建一个</small>
+          <small className="text-muted">点击上方「新建任务」创建一个</small>
         </div>
       ) : (
         <table className="data-table">
@@ -224,7 +224,7 @@ export default function CronJobPage() {
               editingId === job.id ? (
                 <tr key={job.id}>
                   <td colSpan={6} style={{ padding: 0 }}>
-                    <div className="card" style={{ margin: 8, padding: 16 }}>
+                    <div className="card job-edit-card">
                       <div className="form-group">
                         <label>任务名称</label>
                         <input className="form-input" value={editForm.name}
@@ -240,7 +240,7 @@ export default function CronJobPage() {
                         <textarea className="form-input" value={editForm.prompt} rows={2}
                           onChange={(e) => setEditForm({ ...editForm, prompt: e.target.value })} />
                       </div>
-                      <div style={{ display: "flex", gap: 8 }}>
+                      <div className="flex-row-gap-sm">
                         <button className="btn btn-primary" onClick={handleSaveEdit}>保存</button>
                         <button className="btn" onClick={() => setEditingId(null)}>取消</button>
                       </div>
@@ -255,7 +255,7 @@ export default function CronJobPage() {
                   {job.last_run_at ? formatTime(job.last_run_at) : "-"}
                   {job.last_session_id && (
                     <button onClick={() => navigate(`/?s=${job.last_session_id}`)}
-                       style={{ marginLeft: 6, fontSize: 12, color: "var(--primary)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline", padding: 0 }}
+                       className="link-btn"
                        title="查看执行结果">
                       查看
                     </button>
@@ -293,7 +293,7 @@ export default function CronJobPage() {
 
       <div className="data-table-footer">
         <button className="btn" onClick={loadJobs}><IconRefresh size={14} /> 刷新</button>
-        <span style={{ marginLeft: 8, color: "var(--text-3)", fontSize: 12 }}>共 {jobs.length} 个任务</span>
+        <span className="ml-sm text-hint">共 {jobs.length} 个任务</span>
       </div>
     </div>
   );
