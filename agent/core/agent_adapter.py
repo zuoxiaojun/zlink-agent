@@ -24,6 +24,7 @@ from agent import fact_memory
 from agent.context_compactor import CompactionSettings, compact_messages, estimate_message_tokens
 from agent.core.iteration_budget import IterationBudget
 from agent.core.kernel_types import (
+    AgentEnd,
     AgentEvent,
     AgentLoopConfig,
     CancelToken,
@@ -897,12 +898,12 @@ class AIAgent:
             except asyncio.CancelledError:
                 self._error = self._error or "用户已手动停止"
                 self._result_messages = list(self._agent.state.messages)
-                self._publish_session_end()
+                await self._agent._emit(AgentEnd(list(self._result_messages)))
             except Exception as e:  # noqa: BLE001 — Agent.handleRunFailure fallback
                 logger.exception("Agent run failed")
                 self._error = f"Unexpected agent error: {e}"
                 self._result_messages = list(self._agent.state.messages)
-                self._publish_session_end()
+                await self._agent._emit(AgentEnd(list(self._result_messages)))
 
             has_usage = self._total_usage.get("total_tokens", 0) > 0
             return {

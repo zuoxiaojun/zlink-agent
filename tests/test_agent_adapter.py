@@ -6,6 +6,7 @@ the new-kernel path tests are added in P1-T6 and P3.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os  # noqa: F401 — kept verbatim from the brief; kernel-mode tests use monkeypatch
 
@@ -468,3 +469,45 @@ class TestNewKernelPath:
         assert "参数可能被截断，请重新完整发出" in tool_msgs[0]["content"]
         assert result["final_response"] == "please re-issue"
         assert result["completed"] is True
+
+    def test_cancel_during_run_ends_with_agent_end(self, monkeypatch):
+        _force_kernel(monkeypatch, "new")
+        import time
+
+        from agent.core.kernel_types import AgentEnd
+        from agent.core.llm_providers import LLMResponse
+
+        ended: list[AgentEnd] = []
+
+        def _sleepy(args: dict) -> str:
+            time.sleep(0.5)
+            return json.dumps({"success": True})
+
+        registry.register(name="sleepy_tool", toolset="test", schema={"type": "object"}, handler=_sleepy)
+        provider = MockLLMProvider(
+            responses=[
+                LLMResponse(content="", tool_calls=[ToolCallPayload(id="c1", name="sleepy_tool", arguments="{}")]),
+                make_text_response("never"),
+            ]
+        )
+        agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+        agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+        agent.agent.subscribe(lambda e: ended.append(e) if isinstance(e, AgentEnd) else None)
+
+        async def _scenario() -> dict:
+            task = asyncio.create_task(
+                agent.run_conversation_async(user_message="go", conversation_history=[], session_id="s1")
+            )
+            await asyncio.sleep(0.1)
+            agent.cancel()
+            result = await task
+            await agent.agent.wait_idle()
+            return result
+
+        result = asyncio.run(_scenario())
+        assert result["error"] == "用户已手动停止"
+        assert result["completed"] is False
+        assert len(ended) == 1, "AgentEnd must close the event stream on cancel"
+        assert agent.agent.state.running is False
+        assert agent.agent.state.pendingToolCalls == 0
+        assert agent.phase == "idle"
