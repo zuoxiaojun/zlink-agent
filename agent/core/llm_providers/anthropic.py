@@ -103,6 +103,7 @@ def _anthropic_response_to_llm(response: Any) -> LLMResponse:
         reasoning="\n".join(reasoning_parts) if reasoning_parts else None,
         tool_calls=tool_calls or None,
         usage=usage,
+        stop_reason=_map_anthropic_stop_reason(getattr(response, "stop_reason", None)),
     )
 
 
@@ -173,6 +174,22 @@ def _messages_to_anthropic(messages: list[dict]) -> list[dict]:
     if pending_tool_results:
         out.append({"role": "user", "content": pending_tool_results})
     return out
+
+
+def _map_anthropic_stop_reason(stop_reason: str | None) -> str | None:
+    """Map an Anthropic native ``stop_reason`` onto the unified value.
+
+    ``"max_tokens"`` → ``"length"`` (truncation guard, spec §8 R3);
+    ``"tool_use"`` → ``"tool_calls"``; ``"end_turn"`` stays.  Unknown
+    values pass through (R3: degrade to current behaviour, never raise).
+    """
+    return {
+        "end_turn": "end_turn",
+        "max_tokens": "length",
+        "tool_use": "tool_calls",
+        "stop_sequence": "stop_sequence",
+        None: None,
+    }.get(stop_reason, stop_reason)
 
 
 class AnthropicProvider(LLMProvider):
@@ -309,6 +326,7 @@ class AnthropicProvider(LLMProvider):
         tool_calls_map: dict[int, dict] = {}  # block index → {id, name, args}
         thinking_parts: list[str] = []
         usage: dict | None = None
+        stop_reason: str | None = None
 
         with client.messages.stream(
             model=model,
@@ -353,6 +371,9 @@ class AnthropicProvider(LLMProvider):
                         chunk = getattr(delta, "thinking", "") or ""
                         thinking_parts.append(chunk)
                 elif etype == "message_delta":
+                    sr = getattr(event, "stop_reason", None)
+                    if sr:
+                        stop_reason = sr
                     usage_obj = getattr(event, "usage", None)
                     if usage_obj:
                         in_t = getattr(usage_obj, "input_tokens", 0) or 0
@@ -379,6 +400,7 @@ class AnthropicProvider(LLMProvider):
             reasoning="\n".join(thinking_parts) if thinking_parts else None,
             tool_calls=tool_calls,
             usage=usage,
+            stop_reason=_map_anthropic_stop_reason(stop_reason),
         )
 
 
