@@ -888,6 +888,8 @@ class AIAgent:
                 after_tool_call=self._after_tool_call_hook,
                 prepare_next_turn=self._prepare_next_turn_hook,
                 should_stop_after_turn=self._should_stop_after_turn_hook,
+                get_steering_messages=self._get_steering_hook,
+                get_follow_up_messages=self._get_follow_up_hook,
                 bridge_dispatch=self._dispatch_bridge_tool,
                 on_approval_blocked=self._on_approval_blocked_hook,
             )
@@ -1192,6 +1194,14 @@ class AIAgent:
         if timed_out or req.result != "approved":
             return "denied"
         return "approved"
+
+    def _get_steering_hook(self, token: CancelToken) -> list[dict]:
+        """Steering queue — one-at-a-time (oldest first)."""
+        return self._agent.next_steering_message()
+
+    def _get_follow_up_hook(self, token: CancelToken) -> list[dict]:
+        """Follow-up queue — drained wholesale (API only, no UI)."""
+        return self._agent.next_follow_up_messages()
 
     # ── Legacy kernel path (verbatim pre-P1 algorithm) ─────────────
 

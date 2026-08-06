@@ -511,3 +511,95 @@ class TestNewKernelPath:
         assert agent.agent.state.running is False
         assert agent.agent.state.pendingToolCalls == 0
         assert agent.phase == "idle"
+
+    def test_steer_injected_next_turn(self, monkeypatch):
+        _force_kernel(monkeypatch, "new")
+        import threading
+
+        entered = threading.Event()
+        release = threading.Event()
+
+        class _GatedProvider:
+            """Blocks the first LLM call until the test injects its steer.
+
+            The mocked run completes in a single event-loop slice (the
+            instant ``to_thread`` LLM call never suspends), so a fixed
+            sleep races the run.  Gating the LLM call makes mid-run
+            injection deterministic: the steer lands while turn 1 is
+            in-flight and is consumed at the next turn boundary.
+            """
+
+            def __init__(self, inner):
+                self.inner = inner
+                self.first = True
+
+            def chat(self, **kwargs):
+                if self.first:
+                    self.first = False
+                    entered.set()
+                    release.wait(timeout=5)
+                return self.inner.chat(**kwargs)
+
+        provider = _GatedProvider(
+            MockLLMProvider(responses=[make_text_response("first"), make_text_response("second")])
+        )
+        agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+        agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+
+        async def _scenario() -> dict:
+            task = asyncio.create_task(
+                agent.run_conversation_async(user_message="go", conversation_history=[], session_id="s1")
+            )
+            await asyncio.to_thread(entered.wait, 5)
+            agent.steer({"role": "user", "content": "interrupt"})
+            release.set()
+            return await task
+
+        result = asyncio.run(_scenario())
+        contents = [m.get("content") for m in result["messages"]]
+        assert "interrupt" in contents
+        idx_steer = contents.index("interrupt")
+        idx_second = contents.index("second")
+        assert idx_steer < idx_second
+        assert result["final_response"] == "second"
+
+    def test_steer_one_at_a_time_oldest_first(self, monkeypatch):
+        _force_kernel(monkeypatch, "new")
+        import threading
+
+        entered = threading.Event()
+        release = threading.Event()
+
+        class _GatedProvider:
+            def __init__(self, inner):
+                self.inner = inner
+                self.first = True
+
+            def chat(self, **kwargs):
+                if self.first:
+                    self.first = False
+                    entered.set()
+                    release.wait(timeout=5)
+                return self.inner.chat(**kwargs)
+
+        provider = _GatedProvider(
+            MockLLMProvider(
+                responses=[make_text_response("a"), make_text_response("b"), make_text_response("c")]
+            )
+        )
+        agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=5)
+        agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+
+        async def _scenario() -> dict:
+            task = asyncio.create_task(
+                agent.run_conversation_async(user_message="go", conversation_history=[], session_id="s1")
+            )
+            await asyncio.to_thread(entered.wait, 5)
+            agent.steer({"role": "user", "content": "steer-1"})
+            agent.steer({"role": "user", "content": "steer-2"})
+            release.set()
+            return await task
+
+        result = asyncio.run(_scenario())
+        contents = [m.get("content") for m in result["messages"]]
+        assert contents.index("steer-1") < contents.index("steer-2") < contents.index("c")

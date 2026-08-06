@@ -199,3 +199,24 @@ def test_ws_error_frame_on_run_exception(monkeypatch):
         assert msg["type"] == "error"
         assert "agent exploded" in msg["message"]
         assert msg["session_id"] == "sess-err"
+
+
+def test_ws_steering_message_steers_agent(monkeypatch):
+    _monkeypatch_ws_env(monkeypatch)
+    fake = _FakeAgent(_make_events(), delay=1.0)
+    monkeypatch.setattr("backend.api.chat.AIAgent", lambda **kw: fake)
+
+    from fastapi.testclient import TestClient
+
+    from backend.main import app
+
+    client = TestClient(app)
+    with client.websocket_connect("/ws/chat/sess-steer") as ws:
+        ws.send_json({"type": "send_message", "content": "hi"})
+        ws.send_json({"type": "steering", "payload": {"content": "interrupt"}})
+        while True:
+            msg = ws.receive_json()
+            if msg["type"] == "done":
+                break
+
+    assert fake.steered == [{"role": "user", "content": "interrupt"}]

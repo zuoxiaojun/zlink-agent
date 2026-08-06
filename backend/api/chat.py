@@ -451,6 +451,11 @@ async def _run_agent_new(
             elif mtype == "approval_response":
                 payload = data.get("payload", {})
                 _resolve_pending_approval(session_id, payload.get("approved", False))
+            elif mtype == "steering":
+                payload = data.get("payload", {})
+                content = payload.get("content", "")
+                if content:
+                    agent.steer({"role": "user", "content": content})
 
     listen_task = asyncio.create_task(_listen_inbound())
     error: str | None = None
