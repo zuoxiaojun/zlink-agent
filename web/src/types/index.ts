@@ -131,7 +131,8 @@ export interface MemorySummary {
 export type WsClientMessage =
   | { type: "send_message"; content: string | ContentPart[] }
   | { type: "stop" }
-  | { type: "approval_response"; payload: { approved: boolean } };
+  | { type: "approval_response"; payload: { approved: boolean } }
+  | { type: "steering"; payload: { content: string } };
 
 export interface ApprovalState {
   tool_name: string;

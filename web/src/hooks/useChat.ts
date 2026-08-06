@@ -145,5 +145,19 @@ export function useChat(options?: UseChatOptions) {
     wsRef.current?.send({ type: "approval_response", payload: { approved } });
   }, []);
 
-  return { sendMessage, stopAgent, sendApproval };
+  // Steering: while the agent is running, a new user message is injected
+  // into the next turn on the SAME connection instead of starting a new run.
+  const steerMessage = useCallback(
+    (content: string) => {
+      if (!wsRef.current) return;
+      dispatch({
+        type: "SET_MESSAGES",
+        messages: [...state.messages, { role: "user", content }],
+      });
+      wsRef.current.send({ type: "steering", payload: { content } });
+    },
+    [state.messages, dispatch]
+  );
+
+  return { sendMessage, stopAgent, sendApproval, steerMessage };
 }

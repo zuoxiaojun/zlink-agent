@@ -15,9 +15,10 @@ interface Props {
   onSubmit: (content: string | ContentPart[]) => void;
   disabled: boolean;
   placeholder?: string;
+  attachDisabled?: boolean;
 }
 
-export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
+export default function ChatInput({ onSubmit, disabled, placeholder, attachDisabled }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isComposingRef = useRef(false);
@@ -151,6 +152,7 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
   };
 
   const handlePaste = (e: React.ClipboardEvent) => {
+    if (attachDisabled) return;
     const items = e.clipboardData?.items;
     if (!items) return;
     for (let i = 0; i < items.length; i++) {
@@ -223,6 +225,7 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
+    if (attachDisabled) return;
     if (e.dataTransfer?.files) addFiles(e.dataTransfer.files);
   };
 
@@ -286,7 +289,7 @@ export default function ChatInput({ onSubmit, disabled, placeholder }: Props) {
               type="button"
               className="chat-attach-btn"
               onClick={() => fileInputRef.current?.click()}
-              disabled={disabled}
+              disabled={disabled || attachDisabled}
               title="上传文件"
             >
               <IconPaperclip size={16} />
