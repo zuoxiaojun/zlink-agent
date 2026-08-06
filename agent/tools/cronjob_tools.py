@@ -555,6 +555,7 @@ registry.register(
 
 registry.register(
     name="cronjob_create",
+    execution_mode="sequential",
     toolset="cron",
     schema=CRONJOB_CREATE_SCHEMA,
     handler=lambda args, **kw: cronjob_create(
@@ -569,6 +570,7 @@ registry.register(
 
 registry.register(
     name="cronjob_delete",
+    execution_mode="sequential",
     toolset="cron",
     schema=CRONJOB_DELETE_SCHEMA,
     handler=lambda args, **kw: cronjob_delete(
@@ -581,6 +583,7 @@ registry.register(
 
 registry.register(
     name="cronjob_run",
+    execution_mode="sequential",
     toolset="cron",
     schema=CRONJOB_RUN_SCHEMA,
     handler=lambda args, **kw: cronjob_run(
@@ -593,6 +596,7 @@ registry.register(
 
 registry.register(
     name="cronjob_update",
+    execution_mode="sequential",
     toolset="cron",
     schema=CRONJOB_UPDATE_SCHEMA,
     handler=lambda args, **kw: cronjob_update(
@@ -608,6 +612,7 @@ registry.register(
 
 registry.register(
     name="cronjob_toggle",
+    execution_mode="sequential",
     toolset="cron",
     schema=CRONJOB_TOGGLE_SCHEMA,
     handler=lambda args, **kw: cronjob_toggle(

@@ -19,6 +19,7 @@ from agent import fact_memory, memory_manager, session_manager, skill_manager
 from agent.agent import AIAgent
 from agent.context_compactor import CompactionSettings
 from agent.core.agent import ApprovalRequest
+from agent.core.kernel_types import AgentEvent
 from agent.core.message_builder import build_system_prompt
 from agent.slash_commands import execute, parse_command
 from agent.utils import DATA_DIR
@@ -292,189 +293,214 @@ async def _run_agent(
     compaction_settings: CompactionSettings | None = None,
     skill_detail: str | None = None,
 ):
-    """Run the agent in a thread pool and stream results via WebSocket."""
+    """Direct-await path (spec §4.6)."""
+    await _run_agent_new(
+        websocket,
+        session_id,
+        content,
+        history,
+        api_key,
+        base_url,
+        model,
+        max_iterations,
+        existing_msgs,
+        compaction_settings,
+        skill_detail,
+    )
 
-    loop = asyncio.get_running_loop()
-    queue: asyncio.Queue = asyncio.Queue()
-    stop_event = threading.Event()
 
-    # Track stop from client
-    stop_received = False
+async def _run_agent_new(
+    websocket: WebSocket,
+    session_id: str,
+    content: str,
+    history: list[dict],
+    api_key: str,
+    base_url: str,
+    model: str,
+    max_iterations: int,
+    existing_msgs: list[dict],
+    compaction_settings: CompactionSettings | None = None,
+    skill_detail: str | None = None,
+):
+    """Direct-await path (spec §4.6): an AgentEvent listener converts
+    events into the existing flat WS message types, in order."""
 
-    def stream_callback(token: str):
-        loop.call_soon_threadsafe(queue.put_nowait, {"type": "token", "content": token})
-
-    def reasoning_callback(token: str):
-        loop.call_soon_threadsafe(queue.put_nowait, {"type": "reasoning_token", "content": token})
-
-    def progress_callback(msg: str):
-        loop.call_soon_threadsafe(queue.put_nowait, {"type": "progress", "message": msg})
-
-    def tool_call_callback(name: str, args: str):
-        loop.call_soon_threadsafe(
-            queue.put_nowait,
-            {"type": "tool_call", "name": name, "arguments": args},
-        )
-
-    def tool_result_callback(name: str, result: str):
-        loop.call_soon_threadsafe(
-            queue.put_nowait,
-            {"type": "tool_result", "name": name, "result": result},
-        )
-
-    # Approval callback — called from agent thread when ApprovalBlockedError is caught
-    def _on_approval_request(req: ApprovalRequest) -> None:
-        """Called by agent thread when a high-risk tool needs approval."""
-        _set_pending_approval(session_id, req)
-        # Push approval request to the queue so the WebSocket coroutine sends it
-        loop.call_soon_threadsafe(
-            queue.put_nowait,
-            {
-                "type": "approval_request",
-                "payload": {
-                    "tool_name": req.tool_name,
-                    "reason": req.reason,
-                },
-            },
-        )
-
-    def run_sync():
-        try:
-            agent = AIAgent(
-                api_key=api_key,
-                base_url=base_url,
-                model=model,
-                max_iterations=max_iterations,
-                progress_callback=progress_callback,
-                tool_call_callback=tool_call_callback,
-                tool_result_callback=tool_result_callback,
-                compaction_settings=compaction_settings,
-                approval_callback=_on_approval_request,
-            )
-
-            memory_store = fact_memory.init_store()
-            memory_context = memory_manager.get_context()
-            skill_idx = skill_manager.get_active_instructions()
-            resolved_skill = (
-                skill_detail if skill_detail is not None else skill_manager.get_instructions_for_query(content)
-            )
-
-            system_with_memory = build_system_prompt(
-                base=agent.system_prompt,
-                memory_store=memory_store,
-                memory_context=memory_context,
-                skill_index=skill_idx,
-                skill_detail=resolved_skill,
-            )
-
-            result = agent.run_conversation(
-                user_message=content,
-                conversation_history=history,
-                system_message=system_with_memory,
-                stream_callback=stream_callback,
-                reasoning_callback=reasoning_callback,
-                stop_event=stop_event,
-                session_id=session_id,
-            )
-
-            # Append new messages to existing + save
-            # result.messages 包含 history + 当前 user 消息 + LLM 新产出，
-            # 只取新产出部分（跳过 history 和当前 user 消息），避免与 existing_msgs 重复
-            all_msgs = existing_msgs.copy()
-            all_msgs.append({"role": "user", "content": content})
-            new_msgs = result.get("messages", [])[len(history) + 1:]  # 跳过 history + 当前 user
-            for msg in new_msgs:
-                role = msg.get("role", "")
-                if role in ("assistant", "tool"):
-                    all_msgs.append(msg)
-            if result.get("final_response") and not any(
-                m.get("role") == "assistant" and m.get("content") == result["final_response"] for m in all_msgs
-            ):
-                all_msgs.append({"role": "assistant", "content": result["final_response"]})
-
-            title = session_manager.auto_title(all_msgs)
-            session_manager.save_session(session_id, all_msgs, title)
-
-            # ── 先发 done，让前端立即显示结果 ──
-            loop.call_soon_threadsafe(
-                queue.put_nowait,
-                {
-                    "type": "done",
-                    "final_response": result.get("final_response", ""),
-                    "api_calls": result.get("api_calls", 0),
-                    "token_usage": result.get("token_usage"),
-                    "completed": result.get("completed", False),
-                    "error": result.get("error"),
-                    "session_id": session_id,
-                    "session_title": title,
-                },
-            )
-
-            # ── 后台异步生成摘要（不阻塞前端）──
-            asst_count = len(
-                [
-                    m
-                    for m in all_msgs
-                    if m.get("role") == "assistant" and isinstance(m.get("content"), str) and m["content"]
-                ]
-            )
-            if asst_count >= 2:
-                summary = _generate_summary(all_msgs, api_key, base_url, model)
-                if summary:
-                    memory_manager.store_conversation_summary(session_id, title, all_msgs, summary=summary)
-        except Exception as e:
-            logger.exception("Agent execution failed")
-            loop.call_soon_threadsafe(
-                queue.put_nowait,
-                {
-                    "type": "error",
-                    "message": str(e),
-                    "session_id": session_id,
-                },
-            )
-
-    # Start agent in thread pool
-    future = loop.run_in_executor(None, run_sync)
-
-    # Listen for stop messages from client with a timeout-based poll
-    async def listen_for_stop():
-        nonlocal stop_received
-        try:
-            while not stop_received and not stop_event.is_set():
-                try:
-                    raw = await asyncio.wait_for(websocket.receive_text(), timeout=0.2)
-                    data = json.loads(raw)
-                    if data.get("type") == "stop":
-                        stop_received = True
-                        stop_event.set()
-                    elif data.get("type") == "approval_response":
-                        payload = data.get("payload", {})
-                        approved = payload.get("approved", False)
-                        _resolve_pending_approval(session_id, approved)
-                except TimeoutError:
-                    pass
-                except Exception:
-                    _resolve_pending_approval(session_id, False)
-                    break
-        except Exception:
-            pass
-
-    stop_task = asyncio.create_task(listen_for_stop())
-
-    # Drain queue → WebSocket
-    done_received = False
-    while not done_received:
-        msg = await queue.get()
+    async def _send(msg: dict) -> None:
         try:
             await websocket.send_json(msg)
-        except RuntimeError:
-            # WebSocket already closed — stop draining
-            break
-        if msg["type"] in ("done", "error"):
-            done_received = True
+        except Exception:  # noqa: BLE001 — WS closed (e.g. RuntimeError, ClosedResourceError); best-effort send
+            pass
 
-    stop_task.cancel()
+    send_tasks: list[asyncio.Task] = []
+    stop_received = False
+
+    def _on_approval_request(req: ApprovalRequest) -> None:
+        _set_pending_approval(session_id, req)
+        send_tasks.append(
+            asyncio.create_task(
+                _send(
+                    {
+                        "type": "approval_request",
+                        "payload": {"tool_name": req.tool_name, "reason": req.reason},
+                    }
+                )
+            )
+        )
+
+    agent = AIAgent(
+        api_key=api_key,
+        base_url=base_url,
+        model=model,
+        max_iterations=max_iterations,
+        compaction_settings=compaction_settings,
+        approval_callback=_on_approval_request,
+    )
+
+    memory_store = fact_memory.init_store()
+    memory_context = memory_manager.get_context()
+    skill_idx = skill_manager.get_active_instructions()
+    resolved_skill = skill_detail if skill_detail is not None else skill_manager.get_instructions_for_query(content)
+    system_with_memory = build_system_prompt(
+        base=agent.system_prompt,
+        memory_store=memory_store,
+        memory_context=memory_context,
+        skill_index=skill_idx,
+        skill_detail=resolved_skill,
+    )
+
+    turn_no = 0
+    tool_no = 0
+
+    def _on_event(event: AgentEvent) -> None:
+        nonlocal turn_no, tool_no
+        t = event.type
+        if t == "message_start" and event.message.get("role") == "assistant":
+            turn_no += 1
+            send_tasks.append(
+                asyncio.create_task(
+                    _send({"type": "progress", "message": f"🤔 思考中...（第 {turn_no}/{max_iterations} 轮）"})
+                )
+            )
+        elif t == "message_update":
+            if event.delta:
+                send_tasks.append(asyncio.create_task(_send({"type": "token", "content": event.delta})))
+            if event.reasoning_delta:
+                send_tasks.append(
+                    asyncio.create_task(_send({"type": "reasoning_token", "content": event.reasoning_delta}))
+                )
+        elif t == "tool_execution_start":
+            try:
+                args_str = json.dumps(event.args, ensure_ascii=False)[:200]
+            except (TypeError, ValueError):
+                args_str = str(event.args)[:200]
+            send_tasks.append(
+                asyncio.create_task(_send({"type": "tool_call", "name": event.tool_name, "arguments": args_str}))
+            )
+            send_tasks.append(
+                asyncio.create_task(
+                    _send({"type": "progress", "message": f"🔧 执行工具: {event.tool_name} | {args_str}"})
+                )
+            )
+        elif t == "tool_execution_end":
+            send_tasks.append(
+                asyncio.create_task(_send({"type": "tool_result", "name": event.tool_name, "result": event.result}))
+            )
+        elif t == "turn_end" and event.tool_results:
+            tool_no += 1
+            send_tasks.append(
+                asyncio.create_task(_send({"type": "progress", "message": f"✅ 工具执行完成 (第 {tool_no} 轮)"}))
+            )
+
+    agent.agent.subscribe(_on_event)
+
+    async def _listen_inbound():
+        nonlocal stop_received
+        while not stop_received:
+            try:
+                raw = await asyncio.wait_for(websocket.receive_text(), timeout=0.2)
+            except TimeoutError:
+                continue
+            except Exception:
+                _resolve_pending_approval(session_id, False)
+                return
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            mtype = data.get("type", "")
+            if mtype == "stop":
+                stop_received = True
+                agent.cancel()
+            elif mtype == "approval_response":
+                payload = data.get("payload", {})
+                _resolve_pending_approval(session_id, payload.get("approved", False))
+            elif mtype == "steering":
+                payload = data.get("payload", {})
+                content = payload.get("content", "")
+                if content:
+                    agent.steer({"role": "user", "content": content})
+
+    listen_task = asyncio.create_task(_listen_inbound())
+    error: str | None = None
+    result: dict | None = None
     try:
-        await stop_task
-    except asyncio.CancelledError:
-        pass
+        result = await agent.run_conversation_async(
+            user_message=content,
+            conversation_history=history,
+            system_message=system_with_memory,
+            session_id=session_id,
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Agent execution failed")
+        error = str(e)
+    finally:
+        stop_received = True
+        listen_task.cancel()
+        try:
+            await listen_task
+        except asyncio.CancelledError:
+            pass
+        if send_tasks:
+            await asyncio.gather(*send_tasks, return_exceptions=True)
+
+    # ── session persistence + done (fields identical to the old path) ──
+    all_msgs = existing_msgs.copy()
+    all_msgs.append({"role": "user", "content": content})
+    new_msgs = (result or {}).get("messages", [])[len(history) + 1 :]  # 跳过 history + 当前 user
+    for msg in new_msgs:
+        role = msg.get("role", "")
+        if role in ("assistant", "tool"):
+            all_msgs.append(msg)
+    if (
+        result
+        and result.get("final_response")
+        and not any(m.get("role") == "assistant" and m.get("content") == result["final_response"] for m in all_msgs)
+    ):
+        all_msgs.append({"role": "assistant", "content": result["final_response"]})
+
+    title = session_manager.auto_title(all_msgs)
+    session_manager.save_session(session_id, all_msgs, title)
+
+    if error is not None:
+        await _send({"type": "error", "message": error, "session_id": session_id})
+    else:
+        await _send(
+            {
+                "type": "done",
+                "final_response": (result or {}).get("final_response", ""),
+                "api_calls": (result or {}).get("api_calls", 0),
+                "token_usage": (result or {}).get("token_usage"),
+                "completed": (result or {}).get("completed", False),
+                "error": (result or {}).get("error"),
+                "session_id": session_id,
+                "session_title": title,
+            }
+        )
+
+    asst_count = len(
+        [m for m in all_msgs if m.get("role") == "assistant" and isinstance(m.get("content"), str) and m["content"]]
+    )
+    if asst_count >= 2:
+        summary = await asyncio.to_thread(_generate_summary, all_msgs, api_key, base_url, model)
+        if summary:
+            memory_manager.store_conversation_summary(session_id, title, all_msgs, summary=summary)

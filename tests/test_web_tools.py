@@ -216,6 +216,10 @@ class TestWebSearchTool:
 
         monkeypatch.setattr("agent.tools.web_tools._search_duckduckgo", fake_ddg)
         monkeypatch.setattr("agent.tools.web_tools._get_search_url", lambda: "")
+        # The fallback chain is key-gated: without API keys the only tier
+        # left is DuckDuckGo, so clear them to stay zero-network.
+        monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+        monkeypatch.delenv("BRAVE_API_KEY", raising=False)
         web_search_tool("test")
         assert called is True
 

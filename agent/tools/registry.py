@@ -100,6 +100,7 @@ class ToolEntry:
         "description",
         "emoji",
         "risk_level",
+        "execution_mode",
     )
 
     def __init__(
@@ -112,6 +113,7 @@ class ToolEntry:
         description: str = "",
         emoji: str = "",
         risk_level: str = "low",
+        execution_mode: str = "parallel",
     ):
         self.name = name
         self.toolset = toolset
@@ -121,6 +123,7 @@ class ToolEntry:
         self.description = description
         self.emoji = emoji
         self.risk_level = risk_level
+        self.execution_mode = execution_mode
 
 
 class ToolRegistry:
@@ -141,8 +144,10 @@ class ToolRegistry:
         description: str = "",
         emoji: str = "",
         risk_level: str = "low",
+        execution_mode: str = "parallel",
     ) -> None:
-        """Register a tool."""
+        """Register a tool.  ``execution_mode`` is "parallel" (default)
+        or "sequential"; it never leaks into ``get_definitions``."""
         self._entries[name] = ToolEntry(
             name=name,
             toolset=toolset,
@@ -152,6 +157,7 @@ class ToolRegistry:
             description=description,
             emoji=emoji,
             risk_level=risk_level,
+            execution_mode=execution_mode,
         )
 
     def deregister(self, name: str) -> None:

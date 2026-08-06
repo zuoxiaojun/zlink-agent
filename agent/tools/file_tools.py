@@ -62,6 +62,25 @@ def _is_safe_path(path: str) -> bool:
         return False
 
 
+def _is_root_scope(path: str) -> bool:
+    """Return True if *path* is a filesystem root ('/' or a Windows drive
+    root like 'C:\\') or the user's home directory itself (e.g. '~').
+
+    Used to refuse whole-disk recursive globs before any directory walk.
+    """
+    expanded = _expand_path(path)
+    if not expanded:
+        return False
+    norm = expanded.replace("\\", "/")
+    if norm == "/" or re.fullmatch(r"[A-Za-z]:/", norm):
+        return True
+    try:
+        resolved = Path(expanded).resolve()
+    except (OSError, ValueError):
+        return False
+    return resolved == Path(resolved.anchor) or resolved == Path.home()
+
+
 def _handle_read_file(args: dict) -> str:
     path = _expand_path(args.get("path", ""))
     offset = int(args.get("offset", 1))
@@ -302,6 +321,12 @@ def _handle_glob(args: dict) -> str:
     if not pattern:
         return tool_error("pattern is required")
 
+    # Guard: a recursive (**) glob anchored at a filesystem root or the
+    # home directory walks the whole disk and can hang for minutes —
+    # refuse it before any directory traversal starts.
+    if pattern.startswith("**") and _is_root_scope(search_path):
+        return tool_error("路径范围过大，请指定更具体的目录（例如项目内的具体子目录）后再执行 glob")
+
     try:
         root = Path(_expand_path(search_path)).resolve()
         if not root.exists():
@@ -525,6 +550,7 @@ _init_queue()
 registry.register(name="read_file", toolset="file", schema=READ_FILE_SCHEMA, handler=_handle_read_file, emoji="📖")
 registry.register(
     name="write_file",
+    execution_mode="sequential",
     toolset="file",
     schema=WRITE_FILE_SCHEMA,
     handler=_handle_write_file_queued,
@@ -532,7 +558,13 @@ registry.register(
     risk_level="medium",
 )
 registry.register(
-    name="patch", toolset="file", schema=PATCH_SCHEMA, handler=_handle_patch_queued, emoji="🔧", risk_level="medium"
+    name="patch",
+    execution_mode="sequential",
+    toolset="file",
+    schema=PATCH_SCHEMA,
+    handler=_handle_patch_queued,
+    emoji="🔧",
+    risk_level="medium",
 )
 registry.register(
     name="search_files",

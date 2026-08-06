@@ -173,6 +173,7 @@ registry.register(
 
 registry.register(
     name="project_create",
+    execution_mode="sequential",
     toolset="project",
     schema=PROJECT_CREATE_SCHEMA,
     handler=lambda args, **kw: project_create(
@@ -186,6 +187,7 @@ registry.register(
 
 registry.register(
     name="project_switch",
+    execution_mode="sequential",
     toolset="project",
     schema=PROJECT_SWITCH_SCHEMA,
     handler=lambda args, **kw: project_switch(

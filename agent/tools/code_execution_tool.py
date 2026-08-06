@@ -195,6 +195,7 @@ CODE_EXECUTION_SCHEMA = {
 
 registry.register(
     name="execute_code",
+    execution_mode="sequential",
     toolset="code",
     schema=CODE_EXECUTION_SCHEMA,
     handler=lambda args, **kw: code_execution_tool(

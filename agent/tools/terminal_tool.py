@@ -398,6 +398,7 @@ CLOSE_TERMINAL_SCHEMA = {
 
 registry.register(
     name="terminal",
+    execution_mode="sequential",
     toolset="terminal",
     schema=TERMINAL_SCHEMA,
     handler=_handle_terminal,
@@ -416,6 +417,7 @@ registry.register(
 
 registry.register(
     name="close_terminal",
+    execution_mode="sequential",
     toolset="terminal",
     schema=CLOSE_TERMINAL_SCHEMA,
     handler=_handle_close_terminal,

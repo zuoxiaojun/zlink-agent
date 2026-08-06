@@ -112,6 +112,7 @@ TODO_SCHEMA = {
 
 registry.register(
     name="todo",
+    execution_mode="sequential",
     toolset="todo",
     schema=TODO_SCHEMA,
     handler=_handle_todo,

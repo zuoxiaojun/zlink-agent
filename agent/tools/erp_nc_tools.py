@@ -580,6 +580,7 @@ registry.register(
 
 registry.register(
     name="nc_raw_sql",
+    execution_mode="sequential",
     toolset="nc",
     schema={
         "name": "nc_raw_sql",

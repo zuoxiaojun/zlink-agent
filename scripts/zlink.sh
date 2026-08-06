@@ -218,19 +218,13 @@ echo "║  按 Ctrl+C 停止                               ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 
-# ── 等后端就绪后打开浏览器 ──
+# ── 等后端就绪（不再自动打开浏览器，需要时请手动访问上方地址）──
 for i in $(seq 1 20); do
     if curl -sf "http://127.0.0.1:$BACKEND_PORT/api/config" > /dev/null 2>&1; then
         break
     fi
     sleep 0.2
 done
-
-case "$OS" in
-  macos) open "$BROWSER_URL" 2>/dev/null || true ;;
-  linux) xdg-open "$BROWSER_URL" 2>/dev/null || true ;;
-  windows) start "$BROWSER_URL" ;;
-esac
 
 # ── 保持前台运行，等待任一进程退出 ──
 wait "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true

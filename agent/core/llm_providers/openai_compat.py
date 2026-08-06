@@ -102,6 +102,22 @@ def _extract_inline_thinking(content: str) -> tuple[str, str | None]:
     return actual_content, thinking_text or None
 
 
+def _map_finish_reason(finish_reason: str | None) -> str | None:
+    """Map an OpenAI ``finish_reason`` onto the unified ``stop_reason``.
+
+    ``"length"`` (truncation guard, spec §8 R3) is the critical case;
+    ``"stop"`` maps to the documented ``"end_turn"`` convention
+    (llm_providers/base.py docstring).  Unknown values pass through.
+    """
+    return {
+        "stop": "end_turn",
+        "length": "length",
+        "tool_calls": "tool_calls",
+        "content_filter": "content_filter",
+        None: None,
+    }.get(finish_reason, finish_reason)
+
+
 class OpenAICompatProvider(LLMProvider):
     """Provider for any OpenAI-Protocol compatible endpoint.
 
@@ -255,6 +271,7 @@ class OpenAICompatProvider(LLMProvider):
             reasoning=r,
             tool_calls=tool_calls,
             usage=usage,
+            stop_reason=_map_finish_reason(choice.get("finish_reason")),
         )
 
     def _chat_stream(
@@ -273,6 +290,7 @@ class OpenAICompatProvider(LLMProvider):
         reasoning = ""
         tool_calls_map: dict[int, dict] = {}
         usage: dict | None = None
+        finish_reason: str | None = None
 
         # ── Thinking/response marker detection ─────────────────────────
         # Some models don't return reasoning_content; instead they embed
@@ -309,6 +327,9 @@ class OpenAICompatProvider(LLMProvider):
                 choices = chunk.get("choices")
                 if not choices:
                     continue
+                fr = choices[0].get("finish_reason")
+                if fr:
+                    finish_reason = fr
                 delta = choices[0].get("delta", {})
                 # ── Standard reasoning_content (e.g. DeepSeek R1) ──
                 rc = delta.get("reasoning_content")
@@ -453,6 +474,7 @@ class OpenAICompatProvider(LLMProvider):
             reasoning=reasoning or None,
             tool_calls=tool_calls,
             usage=usage,
+            stop_reason=_map_finish_reason(finish_reason),
         )
 
 

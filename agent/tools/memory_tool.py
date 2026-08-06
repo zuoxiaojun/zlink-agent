@@ -101,6 +101,7 @@ MEMORY_SCHEMA = {
 
 registry.register(
     name="memory",
+    execution_mode="sequential",
     toolset="memory",
     schema=MEMORY_SCHEMA,
     handler=_handle_memory,

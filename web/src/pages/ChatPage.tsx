@@ -15,7 +15,7 @@ export default function ChatPage() {
   const { state, dispatch } = useAppState();
   const [approval, setApproval] = useState<ApprovalState | null>(null);
   const autoSentRef = useRef(false);
-  const { sendMessage, stopAgent, sendApproval } = useChat({
+  const { sendMessage, stopAgent, sendApproval, steerMessage } = useChat({
     onApprovalRequest: (payload) => {
       setApproval({ ...payload, resolved: false });
     },
@@ -190,10 +190,15 @@ export default function ChatPage() {
         onSubmit={(c) => {
           setApproval(null);
           userScrolledUp.current = false;
-          sendMessage(c);
+          if (state.agentRunning && typeof c === "string") {
+            steerMessage(c);
+          } else {
+            sendMessage(c);
+          }
         }}
-        disabled={state.agentRunning}
-        placeholder={state.agentRunning ? "AI 正在思考中，请稍候..." : "输入你的问题，Enter 发送..."}
+        disabled={false}
+        attachDisabled={state.agentRunning}
+        placeholder="输入你的问题，Enter 发送..."
       />
     </div>
   );
