@@ -14,7 +14,7 @@
 - **删除同步 `dispatch_tool` 死代码** (M-7): `tool_dispatcher.py` 与 `agent/core/__init__.py` re-export 一并清理（grep 确认零引用）
 - **TAVILY_API_KEY 运行时加载** (B): key 写入 `~/.zlink-agent/.env`（用户数据目录，**不打包**进 PyInstaller）；`backend/config.py` 改 `_load_env_files()` 候选列表加载（用户级 → 仓库根，`override=False` 环境变量优先）；打包版启动即生效
 - **宽屏布局** (C-1): `.page-container` 1040px → 1280px；列表页 `.card-grid`（auto-fill 320px）+ 配置页 `.form-grid-2`（auto-fit 340px）——历史/记忆/工具页多列、LLM/Agent/ERP 设置两栏，窄屏自动回落
-- **内联样式收敛** (C-2): 168 处 `style={{}}` 纯静态样式收敛为 37 个工具类（逐字复制属性，零视觉变化）；动态样式保留 inline 并注释
+- **内联样式收敛** (C-2): 168 处 `style={{}}` 纯静态样式收敛为 65 个工具类（逐字复制属性，零视觉变化）；动态样式保留 inline 并注释
 - **ERP 测试结果条 CSS 化** (C-3): `SettingsERPPage` 测试连接结果条收敛为 `.test-result-ok/error` 类（全 `var(--success)`/`var(--danger)` 系，删除 `#B7EB8F`/`#FFA39E` 硬编码）
 - **历史页 hash 中性灰 + 删除确认** (C-4): 会话 ID 徽章 `badge-primary` → `badge-neutral`（保留 6 位 ID 排障用途）；删除按钮加 `window.confirm` 二次确认
 

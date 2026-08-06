@@ -30,7 +30,7 @@ zlink-agent/
 │   │   ├── llm_providers/      # ⚠️ base (LLMProvider ABC / LLMResponse / ToolCallPayload),
 │   │   │                       #    openai_compat (httpx SSE, reasoning_content), anthropic, factory
 │   │   ├── message_builder.py  # build_system_prompt(), build_turn_messages()
-│   │   ├── tool_dispatcher.py  # dispatch_tool() + dispatch_tool_batch()（并行/保序/sequential 降级）
+│   │   ├── tool_dispatcher.py  # dispatch_tool_batch（并行/保序/sequential 降级）
 │   │   └── iteration_budget.py # IterationBudget — 纯计数器（消费点在 should_stop_after_turn 钩子）
 │   ├── tools/                  # 24 files, 57 tools — one file per toolset
 │   │   ├── registry.py         # ❌ ToolRegistry singleton — extend via register() only

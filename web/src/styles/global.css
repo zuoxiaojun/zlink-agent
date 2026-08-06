@@ -1442,13 +1442,13 @@ body {
 .toast-success {
   background: var(--success-bg);
   color: var(--success);
-  border: 1px solid #B7EB8F;
+  border: 1px solid var(--success);
 }
 
 .toast-error {
   background: var(--danger-bg);
   color: var(--danger);
-  border: 1px solid #FFA39E;
+  border: 1px solid var(--danger);
 }
 
 /* ── Form elements ───────────────────────────────────── */
