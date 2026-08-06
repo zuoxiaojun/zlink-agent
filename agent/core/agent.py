@@ -58,8 +58,10 @@ class Agent:
     # ── listener API ──
 
     def subscribe(self, listener: Callable[[AgentEvent], None]) -> Callable[[], None]:
-        """Register a sync listener.  Returns an unsubscribe callable."""
-        self._listeners.append(listener)
+        """Register a sync listener.  Idempotent: re-subscribing the same
+        listener is a no-op.  Returns an unsubscribe callable."""
+        if listener not in self._listeners:
+            self._listeners.append(listener)
 
         def _unsub() -> None:
             if listener in self._listeners:
@@ -111,8 +113,10 @@ class Agent:
     ) -> list[dict]:
         """Run one conversation.  Returns the new messages
         (prompts + everything the loop appended)."""
-        if token is not None and not self._token.cancelled:
+        if token is not None:
             self._token = token
+        elif self._token.cancelled:
+            self._token = CancelToken()
         context = AgentContext(messages=[], api_calls=0)
         self.state.running = True
         self.state.messages = list(prompts)

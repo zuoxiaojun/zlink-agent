@@ -104,15 +104,26 @@ def test_run_async_basic_lifecycle():
 
 
 def test_cancel_and_wait_idle():
+    import time
+
+    def sleepy(args: dict) -> str:
+        time.sleep(0.5)
+        return tool_result()
+
+    registry.register(name="sleeper", toolset="test", schema={"type": "object"}, handler=sleepy)
     agent = Agent()
     token = CancelToken()
 
     async def _scenario():
-        agent.cancel()  # cancels the internal token before the run
         task = asyncio.create_task(
-            agent.run_async([{"role": "user", "content": "hi"}], _cfg(LLMResponse(content="never")), token)
+            agent.run_async(
+                [{"role": "user", "content": "go"}],
+                _cfg(LLMResponse(content="", tool_calls=[ToolCallPayload(id="c1", name="sleeper", arguments="{}")])),
+                token,
+            )
         )
         await asyncio.sleep(0.05)
+        token.cancel()  # cancel the in-use token mid-run
         await agent.wait_idle()
         assert agent.state.running is False
         with pytest.raises(asyncio.CancelledError):
@@ -147,3 +158,37 @@ def test_listener_receives_agent_end_with_messages():
     _run(agent.run_async([{"role": "user", "content": "hi"}], _cfg(LLMResponse(content="yo"))))
     assert len(ends) == 1
     assert ends[0].messages[-1]["content"] == "yo"
+
+
+def test_run_async_accepts_fresh_token_after_cancel():
+    """M-6: an explicitly passed fresh token must be adopted even when the
+    instance's internal token was previously cancelled."""
+    agent = Agent()
+    agent.cancel()  # internal token now cancelled
+    fresh = CancelToken()
+    result = _run(agent.run_async([{"role": "user", "content": "hi"}], _cfg(LLMResponse(content="ok")), fresh))
+    assert [m["content"] for m in result] == ["hi", "ok"]
+
+
+def test_run_async_resets_token_after_cancel_without_argument():
+    """M-6: with no token passed, a previously cancelled internal token is
+    replaced so the Agent instance can be reused."""
+    agent = Agent()
+    agent.cancel()
+    result = _run(agent.run_async([{"role": "user", "content": "hi"}], _cfg(LLMResponse(content="ok"))))
+    assert [m["content"] for m in result] == ["hi", "ok"]
+
+
+def test_subscribe_is_idempotent():
+    """M-6: subscribing the same listener twice must register it once."""
+    agent = Agent()
+    seen: list[str] = []
+    listener = lambda e: seen.append(e.type)  # noqa: E731
+    unsub = agent.subscribe(listener)
+    agent.subscribe(listener)  # duplicate — must be a no-op
+    assert agent._listeners.count(listener) == 1
+    _run(agent._emit(MessageStart(message={"role": "user"})))
+    assert seen == ["message_start"]
+    unsub()
+    _run(agent._emit(MessageEnd(message={"role": "user"})))
+    assert seen == ["message_start"]
