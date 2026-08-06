@@ -35,6 +35,7 @@ export default function HistoryPage() {
   };
 
   const handleDelete = async (sid: string) => {
+    if (!window.confirm("确定删除该对话？删除后不可恢复。")) return;
     await api.del(`/sessions/${sid}`);
     setSessions((p) => p.filter((s) => s.id !== sid));
     if (state.currentSessionId === sid) dispatch({ type: "NEW_SESSION" });
@@ -76,7 +77,7 @@ export default function HistoryPage() {
                     {new Date(s.created_at).toLocaleString()} · {s.message_count} 条消息
                   </div>
                 </div>
-                <span className="badge badge-primary" style={{ fontSize: "12px" }}>{s.id.substring(0, 6)}</span>
+                <span className="badge badge-neutral">{s.id.substring(0, 6)}</span>
               </div>
               {summary?.summary && <div className="card-body">{summary.summary}</div>}
               <div className="card-actions">
