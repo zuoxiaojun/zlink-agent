@@ -466,6 +466,7 @@ registry.register(
 
 registry.register(
     name="mcp_add_server",
+    execution_mode="sequential",
     toolset="mcp",
     schema=MCP_ADD_SCHEMA,
     handler=mcp_add_server,
@@ -476,6 +477,7 @@ registry.register(
 
 registry.register(
     name="mcp_delete_server",
+    execution_mode="sequential",
     toolset="mcp",
     schema=MCP_DELETE_SCHEMA,
     handler=mcp_delete_server,
@@ -486,6 +488,7 @@ registry.register(
 
 registry.register(
     name="mcp_toggle_server",
+    execution_mode="sequential",
     toolset="mcp",
     schema=MCP_TOGGLE_SCHEMA,
     handler=mcp_toggle_server,
@@ -505,6 +508,7 @@ registry.register(
 
 registry.register(
     name="mcp_reload_servers",
+    execution_mode="sequential",
     toolset="mcp",
     schema=MCP_RELOAD_SCHEMA,
     handler=mcp_reload_servers,

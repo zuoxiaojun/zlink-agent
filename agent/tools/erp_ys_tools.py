@@ -663,6 +663,7 @@ def _handle_query_user_todos(args: dict) -> str:
 
 registry.register(
     name="ys_api",
+    execution_mode="sequential",
     toolset="yonsuite",
     schema={
         "name": "ys_api",

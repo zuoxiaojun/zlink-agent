@@ -118,6 +118,7 @@ PROCESS_SCHEMA = {
 
 registry.register(
     name="process",
+    execution_mode="sequential",
     toolset="system",
     schema=PROCESS_SCHEMA,
     handler=lambda args, **kw: process_tool(

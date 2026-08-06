@@ -190,6 +190,7 @@ registry.register(
 
 registry.register(
     name="skill_activate",
+    execution_mode="sequential",
     toolset="skills",
     schema=SKILL_ACTIVATE_SCHEMA,
     handler=_handle_skill_activate,
@@ -198,6 +199,7 @@ registry.register(
 
 registry.register(
     name="skill_deactivate",
+    execution_mode="sequential",
     toolset="skills",
     schema=SKILL_DEACTIVATE_SCHEMA,
     handler=_handle_skill_deactivate,
@@ -329,6 +331,7 @@ SKILL_INSTALL_SCHEMA = {
 
 registry.register(
     name="skill_install",
+    execution_mode="sequential",
     toolset="skills",
     schema=SKILL_INSTALL_SCHEMA,
     handler=_handle_skill_install,
@@ -367,6 +370,7 @@ SKILL_EXPORT_SCHEMA = {
 
 registry.register(
     name="skill_export",
+    execution_mode="sequential",
     toolset="skills",
     schema=SKILL_EXPORT_SCHEMA,
     handler=_handle_skill_export,
