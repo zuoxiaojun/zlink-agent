@@ -1279,6 +1279,35 @@ body {
 .form-grid-2 > .form-actions {
   grid-column: 1 / -1;
 }
+.form-grid-2 > .test-result-ok,
+.form-grid-2 > .test-result-error {
+  grid-column: 1 / -1;
+}
+
+.test-result-ok {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+.test-result-error {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
 
 /* ── Buttons ─────────────────────────────────────────── */
 

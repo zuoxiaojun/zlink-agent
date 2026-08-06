@@ -363,13 +363,7 @@ function ErpTabPanel({
             </button>
           </div>
           {testResult && (
-            <div style={{
-              marginTop: 12, padding: "10px 14px", borderRadius: "var(--radius)", fontSize: 13,
-              display: "flex", alignItems: "center", gap: 8,
-              background: testResult.ok ? "var(--success-bg)" : "var(--danger-bg)",
-              color: testResult.ok ? "var(--success)" : "var(--danger)",
-              border: `1px solid ${testResult.ok ? "#B7EB8F" : "#FFA39E"}`,
-            }}>
+            <div className={testResult.ok ? "test-result-ok" : "test-result-error"}>
               {testResult.ok ? <IconCircleCheck size={14} /> : <IconAlertCircle size={14} />}
               {testResult.message}
             </div>
