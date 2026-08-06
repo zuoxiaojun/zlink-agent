@@ -62,7 +62,7 @@ ruff check . && ruff format --check .
 ```
 zlink-agent/
 ├── agent/
-│   ├── core/                       # LLM 核心 (agent.py / llm_providers/ / message_builder / tool_dispatcher)
+│   ├── core/                       # Pi 风格内核 (kernel_types.py 钩子契约 + loop.py + agent.py + agent_adapter.py / llm_providers / message_builder / tool_dispatcher)
 │   ├── erp_clients/                # ERP 客户端 (yonsuite)
 │   │   ├── base.py                 # ERPClient Protocol + 通用异常
 │   │   ├── __init__.py
@@ -79,12 +79,12 @@ zlink-agent/
 │   ├── App.tsx                     # 路由: / /history /tools /skills /memory /cronjobs /mcp /settings/llm /settings/agent /settings/erp /settings/extensions
 │   └── pages/                      # ChatPage / HistoryPage / ToolsPage / SkillManagerPage / MemoryPage / McpPage / CronJobPage / SettingsLLMPage / SettingsAgentPage / SettingsERPPage / SettingsExtensionsPage
 ├── data/                           # 运行时数据 (源码模式; .app 模式用 ~/.zlink-agent/data/)
-└── tests/                          # pytest (373 个)
+└── tests/                          # pytest (509 个)
 ```
 
 ## 版本
 
-v1.8.1 — 2026-08-05
+v1.9.0 — 2026-08-06
 
 详见 [CHANGELOG.md](CHANGELOG.md)
 

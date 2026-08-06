@@ -1,5 +1,32 @@
 # Changelog
 
+## v1.9.0 — 2026-08-06 (维护发布：内核重写收尾 + .env + 前端优化)
+
+**范围**: 上一会话 Pi 风格内核重写（merge 1671a13）的收尾发布：6 个 parked minors 清理、TAVILY_API_KEY 运行时 .env 加载、前端宽屏布局与样式收敛。
+
+### 改动
+
+- **审批拒绝卡片显示"已拒绝"** (M-1): `ToolExecutionEnd` 新增可选字段 `denied`（默认 False）逐层透传——tool_dispatcher 的 denial 分支标记 → WS `tool_result.denied` → 前端 `_denied` → `ToolStepCard`"已拒绝"状态（warning 色系），替代原"执行失败"
+- **取消持久化补全流式内容** (M-2): 取消分支把 `_stream_cb` 累积的 `_partial_response` 追加进 result messages，`final_response` 保持空——WS done 与前端 UI 逐字不变，仅影响持久化
+- **桥工具卡片 args 回退** (M-3): `ToolStepCard.effectiveArgs` 回退链（pending 内容空白 → LLM 原始参数）+ `extractSubtitle` 补 `tool_search`(query)/`tool_describe`/`tool_call`(name) case
+- **压缩 PhaseChange 补 session_id** (M-5): `_transform_context_hook` 两处 `_set_phase` 补 `session_id=self._session_id`
+- **Agent 复用防御** (M-6): `run_async` 始终采纳显式新 token / 取消后自动重置新 token；`subscribe` 幂等化
+- **删除同步 `dispatch_tool` 死代码** (M-7): `tool_dispatcher.py` 与 `agent/core/__init__.py` re-export 一并清理（grep 确认零引用）
+- **TAVILY_API_KEY 运行时加载** (B): key 写入 `~/.zlink-agent/.env`（用户数据目录，**不打包**进 PyInstaller）；`backend/config.py` 改 `_load_env_files()` 候选列表加载（用户级 → 仓库根，`override=False` 环境变量优先）；打包版启动即生效
+- **宽屏布局** (C-1): `.page-container` 1040px → 1280px；列表页 `.card-grid`（auto-fill 320px）+ 配置页 `.form-grid-2`（auto-fit 340px）——历史/记忆/工具页多列、LLM/Agent/ERP 设置两栏，窄屏自动回落
+- **内联样式收敛** (C-2): 168 处 `style={{}}` 纯静态样式收敛为 37 个工具类（逐字复制属性，零视觉变化）；动态样式保留 inline 并注释
+- **ERP 测试结果条 CSS 化** (C-3): `SettingsERPPage` 测试连接结果条收敛为 `.test-result-ok/error` 类（全 `var(--success)`/`var(--danger)` 系，删除 `#B7EB8F`/`#FFA39E` 硬编码）
+- **历史页 hash 中性灰 + 删除确认** (C-4): 会话 ID 徽章 `badge-primary` → `badge-neutral`（保留 6 位 ID 排障用途）；删除按钮加 `window.confirm` 二次确认
+
+### 上一会话内核重写（随本版本发布）
+
+- **Pi 风格内核** (`agent/core/`): `kernel_types.py`（10 种 AgentEvent + AgentLoopConfig 钩子 + CancelToken）+ `loop.py`（零策略双层 async loop，AgentEnd 保证收尾）+ `agent.py`（有状态 Agent：subscribe/steer/cancel/wait_idle）+ `agent_adapter.py`（AIAgent 兼容层，四契约冻结）
+- **并行工具执行**: prepare 串行 → gather 并发 → 保序；含 sequential 工具整批降级；25 个写工具标 `execution_mode="sequential"`（审计原则：拿不准一律 sequential）
+- **截断防护**: `finish_reason→stop_reason` 映射补全（openai_compat/anthropic）；`stop_reason=="length"` 时截断消息的工具调用拒绝执行
+- **CancelToken 全链路 + steering**: WS `{"type":"steering"}` 入站 + 前端生成中可发消息
+- **web_search provider 降级链**: SEARCH_API_URL → Tavily → Brave → DDG 末档，错误分类降级、聚合报错
+- **glob 根目录护栏** (`file_tools._is_root_scope`)、`start.sh` 不再自动开浏览器
+
 ## v1.8.1 — 2026-08-05 (对话流式输出界面优化)
 
 **范围**: Web 前端对话页流式渲染体验优化与样式清理（纯前端，无后端/协议改动）。
