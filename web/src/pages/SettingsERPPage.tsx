@@ -317,7 +317,7 @@ function ErpTabPanel({
   const enabled = !!config.enabled;
 
   return (
-    <div className="card">
+    <div className="card form-grid-2">
       <div
         className="card-header"
         style={{

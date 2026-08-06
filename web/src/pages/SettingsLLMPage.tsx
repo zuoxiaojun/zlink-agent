@@ -81,7 +81,7 @@ export default function SettingsLLMPage() {
       )}
 
       {!edit ? (
-        <div className="card">
+        <div className="card form-grid-2">
           <div className="form-group">
             <span className="form-label">模型厂商</span>
             <div className="card-body">{currentConfig?.provider || "（未配置）"}</div>
@@ -103,7 +103,7 @@ export default function SettingsLLMPage() {
           </div>
         </div>
       ) : (
-        <div className="card">
+        <div className="card form-grid-2">
           <div className="form-group">
             <label className="form-label">选择模型厂商</label>
             <select

@@ -91,7 +91,7 @@ export default function ToolsPage() {
           <p>暂无已注册的内置工具</p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <div className="card-grid">
           {Array.from(toolsets.entries()).map(([toolset, items]) => {
             const emoji = TOOLSET_EMOJI[toolset] || "🔧";
             const isCollapsed = collapsed.has(toolset);

@@ -47,7 +47,7 @@ export default function SettingsAgentPage() {
       {saved && <div className="toast toast-success"><IconCircleCheck size={14} /> Agent 设置已保存</div>}
 
       {!edit ? (
-        <div className="card">
+        <div className="card form-grid-2">
           <div className="form-group">
             <span className="form-label">最大迭代轮次</span>
             <div className="card-body">{cfg?.max_iterations || 30}</div>
@@ -88,7 +88,7 @@ export default function SettingsAgentPage() {
           </div>
         </div>
       ) : (
-        <div className="card">
+        <div className="card form-grid-2">
           <div className="form-group">
             <label className="form-label">最大迭代轮次</label>
             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>

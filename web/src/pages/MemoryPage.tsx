@@ -68,7 +68,7 @@ export default function MemoryPage() {
         <button onClick={collapseAll} className="action-link">全部收起</button>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+      <div className="card-grid">
         <div className="toolset-group">
           <div className="toolset-header" onClick={() => toggle("notes")}>
             <span className="toolset-header-left">

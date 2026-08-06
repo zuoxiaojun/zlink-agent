@@ -1175,7 +1175,7 @@ body {
    ═══════════════════════════════════════════════════════════ */
 
 .page-container {
-  max-width: 1040px;
+  max-width: 1280px;
   margin: 0 auto;
 }
 
@@ -1257,6 +1257,27 @@ body {
   display: flex;
   gap: 8px;
   margin-top: 12px;
+}
+
+/* ── Responsive layouts (C-1) ─────────────────────────── */
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+.card-grid > * { margin-bottom: 0; }  /* 卡片间距由 gap 承担，抵消 .card 的 margin-bottom */
+
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px 24px;
+}
+.form-grid-2 > .form-group { margin-bottom: 0; }  /* 行距由 gap 承担 */
+.form-grid-2 > .card-header,
+.form-grid-2 > .card-actions,
+.form-grid-2 > .form-actions {
+  grid-column: 1 / -1;
 }
 
 /* ── Buttons ─────────────────────────────────────────── */

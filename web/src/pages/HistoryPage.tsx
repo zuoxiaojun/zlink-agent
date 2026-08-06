@@ -60,7 +60,8 @@ export default function HistoryPage() {
           <p>暂无历史对话</p>
         </div>
       ) : (
-        sessions.map((s) => {
+        <div className="card-grid">
+          {sessions.map((s) => {
           const summary = summaries.find((m) => m.session_id === s.id);
           const isCurrent = s.id === state.currentSessionId;
           return (
@@ -84,7 +85,8 @@ export default function HistoryPage() {
               </div>
             </div>
           );
-        })
+        })}
+        </div>
       )}
     </div>
   );
