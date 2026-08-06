@@ -138,3 +138,49 @@ def test_after_hook_can_modify_result():
         assert payload["data"]["echo"] == "[REDACTED]"
     finally:
         registry.remove_after_hook(strip_after)
+
+
+class TestExecutionMode:
+    def test_default_is_parallel(self):
+        from agent.tools.registry import registry, tool_result
+
+        def _handler(args: dict) -> str:
+            return tool_result()
+
+        registry.register(name="t_mode_default", toolset="test", schema={"type": "object"}, handler=_handler)
+        entry = registry.get_entry("t_mode_default")
+        assert entry is not None
+        assert entry.execution_mode == "parallel"
+
+    def test_can_specify_sequential(self):
+        from agent.tools.registry import registry, tool_result
+
+        def _handler(args: dict) -> str:
+            return tool_result()
+
+        registry.register(
+            name="t_mode_seq",
+            toolset="test",
+            schema={"type": "object"},
+            handler=_handler,
+            execution_mode="sequential",
+        )
+        assert registry.get_entry("t_mode_seq").execution_mode == "sequential"
+
+    def test_execution_mode_not_exposed_in_definitions(self):
+        from agent.tools.registry import registry, tool_result
+
+        def _handler(args: dict) -> str:
+            return tool_result()
+
+        registry.register(
+            name="t_mode_hidden",
+            toolset="test",
+            schema={"type": "object", "properties": {}},
+            handler=_handler,
+            execution_mode="sequential",
+        )
+        defs = registry.get_definitions(tool_names=["t_mode_hidden"])
+        assert len(defs) == 1
+        assert "execution_mode" not in defs[0]
+        assert "execution_mode" not in json.dumps(defs[0])
