@@ -9,10 +9,30 @@ from __future__ import annotations
 import json
 import os  # noqa: F401 — kept verbatim from the brief; kernel-mode tests use monkeypatch
 
+import pytest
+
 import agent.core.agent_adapter as adapter_mod
 from agent.core.agent_adapter import AIAgent, kernel_mode
 from agent.core.llm_client import LLMClient
+from agent.core.llm_providers.base import ToolCallPayload
+from agent.tools.registry import registry
 from tests.conftest import MockLLMProvider, make_text_response
+
+
+@pytest.fixture(autouse=True)
+def _clean_registry():
+    """Register built-ins first, then snapshot — teardown only removes
+    tools the test added (never wipes the 57 built-in tools)."""
+    from agent.tools.registry import discover_tools
+
+    discover_tools()
+    saved_before = set(registry.get_all_tool_names())
+    yield
+    for name in set(registry.get_all_tool_names()) - saved_before:
+        try:
+            registry.deregister(name)
+        except Exception:
+            pass
 
 
 def _force_kernel(monkeypatch, mode: str) -> None:
@@ -412,3 +432,39 @@ class TestNewKernelPath:
         new_tool = [m for m in new_result["messages"] if m["role"] == "tool"][0]
         assert old_tool["tool_call_id"] == new_tool["tool_call_id"] == "c1"
         assert json.loads(old_tool["content"]) == json.loads(new_tool["content"])
+
+    def test_new_length_stop_reason_skips_tool_execution(self, monkeypatch):
+        _force_kernel(monkeypatch, "new")
+        from agent.config_model import AppConfig
+
+        monkeypatch.setattr("agent.config_manager.load", lambda: AppConfig(approval_mode="allow_all"))
+        from agent.core.llm_providers import LLMResponse
+
+        ran: list[str] = []
+
+        def _spy_handler(args: dict) -> str:
+            ran.append("ran")
+            return json.dumps({"success": True})
+
+        registry.register(name="spy_tool", toolset="test", schema={"type": "object"}, handler=_spy_handler)
+
+        provider = MockLLMProvider(
+            responses=[
+                LLMResponse(
+                    content="",
+                    tool_calls=[ToolCallPayload(id="c1", name="spy_tool", arguments="{}")],
+                    stop_reason="length",
+                ),
+                make_text_response("please re-issue"),
+            ]
+        )
+        agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+        agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+
+        result = agent.run_conversation("go")
+        assert ran == [], "truncated tool calls must never execute"
+        tool_msgs = [m for m in result["messages"] if m.get("role") == "tool"]
+        assert len(tool_msgs) == 1
+        assert "参数可能被截断，请重新完整发出" in tool_msgs[0]["content"]
+        assert result["final_response"] == "please re-issue"
+        assert result["completed"] is True
