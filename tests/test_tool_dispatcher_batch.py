@@ -266,6 +266,7 @@ def test_approval_blocked_denied_returns_denial():
     registry.add_before_hook(_raise_hook)
     decisions: list[str] = []
     try:
+
         async def _on_blocked(name: str, reason: str) -> str:
             decisions.append(name)
             return "denied"
@@ -303,6 +304,7 @@ def test_approval_blocked_approved_runs_handler_directly():
 
     registry.add_before_hook(_raise_hook)
     try:
+
         async def _on_blocked(name: str, reason: str) -> str:
             return "approved"
 
@@ -333,8 +335,10 @@ def test_sequential_batch_sleeps_are_serial():
     start = time.monotonic()
     batch = _run(
         dispatch_tool_batch(
-            [ToolCallPayload(id="c1", name="t_sleep", arguments="{}"),
-             ToolCallPayload(id="c2", name="t_sleep", arguments="{}")],
+            [
+                ToolCallPayload(id="c1", name="t_sleep", arguments="{}"),
+                ToolCallPayload(id="c2", name="t_sleep", arguments="{}"),
+            ],
             max_result_length=sys.maxsize,
             token=CancelToken(),
             emit=_EventRecorder(),

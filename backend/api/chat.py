@@ -621,7 +621,7 @@ async def _run_agent_legacy(
             # 只取新产出部分（跳过 history 和当前 user 消息），避免与 existing_msgs 重复
             all_msgs = existing_msgs.copy()
             all_msgs.append({"role": "user", "content": content})
-            new_msgs = result.get("messages", [])[len(history) + 1:]  # 跳过 history + 当前 user
+            new_msgs = result.get("messages", [])[len(history) + 1 :]  # 跳过 history + 当前 user
             for msg in new_msgs:
                 role = msg.get("role", "")
                 if role in ("assistant", "tool"):

@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import asyncio
 
+import pytest
+
+from agent.core.agent_adapter import kernel_mode
 from agent.core.kernel_types import (
     AgentEnd,
     MessageEnd,
@@ -14,6 +17,10 @@ from agent.core.kernel_types import (
     ToolResult,
     TurnEnd,
 )
+
+# These tests drive the new-kernel async path only; under ZLINK_KERNEL=old
+# chat.py takes the legacy sync path and the fakes here do not apply.
+pytestmark = pytest.mark.skipif(kernel_mode() != "new", reason="new-kernel async path only")
 
 
 class _FakeAgent:

@@ -19,11 +19,23 @@ class TestC1RunConversationContract:
         sig = inspect.signature(AIAgent.__init__)
         params = list(sig.parameters)
         for expected in (
-            "api_key", "base_url", "model", "max_iterations", "max_tokens",
-            "max_tool_result_length", "system_prompt", "enabled_tools",
-            "disabled_tools", "temperature", "progress_callback",
-            "tool_call_callback", "tool_result_callback", "compaction_settings",
-            "max_retries", "max_retry_delay", "approval_callback",
+            "api_key",
+            "base_url",
+            "model",
+            "max_iterations",
+            "max_tokens",
+            "max_tool_result_length",
+            "system_prompt",
+            "enabled_tools",
+            "disabled_tools",
+            "temperature",
+            "progress_callback",
+            "tool_call_callback",
+            "tool_result_callback",
+            "compaction_settings",
+            "max_retries",
+            "max_retry_delay",
+            "approval_callback",
         ):
             assert expected in params, expected
 
@@ -31,8 +43,13 @@ class TestC1RunConversationContract:
         sig = inspect.signature(AIAgent.run_conversation)
         params = list(sig.parameters)
         for expected in (
-            "user_message", "system_message", "conversation_history",
-            "stream_callback", "reasoning_callback", "stop_event", "session_id",
+            "user_message",
+            "system_message",
+            "conversation_history",
+            "stream_callback",
+            "reasoning_callback",
+            "stop_event",
+            "session_id",
         ):
             assert expected in params, expected
 
@@ -42,7 +59,12 @@ class TestC1RunConversationContract:
         agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
         result = agent.run_conversation("hello")
         assert set(result.keys()) == {
-            "final_response", "messages", "api_calls", "token_usage", "completed", "error",
+            "final_response",
+            "messages",
+            "api_calls",
+            "token_usage",
+            "completed",
+            "error",
         }
 
 
@@ -58,6 +80,7 @@ class TestC3EventBusContract:
             SessionStartEvent,
             UserMessageEvent,
         )
+
         assert SessionStartEvent.type == "session_start"
         assert SessionEndEvent.type == "session_end"
         assert UserMessageEvent.type == "user_message"
