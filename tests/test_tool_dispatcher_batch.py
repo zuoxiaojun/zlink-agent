@@ -1,4 +1,4 @@
-"""Tests for agent/core/tool_dispatcher.py — async batch dispatch (P1: sequential)."""
+"""Tests for agent/core/tool_dispatcher.py — async batch dispatch (P2: parallel with sequential degradation)."""
 
 from __future__ import annotations
 
@@ -56,15 +56,12 @@ def _run(coro):
 
 
 def test_batch_sequential_order_and_events():
-    """P1: tools run strictly in call order; Start/End events per tool."""
-    order: list[str] = []
+    """P2: Start/End events and results stay in call order (parallel-safe)."""
 
     def handler_a(args: dict) -> str:
-        order.append("a")
         return tool_result(data={"x": args.get("x")})
 
     def handler_b(args: dict) -> str:
-        order.append("b")
         return tool_result(data={"y": args.get("y")})
 
     registry.register(name="t_a", toolset="test", schema={"type": "object"}, handler=handler_a)
@@ -85,7 +82,6 @@ def test_batch_sequential_order_and_events():
         )
     )
 
-    assert order == ["a", "b"]
     assert [r.tool_call_id for r in batch.messages] == ["c1", "c2"]
     assert json.loads(batch.messages[0].result)["data"]["x"] == 1
     assert json.loads(batch.messages[1].result)["data"]["y"] == 2
@@ -324,11 +320,11 @@ def test_approval_blocked_approved_runs_handler_directly():
     assert json.loads(batch.messages[0].result)["data"]["approved"] is True
 
 
-def test_sequential_batch_sleeps_are_serial():
-    """P1 sanity: two 0.15s tools take >= ~0.3s (sequential, not parallel yet)."""
+def test_parallel_batch_sleeps_are_concurrent():
+    """P2: default-parallel tools run concurrently — elapsed ≈ max, not Σ."""
 
     def sleepy(args: dict) -> str:
-        time.sleep(0.15)
+        time.sleep(0.25)
         return tool_result()
 
     registry.register(name="t_sleep", toolset="test", schema={"type": "object"}, handler=sleepy)
@@ -338,6 +334,7 @@ def test_sequential_batch_sleeps_are_serial():
             [
                 ToolCallPayload(id="c1", name="t_sleep", arguments="{}"),
                 ToolCallPayload(id="c2", name="t_sleep", arguments="{}"),
+                ToolCallPayload(id="c3", name="t_sleep", arguments="{}"),
             ],
             max_result_length=sys.maxsize,
             token=CancelToken(),
@@ -346,5 +343,100 @@ def test_sequential_batch_sleeps_are_serial():
         )
     )
     elapsed = time.monotonic() - start
-    assert len(batch.messages) == 2
-    assert elapsed >= 0.28, f"expected serial execution, took {elapsed:.3f}s"
+    assert len(batch.messages) == 3
+    assert elapsed < 0.60, f"expected concurrent execution, took {elapsed:.3f}s (3 x 0.25s serial = 0.75s)"
+
+
+def test_parallel_preserves_call_order_in_results_and_events():
+    def sleeper(args: dict) -> str:
+        delay = args.get("d", 0.0)
+        time.sleep(delay)
+        return tool_result(data={"tag": args.get("tag")})
+
+    registry.register(name="t_psleep", toolset="test", schema={"type": "object"}, handler=sleeper)
+    recorder = _EventRecorder()
+    calls = [
+        ToolCallPayload(id="c1", name="t_psleep", arguments='{"tag": "first", "d": 0.25}'),
+        ToolCallPayload(id="c2", name="t_psleep", arguments='{"tag": "second", "d": 0.0}'),
+        ToolCallPayload(id="c3", name="t_psleep", arguments='{"tag": "third", "d": 0.1}'),
+    ]
+    batch = _run(
+        dispatch_tool_batch(
+            calls,
+            max_result_length=sys.maxsize,
+            token=CancelToken(),
+            emit=recorder,
+            config=_make_config(),
+        )
+    )
+    # transcript order == original call order (fast "second" must not jump ahead)
+    assert [r.tool_call_id for r in batch.messages] == ["c1", "c2", "c3"]
+    assert [json.loads(r.result)["data"]["tag"] for r in batch.messages] == ["first", "second", "third"]
+    # ToolExecutionStart and ToolExecutionEnd both in call order
+    starts = [e.tool_call_id for e in recorder.events if isinstance(e, ToolExecutionStart)]
+    ends = [e.tool_call_id for e in recorder.events if isinstance(e, ToolExecutionEnd)]
+    assert starts == ["c1", "c2", "c3"]
+    assert ends == ["c1", "c2", "c3"]
+
+
+def test_sequential_tool_degrades_whole_batch():
+    order: list[str] = []
+
+    def parallel_sleep(args: dict) -> str:
+        order.append(args.get("tag"))
+        time.sleep(0.15)
+        return tool_result()
+
+    def seq_tool(args: dict) -> str:
+        order.append("seq")
+        time.sleep(0.15)
+        return tool_result()
+
+    registry.register(name="t_ps", toolset="test", schema={"type": "object"}, handler=parallel_sleep)
+    registry.register(
+        name="t_seq", toolset="test", schema={"type": "object"}, handler=seq_tool, execution_mode="sequential"
+    )
+
+    start = time.monotonic()
+    batch = _run(
+        dispatch_tool_batch(
+            [
+                ToolCallPayload(id="c1", name="t_ps", arguments='{"tag": "a"}'),
+                ToolCallPayload(id="c2", name="t_seq", arguments="{}"),
+                ToolCallPayload(id="c3", name="t_ps", arguments='{"tag": "c"}'),
+            ],
+            max_result_length=sys.maxsize,
+            token=CancelToken(),
+            emit=_EventRecorder(),
+            config=_make_config(),
+        )
+    )
+    elapsed = time.monotonic() - start
+    assert order == ["a", "seq", "c"], f"must run strictly serially, got {order}"
+    assert elapsed >= 0.40, f"expected serial (3 x 0.15s), took {elapsed:.3f}s"
+    assert [r.tool_call_id for r in batch.messages] == ["c1", "c2", "c3"]
+
+
+def test_prepare_runs_serially_before_handlers():
+    seen: list[str] = []
+
+    def record(args: dict) -> str:
+        return tool_result()
+
+    registry.register(name="t_prep", toolset="test", schema={"type": "object"}, handler=record)
+
+    def _before(name: str, args: dict, token: CancelToken) -> dict:
+        seen.append(f"prep:{name}")
+        return args
+
+    batch = _run(
+        dispatch_tool_batch(
+            [ToolCallPayload(id=f"c{i}", name="t_prep", arguments="{}") for i in range(3)],
+            max_result_length=sys.maxsize,
+            token=CancelToken(),
+            emit=_EventRecorder(),
+            config=_make_config(before_tool_call=_before),
+        )
+    )
+    assert seen == ["prep:t_prep", "prep:t_prep", "prep:t_prep"]
+    assert len(batch.messages) == 3

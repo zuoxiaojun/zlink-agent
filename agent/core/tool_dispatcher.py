@@ -17,6 +17,7 @@ import json
 import logging
 import sys
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import Any
 
 from agent.core.kernel_types import (
@@ -85,6 +86,22 @@ async def _await_maybe(value):
     return value
 
 
+def _entry_mode(name: str) -> str:
+    """Return a tool's execution_mode, defaulting to "parallel"."""
+    entry = registry.get_entry(name)
+    if entry is None:
+        return "parallel"  # unknown tools produce an error result anyway
+    return getattr(entry, "execution_mode", "parallel")
+
+
+@dataclass
+class _Prepared:
+    tc: ToolCallPayload
+    args: dict
+    index: int
+    immediate: str | None = None
+
+
 async def dispatch_tool_batch(
     calls: list[ToolCallPayload],
     *,
@@ -95,9 +112,101 @@ async def dispatch_tool_batch(
 ) -> ExecutedToolBatch:
     """Execute a batch of tool calls and return results in original order.
 
-    P1: strict sequential — per call: prepare → execute → finalize.
-    P2: parallel with sequential degradation (same signature).
+    P2: parallel with sequential degradation — a batch containing any
+    ``execution_mode == "sequential"`` tool falls back to strict serial
+    execution (Pi's hasSequentialToolCall → executeToolCallsSequential).
     """
+    sequential = any(_entry_mode(tc.name) == "sequential" for tc in calls)
+    if sequential:
+        return await _dispatch_sequential(
+            calls,
+            max_result_length=max_result_length,
+            token=token,
+            emit=emit,
+            config=config,
+        )
+    return await _dispatch_parallel(
+        calls,
+        max_result_length=max_result_length,
+        token=token,
+        emit=emit,
+        config=config,
+    )
+
+
+async def _dispatch_parallel(
+    calls: list[ToolCallPayload],
+    *,
+    max_result_length: int,
+    token: CancelToken,
+    emit: Callable[[AgentEvent], Awaitable[None]],
+    config: AgentLoopConfig,
+) -> ExecutedToolBatch:
+    """Prepare serially, execute handlers concurrently, emit in order."""
+    prepared: list[_Prepared] = []
+    for i, tc in enumerate(calls):  # prepare serial
+        token.check()
+        args, immediate = await _prepare(tc, config, token, emit)
+        prepared.append(_Prepared(tc=tc, args=args, index=i, immediate=immediate))
+
+    runnable = [p for p in prepared if p.immediate is None]
+    # ToolExecutionStart in original order — WS tool_call cards are ordered
+    for p in runnable:
+        await emit(ToolExecutionStart(tool_call_id=p.tc.id, tool_name=p.tc.name, args=p.args))
+
+    async def _run(prep: _Prepared) -> tuple[int, str, bool]:
+        raw = await _run_handler(prep.tc.name, prep.args, config, token)
+        finalized = await _finalize(prep.tc.name, prep.args, raw, config, token)
+        return prep.index, _truncate(finalized, max_result_length), _is_error_result(finalized)
+
+    if runnable:
+        completed = await asyncio.gather(*(_run(p) for p in runnable))
+    else:
+        completed = []
+    by_index = {idx: (truncated, is_error) for idx, truncated, is_error in completed}
+
+    # Restore original order: immediate errors + executed results
+    results: list[ToolResult] = []
+    for p in prepared:
+        if p.immediate is not None:
+            results.append(
+                ToolResult(
+                    tool_call_id=p.tc.id,
+                    tool_name=p.tc.name,
+                    result=_truncate(p.immediate, max_result_length),
+                    is_error=True,
+                )
+            )
+            continue
+        truncated, is_error = by_index[p.index]
+        await emit(
+            ToolExecutionEnd(
+                tool_call_id=p.tc.id,
+                tool_name=p.tc.name,
+                result=truncated,
+                is_error=is_error,
+            )
+        )
+        results.append(
+            ToolResult(
+                tool_call_id=p.tc.id,
+                tool_name=p.tc.name,
+                result=truncated,
+                is_error=is_error,
+            )
+        )
+    return ExecutedToolBatch(messages=results, terminate=False)
+
+
+async def _dispatch_sequential(
+    calls: list[ToolCallPayload],
+    *,
+    max_result_length: int,
+    token: CancelToken,
+    emit: Callable[[AgentEvent], Awaitable[None]],
+    config: AgentLoopConfig,
+) -> ExecutedToolBatch:
+    """Strict serial: prepare → execute → finalize, one call at a time."""
     results: list[ToolResult] = []
     for tc in calls:
         token.check()
