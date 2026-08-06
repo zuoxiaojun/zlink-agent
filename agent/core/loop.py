@@ -112,6 +112,7 @@ async def _run_loop(
                 context.messages = await _await_maybe(config.transform_context(context.messages, token))
             # 2) LLM call (never raises: failures are encoded into the message)
             message, stop_reason = await _stream_assistant_response(context, config, emit, token)
+            context.messages.append(message)
             new_messages.append(message)
             if message.get("is_error") or stop_reason in ("error", "aborted"):
                 await emit(TurnEnd(message, []))

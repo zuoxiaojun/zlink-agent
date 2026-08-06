@@ -113,7 +113,6 @@ def test_plain_text_event_sequence_and_return():
 def test_tool_call_then_text_orders_transcript():
     def echo(args: dict) -> str:
         return tool_result(data={"v": args.get("v")})
-
     registry.register(name="echo", toolset="test", schema={"type": "object"}, handler=echo)
     llm = _ScriptedLLM(
         _tool_response("echo", {"v": "x"}),
@@ -127,13 +126,36 @@ def test_tool_call_then_text_orders_transcript():
     assert roles == ["user", "assistant", "tool", "assistant"]
     assert result[2]["tool_call_id"] == "c1"
     assert json.loads(result[2]["content"])["data"]["v"] == "x"
-    # tool message appended to context too
-    assert ctx.messages[-1]["role"] == "tool"
+    # assistant + tool messages appended to context too
+    assert [m["role"] for m in ctx.messages] == ["user", "assistant", "tool", "assistant"]
     # turn boundaries: 2 TurnStart / 2 TurnEnd
     assert sum(1 for e in rec.events if isinstance(e, TurnStart)) == 2
     turn_ends = [e for e in rec.events if isinstance(e, TurnEnd)]
     assert len(turn_ends) == 2
     assert len(turn_ends[0].tool_results) == 1
+
+
+def test_second_llm_call_includes_assistant_tool_calls_message():
+    """Regression: assistant tool_calls message must enter context.messages,
+    otherwise tool results reach the provider orphaned (DeepSeek 400)."""
+
+    def echo(args: dict) -> str:
+        return tool_result(data={"ok": True})
+
+    registry.register(name="echo", toolset="test", schema={"type": "object"}, handler=echo)
+    llm = _ScriptedLLM(
+        _tool_response("echo", {}, call_id="c1"),
+        LLMResponse(content="done"),
+    )
+    rec = _Recorder()
+    _run(run_agent_loop([{"role": "user", "content": "go"}], AgentContext(), _cfg(call_llm=llm), rec, CancelToken()))
+
+    assert len(llm.calls) == 2
+    second_call_roles = [m["role"] for m in llm.calls[1]]
+    assert second_call_roles == ["user", "assistant", "tool"]
+    assistant_msg = llm.calls[1][1]
+    assert assistant_msg["tool_calls"][0]["id"] == "c1"
+    assert llm.calls[1][2]["tool_call_id"] == "c1"
 
 
 def test_steering_message_injected_next_turn():
