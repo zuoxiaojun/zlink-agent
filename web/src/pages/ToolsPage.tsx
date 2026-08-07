@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { IconArrowLeft, IconHammer, IconChevronDown, IconChevronRight, IconSearch } from "@tabler/icons-react";
+import { IconArrowLeft, IconHammer, IconSearch } from "@tabler/icons-react";
 import { api } from "../api/http";
+import Drawer from "../components/Drawer";
 import type { ToolInfo } from "../types";
 
 const TOOLSET_EMOJI: Record<string, string> = {
@@ -19,15 +20,11 @@ const TOOLSET_EMOJI: Record<string, string> = {
 export default function ToolsPage() {
   const navigate = useNavigate();
   const [tools, setTools] = useState<ToolInfo[]>([]);
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    api.get<ToolInfo[]>("/tools").then((data) => {
-      setTools(data);
-      const names = new Set(data.map((t) => t.toolset));
-      setCollapsed(names);
-    });
+    api.get<ToolInfo[]>("/tools").then(setTools);
   }, []);
 
   const filtered = useMemo(() => {
@@ -41,24 +38,17 @@ export default function ToolsPage() {
   }, [tools, search]);
 
   // Group tools by toolset
-  const toolsets = new Map<string, ToolInfo[]>();
-  for (const t of filtered) {
-    const list = toolsets.get(t.toolset) || [];
-    list.push(t);
-    toolsets.set(t.toolset, list);
-  }
+  const toolsets = useMemo(() => {
+    const map = new Map<string, ToolInfo[]>();
+    for (const t of filtered) {
+      const list = map.get(t.toolset) || [];
+      list.push(t);
+      map.set(t.toolset, list);
+    }
+    return map;
+  }, [filtered]);
 
-  const toggle = (toolset: string) => {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(toolset)) next.delete(toolset);
-      else next.add(toolset);
-      return next;
-    });
-  };
-
-  const expandAll = () => setCollapsed(new Set());
-  const collapseAll = () => setCollapsed(new Set(Array.from(toolsets.keys())));
+  const selectedTools = selected ? toolsets.get(selected) || [] : [];
 
   return (
     <div className="page-container">
@@ -80,9 +70,6 @@ export default function ToolsPage() {
         <span className="text-meta">
           {search.trim() ? `找到 ${filtered.length} 个` : `共 ${tools.length} 个工具`}，{toolsets.size} 个工具集
         </span>
-        <button onClick={expandAll} className="action-link">全部展开</button>
-        <span className="text-sep">|</span>
-        <button onClick={collapseAll} className="action-link">全部收起</button>
       </div>
 
       {tools.length === 0 ? (
@@ -94,42 +81,49 @@ export default function ToolsPage() {
         <div className="card-grid">
           {Array.from(toolsets.entries()).map(([toolset, items]) => {
             const emoji = TOOLSET_EMOJI[toolset] || "🔧";
-            const isCollapsed = collapsed.has(toolset);
             return (
-              <div key={toolset} className="toolset-group">
-                <div className="toolset-header" onClick={() => toggle(toolset)}>
-                  <span className="toolset-header-left">
-                    {isCollapsed ? <IconChevronRight size={14} /> : <IconChevronDown size={14} />}
+              <div
+                key={toolset}
+                className="skill-card"
+                style={{ cursor: "pointer" }}
+                onClick={() => setSelected(toolset)}
+              >
+                <div className="skill-card-header">
+                  <div className="skill-card-name">
                     <span className="toolset-emoji">{emoji}</span>
-                    <span className="toolset-name">{toolset}</span>
+                    <span className="text-name">{toolset}</span>
                     <span className="toolset-count">{items.length} 个</span>
-                  </span>
-                </div>
-                {!isCollapsed && (
-                  <div className="skill-grid" style={{ padding: "8px 0" }}>
-                    {items.map((t) => (
-                      <div key={t.name} className="skill-card">
-                        <div className="skill-card-header">
-                          <div className="skill-card-name">
-                            <span className="dot-success" />
-                            <span className="text-name">{t.emoji} {t.name}</span>
-                          </div>
-                        </div>
-                        {t.description && (
-                          <p className="skill-card-desc">{t.description}</p>
-                        )}
-                        <div className="skill-card-tags">
-                          <span className="skill-card-tag">{t.toolset}</span>
-                        </div>
-                      </div>
-                    ))}
                   </div>
-                )}
+                </div>
+                <p className="skill-card-desc">
+                  {items.map((t) => t.name).join("、")}
+                </p>
               </div>
             );
           })}
         </div>
       )}
+
+      <Drawer
+        open={selected !== null}
+        onClose={() => setSelected(null)}
+        title={
+          <>
+            <span>{TOOLSET_EMOJI[selected || ""] || "🔧"}</span>
+            <span>{selected}</span>
+            <span className="toolset-count">{selectedTools.length} 个工具</span>
+          </>
+        }
+      >
+        {selectedTools.map((t) => (
+          <div key={t.name} className="drawer-section">
+            <div className="drawer-section-title">{t.emoji} {t.name}</div>
+            {t.description && (
+              <div className="drawer-section-desc">{t.description}</div>
+            )}
+          </div>
+        ))}
+      </Drawer>
     </div>
   );
 }

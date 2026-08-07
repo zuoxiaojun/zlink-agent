@@ -1,19 +1,20 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { IconArrowLeft, IconUpload, IconPackage, IconChevronDown, IconSearch, IconEdit, IconDownload, IconX } from "@tabler/icons-react";
+import { IconArrowLeft, IconUpload, IconPackage, IconSearch, IconEdit, IconDownload, IconX } from "@tabler/icons-react";
 import { api } from "../api/http";
 import { getErrorMessage } from "../utils/errors";
+import Drawer from "../components/Drawer";
 import type { SkillInfo } from "../types";
 
 export default function SkillManagerPage() {
   const navigate = useNavigate();
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [selected, setSelected] = useState<string | null>(null);
   const [skillContent, setSkillContent] = useState<Record<string, string>>({});
   const [uploading, setUploading] = useState(false);
   const [search, setSearch] = useState("");
-  const [editing, setEditing] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
   const [editContent, setEditContent] = useState("");
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -39,29 +40,41 @@ export default function SkillManagerPage() {
     );
   }, [skills, search]);
 
-  const handleExpand = async (name: string) => {
-    if (!skillContent[name]) {
-      const data = await api.get<{ name: string; content: string }>(`/skills/${name}`);
-      setSkillContent((prev) => ({ ...prev, [name]: data.content }));
-    }
-    setExpanded((prev) => ({ ...prev, [name]: !prev[name] }));
+  const selectedSkill = useMemo(
+    () => skills.find((s) => s.name === selected) || null,
+    [skills, selected]
+  );
+
+  const fetchContent = async (name: string) => {
+    if (skillContent[name]) return;
+    const data = await api.get<{ name: string; content: string }>(`/skills/${name}`);
+    setSkillContent((prev) => ({ ...prev, [name]: data.content }));
   };
 
-  const handleEdit = async (name: string) => {
-    if (!skillContent[name]) {
-      const data = await api.get<{ name: string; content: string }>(`/skills/${name}`);
-      setSkillContent((prev) => ({ ...prev, [name]: data.content }));
-    }
-    setEditing(name);
-    setEditContent(skillContent[name] || "");
+  const handleOpen = (name: string) => {
+    setSelected(name);
+    setEditing(false);
+    fetchContent(name);
   };
 
-  const handleSave = async (name: string) => {
+  const handleClose = () => {
+    setSelected(null);
+    setEditing(false);
+  };
+
+  const handleEdit = () => {
+    if (!selected) return;
+    setEditContent(skillContent[selected] || "");
+    setEditing(true);
+  };
+
+  const handleSave = async () => {
+    if (!selected) return;
     setSaving(true);
     try {
-      await api.put(`/skills/${name}`, { content: editContent });
-      setSkillContent((prev) => ({ ...prev, [name]: editContent }));
-      setEditing(null);
+      await api.put(`/skills/${selected}`, { content: editContent });
+      setSkillContent((prev) => ({ ...prev, [selected]: editContent }));
+      setEditing(false);
     } catch (e: unknown) {
       alert(getErrorMessage(e, "保存失败"));
     }
@@ -141,7 +154,12 @@ export default function SkillManagerPage() {
       ) : (
         <div className="skill-grid">
           {filtered.map((s) => (
-            <div key={s.name} className="skill-card">
+            <div
+              key={s.name}
+              className="skill-card"
+              style={{ cursor: "pointer" }}
+              onClick={() => handleOpen(s.name)}
+            >
               <div className="skill-card-header">
                 <div className="skill-card-name">
                   <span style={{
@@ -159,31 +177,6 @@ export default function SkillManagerPage() {
                     <span className="badge badge-primary badge-xs">内置</span>
                   )}
                 </div>
-                <div className="skill-card-actions">
-                  {!s.builtin && (
-                    <button
-                      className="btn btn-ghost icon-btn-sm"
-                      onClick={() => handleEdit(s.name)}
-                      title="编辑内容"
-                    >
-                      <IconEdit size={13} color="var(--text-3)" />
-                    </button>
-                  )}
-                  <button
-                    className="btn btn-ghost icon-btn-sm"
-                    onClick={() => handleExpand(s.name)}
-                    title="查看详情"
-                  >
-                    <IconChevronDown
-                      size={14}
-                      style={{
-                        transition: "transform 0.2s",
-                        transform: expanded[s.name] ? "rotate(180deg)" : "rotate(0)",
-                        color: "var(--text-3)",
-                      }}
-                    />
-                  </button>
-                </div>
               </div>
 
               {s.description && (
@@ -197,47 +190,62 @@ export default function SkillManagerPage() {
                   ))}
                 </div>
               )}
-
-              {expanded[s.name] && (
-                <div className="skill-card-body">
-                  {editing === s.name ? (
-                    <div className="flex-col-gap-sm">
-                      <textarea
-                        className="editor-textarea"
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                      />
-                      <div className="flex-row-gap-sm">
-                        <button className="btn btn-primary" onClick={() => handleSave(s.name)} disabled={saving}>
-                          {saving ? "保存中..." : "保存"}
-                        </button>
-                        <button className="btn btn-ghost" onClick={() => setEditing(null)} disabled={saving}>
-                          <IconX size={14} /> 取消
-                        </button>
-                      </div>
-                    </div>
-                  ) : skillContent[s.name] ? (
-                    <>
-                      <div style={{ display: "flex", gap: "4px", marginBottom: "8px" }}>
-                        <button
-                          className="action-link"
-                          onClick={() => handleExport(s.name, skillContent[s.name])}
-                        >
-                          <IconDownload size={12} /> 导出
-                        </button>
-                      </div>
-                      <pre>{skillContent[s.name]}</pre>
-                    </>
-                  ) : (
-                    /* keep inline: no C-2 utility class provides 12px font-size (text-tiny is 11px) */
-                    <span style={{ fontSize: "12px", color: "var(--text-4)" }}>加载中...</span>
-                  )}
-                </div>
-              )}
             </div>
           ))}
         </div>
       )}
+
+      <Drawer
+        open={selected !== null}
+        onClose={handleClose}
+        title={
+          <>
+            <span>{selected}</span>
+            {selectedSkill?.version && <span className="text-tiny">v{selectedSkill.version}</span>}
+            {selectedSkill?.builtin && <span className="badge badge-primary badge-xs">内置</span>}
+          </>
+        }
+      >
+        {selected && (
+          editing ? (
+            <div className="flex-col-gap-sm">
+              <textarea
+                className="editor-textarea"
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+              />
+              <div className="flex-row-gap-sm">
+                <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+                  {saving ? "保存中..." : "保存"}
+                </button>
+                <button className="btn btn-ghost" onClick={() => setEditing(false)} disabled={saving}>
+                  <IconX size={14} /> 取消
+                </button>
+              </div>
+            </div>
+          ) : skillContent[selected] ? (
+            <>
+              <div style={{ display: "flex", gap: "12px", marginBottom: "12px" }}>
+                {!selectedSkill?.builtin && (
+                  <button className="action-link" onClick={handleEdit}>
+                    <IconEdit size={12} /> 编辑
+                  </button>
+                )}
+                <button
+                  className="action-link"
+                  onClick={() => handleExport(selected, skillContent[selected])}
+                >
+                  <IconDownload size={12} /> 导出
+                </button>
+              </div>
+              <pre>{skillContent[selected]}</pre>
+            </>
+          ) : (
+            /* keep inline: no C-2 utility class provides 12px font-size (text-tiny is 11px) */
+            <span style={{ fontSize: "12px", color: "var(--text-4)" }}>加载中...</span>
+          )
+        )}
+      </Drawer>
     </div>
   );
 }

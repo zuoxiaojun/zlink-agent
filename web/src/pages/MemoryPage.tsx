@@ -1,21 +1,24 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { IconArrowLeft, IconFileText, IconUser, IconClipboardList, IconChevronDown, IconChevronRight } from "@tabler/icons-react";
+import { IconArrowLeft, IconFileText, IconUser, IconClipboardList } from "@tabler/icons-react";
 import { api } from "../api/http";
+import Drawer from "../components/Drawer";
 import type { MemoryFacts, MemorySummary } from "../types";
 
 const SECTIONS = [
   { key: "notes", icon: IconFileText, label: "Agent 笔记" },
   { key: "profile", icon: IconUser, label: "用户画像" },
   { key: "summaries", icon: IconClipboardList, label: "对话摘要" },
-];
+] as const;
+
+type SectionKey = (typeof SECTIONS)[number]["key"];
 
 export default function MemoryPage() {
   const navigate = useNavigate();
   const [facts, setFacts] = useState<MemoryFacts>({ memory: [], user: [] });
   const [summaries, setSummaries] = useState<MemorySummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<SectionKey | null>(null);
 
   useEffect(() => {
     const start = Date.now();
@@ -29,19 +32,20 @@ export default function MemoryPage() {
     });
   }, []);
 
-  const toggle = (key: string) => {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+  const counts: Record<SectionKey, number> = {
+    notes: facts.memory.length,
+    profile: facts.user.length,
+    summaries: summaries.length,
   };
 
-  const expandAll = () => setCollapsed(new Set());
-  const collapseAll = () => setCollapsed(new Set(SECTIONS.map((s) => s.key)));
+  const emptyTexts: Record<SectionKey, string> = {
+    notes: "暂无笔记",
+    profile: "暂无画像",
+    summaries: "暂无摘要",
+  };
 
-  const total = facts.memory.length + facts.user.length + summaries.length;
+  const total = counts.notes + counts.profile + counts.summaries;
+  const selectedSection = SECTIONS.find((s) => s.key === selected);
 
   return (
     <div className="page-container">
@@ -63,85 +67,57 @@ export default function MemoryPage() {
         <span className="text-meta">
           共 {total} 条记忆，{SECTIONS.length} 个分类
         </span>
-        <button onClick={expandAll} className="action-link">全部展开</button>
-        <span className="text-sep">|</span>
-        <button onClick={collapseAll} className="action-link">全部收起</button>
       </div>
 
       <div className="card-grid">
-        <div className="toolset-group">
-          <div className="toolset-header" onClick={() => toggle("notes")}>
-            <span className="toolset-header-left">
-              {collapsed.has("notes") ? <IconChevronRight size={14} /> : <IconChevronDown size={14} />}
-              <IconFileText size={14} />
-              <span className="toolset-name">Agent 笔记</span>
-              <span className="toolset-count">{facts.memory.length} 条</span>
-            </span>
-          </div>
-          {!collapsed.has("notes") && (
-            <div className="section-pad">
-              {facts.memory.length === 0 ? (
-                <div className="text-meta">暂无笔记</div>
-              ) : (
-                <div className="flex-col-gap-sm">
-                  {facts.memory.map((e, i) => (
-                    <div key={i} className="chip">{e}</div>
-                  ))}
-                </div>
-              )}
+        {SECTIONS.map(({ key, icon: Icon, label }) => (
+          <div
+            key={key}
+            className="skill-card"
+            style={{ cursor: "pointer" }}
+            onClick={() => setSelected(key)}
+          >
+            <div className="skill-card-header">
+              <div className="skill-card-name">
+                <Icon size={14} />
+                <span className="text-name">{label}</span>
+                <span className="toolset-count">{counts[key]} 条</span>
+              </div>
             </div>
-          )}
-        </div>
-
-        <div className="toolset-group">
-          <div className="toolset-header" onClick={() => toggle("profile")}>
-            <span className="toolset-header-left">
-              {collapsed.has("profile") ? <IconChevronRight size={14} /> : <IconChevronDown size={14} />}
-              <IconUser size={14} />
-              <span className="toolset-name">用户画像</span>
-              <span className="toolset-count">{facts.user.length} 条</span>
-            </span>
           </div>
-          {!collapsed.has("profile") && (
-            <div className="section-pad">
-              {facts.user.length === 0 ? (
-                <div className="text-meta">暂无画像</div>
-              ) : (
-                <div className="flex-col-gap-sm">
-                  {facts.user.map((e, i) => (
-                    <div key={i} className="chip">{e}</div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="toolset-group">
-          <div className="toolset-header" onClick={() => toggle("summaries")}>
-            <span className="toolset-header-left">
-              {collapsed.has("summaries") ? <IconChevronRight size={14} /> : <IconChevronDown size={14} />}
-              <IconClipboardList size={14} />
-              <span className="toolset-name">对话摘要</span>
-              <span className="toolset-count">{summaries.length} 条</span>
-            </span>
-          </div>
-          {!collapsed.has("summaries") && (
-            <div className="section-pad">
-              {summaries.length === 0 ? (
-                <div className="text-meta">暂无摘要</div>
-              ) : (
-                summaries.map((s) => (
-                  <div key={s.session_id} className="list-row">
-                    <div className="card-subtitle">{s.title}</div>
-                    <div className="text-muted-mt">{s.summary}</div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-        </div>
+        ))}
       </div>
+
+      <Drawer
+        open={selected !== null}
+        onClose={() => setSelected(null)}
+        title={
+          selectedSection && (
+            <>
+              <selectedSection.icon size={15} />
+              <span>{selectedSection.label}</span>
+              <span className="toolset-count">{counts[selectedSection.key]} 条</span>
+            </>
+          )
+        }
+      >
+        {selected && counts[selected] === 0 ? (
+          <div className="text-meta">{emptyTexts[selected]}</div>
+        ) : selected === "summaries" ? (
+          summaries.map((s) => (
+            <div key={s.session_id} className="drawer-section">
+              <div className="drawer-section-title">{s.title}</div>
+              <div className="drawer-section-desc">{s.summary}</div>
+            </div>
+          ))
+        ) : selected ? (
+          <div className="flex-col-gap-sm">
+            {(selected === "notes" ? facts.memory : facts.user).map((e, i) => (
+              <div key={i} className="chip">{e}</div>
+            ))}
+          </div>
+        ) : null}
+      </Drawer>
         </>
       )}
     </div>
