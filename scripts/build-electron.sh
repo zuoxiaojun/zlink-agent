@@ -55,7 +55,7 @@ if [ -d "$CHART_DIR" ]; then
     (cd "$CHART_DIR" && npm install --omit=dev --no-save --no-package-lock --ignore-scripts --silent)
     echo "✅ Chart MCP 依赖安装完成"
 else
-    echo "⏭️  未找到 $CHART_DIR，跳过（Chart 功能将不可用）"
+    echo "⏭️  未找到 ${CHART_DIR}，跳过（Chart 功能将不可用）"
 fi
 
 echo ""
