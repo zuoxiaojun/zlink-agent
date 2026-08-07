@@ -1,85 +1,73 @@
-# HANDOFF — v1.9.0 维护发布已完成（2026-08-06）
+# HANDOFF — 对话界面工具执行面板完成（2026-08-07）
 
 > 供新 opencode 会话快速接续。所有工作已提交并推送，无未保存改动。
 
 ## 当前状态
 
-- 分支：`main`，与 `origin/main`（atomgit）同步，HEAD = `23296ca`
-- Tag：`v1.9.0` → `23296ca`（已 force-push 到 atomgit；先打在 b106717，后因最终文档修复移动）
-- 版本：v1.9.0（`pyproject.toml` 为版本唯一事实源）
-- 测试：**509 passed**（基准 501 + 8 新增），`ruff check .` clean，前端 `npm run build` + `npm run lint` 全绿
-- 工作区干净，无未提交改动
+- 分支：`main`，与 `origin/main`（atomgit）同步，HEAD = `6f03b3a`
+- 版本：v1.9.0（用户拍板：本次不发新版本，DMG 名义 1.9.0 但已含面板特性）
+- 测试：509 passed / ruff clean / `npm run build` + `npm run lint` 全绿
+- 打包产物：`dist-electron/ZLink Agent-1.9.0-arm64.dmg`（170M，arm64，未签名如常，构建冒烟测试通过）
+- 测试服务已停（8088/8089 端口已释放）
 
 ## 本次会话完成的事
 
-**主线：v1.9.0 维护发布**（承接上一会话 Pi 内核重写，spec/plan 见 §关键文档）。用户确认：单 spec 单 plan、先代码后发布、直接在 main 上执行。18 个功能 commit（`756854e` → `23296ca`）。
+**主线：对话界面工具执行面板（ToolRunPanel）**，spec：`docs/superpowers/specs/2026-08-06-tool-run-panel-design.md`（docs/ 被 gitignore，仅本地）。两个代码 commit：
 
-**A 组 — parked minors 清理（每个配测试）：**
-1. **M-1 审批拒绝卡片**：`ToolExecutionEnd` 加 `denied` 字段 → `_HandlerResult` → WS `tool_result.denied`（仅 true 时附加）→ 前端 `_denied` 标记 → ToolStepCard 显示"已拒绝"（`tool-step-denied` 类）
-2. **M-2 取消持久化**：`_partial_response` 累积 + 每轮重置 + 去重守卫（评审发现真实缺陷后追加修复）；`_final_response` 保持空 → WS/UI 零变化
-3. **M-3 桥工具卡片**：`effectiveArgs` 回退链 + `extractSubtitle` 补 tool_search/tool_describe/tool_call case
-4. **M-5 压缩 session_id**：`_transform_context_hook` 两处 `_set_phase` 补 `session_id`
-5. **M-6 Agent 复用**：`run_async` 采纳新 token / 取消后重置 + `subscribe` 幂等
-6. **M-7 死代码**：删除同步 `dispatch_tool` + `sys` import + re-export（零引用已核实）
+1. `fde3abc` feat：同回合连续 tool 消息收进固定高度（220px）内嵌面板，紧凑日志行（图标+名称+参数摘要+耗时），内部自动滚动；全部完成自动折叠成摘要行「N 个工具 · 全部成功 · 共 Xs」；点击展开/行内详情（参数+返回，pre 限高 240px）；耗时前端采集（WS 零改动）
+2. `5b3e09b` fix：折叠触发器从"全部完成即折"改为 live 语义（本轮进行中保持展开累积行，回合结束才折叠）——消除 LLM 批次间隙的折叠/展开抖动
 
-**B 组 — TAVILY key 运行时加载（用户拍板：不打包）：**
-- `backend/config.py` `load_dotenv` → `_load_env_files()` 候选列表：`~/.zlink-agent/.env`（`DATA_DIR.parent`）优先，仓库根 `.env` 次之，`override=False`
-- **key 已由用户提供并写入 `~/.zlink-agent/.env`**（chmod 600，dev 验证注入成功）；打包版启动即读，无需重打包
-- `build-pyinstaller.sh` / `main.js` / `backend_launcher.py` 零改动
+**联调中修复的存量/衍生 bug（均已随上述 commit 入库）：**
+- `ADD_PENDING_TOOL` 去重吞卡：已完成消息保留 `pending:xxx` id 导致同会话同名工具第二次调用的 pending 卡被吞、旧消息内容被新结果覆盖 → 去重条件加 `!m._tool_done`
+- 实况中工具详情「参数」误显结果 JSON → `message._tool_args` stash 原始参数
+- `extractSubtitle` 补 ls/glob/search_files case
 
-**C 组 — 前端优化（168 处内联样式 → 42 处）：**
-1. **C-1 宽屏**：`.page-container` 1040→1280px；列表页 `.card-grid`（History/Memory/Tools）；配置页 `.form-grid-2`（LLM/Agent/ERP）；CronJobPage（表格）与 SkillManager/SettingsExtensions（已有 skill-grid）明确不套网格
-2. **C-2 内联样式收敛 3 批**：65 个工具类集中在 global.css 末尾（`/* ── Utility classes (C-2: inline-style consolidation) ── */`）；McpPage 51 处（45 迁 6 留）→ SkillManager/Memory/SettingsAgent（45 迁 11 留）→ 剩余 11 文件（35 迁 21 留）；动态样式保留 inline 并注 `// dynamic:`
-3. **C-3 颜色**：ERP 测试结果条 → `.test-result-ok/error`（`var(--success)`/`var(--danger)`，删 `#B7EB8F`/`#FFA39E`）
-4. **C-4 历史页**：hash 徽章 → `.badge-neutral`（保留 6 位 ID）+ 删除 `window.confirm`
+**其他决策：**
+- **暗色主题永远不做**（用户拍板，已记入 `AGENTS.md` §13，commit `6f03b3a`）
+- 单工具回合统一走面板；clarify 工具不进面板（交互按钮留消息流）
+- 版本不 bump：DMG 叫 1.9.0，用户原话"先就叫 1.9 吧"
 
-**D 组 — 发布 v1.9.0**：pyproject/package.json/CHANGELOG/README 四件套 + tag。
+## 改动文件（均已入库）
 
-## 关键决策与原因
-
-- **直接在 main 上执行**：项目惯例（HANDOFF/HANDOVER 均如此），用户确认
-- **M-2 去重守卫追加**：评审确认真实缺陷（真实流式路径下工具执行期取消会重复追加 partial 气泡），用户拍板追加 per-turn reset + last-message 比对守卫
-- **M-3 subtitle 增强纳入**：用户拍板（参数为空时卡片不整卡空白）
-- **C-4 hash 中性灰保留**：用户拍板（保留排障用途）
-- **B 组运行时读取而非打包嵌入**：用户拍板（避免 dmg 提取 key）；`override=False` 保证环境变量优先
-- **M-6 可复用语义**：用户拍板（显式 token 始终采纳 + 取消后重置）
-- **MCP tooltip 跳过**：核实 McpPage 所有图标已有 title，HANDOVER 此项过时
-
-## 改动文件（按模块）
-
-- `agent/core/`：kernel_types（denied 字段）、tool_dispatcher（_HandlerResult/删 dispatch_tool）、agent_adapter（M-2/M-5）、agent（M-6）、`__init__.py`（删 re-export）
-- `backend/`：config.py（_load_env_files）、api/chat.py（tool_result.denied）
-- `web/src/`：types/useChat/AppContext/ToolStepCard（M-1/M-3）、global.css（denied 类/工具类/布局/颜色/badge）、8 个页面（C-1/C-2/C-3/C-4）
-- `tests/`：+8（M-1×2、M-2×2、M-5、M-6×3、B×2 分布）
-- 版本四件套：pyproject/package.json/CHANGELOG/README
+- `web/src/components/ToolRunPanel.tsx`（新建：面板/行/摘要/详情 + 迁移来的 helpers）
+- `web/src/components/ChatMessage.tsx`（run 分组渲染 + live 传递）
+- `web/src/components/ToolStepCard.tsx`（收缩为仅 clarify-prompt）
+- `web/src/hooks/useChat.ts`（toolStartRef 计时 + `_tool_args`）
+- `web/src/context/AppContext.tsx`（计时字段 + dedup 修复）
+- `web/src/types/index.ts`（`_tool_duration_ms`/`_tool_started_at`/`_tool_args`）
+- `web/src/styles/global.css`（`tool-run-*` 系列类）
+- 后端零改动，四个冻结契约零破坏
 
 ## 验证命令与结果（实测）
 
 ```bash
-.venv/bin/python -m pytest tests/ -q   # 509 passed, 1 warning, 7.75s
-ruff check .                            # All checks passed
-cd web && npm run build && npm run lint # 全绿（仅 pre-existing chunk>500kB warning）
+.venv/bin/python -m pytest tests/ -q   # 509 passed
+cd web && npm run build && npm run lint # 全绿
+bash scripts/build-electron.sh          # 冒烟测试通过（57 工具），dmg 产出
 ```
+
+**浏览器实机 E2E（dev + 真实 LLM，全部通过）**：历史回放折叠摘要；实况 spinner 行+参数副标题+耗时 tick；自动折叠（总耗时 8.0s/20.4s/30.1s 精确）；12 工具累积 325px 自动滚底（scrollTop=105）；clarify 选项点击续聊；执行中停止无悬挂状态；审批拒绝（橙色「已拒绝」行+摘要）；行详情限高。
 
 ## 已知问题 / 注意事项
 
-- **打包版验证未做**：dev 已验证 key 注入成功；打包版 `web_search` 命中 Tavily 需实际打包后人工确认（本会话未跑 build-pyinstaller.sh）
-- `HANDOFF.md` 已覆盖：本文件取代上一会话的 Pi 内核重写交接（其内容仍可从 git log 追溯）
-- 仓库 `.env` 仅端口配置（key 在 `~/.zlink-agent/.env`，两处均 gitignored）
-- 全程四个冻结契约零破坏（contract_freeze 7/7）：run_conversation 6-key dict、WS 消息（仅新增可选 denied）、EventBus 8 事件、registry 接口
+- **审批拒绝测试前置坑**：运行时后端若是 v1.9.0 发布前启动的旧进程，无 M-1 denied 传播，拒绝会显示「失败」——重启后端即可，代码本身无问题
+- **打包版未人工 E2E**：dmg 只跑了构建内冒烟测试；含上一会话遗留的 Tavily `web_search` 打包档验证（key 在 `~/.zlink-agent/.env`，打包版启动即读）
+- 暗色主题截图未验证（已拍板永不做，无需验）
+- 测试用 dev 会话产生了一些测试 session 数据（cd31b691、4a314c7b、bf83f979 等），可在历史页删除
 
 ## 遗留事项（不阻塞，按优先级）
 
-1. **打包版验证**：`bash scripts/build-pyinstaller.sh` + 打包版 `web_search` 走 Tavily 档
-2. 观察线上使用，无回归后清理 parked minors 残留文档引用（HANDOFF.md 已更新、AGENTS.md 已修）
-3. 可选：`package-lock.json` 根 version 字段仍 1.7.0（过时，不影响构建）
+1. 打包版人工验证：安装 dmg → 跑一轮多工具对话确认面板 + `web_search` 走 Tavily
+2. 可选：根 `package-lock.json` version 仍 1.7.0（过时，不影响构建）
+3. 下次发版时把面板特性写进 CHANGELOG/README
 
 ## 新会话启动提示词
 
 ```
-Read HANDOFF.md 和 AGENTS.md。当前 main 与 origin 同步，v1.9.0 已发布（509 tests 全绿）。
-上次会话完成了 v1.9.0 维护发布（parked minors + TAVILY .env + 前端优化）。
-本次任务：<在这里填你的任务>
+Read HANDOFF.md 和 AGENTS.md。当前 main 与 origin 同步（HEAD 6f03b3a），
+上次会话完成对话界面工具执行面板（ToolRunPanel，2 commits + 全量浏览器 E2E），
+已打包 dist-electron/ZLink Agent-1.9.0-arm64.dmg（含面板特性，版本未 bump）。
+暗色主题是禁区（AGENTS.md §13）。本次任务：<在这里填你的任务>
 ```
 
 第一个动作：`git log --oneline -5` 确认提交历史与上文一致。
