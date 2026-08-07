@@ -82,7 +82,7 @@ function AssistantGroupContent({
       nodes.push(
         <div key={i}>
           {msg.reasoning_content && (
-            <ReasoningBlock text={msg.reasoning_content} />
+            <ReasoningBlock text={msg.reasoning_content} defaultOpen={isStreaming} />
           )}
           {hasContent ? (
             <div className={`msg-bubble${isStreaming ? " streaming-text" : ""}`}>

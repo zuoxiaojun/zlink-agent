@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { IconBrain, IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 
-export default function ReasoningBlock({ text }: { text: string }) {
-  const [open, setOpen] = useState(false);
+export default function ReasoningBlock({ text, defaultOpen = false }: { text: string; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  useEffect(() => { setOpen(defaultOpen); }, [defaultOpen]);
 
   return (
     <div className="reasoning-block">
