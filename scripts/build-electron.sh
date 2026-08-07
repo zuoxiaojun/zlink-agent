@@ -9,7 +9,8 @@
 #
 # 前置条件：
 #   - Python 3.11+、Node.js 18+、npm
-#   - Windows 打包需要 wine（brew install wine）
+#   - Windows 主机：在 Git Bash (MINGW/MSYS) 中运行本脚本；PyInstaller 只能
+#     原生构建，macOS 无法交叉编译 Windows 后端二进制
 # ===========================================================================
 
 set -euo pipefail
