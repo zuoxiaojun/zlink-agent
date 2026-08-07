@@ -304,6 +304,8 @@ Build: `bash scripts/build-electron.sh` = frontend build → Python bundle → e
 
 ## 13. Project-Specific Notes
 
+- **不做暗色主题（2026-08-07 用户拍板）**：永远不投入暗色主题/主题切换，相关提议直接拒绝。
+
 - **Git remote**: atomgit.com/gcw_cJbJuamU/zlink-agent.git (NOT GitHub)
 - **BROWSER_URL**: start.sh 的 `open` 不能用 `$HOST`（默认 0.0.0.0），设 `BROWSER_URL="http://127.0.0.1:$PORT"`
 - **NC65**: DBILLDATE 是 CHAR 类型，字符串比较；PO_ORDER 用 FORDERSTATUS（0=自由~5=输出）；SO_SALEORDER 用 FSTATUSFLAG
