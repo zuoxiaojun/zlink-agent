@@ -26,6 +26,19 @@ from agent.utils import DATA_DIR
 _YSONSUITE_CONFIG_LOADED = False
 
 
+def _ys_enabled() -> bool:
+    """工具暴露门控：仅当 config.json 中 erp_clients.yonsuite.enabled=true 时
+    才把 YonSuite 工具注册进 LLM 工具列表（registry.get_definitions 的 check_fn）。
+    读取失败时按未启用处理（fail closed）。"""
+    try:
+        from agent import config_manager
+
+        ecfg = config_manager.load().erp_clients.get("yonsuite", {})
+        return bool(ecfg.get("enabled", False)) if isinstance(ecfg, dict) else False
+    except Exception:
+        return False
+
+
 def _ensure_ys_config():
     """Load YonSuite credentials from config.json into environment."""
     global _YSONSUITE_CONFIG_LOADED
@@ -665,6 +678,7 @@ registry.register(
     name="ys_api",
     execution_mode="sequential",
     toolset="yonsuite",
+    check_fn=_ys_enabled,
     schema={
         "name": "ys_api",
         "description": "执行 YonSuite API 调用。支持查询销售订单、采购订单、客户、供应商、库存、生产订单、物料、凭证、待办、商机、组织等业务数据。",
@@ -684,6 +698,7 @@ registry.register(
 registry.register(
     name="query_sale_orders",
     toolset="yonsuite",
+    check_fn=_ys_enabled,
     schema={
         "name": "query_sale_orders",
         "description": "查询 YonSuite 销售订单。返回已解析的字段记录，含税额自动计算、状态中文映射、币种嵌套解析。is_sum=False 返回逐行明细，is_sum=True 返回按订单汇总。",
@@ -705,6 +720,7 @@ registry.register(
 registry.register(
     name="query_purchase_orders",
     toolset="yonsuite",
+    check_fn=_ys_enabled,
     schema={
         "name": "query_purchase_orders",
         "description": "查询 YonSuite 采购订单。返回已解析的记录，含状态中文映射（到货/入库/发票状态）。支持日期过滤。",
@@ -725,6 +741,7 @@ registry.register(
 registry.register(
     name="query_production_orders",
     toolset="yonsuite",
+    check_fn=_ys_enabled,
     schema={
         "name": "query_production_orders",
         "description": "查询 YonSuite 生产订单。返回已解析的记录，含状态中文映射。date_from/date_to 在客户端侧过滤。",
@@ -745,6 +762,7 @@ registry.register(
 registry.register(
     name="query_stock",
     toolset="yonsuite",
+    check_fn=_ys_enabled,
     schema={
         "name": "query_stock",
         "description": "查询 YonSuite 库存现存量，返回逐批次明细。支持按物料ID、仓库、SKU 过滤。",
@@ -766,6 +784,7 @@ registry.register(
 registry.register(
     name="query_customers",
     toolset="yonsuite",
+    check_fn=_ys_enabled,
     schema={
         "name": "query_customers",
         "description": "查询 YonSuite 客户档案。支持按客户名称模糊搜索。",
@@ -785,6 +804,7 @@ registry.register(
 registry.register(
     name="query_vendors",
     toolset="yonsuite",
+    check_fn=_ys_enabled,
     schema={
         "name": "query_vendors",
         "description": "查询 YonSuite 供应商档案。支持按供应商名称模糊搜索。",
@@ -804,6 +824,7 @@ registry.register(
 registry.register(
     name="query_products",
     toolset="yonsuite",
+    check_fn=_ys_enabled,
     schema={
         "name": "query_products",
         "description": "查询 YonSuite 物料档案。支持按物料编码（精确）或物料名称（模糊）搜索。",
@@ -824,6 +845,7 @@ registry.register(
 registry.register(
     name="query_opportunities",
     toolset="yonsuite",
+    check_fn=_ys_enabled,
     schema={
         "name": "query_opportunities",
         "description": "查询 YonSuite CRM 商机列表。返回已解析的商机记录，自动处理金额字段选择。",
@@ -846,6 +868,7 @@ registry.register(
 registry.register(
     name="query_vouchers",
     toolset="yonsuite",
+    check_fn=_ys_enabled,
     schema={
         "name": "query_vouchers",
         "description": "查询 YonSuite 财务凭证。支持按日期、会计期间、账簿过滤。",
@@ -869,6 +892,7 @@ registry.register(
 registry.register(
     name="query_user_todos",
     toolset="yonsuite",
+    check_fn=_ys_enabled,
     schema={
         "name": "query_user_todos",
         "description": "查询 YonSuite 用户待办事项。返回已解析的待办列表，含 richText 清洗、单据类型自动映射。",

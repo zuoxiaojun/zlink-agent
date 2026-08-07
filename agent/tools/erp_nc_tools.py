@@ -38,6 +38,19 @@ def _get_max_rows() -> int:
     return int(os.environ.get("NC_MCP_MAX_ROWS", "200"))
 
 
+def _nc_enabled() -> bool:
+    """工具暴露门控：仅当 config.json 中 erp_clients.nc.enabled=true 时
+    才把 NC 工具注册进 LLM 工具列表（registry.get_definitions 的 check_fn）。
+    读取失败时按未启用处理（fail closed）。"""
+    try:
+        from agent import config_manager
+
+        ecfg = config_manager.load().erp_clients.get("nc", {})
+        return bool(ecfg.get("enabled", False)) if isinstance(ecfg, dict) else False
+    except Exception:
+        return False
+
+
 # ═══════════════════════════════════════════════════════════════
 # SQL 分页 + 安全校验 (从 mcp_server/nc_mcp_server/server.py 迁移)
 # ═══════════════════════════════════════════════════════════════
@@ -517,6 +530,7 @@ def _handle_nc_raw_sql(args: dict) -> str:
 registry.register(
     name="nc_query",
     toolset="nc",
+    check_fn=_nc_enabled,
     schema={
         "name": "nc_query",
         "description": "NC 业务数据查询。支持 销售订单(sales_order)、销售订单按单据号(sales_order_by_code)、采购订单(purchase_order)、采购订单按编号(purchase_order_by_code)、客户(customer)、供应商(supplier)、物料(material)、组织(organization)、现存量(stock) 查询。format=json 返回结构化数据，format=text 返回表格。",
@@ -551,6 +565,7 @@ registry.register(
 registry.register(
     name="nc_list_tables",
     toolset="nc",
+    check_fn=_nc_enabled,
     schema={
         "name": "nc_list_tables",
         "description": "列出 NC 已注册的所有业务表及中文字段数。",
@@ -563,6 +578,7 @@ registry.register(
 registry.register(
     name="nc_describe_table",
     toolset="nc",
+    check_fn=_nc_enabled,
     schema={
         "name": "nc_describe_table",
         "description": "查看 NC 某张注册表的中文字段对照。",
@@ -582,6 +598,7 @@ registry.register(
     name="nc_raw_sql",
     execution_mode="sequential",
     toolset="nc",
+    check_fn=_nc_enabled,
     schema={
         "name": "nc_raw_sql",
         "description": "对 NC 数据库执行任意只读 SELECT 查询。有安全校验，仅供高级使用。",
