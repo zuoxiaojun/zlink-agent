@@ -445,11 +445,17 @@ async def _run_agent_new(
     error: str | None = None
     result: dict | None = None
     try:
+        # stream/reasoning 回调必须非 None —— adapter 以此决定是否开启
+        # LLM 流式调用并把 MessageUpdate（token / reasoning_delta）事件
+        # 推到 Agent 事件流；WS 转发由上方 _on_event 订阅完成，
+        # 所以这里的回调本体无需做任何事。
         result = await agent.run_conversation_async(
             user_message=content,
             conversation_history=history,
             system_message=system_with_memory,
             session_id=session_id,
+            stream_callback=lambda _chunk: None,
+            reasoning_callback=lambda _chunk: None,
         )
     except Exception as e:  # noqa: BLE001
         logger.exception("Agent execution failed")
