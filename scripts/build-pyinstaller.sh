@@ -114,8 +114,9 @@ export ZLINK_AGENT_PORT="$TEST_PORT"
 TEST_PID=$!
 echo "   测试后端 PID: $TEST_PID (端口: $TEST_PORT)"
 
-# 等待启动（onedir 免自解压，预期几秒内就绪；15 秒上限作为回归保护）
-for i in {1..15}; do
+# 等待启动（onedir 免自解压，热启动约 1-2 秒；但打包产物首次执行会触发
+# macOS 安全扫描，可能额外花十几秒甚至更久，60 秒上限作为回归保护）
+for i in {1..60}; do
     if curl -s "http://127.0.0.1:${TEST_PORT}/api/system/version" > /dev/null 2>&1; then
         break
     fi
@@ -124,7 +125,7 @@ done
 
 # 检查是否启动成功
 if ! curl -s "http://127.0.0.1:${TEST_PORT}/api/system/version" > /dev/null 2>&1; then
-    echo "❌ 冒烟测试失败：后端未在 15 秒内启动"
+    echo "❌ 冒烟测试失败：后端未在 60 秒内启动"
     kill "$TEST_PID" 2>/dev/null || true
     exit 1
 fi
