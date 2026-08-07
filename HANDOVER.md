@@ -1,61 +1,42 @@
-# HANDOVER — 2026-08-05
+# HANDOVER — 2026-08-07
 
-> 面向看不到此前会话的新 opencode 会话的交接文档。
+> 面向看不到此前会话的新会话的交接文档。
 
 ## 当前状态
 
-- 分支 `main`，与 origin/main 同步（atomgit），tag `v1.8.1` 已推送
+- 分支 `main`，与 origin/main 同步（atomgit），HEAD `4da5469`
 - 工作区干净，无未提交改动
-- 版本：v1.8.1（`pyproject.toml` 为版本唯一事实源）
-- 后端测试：378 passed（`.venv/bin/python -m pytest tests/ -q`）
-- 前端：`npm run build` + `npm run lint` 全绿
-- 打包产物：`dist-electron/ZLink Agent-1.8.1-arm64.dmg`（170MB，未分发，本地留存）
+- 版本：v1.9.0（`pyproject.toml` 为版本唯一事实源；本次修复**未 bump 版本号**）
+- 后端测试：514 passed（`.venv/bin/python -m pytest tests/`）
+- 打包产物：`dist-electron/ZLink Agent-1.9.0-arm64.dmg`（170MB，2026-08-07 构建，含本次全部修复，未签名）
+- Windows 包：尚未构建，需在 Windows 机器 Git Bash 里 `bash scripts/build-electron.sh --win`（原生构建，无需 wine）
 
-## 本次会话完成的工作
+## 本次会话完成的工作（5 个 commit）
 
-主题：**对话流式输出界面优化 + CSS 去重**，随后发布 v1.8.1。
-
-流程产物（均已提交，docs/ 在 .gitignore 中，用 `git add -f` 提交）：
-- Spec：`docs/superpowers/specs/2026-08-05-chat-streaming-ui-polish-design.md`（commit `8ccb72a`）
-- Plan：`docs/superpowers/plans/2026-08-05-chat-streaming-ui-polish-plan.md`（10/10 task 全部勾选完成）
-
-落地的 5 项改动（详见 `CHANGELOG.md` v1.8.1 条目）：
-1. 流式渲染防闪烁：`web/src/components/StreamingMarkdown.tsx` + `web/src/utils/streamingSplit.ts`（闭合块 memo 冻结，仅尾部重解析）；验证脚本 `web/scripts/verify-streaming-split.ts`（16 条断言，`node` 直接跑）
-2. Agent 状态条：`web/src/components/AgentStatusBar.tsx`（工具名 > progress > 思考中，mm:ss 耗时）；接线了此前从未 dispatch 的 `SET_CURRENT_TOOL`；删除 `ChatMessage.tsx` 死代码 `runningToolCard`
-3. 滚动 rAF 节流（`ChatPage.tsx`），移除 `.chat-messages` 的 `scroll-behavior: smooth`（smooth 仅留"回到底部"按钮）
-4. 视觉细节：呼吸光标（`.streaming-tail` 作用域）、msg-in 微调、工具卡过渡（均在 `web/src/styles/global.css`）
-5. 清理 `global.css` 重复的 `.tool-step-title-row` / `.tool-step-count` 定义
-
-关键 commit（功能 9 个）：`b971d15` → `020edcc` → `9032568` → `125916b` → `681e766` → `4fb2f2c` → `e5fd587` → `a97a67e` → `d0ee644`；版本 bump `408e305`。
+1. `fdacca7` **ERP 工具门控修复**：NC/YonSuite 内置工具注册时缺 `check_fn`，ERP 停用后工具 schema 仍发给 LLM（此前只有 system prompt 标注 ❌）。新增 `_nc_enabled()`/`_ys_enabled()`（读 `erp_clients.<name>.enabled`，fail closed），15 个 `register()` 全部挂上门控；每次 `get_definitions()` 重新读配置，开关下条消息即生效。测试 `tests/test_erp_tool_gating.py`（5 个用例）。
+2. `85e2086` **思考过程/流式修复**：`backend/api/chat.py` 调 `run_conversation_async()` 没传 `stream_callback`/`reasoning_callback`，而 adapter 以回调是否非 None 决定 `stream=True` 和 MessageUpdate 事件发射 → LLM 非流式、零 token/reasoning_token 帧，前端回答整块出现且无"思考过程"。修复 = 传两个 no-op 回调解锁流式开关（WS 转发走 `_on_event` 订阅，回调本体不需要做事）。已经浏览器实测修复前后对比验证。
+3. `710d24d` **前端 Drawer 组件**（用户自己的未提交改动代为提交）：新增 `web/src/components/Drawer.tsx` + global.css 样式，Memory/SkillManager/Tools 三页详情面板迁移到 Drawer。
+4. `c27be3b` **冒烟测试超时 15s→60s**（`scripts/build-pyinstaller.sh`）。
+5. `4da5469` 构建脚本头注释修正（Windows 打包不需要 wine）。
 
 ## 关键决策与原因
 
-- **不做暗色模式**：用户明确说非必须
-- **不改后端/WS 协议**：后端 Envelope 的 `phase` 字段前端未接入（ws.ts/types/AppContext 均无），状态条只用已有 progress 消息；要显示实时 token 数需改后端，判定不划算
-- **`IconWrench` → `IconTool`**：固定版本 `@tabler/icons-react@^3.44.0` 无 `IconWrench` 导出
-- **冒烟 15s 上限保持不动**：首次运行未签名 onedir 后端时 macOS Gatekeeper 校验 `_internal/` dylib 会超 15s（已知现象，见 AGENTS.md §13），重跑即过，不要为了它调大上限
-
-## 遗留待办（前端评审中确认过但未做的项）
-
-按此前评审报告的优先级，下次可继续：
-1. 宽屏布局：`.page-container` max-width 1040 在宽屏右侧大片空白；列表页可放宽/多列，配置页可左右两栏
-2. 内联样式收敛：TSX 共 ~175 处 `style={{}}`（McpPage.tsx 51 处最多），应收敛为 CSS 类
-3. TSX 硬编码颜色：`SettingsERPPage.tsx:395`（#B7EB8F/#FFA39E）等，绕过 CSS 变量体系
-4. 历史对话页：右上角红色 hash 徽章无语义且占用主红色；删除按钮无二次确认
-5. MCP 页操作图标（▶/↻/开关）无 tooltip
-6. （大项，未承诺）暗色模式：颜色已全走 `:root` CSS 变量，加 `[data-theme="dark"]` 一套变量即可
+- **推翻了 2026-08-05 交接里"冒烟 15s 上限保持不动"的决策**：旧结论说"重跑即过"，但本次发现 `build-pyinstaller.sh` 每次都会删掉并重建 `dist/zlink-backend/`（`COLLECT` 阶段），产物每次都是"首次执行"→ 每次都触发 macOS 安全扫描 → 每次构建都可能在冒烟测试挂掉，不是偶发。热启动实测仅 1.2s，60s 仍保留回归保护意义。
+- **版本号未 bump**：用户只要求重新打包，没要求发布。dmg 覆盖了旧 1.9.0 包。若对外发布这批修复，需按 AGENTS.md §10 走 1.9.1 流程（pyproject.toml + package.json + CHANGELOG + README + tag）。
+- **ERP 门控放在工具模块内（check_fn）而非 registry**：`agent/tools/registry.py` 是 ❌ 禁改区，check_fn 是既有扩展点。
 
 ## 已知问题 / 注意事项
 
-- `docs/` 被 .gitignore 忽略，spec/plan 用 `git add -f` 提交（仓库惯例）
-- implementer 子代理环境无再派生子代理能力，code review 均为会话内自审（结果均零 findings）
-- 旧产物 `ZLink Agent-1.8.0-arm64.dmg` 已删除
+- **adapter 的隐式契约**（`agent/core/agent_adapter.py:851-853`）：不传 callbacks 就静默退化为非流式、无 MessageUpdate 事件。调用方只有 chat.py，已在代码注释说明；若以后加调用方（如 cronjob 需要流式）要注意。
+- `agent/tools/erp_nc_tools.py`、`erp_ys_tools.py` 存在**既有** `ruff format` 偏差（多行 dict 风格），与本次改动无关，未触碰。
+- AGENTS.md §3 已把 "ERP isolation" 写成既定行为，但代码是本次会话才补上的——文档描述与实现现在一致了。
+- 用户的 YonSuite SKILL.md 修改在旧 commit `6e983f1`（7-20）里，早已提交推送，无遗漏。
 
 ## 新会话启动提示词
 
 ```
-Read HANDOVER.md 和 AGENTS.md。当前 main 与 origin 同步，v1.8.1 已发布。
-上次遗留的前端优化候选在 HANDOVER.md "遗留待办" 一节，先和我确认做哪项再开工。
+Read HANDOVER.md 和 AGENTS.md。当前 main 与 origin 同步（HEAD 4da5469），v1.9.0，
+最新 dmg 已含 ERP 门控 + 思考过程流式修复。版本未 bump，若发布需走 1.9.1 流程。
 ```
 
-第一个动作：`git log --oneline -15` 确认提交历史与上文一致。
+第一个动作：`git log --oneline -8` 确认提交历史与上文一致。
