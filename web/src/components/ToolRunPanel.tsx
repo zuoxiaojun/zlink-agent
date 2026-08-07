@@ -177,14 +177,15 @@ function RowIcon({ row }: { row: RowInfo }) {
   return <IconCircleCheck size={14} />;
 }
 
-export default function ToolRunPanel({ entries }: { entries: ToolRunEntry[] }) {
+export default function ToolRunPanel({ entries, live }: { entries: ToolRunEntry[]; live?: boolean }) {
   const rows = entries.map(toRowInfo);
   const pendingCount = rows.filter(r => r.pending).length;
   const hasPending = pendingCount > 0;
   const doneCount = rows.length - pendingCount;
 
   const [manualExpanded, setManualExpanded] = useState<boolean | null>(null);
-  const expanded = manualExpanded ?? hasPending;
+  // live（本轮进行中）时保持展开累积行，否则折叠；手动操作优先
+  const expanded = manualExpanded ?? (live === true);
   const [openIdx, setOpenIdx] = useState<number | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -199,10 +200,10 @@ export default function ToolRunPanel({ entries }: { entries: ToolRunEntry[] }) {
 
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (!hasPending) return;
+    if (!hasPending && !live) return;
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
-  }, [hasPending]);
+  }, [hasPending, live]);
 
   useEffect(() => {
     if (!hasPending || !expanded) return;
@@ -224,8 +225,8 @@ export default function ToolRunPanel({ entries }: { entries: ToolRunEntry[] }) {
     return min !== null && max !== null && max > min ? max - min : null;
   })();
 
-  const timeText = hasPending
-    ? startBase !== null ? formatElapsed(now - startBase) : null
+  const timeText = (live || hasPending) && startBase !== null
+    ? formatElapsed(now - startBase)
     : wallMs !== null ? formatSecs(wallMs) : null;
 
   if (!expanded) {

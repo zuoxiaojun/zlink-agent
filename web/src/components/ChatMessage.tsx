@@ -36,7 +36,7 @@ function AssistantGroupContent({
 
   const flushRun = (key: string) => {
     if (run.length > 0) {
-      nodes.push(<ToolRunPanel key={key} entries={run} />);
+      nodes.push(<ToolRunPanel key={key} entries={run} live={streaming === true} />);
       run = [];
     }
   };
