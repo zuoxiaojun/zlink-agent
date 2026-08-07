@@ -58,3 +58,33 @@ def test_erp_label_added_in_register_tools():
 
     # 清理
     registry.deregister("mcp_mcp_nc_query_sales_orders")
+
+
+class TestResolveCommand:
+    """Windows 上裸命令名（npx/npm）必须解析成 .cmd 完整路径。"""
+
+    def test_resolves_bare_command_via_path(self, tmp_path, monkeypatch):
+        import sys
+
+        from agent.tools import mcp_manager
+
+        if sys.platform == "win32":
+            fake = tmp_path / "faketool.cmd"
+        else:
+            fake = tmp_path / "faketool"
+        fake.write_text("@echo off\n" if sys.platform == "win32" else "#!/bin/sh\n")
+        monkeypatch.setenv("PATH", str(tmp_path))
+
+        resolved = mcp_manager._resolve_command("faketool")
+        assert resolved.lower() == str(fake).lower()
+
+    def test_absolute_path_passthrough(self):
+        from agent.tools import mcp_manager
+
+        assert mcp_manager._resolve_command(r"D:\Program Files\nodejs\node.EXE") == r"D:\Program Files\nodejs\node.EXE"
+
+    def test_missing_command_returned_as_is(self, monkeypatch):
+        from agent.tools import mcp_manager
+
+        monkeypatch.setenv("PATH", "")
+        assert mcp_manager._resolve_command("definitely-not-a-real-cmd-xyz") == "definitely-not-a-real-cmd-xyz"

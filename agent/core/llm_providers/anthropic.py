@@ -249,6 +249,7 @@ class AnthropicProvider(LLMProvider):
         stop_event: threading.Event | None = None,
         max_retries: int | None = None,
         max_retry_delay: float | None = None,
+        on_retry: Callable[[int, float, BaseException], None] | None = None,
     ) -> LLMResponse:
         # Stream path delegates to the same handler but with stream=True
         # on the SDK.  We keep the streaming consumer in a private method.
@@ -297,6 +298,7 @@ class AnthropicProvider(LLMProvider):
             max_retries=retries,
             max_retry_delay=retry_delay,
             stop_event=stop_event,
+            on_retry=on_retry,
         )
 
     def _chat_stream(

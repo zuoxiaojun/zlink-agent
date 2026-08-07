@@ -3,7 +3,7 @@
 Pi-style kernel redesign (spec 2026-08-06-pi-style-kernel-design).  This
 module mirrors Pi's ``packages/agent/src/types.ts``: pure types + constants,
 no logic.  ``AgentLoopConfig`` carries every strategy hook; ``CancelToken``
-replaces Pi's AbortSignal; the 10 ``AgentEvent`` classes are the kernel's
+replaces Pi's AbortSignal; the 11 ``AgentEvent`` classes are the kernel's
 only outward event channel.
 """
 
@@ -194,6 +194,21 @@ class ToolExecutionEnd:
     type: str = "tool_execution_end"
 
 
+@dataclass(frozen=True)
+class LLMRetry:
+    """One failed LLM attempt that will be retried after ``delay`` seconds.
+
+    Emitted from the provider retry loop (via the adapter) so frontends can
+    show live feedback instead of a silent spinner.  ``error`` is a short
+    human-readable reason (e.g. ``"HTTP 429"``, ``"ConnectError"``).
+    """
+
+    attempt: int
+    delay: float
+    error: str
+    type: str = "llm_retry"
+
+
 AgentEvent = (
     AgentStart
     | AgentEnd
@@ -205,6 +220,7 @@ AgentEvent = (
     | ToolExecutionStart
     | ToolExecutionUpdate
     | ToolExecutionEnd
+    | LLMRetry
 )
 
 __all__ = [
@@ -224,5 +240,6 @@ __all__ = [
     "ToolExecutionStart",
     "ToolExecutionUpdate",
     "ToolExecutionEnd",
+    "LLMRetry",
     "AgentEvent",
 ]

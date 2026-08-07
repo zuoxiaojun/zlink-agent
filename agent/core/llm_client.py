@@ -135,12 +135,21 @@ class LLMClient:
         stream_callback: Callable[[str], None] | None = None,
         reasoning_callback: Callable[[str], None] | None = None,
         stop_event: threading.Event | None = None,
+        on_retry: Callable[[int, float, BaseException], None] | None = None,
     ) -> LLMResponse:
         """Make a chat completion call.
 
         Never-throws — errors are returned as ``LLMResponse`` with
         ``error`` set and ``stop_reason="error"``.  The caller checks
         ``response.failed`` instead of catching exceptions.
+
+        ``on_retry`` (optional) is invoked as ``(attempt, delay, error)``
+        before each retry wait, so callers can surface live feedback.
+
+        Retry layering: the provider's own retry loop is disabled
+        (``max_retries=0``) so THIS layer is the only one that retries —
+        otherwise the two nested loops multiply (3×3 HTTP attempts per
+        call, ~1 min of silent waiting on a hard failure).
         """
         return chat_with_retry_or_error(
             invoke=lambda: self._provider.chat(
@@ -154,8 +163,11 @@ class LLMClient:
                 stream_callback=stream_callback,
                 reasoning_callback=reasoning_callback,
                 stop_event=stop_event,
+                max_retries=0,
+                on_retry=on_retry,
             ),
             max_retries=self.max_retries,
             max_retry_delay=self.max_retry_delay,
             stop_event=stop_event,
+            on_retry=on_retry,
         )

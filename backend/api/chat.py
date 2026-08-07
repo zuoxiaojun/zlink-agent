@@ -406,6 +406,17 @@ async def _run_agent_new(
             if event.denied:
                 payload["denied"] = True
             send_tasks.append(asyncio.create_task(_send(payload)))
+        elif t == "llm_retry":
+            send_tasks.append(
+                asyncio.create_task(
+                    _send(
+                        {
+                            "type": "progress",
+                            "message": f"⚠️ 大模型调用失败（{event.error}），{event.delay:.0f}s 后自动重试…",
+                        }
+                    )
+                )
+            )
         elif t == "turn_end" and event.tool_results:
             tool_no += 1
             send_tasks.append(

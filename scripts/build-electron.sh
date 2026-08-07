@@ -142,7 +142,7 @@ else
     CLEANUP_PYTHON="python3"
 fi
 "$CLEANUP_PYTHON" -c "
-import sys; sys.path.insert(0, '$SCRIPT_DIR')
+import sys; sys.path.insert(0, 'scripts')  # cwd 已是项目根；$SCRIPT_DIR 在 Git Bash 下是 POSIX 路径，Windows Python 无法识别
 from build_utils import remove_paths
 import glob
 for f in glob.glob('dist-electron/*.blockmap'):

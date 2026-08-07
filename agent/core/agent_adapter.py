@@ -26,6 +26,7 @@ from agent.core.kernel_types import (
     AgentEvent,
     AgentLoopConfig,
     CancelToken,
+    LLMRetry,
     MessageUpdate,
     TurnUpdate,
 )
@@ -734,6 +735,10 @@ class AIAgent:
             m = event.message
             if m.get("role") == "assistant" and "tool_calls" not in m and not m.get("is_error"):
                 self._final_response = m.get("content", "")
+            if m.get("is_error") and m.get("errorMessage"):
+                # Surface the real LLM failure (e.g. "HTTP 429 …额度已用完")
+                # instead of the generic "Max iterations reached" fallback.
+                self._error = m["errorMessage"]
         elif t == "tool_execution_start":
             try:
                 args_str = json.dumps(event.args, ensure_ascii=False)[:200]
@@ -840,6 +845,26 @@ class AIAgent:
 
             stream_cb = self._stream_cb
             reasoning_cb = self._reasoning_cb
+
+            def _on_retry(
+                attempt: int,
+                delay: float,
+                err: BaseException,
+                _loop: asyncio.AbstractEventLoop = loop,
+            ) -> None:
+                # Runs on the provider's worker thread — hop back to the
+                # event loop like the stream callbacks above.  The retry
+                # layer hands us LLMProviderError; the real cause (httpx
+                # error with the HTTP status) hangs off ``__cause__``.
+                cause = getattr(err, "__cause__", None) or err
+                resp = getattr(cause, "response", None)
+                status = getattr(resp, "status_code", None)
+                short = f"HTTP {status}" if status else type(cause).__name__
+                asyncio.run_coroutine_threadsafe(
+                    _safe_emit(LLMRetry(attempt=attempt, delay=delay, error=short)),
+                    _loop,
+                )
+
             response = await asyncio.to_thread(
                 self._llm.chat,
                 model=snap.model,
@@ -852,6 +877,7 @@ class AIAgent:
                 stream_callback=_stream_cb if stream_cb is not None else None,
                 reasoning_callback=_reasoning_cb if reasoning_cb is not None else None,
                 stop_event=self._llm_stop_event,
+                on_retry=_on_retry,
             )
             self._api_calls += 1
 

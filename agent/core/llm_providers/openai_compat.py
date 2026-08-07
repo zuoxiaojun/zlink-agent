@@ -118,6 +118,69 @@ def _map_finish_reason(finish_reason: str | None) -> str | None:
     }.get(finish_reason, finish_reason)
 
 
+def _friendly_http_error(e: httpx.HTTPStatusError) -> str:
+    """Turn an httpx status error into a user-readable message.
+
+    The raw ``str(e)`` ("Client error '429 ...' for url ...") hides the
+    provider's own explanation, which usually names the real cause (e.g.
+    MiniMax's "已达到 Token Plan 使用上限…").  Pull that message out of
+    the response body when possible and add a short hint per status code.
+    """
+    resp = e.response
+    detail = ""
+    try:
+        data = json.loads(resp.text)
+        err = data.get("error") if isinstance(data, dict) else None
+        if isinstance(err, dict):
+            detail = str(err.get("message") or "")
+        elif isinstance(err, str):
+            detail = err
+        elif isinstance(data, dict):
+            detail = str(data.get("message") or "")
+    except Exception:  # noqa: BLE001 — unreadable/non-JSON body (incl. streaming ResponseNotRead)
+        pass
+    if not detail:
+        try:
+            detail = resp.text[:200].strip()
+        except Exception:  # noqa: BLE001
+            detail = ""
+    hints = {
+        400: "请求参数有误（可能是模型名或消息格式不被支持）",
+        401: "API Key 无效或已过期，请检查设置",
+        403: "没有访问权限，请检查 API Key 或账户权限",
+        404: "接口或模型不存在，请检查 Base URL 和模型名",
+        429: "请求过于频繁或账户额度已用完",
+    }
+    parts = [f"HTTP {resp.status_code} {resp.reason_phrase}"]
+    hint = hints.get(resp.status_code)
+    if hint:
+        parts.append(hint)
+    if detail:
+        parts.append(f"服务商返回：{detail}")
+    return "；".join(parts)
+
+
+# Body markers meaning "quota/balance exhausted" — retrying for a few
+# seconds can never fix these, so they fail fast instead of burning the
+# whole retry budget (e.g. MiniMax "已达到 Token Plan 使用上限…").
+_QUOTA_MARKERS = (
+    "token plan",
+    "insufficient_quota",
+    "insufficient quota",
+    "quota exceeded",
+    "额度",
+    "余额不足",
+)
+
+
+def _is_quota_error(resp: httpx.Response) -> bool:
+    try:
+        body = resp.text.lower()
+    except Exception:  # noqa: BLE001 — unreadable body (streaming etc.)
+        return False
+    return any(m in body for m in _QUOTA_MARKERS)
+
+
 class OpenAICompatProvider(LLMProvider):
     """Provider for any OpenAI-Protocol compatible endpoint.
 
@@ -173,6 +236,7 @@ class OpenAICompatProvider(LLMProvider):
         stop_event: threading.Event | None = None,
         max_retries: int | None = None,
         max_retry_delay: float | None = None,
+        on_retry: Callable[[int, float, BaseException], None] | None = None,
     ) -> LLMResponse:
         body: dict[str, Any] = {
             "model": model,
@@ -199,6 +263,13 @@ class OpenAICompatProvider(LLMProvider):
                     )
                 return self._chat_blocking(body)
             except Exception as e:
+                if isinstance(e, httpx.HTTPStatusError):
+                    raise LLMProviderError(
+                        _friendly_http_error(e),
+                        transient=False,
+                        cause=e,
+                        no_retry=_is_quota_error(e.response),
+                    ) from e
                 raise LLMProviderError(
                     str(e),
                     transient=False,
@@ -210,6 +281,7 @@ class OpenAICompatProvider(LLMProvider):
             max_retries=retries,
             max_retry_delay=retry_delay,
             stop_event=stop_event,
+            on_retry=on_retry,
         )
 
     def _request(self, body: dict) -> httpx.Response:

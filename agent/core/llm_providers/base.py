@@ -83,11 +83,23 @@ class LLMProviderError(RuntimeError):
     ``Exception`` patterns.  Provider classes raise this; the retry
     layer (``_chat_with_retry``) inspects ``.transient`` to decide
     whether to retry.
+
+    ``no_retry=True`` is a hard stop for errors that can never recover
+    within a retry window (e.g. daily quota exhausted) — the retry layer
+    re-raises immediately, overriding the transient heuristic.
     """
 
-    def __init__(self, message: str, *, transient: bool = False, cause: Exception | None = None):
+    def __init__(
+        self,
+        message: str,
+        *,
+        transient: bool = False,
+        cause: Exception | None = None,
+        no_retry: bool = False,
+    ):
         super().__init__(message)
         self.transient = transient
+        self.no_retry = no_retry
         self.__cause__ = cause
 
 
@@ -138,6 +150,8 @@ def chat_with_retry(
             return invoke()
         except LLMProviderError as e:
             last_error = e
+            if e.no_retry:
+                raise
             transient = e.transient or is_transient_error(e)
             if not transient or attempt >= max_retries:
                 raise
@@ -254,11 +268,14 @@ class LLMProvider(ABC):
         stop_event: threading.Event | None = None,
         max_retries: int = 3,
         max_retry_delay: float = 30.0,
+        on_retry: Callable[[int, float, BaseException], None] | None = None,
     ) -> LLMResponse:
         """Make a chat completion call.
 
         Implementations should wrap their native SDK call in
-        :func:`chat_with_retry` so retries work uniformly.
+        :func:`chat_with_retry` so retries work uniformly.  ``on_retry``
+        (optional) is invoked as ``(attempt, delay, error)`` before each
+        retry wait so callers can surface live feedback.
         """
 
     def estimate_tokens(self, text: str) -> int:

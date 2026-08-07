@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import time
 
 import httpx
@@ -22,6 +23,17 @@ from agent.config_model import MCPServerEntry  # Pydantic model check in connect
 from agent.tools.registry import registry
 
 logger = logging.getLogger(__name__)
+
+
+def _resolve_command(command: str) -> str:
+    """把裸命令名解析成完整路径。
+
+    Windows 上 CreateProcess 不按 PATHEXT 搜索，"npx"/"npm" 这类 .cmd
+    包装脚本直接 spawn 会报 WinError 2 —— 用 shutil.which 解析
+    （npx → D:\\...\\npx.cmd）。绝对路径和 POSIX 命令不受影响；
+    找不到时原样返回，让 spawn 报错（错误信息指向原始命令名）。
+    """
+    return shutil.which(command) or command
 
 # --- Module-level state ---
 _connections: dict[str, "MCPServerConnection"] = {}
@@ -364,6 +376,9 @@ class MCPServerConnection:
         command = self.config.get("command")
         if not command:
             raise ValueError("stdio transport requires 'command'")
+        # Windows: "npx"/"npm" 这类 .cmd 包装脚本必须解析成完整路径，
+        # 否则 CreateProcess 报 WinError 2；绝对路径/POSIX 命令原样返回。
+        command = _resolve_command(command)
         args = self.config.get("args", [])
 
         # v1.5.0: 解析 ${path.to.value} 占位符 (用户友好配置 → MCP env)
