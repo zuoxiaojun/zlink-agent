@@ -1,5 +1,19 @@
 # Changelog
 
+## v1.9.1 — 2026-08-12 (NC 数据字典 + 打包修复)
+
+**范围**: NC 开放式查询的数据字典支撑（解析 NC65 官方 CHM 字典随包分发），以及打包版 cryptography 缺失修复。
+
+### 改动
+
+- **NC 扩展数据字典随包分发**: 新增 `scripts/parse_nc_dict_chm.py` 解析 NC65 官方数据字典 CHM（TOC 模块结构 + 表页字段/类型/枚举/参照），产出 `agent/tools/nc_dictionary.json`（6 模块 546 表 2.4 万字段，随 git + PyInstaller 包分发，客户端开箱即用）；运行时优先读 `DATA_DIR/nc_dictionary.json` 本地覆盖层，其次 `get_base_dir()` 捆绑版
+- **`nc_list_tables` 升级**: 默认只列精选表（附扩展字典总量提示），新增 `keyword` 参数按表名/中文名搜索扩展字典（上限 50 条）
+- **`nc_describe_table` 升级**: 字典表渲染字段类型/枚举值/参照模型（如 FSTATUSFLAG 直接显示 `1=自由，2=审批通过…`）；字典外的表自动回落实时查 `ALL_TAB_COLUMNS`（表名正则白名单 + 绑定参数）
+- **System prompt 注入 NC 精选表清单**: NC 启用时 `erp_context` 附 `表名(中文名)` 摘要，Agent 零工具调用即可感知可查范围（仅精选层，token 成本不变）
+- **`nc_raw_sql` 描述引导**: 明确先 `nc_list_tables`/`nc_describe_table` 再写 SQL；text 模式返回值补 `records` 字段与 `nc_query` 对齐
+- **修复打包版 NC 连接报 DPY-3016** (`scripts/pyinstaller_hidden_imports.py`): 补 cryptography 相关 hidden imports，打包版 oracledb thin 模式恢复正常
+- **配置容错**: 非法 `ORACLE_PORT` 按未配置处理（不再抛 ValueError）；`NC_MCP_MAX_ROWS` 非数字回退 200
+
 ## v1.9.0 — 2026-08-06 (维护发布：内核重写收尾 + .env + 前端优化)
 
 **范围**: 上一会话 Pi 风格内核重写（merge 1671a13）的收尾发布：6 个 parked minors 清理、TAVILY_API_KEY 运行时 .env 加载、前端宽屏布局与样式收敛。
@@ -272,7 +286,6 @@
 - `html-presentation` 在用户技能区有残留记录（已清理，不影响使用）
 - `research` 技能需要手动激活（已激活）
 
-
 ## v1.5.3 — 2026-07-10 (终极破坏式清理: 移除所有 ys-agent 命名兼容)
 
 **范围**: 把 v1.5.0 重命名留下的最后一丝 ys-agent 痕迹全部清除。从这个版本起,项目可以当作 100% 全新项目来对待 — 不再有兼容层、不再有旧命名 shim、不再有 fallback。
@@ -314,8 +327,8 @@
 - `docs/superpowers/plans/` (规划文档)
 - `dist/release-notes-*` (历史 release notes)
 
-
 ## v1.5.2 — 2026-07-10 (破坏式收尾: 移除 YS_DATA_DIR + ~/.ys-agent/data 兼容层)
+
 **范围**: v1.5.1 完成 CLI 命令名清理, 本 patch 继续把兼容层的「数据目录双兼容」也清掉。物理上已经 `~/.ys-agent` → `~/.zlink-agent`, 这层 fallback 已经没有意义。
 
 ### 改动
@@ -344,6 +357,7 @@
 - `agent/config_model.py` 加密 salt (`hostname + "::ys-agent::salt_v1"`) — 删了所有老用户 config.json 解密失败
 - `agent/plugin_system/__init__.py` + `agent/extensions/__init__.py` 的 `ys-agent.extensions` plugin entry point group — 老插件兼容
 - `scripts/ys-agent.sh` 兼容 shim (CLI) + `setup.sh` 安装该 shim 的逻辑
+
 ## v1.5.1 — 2026-07-10 (破坏式 CLI 清理: 镜像环境变量 + sessionStorage key)
 
 **范围**: 把 CLI 残留的旧 `ys-agent` 命名一次清干净,与 v1.5.0 重命名配套形成完整收尾。**破坏式变更,老用户必须重新运行 `setup.sh` / `setup.bat` 才能识别新环境变量名。**
@@ -366,8 +380,8 @@
 - `agent/config_model.py` 加密 salt 中的 `ys-agent` 字串 (删了会破坏老用户配置解密)
 - `scripts/ys-agent.sh` 兼容 shim (AGENTS.md 明确约定)
 
-
 ## v1.5.0 — 2026-07-10 (重命名 ZLink Agent + 多 ERP 架构)
+
 **范围**: 把 YS-Agent 改名为 ZLink Agent（智链 Agent），引入声明性 ERPClient 协议，集成外部 nc-mcp-server 包作为首个非 builtin ERP 客户端。
 
 ### 新增
@@ -400,7 +414,7 @@
 
 ### 净增
 
-- `agent/erp_clients/` 新增 ~150 行 (base.py + __init__.py)
+- `agent/erp_clients/` 新增 ~150 行 (base.py + **init**.py)
 - `mcp_server/nc_mcp/` 新增 ~80 行
 - 10 个新测试 → 41+10 = **56/56 PASS**
 - ruff check 0 errors
@@ -469,6 +483,7 @@
 旧版本在 `.app` 模式下会把数据存到 `~/.ys-agent/data/`,在源码模式下存到 `<项目>/data/`,两边数据可能分散。
 
 **首次启动 v1.4.0 时**:
+
 - 若 `~/.ys-agent/data/` 为空 + 项目 `data/` 有数据 → 自动迁移,启动日志里会写 "已从旧位置自动迁移数据"
 - 若 `~/.ys-agent/data/` 已有数据 + 项目 `data/` 还有数据 → 不会自动迁移,启动时打印警告,运行 `ys-agent migrate-data-path --merge` 合并
 - 若你之前用 `YS_DATA_DIR` 环境变量覆盖路径 → 仍然有效,优先级最高
@@ -480,6 +495,7 @@
 - 38 个 FastAPI 路由、9 个 LLM provider、3 个内置 extension、18 个内置工具、11 个 YonSuite MCP、27 个 chart MCP、Extension 系统、Phase 状态机、记忆/会话/技能系统、前端结构
 
 ## v1.3.3 — 2026-07-08 (hotfix: .app 看不到项目数据)
+
 ## v1.3.3 — 2026-07-08 (hotfix: .app 看不到项目数据)
 
 - **修复 .app 数据目录智能解析**：`packaging/launcher.py` 和 `backend/main.py` 不再强制 `YS_DATA_DIR=~/.ys-agent/data/`，改由 `agent/utils.py` 的 `_resolve_data_dir()` 智能解析。优先级：`YS_DATA_DIR` 环境变量 > .app 旁边的项目 data/ (sibling of dist/) > `~/YS-Agent/data/` > `~/.ys-agent/data/` (默认)
@@ -534,6 +550,7 @@
 - **ruff 0 errors / pytest 41 passed / tsc 0 errors**
 
 ## v1.2.0 — 2026-07-04 (CLI 命令标准化)
+
 - **未知命令拦截**：不匹配的子命令直接报错退出，不再默认落到启动服务
 - **命令格式统一**：`--stop` → `stop`，字段说明统一为动词子命令格式（参考 git/docker 惯例）
 - **精简帮助**：移除 `--help` 中的环境变量说明（配置统一走 `.env` 文件）
@@ -577,6 +594,7 @@ git config core.hooksPath .githooks
 ```
 
 ## v1.1.1 — 2026-06-02 (M5+ Extension 配置化)
+
 ## v1.1.1 — 2026-06-02 (M5+ Extension 配置化)
 
 承接 v1.1 重构，让用户在 Web UI 上启用/停用 M2 事件系统的 extension（之前需要改 Python 源码）。

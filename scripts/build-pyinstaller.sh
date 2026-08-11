@@ -78,6 +78,7 @@ done < <("$PYTHON" scripts/pyinstaller_hidden_imports.py)
     $MODE \
     --name zlink-backend \
     --add-data "agent/skills${ADD_DATA_SEP}agent/skills" \
+    --add-data "agent/tools/nc_dictionary.json${ADD_DATA_SEP}agent/tools" \
     --add-data "pyproject.toml${ADD_DATA_SEP}." \
     --hidden-import backend.main \
     "${HIDDEN_IMPORT_ARGS[@]}" \

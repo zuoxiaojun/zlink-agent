@@ -60,6 +60,11 @@ DATABASE = [
     "cryptography.hazmat.primitives.ciphers.aead",
     "cryptography.hazmat.primitives.ciphers.algorithms",
     "cryptography.hazmat.primitives.ciphers.modes",
+    "cryptography.hazmat.primitives.serialization",
+    "cryptography.hazmat.primitives.asymmetric",
+    "cryptography.hazmat.primitives.asymmetric.padding",
+    "cryptography.hazmat.primitives.asymmetric.rsa",
+    "cryptography.hazmat.primitives.asymmetric.utils",
     "cryptography.hazmat.backends",
     "cryptography.hazmat.backends.openssl",
 ]
@@ -82,7 +87,6 @@ AGENT_TOOLS = [
     "agent.tools.clarify_tool",
     "agent.tools.code_execution_tool",
     "agent.tools.cronjob_tools",
-
     "agent.tools.erp_nc_tools",
     "agent.tools.erp_ys_tools",
     "agent.tools.file_mutation_queue",

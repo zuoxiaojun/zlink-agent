@@ -7,7 +7,10 @@
 
 from __future__ import annotations
 
+import json
 import os
+import re
+from pathlib import Path
 
 from agent.tools.registry import registry, tool_error, tool_result
 
@@ -25,17 +28,24 @@ def _nc_db_config_or_none() -> dict | None:
     service = os.environ.get("ORACLE_SERVICE", "")
     if not all([host, port, user, password, service]):
         return None
+    try:
+        port_int = int(port)
+    except ValueError:
+        return None
     return {
         "user": user,
         "password": password,
         "host": host,
-        "port": int(port),
+        "port": port_int,
         "service_name": service,
     }
 
 
 def _get_max_rows() -> int:
-    return int(os.environ.get("NC_MCP_MAX_ROWS", "200"))
+    try:
+        return int(os.environ.get("NC_MCP_MAX_ROWS", "200"))
+    except ValueError:
+        return 200
 
 
 def _nc_enabled() -> bool:
@@ -69,9 +79,21 @@ def _validate_select(sql: str) -> str:
             raise ValueError(f"只允许 SELECT 查询，检测到: {stmt.get_type()}")
     upper = stripped.upper()
     dangerous = [
-        "INSERT ", "UPDATE ", "DELETE ", "MERGE ", "ALTER ", "DROP ",
-        "TRUNCATE ", "CREATE ", "GRANT ", "REVOKE ", "EXEC ", "EXECUTE ",
-        "CALL ", "INTO ", "COMMENT ",
+        "INSERT ",
+        "UPDATE ",
+        "DELETE ",
+        "MERGE ",
+        "ALTER ",
+        "DROP ",
+        "TRUNCATE ",
+        "CREATE ",
+        "GRANT ",
+        "REVOKE ",
+        "EXEC ",
+        "EXECUTE ",
+        "CALL ",
+        "INTO ",
+        "COMMENT ",
     ]
     for kw in dangerous:
         if kw in (" " + upper + " "):
@@ -142,43 +164,91 @@ def _init_data_dictionary():
     _ALL_TABLES = {
         "SO_SALEORDER": {
             "name": "销售订单主表",
+            "curated": True,
             "fields": {
-                "VBILLCODE": "单据号", "DBILLDATE": "单据日期",
-                "FSTATUSFLAG": "单据状态", "CCUSTOMERID": "客户",
-                "NTOTALORIGMNY": "价税合计", "NTOTALNUM": "总数量",
+                "VBILLCODE": "单据号",
+                "DBILLDATE": "单据日期",
+                "FSTATUSFLAG": "单据状态",
+                "CCUSTOMERID": "客户",
+                "NTOTALORIGMNY": "价税合计",
+                "NTOTALNUM": "总数量",
             },
         },
         "PO_ORDER": {
             "name": "采购订单主表",
+            "curated": True,
             "fields": {
-                "VBILLCODE": "订单编号", "DBILLDATE": "订单日期",
-                "FORDERSTATUS": "订单状态", "PK_SUPPLIER": "供应商",
-                "NTOTALORIGMNY": "价税合计", "NTOTALASTNUM": "总数量",
+                "VBILLCODE": "订单编号",
+                "DBILLDATE": "订单日期",
+                "FORDERSTATUS": "订单状态",
+                "PK_SUPPLIER": "供应商",
+                "NTOTALORIGMNY": "价税合计",
+                "NTOTALASTNUM": "总数量",
             },
         },
         "BD_CUSTOMER": {
             "name": "客户基本档案",
+            "curated": True,
             "fields": {
-                "CODE": "客户编码", "NAME": "客户名称",
-                "CUSTPROP": "客户类型", "ENABLESTATE": "启用状态",
+                "CODE": "客户编码",
+                "NAME": "客户名称",
+                "CUSTPROP": "客户类型",
+                "ENABLESTATE": "启用状态",
             },
         },
         "BD_SUPPLIER": {
             "name": "供应商基本档案",
+            "curated": True,
             "fields": {
-                "CODE": "供应商编码", "NAME": "供应商名称",
-                "SUPSTATE": "供应商状态", "ENABLESTATE": "启用状态",
+                "CODE": "供应商编码",
+                "NAME": "供应商名称",
+                "SUPSTATE": "供应商状态",
+                "ENABLESTATE": "启用状态",
             },
         },
         "BD_MATERIAL": {
             "name": "物料基本档案",
+            "curated": True,
             "fields": {"CODE": "物料编码", "NAME": "物料名称", "MATERIALSPEC": "规格"},
         },
         "ORG_ORGS": {
             "name": "组织信息",
+            "curated": True,
             "fields": {"CODE": "组织编码", "NAME": "组织名称", "ENABLESTATE": "启用状态"},
         },
     }
+    # 合并扩展字典（scripts/parse_nc_dict_chm.py 解析 NC65 CHM 的产物）；
+    # 字段级以扩展字典为准（带类型/枚举/参照），精选层价值在表筛选和表名
+    for tname, tinfo in _load_ext_dictionary().items():
+        if tname in _ALL_TABLES:
+            _ALL_TABLES[tname]["fields"] = {**_ALL_TABLES[tname]["fields"], **tinfo.get("fields", {})}
+        else:
+            _ALL_TABLES[tname] = tinfo
+
+
+def _load_ext_dictionary() -> dict[str, dict]:
+    """加载扩展字典。优先 DATA_DIR/nc_dictionary.json（本地重导覆盖），
+    否则用随包捆绑的 agent/tools/nc_dictionary.json；失败返回 {}。"""
+    candidates = []
+    try:
+        from agent.utils import DATA_DIR, get_base_dir
+
+        candidates.append(DATA_DIR / "nc_dictionary.json")
+        # PyInstaller 冻结时指向 _MEIPASS，源码运行时为项目根
+        candidates.append(get_base_dir() / "agent" / "tools" / "nc_dictionary.json")
+    except Exception:
+        candidates.append(Path(__file__).with_name("nc_dictionary.json"))
+    for path in candidates:
+        try:
+            if not path.exists():
+                continue
+            data = json.loads(path.read_text(encoding="utf-8"))
+            tables = data.get("tables")
+            if isinstance(tables, dict):
+                return tables
+        except Exception:
+            continue
+    return {}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -219,7 +289,9 @@ ORDER BY h.DBILLDATE DESC, b.CROWNO"""
 def _sql_sales_order_by_code(billcode: str) -> tuple[str, dict]:
     sql, _ = _sql_sales_order()
     sql += " AND h.VBILLCODE = :billcode" if "VBILLCODE =" not in sql else " AND h.VBILLCODE = :billcode"
-    return sql.replace("ORDER BY h.DBILLDATE DESC, b.CROWNO", "") + " AND h.VBILLCODE = :billcode ORDER BY h.DBILLDATE DESC, b.CROWNO", {"billcode": billcode}
+    return sql.replace(
+        "ORDER BY h.DBILLDATE DESC, b.CROWNO", ""
+    ) + " AND h.VBILLCODE = :billcode ORDER BY h.DBILLDATE DESC, b.CROWNO", {"billcode": billcode}
 
 
 def _sql_purchase_order(start_date: str | None = None, end_date: str | None = None) -> tuple[str, dict | None]:
@@ -253,7 +325,9 @@ ORDER BY h.DBILLDATE DESC, b.CROWNO"""
 
 def _sql_purchase_order_by_code(billcode: str) -> tuple[str, dict]:
     sql, _ = _sql_purchase_order()
-    return sql.replace("ORDER BY h.DBILLDATE DESC, b.CROWNO", "") + " AND h.VBILLCODE = :billcode ORDER BY h.DBILLDATE DESC, b.CROWNO", {"billcode": billcode}
+    return sql.replace(
+        "ORDER BY h.DBILLDATE DESC, b.CROWNO", ""
+    ) + " AND h.VBILLCODE = :billcode ORDER BY h.DBILLDATE DESC, b.CROWNO", {"billcode": billcode}
 
 
 def _sql_customer(code: str | None = None, name: str | None = None) -> tuple[str, dict | None]:
@@ -323,8 +397,10 @@ FROM ORG_ORGS org WHERE org.DR = 0"""
 
 
 def _sql_stock(
-    warehouse: str | None = None, material: str | None = None,
-    batch: str | None = None, org: str | None = None,
+    warehouse: str | None = None,
+    material: str | None = None,
+    batch: str | None = None,
+    org: str | None = None,
 ) -> tuple[str, dict | None]:
     sql = """SELECT
     org.CODE AS "组织编码", org.NAME AS "组织名称",
@@ -474,28 +550,93 @@ def _handle_nc_query(args: dict) -> str:
 
     if output_format == "text":
         return tool_result(data=_format_table_result(result), records=result["rows"])
-    return tool_result(data=f"NC 查询完成（{result['total_count']} 条）", records=result["rows"], has_more=result["has_more"], page=result["page"])
+    return tool_result(
+        data=f"NC 查询完成（{result['total_count']} 条）",
+        records=result["rows"],
+        has_more=result["has_more"],
+        page=result["page"],
+    )
+
+
+def get_table_summary() -> str:
+    """紧凑表清单（表名(中文名)），供 system prompt 注入（Level 0，仅精选表）。"""
+    tables = _get_data_dictionary()
+    return "、".join(f"{t}({info['name']})" for t, info in tables.items() if info.get("curated"))
 
 
 def _handle_nc_list_tables(args: dict) -> str:
-    """列出 NC 已注册业务表。"""
+    """列出 NC 业务表：默认只列精选表，keyword 搜索整个扩展字典。"""
     tables = _get_data_dictionary()
-    lines = ["NC-MCP 已注册业务表：\n"]
-    for tname, tinfo in tables.items():
+    keyword = str(args.get("keyword") or "").strip().upper()
+    if not keyword:
+        lines = ["NC 精选业务表：\n"]
+        for tname, tinfo in tables.items():
+            if tinfo.get("curated"):
+                lines.append(f"  {tname:25s} -> {tinfo['name']}（{len(tinfo['fields'])} 个字段）")
+        lines.append(f'\n扩展字典共 {len(tables)} 张表，用 keyword 参数按表名/中文名搜索（如 keyword="发货"）')
+        return tool_result(data="\n".join(lines))
+    hits = [(t, i) for t, i in tables.items() if keyword in t or keyword in str(i.get("name", "")).upper()][:50]
+    if not hits:
+        return tool_error(f'未找到匹配 "{keyword}" 的表')
+    lines = [f'匹配 "{keyword}" 的表（{len(hits)} 张，最多显示 50）：\n']
+    for tname, tinfo in hits:
         lines.append(f"  {tname:25s} -> {tinfo['name']}（{len(tinfo['fields'])} 个字段）")
     return tool_result(data="\n".join(lines))
 
 
 def _handle_nc_describe_table(args: dict) -> str:
-    """查看 NC 某张表的中文字段对照。"""
+    """查看 NC 某张表的字段对照；字典外的表实时查数据库目录兜底。"""
     tname = args.get("table_name", "").upper()
     tables = _get_data_dictionary()
     tinfo = tables.get(tname)
     if not tinfo:
-        return tool_error(f"未注册表: {tname}")
+        return _describe_table_live(tname)
     lines = [f"{tname} -> {tinfo['name']}（{len(tinfo['fields'])} 个字段）\n"]
-    for fname, fcn in tinfo["fields"].items():
-        lines.append(f"  {fname:30s} -> {fcn}")
+    for fname, finfo in tinfo["fields"].items():
+        if isinstance(finfo, dict):
+            extra = f"  {finfo['type']}" if finfo.get("type") else ""
+            if finfo.get("ref"):
+                extra += f"  参照: {finfo['ref']}"
+            if finfo.get("enum"):
+                extra += f"  枚举: {finfo['enum']}"
+            lines.append(f"  {fname:30s} -> {finfo.get('name', '')}{extra}")
+        else:
+            lines.append(f"  {fname:30s} -> {finfo}")
+    return tool_result(data="\n".join(lines))
+
+
+def _describe_table_live(tname: str) -> str:
+    """字典外的表：实时查 ALL_TAB_COLUMNS（无中文名，仅有注释）。"""
+    if not re.fullmatch(r"[A-Z0-9_$#]+", tname):
+        return tool_error(f"非法表名: {tname}")
+    db_config = _nc_db_config_or_none()
+    if db_config is None:
+        return tool_error(f"未注册表: {tname}，且数据库未配置无法实时查询")
+    import oracledb
+
+    try:
+        conn = oracledb.connect(**db_config)
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """SELECT c.COLUMN_NAME, c.DATA_TYPE, c.DATA_LENGTH, m.COMMENTS
+FROM ALL_TAB_COLUMNS c
+LEFT JOIN ALL_COL_COMMENTS m
+  ON m.OWNER = c.OWNER AND m.TABLE_NAME = c.TABLE_NAME AND m.COLUMN_NAME = c.COLUMN_NAME
+WHERE c.OWNER = USER AND c.TABLE_NAME = :tname
+ORDER BY c.COLUMN_ID""",
+                    {"tname": tname},
+                )
+                rows = cur.fetchall() or []
+        finally:
+            conn.close()
+    except Exception as e:
+        return tool_error(f"实时查询表结构失败: {e}")
+    if not rows:
+        return tool_error(f"未找到表: {tname}（扩展字典和数据库目录中都不存在）")
+    lines = [f"{tname}（未入字典，实时取自数据库目录，共 {len(rows)} 列，无中文名）\n"]
+    for col, dtype, dlen, comment in rows[:200]:
+        lines.append(f"  {col:30s} {dtype}({dlen})  {comment or ''}")
     return tool_result(data="\n".join(lines))
 
 
@@ -519,7 +660,7 @@ def _handle_nc_raw_sql(args: dict) -> str:
         return result
     output_format = args.get("format", "text")
     if output_format == "text":
-        return tool_result(data=_format_table_result(result))
+        return tool_result(data=_format_table_result(result), records=result["rows"])
     return tool_result(data="SQL 查询完成", records=result["rows"])
 
 
@@ -539,12 +680,25 @@ registry.register(
             "properties": {
                 "query_name": {
                     "type": "string",
-                    "enum": ["sales_order", "sales_order_by_code", "purchase_order", "purchase_order_by_code", "customer", "supplier", "material", "organization", "stock"],
+                    "enum": [
+                        "sales_order",
+                        "sales_order_by_code",
+                        "purchase_order",
+                        "purchase_order_by_code",
+                        "customer",
+                        "supplier",
+                        "material",
+                        "organization",
+                        "stock",
+                    ],
                     "description": "查询类型",
                 },
                 "start_date": {"type": "string", "description": "开始日期 YYYY-MM-DD（sales_order/purchase_order 用）"},
                 "end_date": {"type": "string", "description": "结束日期 YYYY-MM-DD（sales_order/purchase_order 用）"},
-                "billcode": {"type": "string", "description": "单据号（sales_order_by_code/purchase_order_by_code 用）"},
+                "billcode": {
+                    "type": "string",
+                    "description": "单据号（sales_order_by_code/purchase_order_by_code 用）",
+                },
                 "code": {"type": "string", "description": "编码模糊搜索（customer/supplier/material/organization 用）"},
                 "name": {"type": "string", "description": "名称模糊搜索（customer/supplier/material/organization 用）"},
                 "warehouse": {"type": "string", "description": "仓库主键（stock 用）"},
@@ -568,8 +722,13 @@ registry.register(
     check_fn=_nc_enabled,
     schema={
         "name": "nc_list_tables",
-        "description": "列出 NC 已注册的所有业务表及中文字段数。",
-        "parameters": {"type": "object", "properties": {}},
+        "description": "列出 NC 业务表。默认只列精选表；传 keyword 按表名/中文名搜索扩展字典（500+ 张表，含销售/采购/库存/总账/应收应付/现金管理模块）。",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "keyword": {"type": "string", "description": '搜索关键字，如 "发货"、"SO_"、"凭证"'},
+            },
+        },
     },
     handler=_handle_nc_list_tables,
     emoji="📋",
@@ -581,7 +740,7 @@ registry.register(
     check_fn=_nc_enabled,
     schema={
         "name": "nc_describe_table",
-        "description": "查看 NC 某张注册表的中文字段对照。",
+        "description": "查看 NC 某张表的中文字段对照（含类型/枚举/参照）。字典外的表会实时查数据库目录兜底。",
         "parameters": {
             "type": "object",
             "properties": {
@@ -601,7 +760,7 @@ registry.register(
     check_fn=_nc_enabled,
     schema={
         "name": "nc_raw_sql",
-        "description": "对 NC 数据库执行任意只读 SELECT 查询。有安全校验，仅供高级使用。",
+        "description": "对 NC 数据库执行任意只读 SELECT 查询。写 SQL 前必须先用 nc_list_tables / nc_describe_table 确认已注册业务表和中文字段对照，不要猜表名和字段名。有安全校验。",
         "parameters": {
             "type": "object",
             "properties": {

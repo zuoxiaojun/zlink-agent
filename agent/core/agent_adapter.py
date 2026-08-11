@@ -464,6 +464,13 @@ class AIAgent:
             label = _ERP_LABELS.get(name, name)
             if enabled:
                 lines.append(f"  • {label} ✅ — 可查询销售订单、客户等数据")
+                if name == "nc":
+                    try:
+                        from agent.tools import erp_nc_tools
+
+                        lines.append(f"    已注册业务表：{erp_nc_tools.get_table_summary()}")
+                    except Exception:
+                        pass
                 enabled_count += 1
             else:
                 lines.append(f"  • {label} ❌ — 未启用")
