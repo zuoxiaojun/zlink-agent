@@ -1,42 +1,34 @@
-# HANDOVER — 2026-08-07
+# HANDOVER
 
-> 面向看不到此前会话的新会话的交接文档。
+> 2026-08-12 会话交接。状态：**全部完成，无遗留开发任务**。
 
 ## 当前状态
 
-- 分支 `main`，与 origin/main 同步（atomgit），HEAD `4da5469`
-- 工作区干净，无未提交改动
-- 版本：v1.9.0（`pyproject.toml` 为版本唯一事实源；本次修复**未 bump 版本号**）
-- 后端测试：514 passed（`.venv/bin/python -m pytest tests/`）
-- 打包产物：`dist-electron/ZLink Agent-1.9.0-arm64.dmg`（170MB，2026-08-07 构建，含本次全部修复，未签名）
-- Windows 包：尚未构建，需在 Windows 机器 Git Bash 里 `bash scripts/build-electron.sh --win`（原生构建，无需 wine）
+- 分支 main @ v1.9.3，tag v1.9.1 / v1.9.2 / v1.9.3 均已推送 gitcode
+- 最新 DMG：`dist-electron/ZLink Agent-1.9.3-arm64.dmg`
+- dev 服务可能仍在跑（`./start.sh stop` 停止；日志 /tmp/zlink-dev.log）
+- CHM 解包临时目录 `/tmp/nc_dict`（重跑解析器还要用，系统清理后重新 `7z x` 即可）
 
-## 本次会话完成的工作（5 个 commit）
+## 本会话产出（2 个 commit）
 
-1. `fdacca7` **ERP 工具门控修复**：NC/YonSuite 内置工具注册时缺 `check_fn`，ERP 停用后工具 schema 仍发给 LLM（此前只有 system prompt 标注 ❌）。新增 `_nc_enabled()`/`_ys_enabled()`（读 `erp_clients.<name>.enabled`，fail closed），15 个 `register()` 全部挂上门控；每次 `get_definitions()` 重新读配置，开关下条消息即生效。测试 `tests/test_erp_tool_gating.py`（5 个用例）。
-2. `85e2086` **思考过程/流式修复**：`backend/api/chat.py` 调 `run_conversation_async()` 没传 `stream_callback`/`reasoning_callback`，而 adapter 以回调是否非 None 决定 `stream=True` 和 MessageUpdate 事件发射 → LLM 非流式、零 token/reasoning_token 帧，前端回答整块出现且无"思考过程"。修复 = 传两个 no-op 回调解锁流式开关（WS 转发走 `_on_event` 订阅，回调本体不需要做事）。已经浏览器实测修复前后对比验证。
-3. `710d24d` **前端 Drawer 组件**（用户自己的未提交改动代为提交）：新增 `web/src/components/Drawer.tsx` + global.css 样式，Memory/SkillManager/Tools 三页详情面板迁移到 Drawer。
-4. `c27be3b` **冒烟测试超时 15s→60s**（`scripts/build-pyinstaller.sh`）。
-5. `4da5469` 构建脚本头注释修正（Windows 打包不需要 wine）。
+0. **v1.9.3**（下午追加）：terminal 危险命令检测误杀修正——pipe to shell 只拦 `curl|wget … | bash/sh`，write to block device 只拦磁盘设备节点（原规则把 `2>/dev/null`、`curl | head` 全误杀）。起因：排查客户端会话「调一次工具就停」发现主因是弱模型口播代替 tool call，安全钩子误拦是加重因素
 
-## 关键决策与原因
+1. **v1.9.1** `c0918ff`：NC 扩展数据字典体系（CHM 解析脚本 + 548 表随包分发）+ `nc_list_tables` keyword 搜索 + `nc_describe_table` 枚举渲染/ALL_TAB_COLUMNS 兜底 + prompt 精选表注入 + 打包版 cryptography 修复（DPY-3016）
+2. **v1.9.2** `60fab4d`：`nc_query` 新增 `gl_voucher`/`gl_balance` 预制查询（9→11 种）+ 解析器同名表取字段最丰富修正 + nc_query 参数白名单
 
-- **推翻了 2026-08-05 交接里"冒烟 15s 上限保持不动"的决策**：旧结论说"重跑即过"，但本次发现 `build-pyinstaller.sh` 每次都会删掉并重建 `dist/zlink-backend/`（`COLLECT` 阶段），产物每次都是"首次执行"→ 每次都触发 macOS 安全扫描 → 每次构建都可能在冒烟测试挂掉，不是偶发。热启动实测仅 1.2s，60s 仍保留回归保护意义。
-- **版本号未 bump**：用户只要求重新打包，没要求发布。dmg 覆盖了旧 1.9.0 包。若对外发布这批修复，需按 AGENTS.md §10 走 1.9.1 流程（pyproject.toml + package.json + CHANGELOG + README + tag）。
-- **ERP 门控放在工具模块内（check_fn）而非 registry**：`agent/tools/registry.py` 是 ❌ 禁改区，check_fn 是既有扩展点。
+## 关键决策
 
-## 已知问题 / 注意事项
+- 字典三层架构：精选层（6 表进 prompt）→ 扩展层（CHM 解析 548 表，含枚举）→ 实时层（ALL_TAB_COLUMNS 兜底）
+- 字典随 git + PyInstaller 分发（客户端开箱即用），DATA_DIR 副本为本地覆盖层优先
+- 模块范围 = so,pu,ic,gl,arap,cmp + 零散补表；**uapbd（基础档案 409 表）未选**，以后想要客户/供应商完整字段只需 `--modules` 加 uapbd 重跑解析器并覆盖两处 JSON
+- NC 公网直连维持现状（用户家 IP 被服务端白名单拦，调试用手机热点）
 
-- **adapter 的隐式契约**（`agent/core/agent_adapter.py:851-853`）：不传 callbacks 就静默退化为非流式、无 MessageUpdate 事件。调用方只有 chat.py，已在代码注释说明；若以后加调用方（如 cronjob 需要流式）要注意。
-- `agent/tools/erp_nc_tools.py`、`erp_ys_tools.py` 存在**既有** `ruff format` 偏差（多行 dict 风格），与本次改动无关，未触碰。
-- AGENTS.md §3 已把 "ERP isolation" 写成既定行为，但代码是本次会话才补上的——文档描述与实现现在一致了。
-- 用户的 YonSuite SKILL.md 修改在旧 commit `6e983f1`（7-20）里，早已提交推送，无遗漏。
+## 已知事项
 
-## 新会话启动提示词
+- 客户 NC 是医疗行业版；GL_BALANCE 空是因为凭证未记账（数据问题非 bug）
+- 单轮深查对话 token 偏高（~13 万）：describe 全量渲染所致，如成问题可做字段分页
+- `zlink-backend.spec` 被 .gitignore 拦截（构建实际走 build-pyinstaller.sh 的 --add-data，spec 仅参考）
 
-```
-Read HANDOVER.md 和 AGENTS.md。当前 main 与 origin 同步（HEAD 4da5469），v1.9.0，
-最新 dmg 已含 ERP 门控 + 思考过程流式修复。版本未 bump，若发布需走 1.9.1 流程。
-```
+## 新会话入口
 
-第一个动作：`git log --oneline -8` 确认提交历史与上文一致。
+`git log --oneline -3` → CHANGELOG.md 顶部两个版本条目即本会话全部内容。

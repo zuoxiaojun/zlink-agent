@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.9.3 — 2026-08-12 (terminal 安全规则误杀修正)
+
+**范围**: terminal 工具危险命令检测两条规则误报率过高，收紧到最宽松口径。
+
+### 改动
+
+- **pipe to shell**: 原来 `curl`/`wget` 后接任何管道都拦（`curl … | head` 全灭），改为只拦管道进 `bash`/`sh`（含 sudo 前缀）的教科书式攻击
+- **write to block device**: 原来 `> /dev/` 下任何节点都拦（`2>/dev/null` 这种最常见写法全中），改为只拦磁盘设备节点（sd/hd/vd/nvme/mmcblk/xvd/disk/rdisk）
+- 底线不动：`dd of=/dev/…`（HARDLINE 层）与 `curl|bash` 仍拦截
+
 ## v1.9.2 — 2026-08-12 (总账预制查询 + 字典修正)
 
 **范围**: nc_query 新增总账凭证/科目余额两个预制查询（9 → 11 种），字典解析器同名表去重修正。

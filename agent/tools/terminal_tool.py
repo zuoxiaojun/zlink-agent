@@ -55,9 +55,11 @@ _DANGEROUS_PATTERNS = [
     (r"\bchown\b", "change ownership"),
     (r"\bsudo\b", "sudo command"),
     (r"\bpasswd\b", "change password"),
-    (r"\bwget[^\n]*\|", "wget pipe to shell"),
-    (r"\bcurl[^\n]*\|", "curl pipe to shell"),
-    (r">\s*/dev/", "write to block device"),
+    # 最宽松口径：只拦 curl|sh 这种教科书式攻击，管道到其他任何命令都放行
+    (r"\bwget\b[^\n|]*\|\s*(sudo\s+)?(bash|sh)\b", "wget pipe to shell"),
+    (r"\bcurl\b[^\n|]*\|\s*(sudo\s+)?(bash|sh)\b", "curl pipe to shell"),
+    # 最宽松口径：只拦覆盖磁盘设备节点，/dev 下其他一切（null/zero/tty/…）放行
+    (r">\s*/dev/(r?disk|sd|hd|vd|nvme|mmcblk|xvd)", "write to block device"),
     (r":\(\)\s*\{", "fork bomb"),
 ]
 
