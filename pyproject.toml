@@ -4,25 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zlink-agent"
-version = "1.9.1"
+version = "1.9.2"
 description = "Smart Link to Your Business Systems - AI Agent for Multi-ERP Analysis"
 requires-python = ">=3.11"
 dependencies = [
-    "openai>=1.0.0",
-    "httpx>=0.27.0",
-    "python-dotenv>=1.0.0",
-    "pydantic>=2.0.0",
-    "pyyaml>=6.0",
-    "tiktoken>=0.9.0",
-    "prometheus-client>=0.21.0",
-    "cryptography>=42.0.0",
-    "anthropic>=0.40.0",
-    "fastapi>=0.110.0",
-    "uvicorn[standard]>=0.27.0",
-    "python-multipart>=0.0.9",
-    "mcp>=1.0.0",
-    "oracledb>=2.0.0",
-    "sqlparse>=0.5.0",
+  "openai>=1.0.0",
+  "httpx>=0.27.0",
+  "python-dotenv>=1.0.0",
+  "pydantic>=2.0.0",
+  "pyyaml>=6.0",
+  "tiktoken>=0.9.0",
+  "prometheus-client>=0.21.0",
+  "cryptography>=42.0.0",
+  "anthropic>=0.40.0",
+  "fastapi>=0.110.0",
+  "uvicorn[standard]>=0.27.0",
+  "python-multipart>=0.0.9",
+  "mcp>=1.0.0",
+  "oracledb>=2.0.0",
+  "sqlparse>=0.5.0",
 ]
 
 [project.optional-dependencies]
@@ -46,8 +46,25 @@ select = ["E", "F", "I", "N", "W", "UP", "B"]
 "tests/*" = ["E501", "N802", "N803", "N806"]
 "agent/skills/*" = ["E501", "F841", "N806", "E402"]
 "mcp_server/*" = ["E501", "E402", "N806", "F401"]
-"mcp_server/nc_mcp_server/**/*" = ["E501", "E402", "N806", "F401", "N802", "B905"]
-"agent/erp_clients/yonsuite/*" = ["E501", "N802", "N803", "N806", "N815", "B904", "E722", "F841", "E402"]
+"mcp_server/nc_mcp_server/**/*" = [
+  "E501",
+  "E402",
+  "N806",
+  "F401",
+  "N802",
+  "B905",
+]
+"agent/erp_clients/yonsuite/*" = [
+  "E501",
+  "N802",
+  "N803",
+  "N806",
+  "N815",
+  "B904",
+  "E722",
+  "F841",
+  "E402",
+]
 "agent/tools/*.py" = ["E501", "B904"]
 "agent/slash_commands.py" = ["B007"]
 "agent/core/llm_providers/anthropic.py" = ["F841"]

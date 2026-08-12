@@ -151,6 +151,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="解析 NC65 数据字典 CHM")
     ap.add_argument("source", help="CHM 文件路径或已解包的目录")
     ap.add_argument("--modules", default=DEFAULT_MODULES, help=f"逗号分隔模块码（默认 {DEFAULT_MODULES}）")
+    ap.add_argument("--extra-tables", default="", help="跨模块补充的表名，逗号分隔（如 bd_account,bd_accasoa）")
     ap.add_argument("-o", "--output", help="输出 JSON 路径（默认 DATA_DIR/nc_dictionary.json）")
     args = ap.parse_args()
 
@@ -167,25 +168,39 @@ def main() -> int:
         return 1
 
     wanted = [m.strip() for m in args.modules.split(",") if m.strip()]
+    extra = {t.strip().upper() for t in args.extra_tables.split(",") if t.strip()}
     module_names, module_tables = parse_toc(workdir / "000_toc.hhc")
 
-    out_modules: dict[str, str] = {}
-    out_tables: dict[str, dict] = {}
-    skipped_dup = 0
     for mod in wanted:
         if mod not in module_tables:
             print(f"⚠️  模块不存在: {mod}", file=sys.stderr)
-            continue
-        out_modules[mod] = module_names[mod]
-        for table, cn, local in module_tables[mod]:
-            if table in out_tables:
-                skipped_dup += 1
-                continue
+
+    # 收集候选：同表可能多个条目（权限实体/视图等），取字段最丰富的页面
+    candidates: dict[str, list[tuple[str, str, str]]] = {}
+    for mod, entries in module_tables.items():
+        for table, cn, local in entries:
+            if mod in wanted or table in extra:
+                candidates.setdefault(table, []).append((cn, local, mod))
+
+    out_modules: dict[str, str] = {}
+    out_tables: dict[str, dict] = {}
+    dup_resolved = 0
+    for table, cands in candidates.items():
+        best: tuple[str, str, dict] | None = None
+        for cn, local, mod in cands:
             page = workdir / local
             if not page.exists():
                 continue
             fields = parse_fields(page)
-            out_tables[table] = {"name": cn, "module": mod, "fields": fields}
+            if best is None or len(fields) > len(best[2]):
+                best = (cn, mod, fields)
+        if best is None:
+            continue
+        dup_resolved += len(cands) - 1
+        cn, mod, fields = best
+        out_tables[table] = {"name": cn, "module": mod, "fields": fields}
+        if mod in wanted or mod in {c[2] for c in cands}:
+            out_modules.setdefault(mod, module_names.get(mod, mod))
 
     if args.output:
         out_path = Path(args.output).expanduser()
@@ -204,8 +219,8 @@ def main() -> int:
 
     total_fields = sum(len(t["fields"]) for t in out_tables.values())
     print(f"✅ {len(out_modules)} 模块 / {len(out_tables)} 表 / {total_fields} 字段 -> {out_path}")
-    if skipped_dup:
-        print(f"   （{skipped_dup} 个重复条目取第一个）")
+    if dup_resolved:
+        print(f"   （{dup_resolved} 个同名条目取字段最丰富的页面）")
     return 0
 
 

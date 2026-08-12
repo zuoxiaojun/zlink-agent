@@ -441,6 +441,66 @@ WHERE 1=1"""
     return sql, params or None
 
 
+def _sql_gl_voucher(
+    start_date: str | None = None, end_date: str | None = None, num: str | None = None
+) -> tuple[str, dict | None]:
+    """总账凭证查询：凭证头 + 分录 + 科目编码名称（GL_VOUCHER/GL_DETAIL/BD_ACCASOA/BD_ACCOUNT）。"""
+    where = ""
+    params: dict = {}
+    if start_date:
+        where += " AND h.PREPAREDDATE >= :start_date"
+        params["start_date"] = start_date + " 00:00:00"
+    if end_date:
+        where += " AND h.PREPAREDDATE <= :end_date"
+        params["end_date"] = end_date + " 23:59:59"
+    if num:
+        where += " AND h.NUM = :num"
+        params["num"] = num
+    sql = f"""SELECT
+    h.YEAR AS "年度", h.PERIOD AS "期间", h.NUM AS "凭证号",
+    h.PREPAREDDATE AS "制单日期",
+    d.DETAILINDEX AS "分录号", d.EXPLANATION AS "摘要",
+    acc.CODE AS "科目编码", acc.NAME AS "科目名称",
+    d.LOCALDEBITAMOUNT AS "借方金额", d.LOCALCREDITAMOUNT AS "贷方金额",
+    CASE WHEN h.DISCARDFLAG = 'Y' THEN '已作废' ELSE '正常' END AS "状态"
+FROM GL_VOUCHER h
+JOIN GL_DETAIL d ON d.PK_VOUCHER = h.PK_VOUCHER AND d.DR = 0
+LEFT JOIN BD_ACCASOA asoa ON asoa.PK_ACCASOA = d.PK_ACCASOA
+LEFT JOIN BD_ACCOUNT acc ON acc.PK_ACCOUNT = asoa.PK_ACCOUNT
+WHERE h.DR = 0{where}
+ORDER BY h.YEAR DESC, h.PERIOD DESC, h.NUM DESC, d.DETAILINDEX"""
+    return sql, params or None
+
+
+def _sql_gl_balance(
+    year: str,
+    period_start: str | None = None,
+    period_end: str | None = None,
+    code: str | None = None,
+) -> tuple[str, dict]:
+    """科目余额查询：GL_BALANCE 只有期间发生额，余额 = 累计净发生（借-贷）。"""
+    ps = (period_start or "01").zfill(2)
+    pe = (period_end or "12").zfill(2)
+    where = ""
+    params = {"year": year, "ps": ps, "pe": pe}
+    if code:
+        where += " AND acc.CODE LIKE :code"
+        params["code"] = f"%{code}%"
+    sql = f"""SELECT
+    acc.CODE AS "科目编码", acc.NAME AS "科目名称",
+    SUM(CASE WHEN b.PERIOD < :ps THEN b.LOCALDEBITAMOUNT - b.LOCALCREDITAMOUNT ELSE 0 END) AS "期初净额",
+    SUM(CASE WHEN b.PERIOD BETWEEN :ps AND :pe THEN b.LOCALDEBITAMOUNT ELSE 0 END) AS "本期借方",
+    SUM(CASE WHEN b.PERIOD BETWEEN :ps AND :pe THEN b.LOCALCREDITAMOUNT ELSE 0 END) AS "本期贷方",
+    SUM(CASE WHEN b.PERIOD <= :pe THEN b.LOCALDEBITAMOUNT - b.LOCALCREDITAMOUNT ELSE 0 END) AS "期末净额"
+FROM GL_BALANCE b
+LEFT JOIN BD_ACCASOA asoa ON asoa.PK_ACCASOA = b.PK_ACCASOA
+LEFT JOIN BD_ACCOUNT acc ON acc.PK_ACCOUNT = asoa.PK_ACCOUNT
+WHERE b.DR = 0 AND b.YEAR = :year{where}
+GROUP BY acc.CODE, acc.NAME
+ORDER BY acc.CODE"""
+    return sql, params
+
+
 # ═══════════════════════════════════════════════════════════════
 # 工具 handler
 # ═══════════════════════════════════════════════════════════════
@@ -527,21 +587,20 @@ def _handle_nc_query(args: dict) -> str:
         "material": (_sql_material, ["code", "name"]),
         "organization": (_sql_organization, ["code", "name"]),
         "stock": (_sql_stock, ["warehouse", "material", "batch", "org"]),
+        "gl_voucher": (_sql_gl_voucher, ["start_date", "end_date", "num"]),
+        "gl_balance": (_sql_gl_balance, ["year", "period_start", "period_end", "code"]),
     }
 
     info = queries.get(query_name)
     if not info:
         return tool_error(f"未知查询: {query_name}")
 
-    sql_fn, _ = info
-    cleaned = {}
-    for key in params:
-        cleaned[key] = params[key]
-
+    sql_fn, allowed = info
+    cleaned = {k: v for k, v in params.items() if k in allowed and v is not None and v != ""}
     try:
         sql, bind_params = sql_fn(**cleaned)
-    except TypeError:
-        sql, bind_params = sql_fn()
+    except TypeError as e:
+        return tool_error(f"参数错误: {e}")
 
     output_format = args.get("format", "json")
     result = _run_query(sql, bind_params, args)
@@ -674,7 +733,7 @@ registry.register(
     check_fn=_nc_enabled,
     schema={
         "name": "nc_query",
-        "description": "NC 业务数据查询。支持 销售订单(sales_order)、销售订单按单据号(sales_order_by_code)、采购订单(purchase_order)、采购订单按编号(purchase_order_by_code)、客户(customer)、供应商(supplier)、物料(material)、组织(organization)、现存量(stock) 查询。format=json 返回结构化数据，format=text 返回表格。",
+        "description": "NC 业务数据查询。支持 销售订单(sales_order)、销售订单按单据号(sales_order_by_code)、采购订单(purchase_order)、采购订单按编号(purchase_order_by_code)、客户(customer)、供应商(supplier)、物料(material)、组织(organization)、现存量(stock)、总账凭证(gl_voucher)、科目余额(gl_balance) 查询。format=json 返回结构化数据，format=text 返回表格。",
         "parameters": {
             "type": "object",
             "properties": {
@@ -690,16 +749,31 @@ registry.register(
                         "material",
                         "organization",
                         "stock",
+                        "gl_voucher",
+                        "gl_balance",
                     ],
                     "description": "查询类型",
                 },
-                "start_date": {"type": "string", "description": "开始日期 YYYY-MM-DD（sales_order/purchase_order 用）"},
-                "end_date": {"type": "string", "description": "结束日期 YYYY-MM-DD（sales_order/purchase_order 用）"},
+                "start_date": {
+                    "type": "string",
+                    "description": "开始日期 YYYY-MM-DD（sales_order/purchase_order/gl_voucher 用）",
+                },
+                "end_date": {
+                    "type": "string",
+                    "description": "结束日期 YYYY-MM-DD（sales_order/purchase_order/gl_voucher 用）",
+                },
                 "billcode": {
                     "type": "string",
                     "description": "单据号（sales_order_by_code/purchase_order_by_code 用）",
                 },
-                "code": {"type": "string", "description": "编码模糊搜索（customer/supplier/material/organization 用）"},
+                "num": {"type": "string", "description": "凭证号（gl_voucher 用）"},
+                "year": {"type": "string", "description": "会计年度 YYYY（gl_balance 必填）"},
+                "period_start": {"type": "string", "description": "开始期间 1-12（gl_balance 用，默认 1）"},
+                "period_end": {"type": "string", "description": "结束期间 1-12（gl_balance 用，默认 12）"},
+                "code": {
+                    "type": "string",
+                    "description": "编码模糊搜索（customer/supplier/material/organization 用；gl_balance 按科目编码过滤）",
+                },
                 "name": {"type": "string", "description": "名称模糊搜索（customer/supplier/material/organization 用）"},
                 "warehouse": {"type": "string", "description": "仓库主键（stock 用）"},
                 "material": {"type": "string", "description": "物料主键（stock 用）"},
