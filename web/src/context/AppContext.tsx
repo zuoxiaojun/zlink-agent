@@ -1,5 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useReducer, type Dispatch } from "react";
+import React, {
+  createContext,
+  useContext,
+  useReducer,
+  type Dispatch,
+} from "react";
 import type { Message, ConfigResponse, TokenUsage } from "../types";
 
 export const WELCOME_MESSAGE: Message[] = [
@@ -50,7 +55,12 @@ const initialState: AppState = {
 };
 
 export type AppAction =
-  | { type: "SET_SESSION"; sessionId: string; title: string; messages?: Message[] }
+  | {
+      type: "SET_SESSION";
+      sessionId: string;
+      title: string;
+      messages?: Message[];
+    }
   | { type: "NEW_SESSION" }
   | { type: "SET_MESSAGES"; messages: Message[] }
   | { type: "SET_RUNNING"; running: boolean }
@@ -60,8 +70,23 @@ export type AppAction =
   | { type: "SET_CURRENT_TOOL"; toolName: string }
   | { type: "SET_CURRENT_TOOL_ARGS"; args: string }
   | { type: "ADD_PENDING_TOOL"; message: Message; startedAt?: number }
-  | { type: "REPLACE_PENDING_TOOL"; name: string; result: string; denied?: boolean; durationMs?: number }
-  | { type: "SET_RESULT"; final_response: string; final_reasoning?: string; tokenUsage: TokenUsage | null; apiCalls: number; error: string | null; sessionId?: string; sessionTitle?: string }
+  | {
+      type: "REPLACE_PENDING_TOOL";
+      name: string;
+      result: string;
+      denied?: boolean;
+      durationMs?: number;
+    }
+  | {
+      type: "SET_RESULT";
+      final_response: string;
+      final_reasoning?: string;
+      tokenUsage: TokenUsage | null;
+      apiCalls: number;
+      error: string | null;
+      sessionId?: string;
+      sessionTitle?: string;
+    }
   | { type: "SET_ERROR"; error: string }
   | { type: "CLEAR_STREAMING" }
   | { type: "SET_CONFIG"; config: ConfigResponse };
@@ -71,15 +96,20 @@ function reducer(state: AppState, action: AppAction): AppState {
     case "SET_SESSION": {
       const sessionMsgs = action.messages ?? state.messages;
       // 如果消息来自后端（没有 WELCOME），自动在最前面加上 WELCOME
-      const hasWelcome = sessionMsgs.length > 0
-        && sessionMsgs[0].role === "assistant"
-        && typeof sessionMsgs[0].content === "string"
-        && (sessionMsgs[0].content as string).startsWith("你好！我是 **智链 Agent");
+      const hasWelcome =
+        sessionMsgs.length > 0 &&
+        sessionMsgs[0].role === "assistant" &&
+        typeof sessionMsgs[0].content === "string" &&
+        (sessionMsgs[0].content as string).startsWith(
+          "你好！我是 **智链 Agent",
+        );
       return {
         ...state,
         currentSessionId: action.sessionId,
         currentSessionTitle: action.title,
-        messages: hasWelcome ? sessionMsgs : [...WELCOME_MESSAGE, ...sessionMsgs],
+        messages: hasWelcome
+          ? sessionMsgs
+          : [...WELCOME_MESSAGE, ...sessionMsgs],
         streamingText: "",
         reasoningText: "",
         agentRunning: false,
@@ -120,12 +150,17 @@ function reducer(state: AppState, action: AppAction): AppState {
     case "ADD_PENDING_TOOL": {
       // 避免重复插入同名的 pending 工具（仅拦截仍在 pending 的，已完成的同名工具不拦截）
       const id = action.message.tool_call_id || "";
-      if (state.messages.some(m => m.role === "tool" && m.tool_call_id === id && !m._tool_done)) {
+      if (
+        state.messages.some(
+          (m) => m.role === "tool" && m.tool_call_id === id && !m._tool_done,
+        )
+      ) {
         return state;
       }
-      const pendingMsg: Message = action.startedAt != null
-        ? { ...action.message, _tool_started_at: action.startedAt }
-        : action.message;
+      const pendingMsg: Message =
+        action.startedAt != null
+          ? { ...action.message, _tool_started_at: action.startedAt }
+          : action.message;
       return { ...state, messages: [...state.messages, pendingMsg] };
     }
     case "REPLACE_PENDING_TOOL": {
@@ -146,17 +181,30 @@ function reducer(state: AppState, action: AppAction): AppState {
         content: action.result,
         _tool_done: true,
         ...(action.denied ? { _denied: true } : {}),
-        ...(action.durationMs != null ? { _tool_duration_ms: action.durationMs } : {}),
+        ...(action.durationMs != null
+          ? { _tool_duration_ms: action.durationMs }
+          : {}),
       };
       return { ...state, messages: msgs };
     }
     case "SET_RESULT": {
       // 移除尚未完成的 pending 工具消息；已完成（_tool_done: true）的保留显示
-      let msgs = state.messages.filter(m => !(m.role === "tool" && m.tool_call_id && m.tool_call_id.startsWith("pending:") && !m._tool_done));
+      let msgs = state.messages.filter(
+        (m) =>
+          !(
+            m.role === "tool" &&
+            m.tool_call_id &&
+            m.tool_call_id.startsWith("pending:") &&
+            !m._tool_done
+          ),
+      );
 
       // 用 action 传入的最终文本构建 assistant 消息（避免依赖异步的 state.streamingText）
       if (action.final_response) {
-        const assistantMsg: Message = { role: "assistant", content: action.final_response };
+        const assistantMsg: Message = {
+          role: "assistant",
+          content: action.final_response,
+        };
         if (action.final_reasoning) {
           assistantMsg.reasoning_content = action.final_reasoning;
         }
@@ -190,10 +238,18 @@ function reducer(state: AppState, action: AppAction): AppState {
         progressMessage: "",
         currentToolName: "",
         currentToolArgs: "",
-        messages: [...state.messages, { role: "assistant", content: `❌ ${action.error}` }],
+        messages: [
+          ...state.messages,
+          { role: "assistant", content: `❌ ${action.error}` },
+        ],
       };
     case "CLEAR_STREAMING":
-      return { ...state, streamingText: "", reasoningText: "", progressMessage: "" };
+      return {
+        ...state,
+        streamingText: "",
+        reasoningText: "",
+        progressMessage: "",
+      };
     case "SET_CONFIG":
       return { ...state, config: action.config };
     default:
@@ -201,11 +257,18 @@ function reducer(state: AppState, action: AppAction): AppState {
   }
 }
 
-const AppContext = createContext<{ state: AppState; dispatch: Dispatch<AppAction> } | null>(null);
+const AppContext = createContext<{
+  state: AppState;
+  dispatch: Dispatch<AppAction>;
+} | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
-  return React.createElement(AppContext.Provider, { value: { state, dispatch } }, children);
+  return React.createElement(
+    AppContext.Provider,
+    { value: { state, dispatch } },
+    children,
+  );
 }
 
 export function useAppState() {

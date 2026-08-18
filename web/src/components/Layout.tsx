@@ -25,19 +25,26 @@ export default function Layout() {
       <div className="main-area">
         <div className="top-bar">
           <span className="top-bar-title">{title}</span>
-          {state.currentSessionId && state.currentSessionTitle && location.pathname === "/" && (
-            <span className="text-hint ml-sm">
-              · {state.currentSessionTitle}
-            </span>
-          )}
+          {state.currentSessionId &&
+            state.currentSessionTitle &&
+            location.pathname === "/" && (
+              <span className="text-hint ml-sm">
+                · {state.currentSessionTitle}
+              </span>
+            )}
           <span className="top-bar-meta">
             {state.agentRunning ? (
               <span className="flex-row-gap-6">
-                <span className="sidebar-footer-dot" style={{ display: "inline-block" }} />
+                <span
+                  className="sidebar-footer-dot"
+                  style={{ display: "inline-block" }}
+                />
                 思考中
               </span>
+            ) : state.currentSessionId ? (
+              `会话 ${state.currentSessionId.substring(0, 8)}`
             ) : (
-              state.currentSessionId ? `会话 ${state.currentSessionId.substring(0, 8)}` : ""
+              ""
             )}
           </span>
         </div>
