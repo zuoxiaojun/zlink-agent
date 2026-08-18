@@ -84,7 +84,7 @@ zlink-agent/
 
 ## 版本
 
-v1.9.3 — 2026-08-12
+v1.9.4 — 2026-08-18
 
 详见 [CHANGELOG.md](CHANGELOG.md)
 
