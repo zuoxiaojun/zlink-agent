@@ -17,7 +17,7 @@ const PAGE_TITLES: Record<string, string> = {
 export default function Layout() {
   const location = useLocation();
   const { state } = useAppState();
-  const title = PAGE_TITLES[location.pathname] || "ZLink Agent";
+  const title = PAGE_TITLES[location.pathname] || "智链 Agent";
 
   return (
     <div className="app-layout">

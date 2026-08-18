@@ -6,7 +6,7 @@ export const WELCOME_MESSAGE: Message[] = [
   {
     role: "assistant",
     content:
-      "你好！我是 **ZLink Agent（智链 Agent）**，你的多 ERP AI 智能助手。\n\n" +
+      "你好！我是 **智链 Agent**，你的多 ERP AI 智能助手。\n\n" +
       "## 我能做什么\n\n" +
       "- 🔌 **ERP 取数** — YonSuite / NC 业务数据查询（订单、库存、客户等）\n" +
       "- 📊 **数据分析** — 报表洞察、KPI 分析、Python 计算、图片分析\n" +
@@ -74,7 +74,7 @@ function reducer(state: AppState, action: AppAction): AppState {
       const hasWelcome = sessionMsgs.length > 0
         && sessionMsgs[0].role === "assistant"
         && typeof sessionMsgs[0].content === "string"
-        && (sessionMsgs[0].content as string).startsWith("你好！我是 **ZLink Agent");
+        && (sessionMsgs[0].content as string).startsWith("你好！我是 **智链 Agent");
       return {
         ...state,
         currentSessionId: action.sessionId,
