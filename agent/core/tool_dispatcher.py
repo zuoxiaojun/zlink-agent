@@ -138,7 +138,7 @@ async def _dispatch_parallel(
         await emit(ToolExecutionStart(tool_call_id=p.tc.id, tool_name=p.tc.name, args=p.args))
 
     async def _run(prep: _Prepared) -> tuple[int, str, bool, bool]:
-        res = await _run_handler(prep.tc.name, prep.args, config, token)
+        res = await _run_handler(prep.tc.name, prep.args, config, token, emit=emit)
         finalized = await _finalize(prep.tc.name, prep.args, res.result, config, token)
         return prep.index, _truncate(finalized, max_result_length), _is_error_result(finalized), res.denied
 
@@ -206,7 +206,7 @@ async def _dispatch_sequential(
             )
             continue
         await emit(ToolExecutionStart(tool_call_id=tc.id, tool_name=tc.name, args=args))
-        raw = await _run_handler(tc.name, args, config, token)
+        raw = await _run_handler(tc.name, args, config, token, emit=emit)
         finalized = await _finalize(tc.name, args, raw.result, config, token)
         truncated = _truncate(finalized, max_result_length)
         is_error = _is_error_result(finalized)
@@ -262,6 +262,7 @@ async def _run_handler(
     args: dict,
     config: AgentLoopConfig,
     token: CancelToken,
+    emit: Callable[[AgentEvent], Awaitable[None]] | None = None,
 ) -> _HandlerResult:
     """Execute one tool.
 
@@ -277,8 +278,37 @@ async def _run_handler(
     if config.bridge_dispatch is not None and name in BRIDGE_TOOL_NAMES:
         raw = await _await_maybe(config.bridge_dispatch(name, args))
         return _HandlerResult(raw if isinstance(raw, str) else json.dumps(raw, ensure_ascii=False))
+
+    # 长耗时工具的心跳：每 5 秒发一次 ToolExecutionUpdate，
+    # 让前端知道工具还在执行中而不是卡死了
+    async def _heartbeat(tool_name: str, stop_event: asyncio.Event):
+        while not stop_event.is_set():
+            try:
+                await asyncio.wait_for(stop_event.wait(), timeout=5.0)
+            except TimeoutError:
+                if emit is not None:
+                    from agent.core.kernel_types import ToolExecutionUpdate
+
+                    await emit(
+                        ToolExecutionUpdate(
+                            tool_call_id="",
+                            tool_name=tool_name,
+                            partial_result="running",
+                        )
+                    )
+
     try:
-        raw = await asyncio.to_thread(registry.dispatch, name, args)
+        heartbeat_stop = asyncio.Event()
+        heartbeat_task = asyncio.ensure_future(_heartbeat(name, heartbeat_stop))
+        try:
+            raw = await asyncio.to_thread(registry.dispatch, name, args)
+        finally:
+            heartbeat_stop.set()
+            heartbeat_task.cancel()
+            try:
+                await heartbeat_task
+            except asyncio.CancelledError:
+                pass
     except Exception as e:  # noqa: BLE001
         if type(e).__name__ == "ApprovalBlockedError":
             decision = "denied"

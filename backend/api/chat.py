@@ -401,6 +401,17 @@ async def _run_agent_new(
                     _send({"type": "progress", "message": f"🔧 执行工具: {event.tool_name} | {args_str}"})
                 )
             )
+        elif t == "tool_execution_update":
+            send_tasks.append(
+                asyncio.create_task(
+                    _send(
+                        {
+                            "type": "progress",
+                            "message": f"⏳ 执行中: {event.tool_name}（{event.tool_name}长时间运行，请稍候…）",
+                        }
+                    )
+                )
+            )
         elif t == "tool_execution_end":
             payload: dict = {"type": "tool_result", "name": event.tool_name, "result": event.result}
             if event.denied:
