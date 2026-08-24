@@ -33,6 +33,15 @@
 | `agent/tools/registry.py` | PyInstaller 冻结模式加 erp_u8_tools |
 | `pyproject.toml` | 新增 pymssql>=2.2.0 依赖 |
 
+### 归类修复 / 改进
+
+| 修复 | 原因 |
+|------|------|
+| `execute_code` 长耗时工具心跳 | 每 5 秒发 ToolExecutionUpdate 事件，避免前端 spinner 卡死感 |
+| `chat.py` 支持 tool_execution_update | 推送给前端显示"⏳ 执行中"提示 |
+| 系统提示词路径规则 | 不硬编码用户名，提示用 `ls`/`find` 确认真实路径 |
+| 技能路径说明 | 同时覆盖内置技能和用户安装技能 |
+
 ### 归类修复
 
 | 修复 | 原因 |
