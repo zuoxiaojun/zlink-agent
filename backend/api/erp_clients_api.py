@@ -47,11 +47,22 @@ def _apply_erp_env(name: str, cfg: dict):
             os.environ["YONSUITE_APP_SECRET"] = app_secret
             os.environ["YONSUITE_TENANT_ID"] = tenant_id
             os.environ["YONSUITE_GATEWAY_URL"] = gateway_url
+    elif name == "u8":
+        host = cfg.get("host", "")
+        if host:
+            os.environ["U8_HOST"] = host
+            os.environ["U8_PORT"] = str(cfg.get("port", "") or "")
+            os.environ["U8_DATABASE"] = str(cfg.get("database", "") or "")
+            os.environ["U8_USER"] = str(cfg.get("user", "") or "")
+            os.environ["U8_PASSWORD"] = str(cfg.get("password", "") or "")
+            os.environ["U8_MAX_ROWS"] = str(cfg.get("max_rows", 500) or 500)
+
 
 # secret 字段在 PUT 时自动加密
 SECRET_FIELDS = {
     "yonsuite": ["app_key", "app_secret"],
     "nc": ["password"],
+    "u8": ["password"],
 }
 
 
@@ -71,6 +82,8 @@ class ERPPutRequest(BaseModel):
     user: str | None = None
     password: str | None = None
     max_rows: int | None = None
+    # u8 字段
+    database: str | None = None
 
 
 def _read_raw_config() -> dict:
@@ -158,6 +171,20 @@ async def get_erp_client(name: str) -> dict:
                 "service": ecfg.get("service", ""),
                 "user": ecfg.get("user", ""),
                 "password": ecfg.get("password", ""),
+                "max_rows": ecfg.get("max_rows", 500),
+            },
+        )
+    if name == "u8":
+        ecfg = cfg.erp_clients.get("u8", {}) if isinstance(cfg.erp_clients.get("u8"), dict) else {}
+        return _mask_secrets(
+            name,
+            {
+                "enabled": ecfg.get("enabled", False),
+                "host": ecfg.get("host", ""),
+                "port": ecfg.get("port", ""),
+                "database": ecfg.get("database", ""),
+                "user": ecfg.get("user", ""),
+                "password": ecfg.get("password", ""),
                 "max_rows": ecfg.get("max_rows", 200),
             },
         )
@@ -179,18 +206,14 @@ async def put_erp_client(name: str, body: ERPPutRequest) -> dict:
                 continue  # 前端脱敏占位符，跳过
             if v:
                 erp_clients[name][k] = v
-            # else: v 为空字符串，跳过更新（保留已有值）
         else:
             erp_clients[name][k] = v
 
-    # 保存到 config.json（所有字段，不剥离）
     cfg.erp_clients = erp_clients
     config_manager.save(cfg)
 
-    # 将 ERP 配置注入环境变量（内置工具 agent/tools/erp_*_tools.py 读取）
     _apply_erp_env(name, erp_clients.get(name, {}))
 
-    # 返回 ERP 客户端配置字典（与 GET 同形状），而非完整 AppConfig
     return await get_erp_client(name)
 
 
@@ -237,6 +260,35 @@ async def test_erp_client(name: str) -> dict:
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
+    elif name == "u8":
+        try:
+            from agent.config_manager import get_erp_config
+
+            cfg = get_erp_config("u8")
+            host = cfg.get("host", "")
+            port = cfg.get("port", "")
+            database = cfg.get("database", "")
+            user = cfg.get("user", "")
+            password = cfg.get("password", "")
+            if not all([host, port, database, user, password]):
+                return {"ok": False, "error": "U8 配置不完整，请填写所有连接字段"}
+
+            import pymssql
+
+            conn = pymssql.connect(
+                server=host,
+                port=int(port),  # type: ignore[arg-type] — pymssql 存根标注 str 但实际接受 int
+                database=database,
+                user=user,
+                password=password,
+                timeout=10,
+            )
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            conn.close()
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
     raise HTTPException(404, f"Unknown ERP {name!r}")
 
 
@@ -262,7 +314,10 @@ async def toggle_mcp_server(name: str) -> dict:
     new_enabled = current.get("status") != "connected"
 
     # 持久化到 config.json
-    raw = json.loads(config_manager.CONFIG_FILE.read_text(encoding="utf-8"))
+    try:
+        raw = json.loads(config_manager.CONFIG_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        raw = {}
     servers = raw.setdefault("mcp_servers", {})
     servers.setdefault(name, {})["enabled"] = new_enabled
     config_manager.atomic_json_write(config_manager.CONFIG_FILE, raw)

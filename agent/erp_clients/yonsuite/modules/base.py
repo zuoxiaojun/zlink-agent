@@ -96,7 +96,9 @@ class BaseAPIClient:
             gateway_url: API 网关 URL
             token_url: Token URL
         """
-        self.gateway_url = gateway_url or os.getenv("YONSUITE_GATEWAY_URL", "https://c2.yonyoucloud.com/iuap-api-gateway")
+        self.gateway_url = gateway_url or os.getenv(
+            "YONSUITE_GATEWAY_URL", "https://c2.yonyoucloud.com/iuap-api-gateway"
+        )
         self.token_url = token_url or os.getenv("YONSUITE_TOKEN_URL", "https://c2.yonyoucloud.com/iuap-api-auth")
         self.timeout = int(os.getenv("YONSUITE_HTTP_TIMEOUT", "30"))
 

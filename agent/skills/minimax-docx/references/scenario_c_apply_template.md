@@ -219,10 +219,10 @@ Follow this algorithm:
    ```python
    # Pseudocode: find all unique pStyle values in source document.xml
    used_styles = set()
-   for p in body.iter('w:p'):
-       pStyle = p.find('w:pPr/w:pStyle')
+   for p in body.iter("w:p"):
+       pStyle = p.find("w:pPr/w:pStyle")
        if pStyle is not None:
-           used_styles.add(pStyle.get('val'))
+           used_styles.add(pStyle.get("val"))
    ```
 
 2. **For each used style**, find the best match in template:

@@ -34,10 +34,21 @@ BRIDGE_TOOL_NAMES = frozenset({TOOL_SEARCH_NAME, TOOL_DESCRIBE_NAME, TOOL_CALL_N
 
 # ── Core toolsets (never deferred) ───────────────────────────────────
 
-CORE_TOOLSETS = frozenset({
-    "file", "terminal", "web", "clarify", "memory",
-    "session_search", "todo", "code", "system", "vision", "agent",
-})
+CORE_TOOLSETS = frozenset(
+    {
+        "file",
+        "terminal",
+        "web",
+        "clarify",
+        "memory",
+        "session_search",
+        "todo",
+        "code",
+        "system",
+        "vision",
+        "agent",
+    }
+)
 
 # ── Token estimation ─────────────────────────────────────────────────
 
@@ -55,6 +66,7 @@ def estimate_tokens_from_schemas(tool_defs: list[dict]) -> int:
 
 
 # ── Classification ───────────────────────────────────────────────────
+
 
 def is_deferrable_name(name: str) -> bool:
     """Return True if a tool is eligible for deferral."""
@@ -171,10 +183,14 @@ def search_catalog(catalog: list[CatalogEntry], query: str, limit: int = 5) -> l
 
 
 def _bm25_score(
-    query_tokens: list[str], doc_tokens: list[str],
-    doc_lengths: list[int], avg_dl: float,
-    doc_freq: dict[str, int], n_docs: int,
-    k1: float = 1.5, b: float = 0.75,
+    query_tokens: list[str],
+    doc_tokens: list[str],
+    doc_lengths: list[int],
+    avg_dl: float,
+    doc_freq: dict[str, int],
+    n_docs: int,
+    k1: float = 1.5,
+    b: float = 0.75,
 ) -> float:
     if not doc_tokens:
         return 0.0
@@ -197,6 +213,7 @@ def _bm25_score(
 
 
 # ── Bridge tool schemas ──────────────────────────────────────────────
+
 
 def bridge_tool_schemas(deferred_count: int) -> list[dict]:
     return [
@@ -275,6 +292,7 @@ def bridge_tool_schemas(deferred_count: int) -> list[dict]:
 
 # ── Assembly ─────────────────────────────────────────────────────────
 
+
 @dataclass
 class AssemblyResult:
     tool_defs: list[dict]
@@ -300,8 +318,7 @@ def assemble_tool_defs(
     if force_off:
         return AssemblyResult(tool_defs=tool_defs, activated=False)
 
-    incoming = [td for td in tool_defs
-                if (td.get("function") or {}).get("name") not in BRIDGE_TOOL_NAMES]
+    incoming = [td for td in tool_defs if (td.get("function") or {}).get("name") not in BRIDGE_TOOL_NAMES]
 
     visible, deferrable = classify_tool_defs_by_toolset(incoming)
     if not deferrable:
@@ -318,8 +335,10 @@ def assemble_tool_defs(
     if not should_activate:
         threshold_tokens = int((context_length or 0) * (threshold_pct / 100.0))
         return AssemblyResult(
-            tool_defs=incoming, activated=False,
-            deferred_count=len(deferrable), deferred_tokens=deferrable_tokens,
+            tool_defs=incoming,
+            activated=False,
+            deferred_count=len(deferrable),
+            deferred_tokens=deferrable_tokens,
             threshold_tokens=threshold_tokens,
         )
 
@@ -329,17 +348,23 @@ def assemble_tool_defs(
 
     logger.info(
         "tool_search activated: %d core tools kept, %d deferred (~%d tokens, threshold ~%d)",
-        len(visible), len(deferrable), deferrable_tokens, threshold_tokens,
+        len(visible),
+        len(deferrable),
+        deferrable_tokens,
+        threshold_tokens,
     )
 
     return AssemblyResult(
-        tool_defs=result, activated=True,
-        deferred_count=len(deferrable), deferred_tokens=deferrable_tokens,
+        tool_defs=result,
+        activated=True,
+        deferred_count=len(deferrable),
+        deferred_tokens=deferrable_tokens,
         threshold_tokens=threshold_tokens,
     )
 
 
 # ── Bridge tool dispatch ─────────────────────────────────────────────
+
 
 def dispatch_tool_search(args: dict, *, current_tool_defs: list[dict]) -> str:
     query = str(args.get("query") or "").strip()
@@ -351,11 +376,14 @@ def dispatch_tool_search(args: dict, *, current_tool_defs: list[dict]) -> str:
     _, deferrable = classify_tool_defs_by_toolset(current_tool_defs)
     catalog = build_catalog(deferrable)
     hits = search_catalog(catalog, query, limit=limit)
-    return json.dumps({
-        "query": query,
-        "total_available": len(catalog),
-        "matches": [{"name": h.name, "description": (h.description or "")[:400]} for h in hits],
-    }, ensure_ascii=False)
+    return json.dumps(
+        {
+            "query": query,
+            "total_available": len(catalog),
+            "matches": [{"name": h.name, "description": (h.description or "")[:400]} for h in hits],
+        },
+        ensure_ascii=False,
+    )
 
 
 def dispatch_tool_describe(args: dict, *, current_tool_defs: list[dict]) -> str:
@@ -367,14 +395,20 @@ def dispatch_tool_describe(args: dict, *, current_tool_defs: list[dict]) -> str:
     for td in deferrable:
         fn = td.get("function") or {}
         if fn.get("name") == name:
-            return json.dumps({
-                "name": name,
-                "description": fn.get("description", ""),
-                "parameters": fn.get("parameters", {}),
-            }, ensure_ascii=False)
-    return json.dumps({
-        "error": f"'{name}' is not currently available. Re-run tool_search to refresh.",
-    }, ensure_ascii=False)
+            return json.dumps(
+                {
+                    "name": name,
+                    "description": fn.get("description", ""),
+                    "parameters": fn.get("parameters", {}),
+                },
+                ensure_ascii=False,
+            )
+    return json.dumps(
+        {
+            "error": f"'{name}' is not currently available. Re-run tool_search to refresh.",
+        },
+        ensure_ascii=False,
+    )
 
 
 def dispatch_tool_call(args: dict) -> str:
@@ -398,9 +432,15 @@ def dispatch_tool_call(args: dict) -> str:
 
 
 __all__ = [
-    "TOOL_SEARCH_NAME", "TOOL_DESCRIBE_NAME", "TOOL_CALL_NAME",
+    "TOOL_SEARCH_NAME",
+    "TOOL_DESCRIBE_NAME",
+    "TOOL_CALL_NAME",
     "BRIDGE_TOOL_NAMES",
-    "assemble_tool_defs", "classify_tool_defs_by_toolset",
-    "dispatch_tool_search", "dispatch_tool_describe", "dispatch_tool_call",
-    "build_catalog", "search_catalog",
+    "assemble_tool_defs",
+    "classify_tool_defs_by_toolset",
+    "dispatch_tool_search",
+    "dispatch_tool_describe",
+    "dispatch_tool_call",
+    "build_catalog",
+    "search_catalog",
 ]

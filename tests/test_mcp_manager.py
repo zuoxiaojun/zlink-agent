@@ -73,6 +73,7 @@ class TestResolveCommand:
         else:
             fake = tmp_path / "faketool"
         fake.write_text("@echo off\n" if sys.platform == "win32" else "#!/bin/sh\n")
+        fake.chmod(fake.stat().st_mode | 0o111)  # make executable
         monkeypatch.setenv("PATH", str(tmp_path))
 
         resolved = mcp_manager._resolve_command("faketool")

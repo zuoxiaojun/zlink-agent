@@ -17,7 +17,7 @@ def _load_env_files() -> None:
     fallback.
     """
     candidates = [
-        DATA_DIR.parent / ".env",                        # ~/.zlink-agent/.env
+        DATA_DIR.parent / ".env",  # ~/.zlink-agent/.env
         Path(__file__).resolve().parent.parent / ".env",  # repo root (dev)
     ]
     for p in candidates:

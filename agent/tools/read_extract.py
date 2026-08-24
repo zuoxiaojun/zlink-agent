@@ -71,12 +71,7 @@ def _extract_notebook(path: str) -> str:
 
     cells = nb.get("cells")
     if not isinstance(cells, list):
-        cells = [
-            cell
-            for ws in nb.get("worksheets", [])
-            if isinstance(ws, dict)
-            for cell in ws.get("cells", [])
-        ]
+        cells = [cell for ws in nb.get("worksheets", []) if isinstance(ws, dict) for cell in ws.get("cells", [])]
     if not cells:
         raise ExtractionError("Notebook contains no cells")
 

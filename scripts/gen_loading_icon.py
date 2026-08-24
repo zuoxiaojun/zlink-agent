@@ -7,6 +7,7 @@
 
 loading.html 中的图标位于 <!-- ICON:START --> / <!-- ICON:END --> 标记之间，脚本幂等替换。
 """
+
 from __future__ import annotations
 
 import base64

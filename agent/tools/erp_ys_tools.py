@@ -193,16 +193,32 @@ def _handle_ys_api(args: dict) -> str:
         except Exception as e:
             return tool_result(data="YonSuite 连接失败", connected=False, message=str(e))
 
-    allowed = frozenset({
-        "query_sale_orders", "get_order_detail", "query_purchase_orders",
-        "get_purchase_order_detail", "query_current_stock", "query_products",
-        "query_customers", "query_vendors", "get_vendor_detail",
-        "query_production_orders", "get_production_order_detail",
-        "query_accbooks", "query_vouchers", "query_user_todos",
-        "query_opportunities", "get_org_detail", "query_org_units",
-        "format_order_info", "format_stock_info", "format_todo_info",
-        "format_production_order_info", "format_org_unit_info",
-    })
+    allowed = frozenset(
+        {
+            "query_sale_orders",
+            "get_order_detail",
+            "query_purchase_orders",
+            "get_purchase_order_detail",
+            "query_current_stock",
+            "query_products",
+            "query_customers",
+            "query_vendors",
+            "get_vendor_detail",
+            "query_production_orders",
+            "get_production_order_detail",
+            "query_accbooks",
+            "query_vouchers",
+            "query_user_todos",
+            "query_opportunities",
+            "get_org_detail",
+            "query_org_units",
+            "format_order_info",
+            "format_stock_info",
+            "format_todo_info",
+            "format_production_order_info",
+            "format_org_unit_info",
+        }
+    )
     if method not in allowed:
         return tool_error(f"未知方法: {method}")
     if client is None:
@@ -232,8 +248,11 @@ def _handle_query_sale_orders(args: dict) -> str:
 
     def fetch(pi, ps):
         result = client.query_sale_orders(
-            page_index=pi, page_size=ps, isSum=is_sum,
-            date_from=date_from, date_to=date_to,
+            page_index=pi,
+            page_size=ps,
+            isSum=is_sum,
+            date_from=date_from,
+            date_to=date_to,
         )
         return result.get("data", {}).get("recordList", [])
 
@@ -250,25 +269,28 @@ def _handle_query_sale_orders(args: dict) -> str:
         grand_total += ori_sum
         grand_tax += calc_tax
         status_raw = r.get("nextStatus", "") or ""
-        parsed.append({
-            "code": r.get("code", ""),
-            "vouchdate": str(r.get("vouchdate", ""))[:10],
-            "customer": r.get("agentId_name", ""),
-            "status": _SALE_STATUS_MAP.get(status_raw, status_raw),
-            "skuCode": r.get("skuCode", ""),
-            "skuName": r.get("skuName", ""),
-            "qty": r2(r.get("qty", 0)),
-            "unitPrice": r2(r.get("oriTaxUnitPrice", 0)),
-            "oriSum": r2(ori_sum),
-            "tax": r2(calc_tax),
-            "department": r.get("saleDepartmentId_name", ""),
-            "salesman": r.get("corpContactUserName", ""),
-            "warehouse": r.get("stockName", "") or None,
-        })
+        parsed.append(
+            {
+                "code": r.get("code", ""),
+                "vouchdate": str(r.get("vouchdate", ""))[:10],
+                "customer": r.get("agentId_name", ""),
+                "status": _SALE_STATUS_MAP.get(status_raw, status_raw),
+                "skuCode": r.get("skuCode", ""),
+                "skuName": r.get("skuName", ""),
+                "qty": r2(r.get("qty", 0)),
+                "unitPrice": r2(r.get("oriTaxUnitPrice", 0)),
+                "oriSum": r2(ori_sum),
+                "tax": r2(calc_tax),
+                "department": r.get("saleDepartmentId_name", ""),
+                "salesman": r.get("corpContactUserName", ""),
+                "warehouse": r.get("stockName", "") or None,
+            }
+        )
 
     return tool_result(
         data=f"销售订单查询结果（{len(parsed)} 条）",
-        records=parsed, note=result.note,
+        records=parsed,
+        note=result.note,
         summary={"recordCount": len(parsed), "grandTotal": r2(grand_total), "grandTax": r2(grand_tax)},
     )
 
@@ -283,16 +305,20 @@ def _handle_query_purchase_orders(args: dict) -> str:
     date_to = args.get("date_to") or None
 
     if date_from and date_to:
+
         def fetch(pi, ps):
             token = client.get_access_token()
             url = f"{client.purchase.gateway_url}{client.purchase.base_path}/list?access_token={urllib.parse.quote(token)}"
             body = {
-                "pageIndex": pi, "pageSize": ps, "isSum": True,
+                "pageIndex": pi,
+                "pageSize": ps,
+                "isSum": True,
                 "simpleVOs": [{"field": "vouchdate", "op": "between", "value1": date_from, "value2": date_to}],
                 "queryOrders": [{"field": "vouchdate", "order": "desc"}],
             }
             return client.purchase._http_post_raw(url, body).get("data", {}).get("recordList", [])
     else:
+
         def fetch(pi, ps):
             return client.query_purchase_orders(page_index=pi, page_size=ps).get("data", {}).get("recordList", [])
 
@@ -305,25 +331,28 @@ def _handle_query_purchase_orders(args: dict) -> str:
         list_ori_sum = float(r.get("listOriSum", 0) or 0)
         grand_total += list_ori_sum
         status_raw = r.get("status", 0)
-        parsed.append({
-            "code": r.get("code", ""),
-            "vouchdate": str(r.get("vouchdate", ""))[:10],
-            "vendor": r.get("vendor_name", ""),
-            "materialCode": r.get("product_cCode", ""),
-            "materialName": r.get("product_cName", ""),
-            "qty": r2(r.get("subQty", 0)),
-            "unitPrice": r2(r.get("oriTaxUnitPrice", 0)),
-            "listOriSum": r2(list_ori_sum),
-            "tax": r2(r.get("listOriTax", 0)),
-            "status": _PURCHASE_STATUS_MAP.get(status_raw, str(status_raw)),
-            "arrivedStatus": _PURCHASE_ARRIVED_MAP.get(r.get("purchaseOrders_arrivedStatus", 0), ""),
-            "inWhStatus": _PURCHASE_INWH_MAP.get(r.get("purchaseOrders_inWHStatus", 0), ""),
-            "invoiceStatus": _PURCHASE_INVOICE_MAP.get(r.get("purchaseOrders_invoiceStatus", 0), ""),
-        })
+        parsed.append(
+            {
+                "code": r.get("code", ""),
+                "vouchdate": str(r.get("vouchdate", ""))[:10],
+                "vendor": r.get("vendor_name", ""),
+                "materialCode": r.get("product_cCode", ""),
+                "materialName": r.get("product_cName", ""),
+                "qty": r2(r.get("subQty", 0)),
+                "unitPrice": r2(r.get("oriTaxUnitPrice", 0)),
+                "listOriSum": r2(list_ori_sum),
+                "tax": r2(r.get("listOriTax", 0)),
+                "status": _PURCHASE_STATUS_MAP.get(status_raw, str(status_raw)),
+                "arrivedStatus": _PURCHASE_ARRIVED_MAP.get(r.get("purchaseOrders_arrivedStatus", 0), ""),
+                "inWhStatus": _PURCHASE_INWH_MAP.get(r.get("purchaseOrders_inWHStatus", 0), ""),
+                "invoiceStatus": _PURCHASE_INVOICE_MAP.get(r.get("purchaseOrders_invoiceStatus", 0), ""),
+            }
+        )
 
     return tool_result(
         data=f"采购订单查询结果（{len(parsed)} 条）",
-        records=parsed, note=result.note,
+        records=parsed,
+        note=result.note,
         summary={"recordCount": len(parsed), "grandTotal": r2(grand_total)},
     )
 
@@ -344,7 +373,8 @@ def _handle_query_production_orders(args: dict) -> str:
     records = result.records
     if date_from or date_to:
         records = [
-            r for r in records
+            r
+            for r in records
             if (not date_from or str(r.get("vouchdate", ""))[:10] >= date_from)
             and (not date_to or str(r.get("vouchdate", ""))[:10] <= date_to)
         ]
@@ -354,22 +384,25 @@ def _handle_query_production_orders(args: dict) -> str:
     for r in records:
         if r.get("code") in skip:
             continue
-        parsed.append({
-            "code": r.get("code", ""),
-            "factory": r.get("orgName", ""),
-            "vouchdate": str(r.get("vouchdate", ""))[:10],
-            "status": _PROD_STATUS_MAP.get(r.get("status", 0), ""),
-            "materialCode": r.get("OrderProduct_productCode", ""),
-            "materialName": r.get("OrderProduct_productName", ""),
-            "qty": r2(r.get("OrderProduct_quantity", 0)),
-            "completedQty": r2(r.get("OrderProduct_completedQuantity", 0)),
-            "incomingQty": r2(r.get("OrderProduct_incomingQuantity", 0) or r.get("cfmIncomingQty", 0)),
-            "stockStatus": _PROD_STOCK_MAP.get(r.get("OrderProduct_stockStatus", 0), ""),
-        })
+        parsed.append(
+            {
+                "code": r.get("code", ""),
+                "factory": r.get("orgName", ""),
+                "vouchdate": str(r.get("vouchdate", ""))[:10],
+                "status": _PROD_STATUS_MAP.get(r.get("status", 0), ""),
+                "materialCode": r.get("OrderProduct_productCode", ""),
+                "materialName": r.get("OrderProduct_productName", ""),
+                "qty": r2(r.get("OrderProduct_quantity", 0)),
+                "completedQty": r2(r.get("OrderProduct_completedQuantity", 0)),
+                "incomingQty": r2(r.get("OrderProduct_incomingQuantity", 0) or r.get("cfmIncomingQty", 0)),
+                "stockStatus": _PROD_STOCK_MAP.get(r.get("OrderProduct_stockStatus", 0), ""),
+            }
+        )
 
     return tool_result(
         data=f"生产订单查询结果（{len(parsed)} 条）",
-        records=parsed, note=result.note,
+        records=parsed,
+        note=result.note,
         summary={"recordCount": len(parsed)},
     )
 
@@ -400,8 +433,7 @@ def _handle_query_stock(args: dict) -> str:
         records = [r for r in records if warehouse in str(r.get("warehouse_name", ""))]
     if sku and not product_param:
         records = [
-            r for r in records
-            if sku in str(r.get("productsku_code", "")) or sku in str(r.get("product_code", ""))
+            r for r in records if sku in str(r.get("productsku_code", "")) or sku in str(r.get("product_code", ""))
         ]
 
     parsed = []
@@ -412,21 +444,28 @@ def _handle_query_stock(args: dict) -> str:
         avail = float(r.get("availableqty", 0) or 0)
         grand_current += cur
         grand_available += avail
-        parsed.append({
-            "productCode": r.get("product_code", ""),
-            "productName": r.get("product_name", ""),
-            "skuCode": (r.get("productsku_code", "") or "").strip() or None,
-            "warehouseName": r.get("warehouse_name", ""),
-            "orgName": r.get("org_name", ""),
-            "unitName": r.get("product_unitName", ""),
-            "currentQty": r2(cur),
-            "availableQty": r2(avail),
-        })
+        parsed.append(
+            {
+                "productCode": r.get("product_code", ""),
+                "productName": r.get("product_name", ""),
+                "skuCode": (r.get("productsku_code", "") or "").strip() or None,
+                "warehouseName": r.get("warehouse_name", ""),
+                "orgName": r.get("org_name", ""),
+                "unitName": r.get("product_unitName", ""),
+                "currentQty": r2(cur),
+                "availableQty": r2(avail),
+            }
+        )
 
     return tool_result(
         data=f"库存查询结果（{len(parsed)} 条）",
-        records=parsed, note=result.note,
-        summary={"recordCount": len(parsed), "grandCurrentQty": r2(grand_current), "grandAvailableQty": r2(grand_available)},
+        records=parsed,
+        note=result.note,
+        summary={
+            "recordCount": len(parsed),
+            "grandCurrentQty": r2(grand_current),
+            "grandAvailableQty": r2(grand_available),
+        },
     )
 
 
@@ -450,14 +489,16 @@ def _handle_query_customers(args: dict) -> str:
 
     parsed = []
     for r in records:
-        parsed.append({
-            "id": r.get("id", ""),
-            "code": r.get("code", ""),
-            "name": _parse_name(r.get("name")),
-            "customerClass": r.get("customerClassName", ""),
-            "contactPerson": r.get("personOfContact", ""),
-            "phone": r.get("mobilePhone", "") or r.get("telephone", ""),
-        })
+        parsed.append(
+            {
+                "id": r.get("id", ""),
+                "code": r.get("code", ""),
+                "name": _parse_name(r.get("name")),
+                "customerClass": r.get("customerClassName", ""),
+                "contactPerson": r.get("personOfContact", ""),
+                "phone": r.get("mobilePhone", "") or r.get("telephone", ""),
+            }
+        )
 
     return tool_result(
         data=f"客户查询结果（{len(parsed)} 条）",
@@ -486,16 +527,18 @@ def _handle_query_vendors(args: dict) -> str:
 
     parsed = []
     for r in records:
-        parsed.append({
-            "id": r.get("id", ""),
-            "code": r.get("code", ""),
-            "name": _parse_name(r.get("name")),
-            "vendorClass": r.get("vendorClassName", ""),
-            "contactPerson": r.get("personOfContact", ""),
-            "phone": r.get("mobilePhone", "") or r.get("telephone", ""),
-            "bankName": r.get("bankName", ""),
-            "bankAccount": r.get("bankAccount", ""),
-        })
+        parsed.append(
+            {
+                "id": r.get("id", ""),
+                "code": r.get("code", ""),
+                "name": _parse_name(r.get("name")),
+                "vendorClass": r.get("vendorClassName", ""),
+                "contactPerson": r.get("personOfContact", ""),
+                "phone": r.get("mobilePhone", "") or r.get("telephone", ""),
+                "bankName": r.get("bankName", ""),
+                "bankAccount": r.get("bankAccount", ""),
+            }
+        )
 
     return tool_result(
         data=f"供应商查询结果（{len(parsed)} 条）",
@@ -514,8 +557,11 @@ def _handle_query_products(args: dict) -> str:
     product_name = (args.get("product_name") or "").strip() or None
 
     def fetch(pi, ps):
-        return (client.query_products(page_index=pi, page_size=ps, product_code=product_code or "")
-                .get("data", {}).get("recordList", []))
+        return (
+            client.query_products(page_index=pi, page_size=ps, product_code=product_code or "")
+            .get("data", {})
+            .get("recordList", [])
+        )
 
     if product_name:
         result = _paginate({}, 500, fetch)
@@ -530,21 +576,24 @@ def _handle_query_products(args: dict) -> str:
     attr_map = {"1": "实物物料", "2": "虚拟物料"}
     parsed = []
     for r in records:
-        parsed.append({
-            "id": r.get("id", ""),
-            "code": r.get("code", ""),
-            "name": r.get("name", ""),
-            "model": r.get("model", ""),
-            "productClass": r.get("manageClassName", "") or r.get("productClass", ""),
-            "unitName": r.get("unitName", "") or r.get("unit_name", ""),
-            "brand": r.get("brand", ""),
-            "productType": attr_map.get(r.get("realProductAttribute", ""), ""),
-            "status": "停用" if r.get("stopStatus") else "启用",
-        })
+        parsed.append(
+            {
+                "id": r.get("id", ""),
+                "code": r.get("code", ""),
+                "name": r.get("name", ""),
+                "model": r.get("model", ""),
+                "productClass": r.get("manageClassName", "") or r.get("productClass", ""),
+                "unitName": r.get("unitName", "") or r.get("unit_name", ""),
+                "brand": r.get("brand", ""),
+                "productType": attr_map.get(r.get("realProductAttribute", ""), ""),
+                "status": "停用" if r.get("stopStatus") else "启用",
+            }
+        )
 
     return tool_result(
         data=f"物料查询结果（{len(parsed)} 条）",
-        records=parsed, note=result.note,
+        records=parsed,
+        note=result.note,
         summary={"recordCount": len(parsed)},
     )
 
@@ -562,9 +611,13 @@ def _handle_query_opportunities(args: dict) -> str:
 
     def fetch(pi, ps):
         result = client.query_opportunities(
-            page_index=pi, page_size=ps,
-            oppt_state=oppt_state, win_lose_state=win_lose_state,
-            is_sum=True, date_from=date_from, date_to=date_to,
+            page_index=pi,
+            page_size=ps,
+            oppt_state=oppt_state,
+            win_lose_state=win_lose_state,
+            is_sum=True,
+            date_from=date_from,
+            date_to=date_to,
         )
         return result.get("data", {}).get("recordList", [])
 
@@ -576,20 +629,23 @@ def _handle_query_opportunities(args: dict) -> str:
         expect_money = float(r.get("expectSignMoney", 0) or 0)
         win_money = float(r.get("winOrderMoney", 0) or 0)
         amount = win_money if win_lose_val == 0 else expect_money
-        parsed.append({
-            "code": r.get("code", ""),
-            "name": r.get("name", ""),
-            "opptState": _OPPT_STATE_MAP.get(oppt_state_val, str(oppt_state_val)),
-            "winLoseState": _OPPT_WIN_LOSE_MAP.get(win_lose_val, str(win_lose_val)),
-            "amount": r2(amount),
-            "customerName": r.get("customer_name", ""),
-            "salesman": r.get("ower_name", ""),
-            "stageName": r.get("opptStage_name", ""),
-        })
+        parsed.append(
+            {
+                "code": r.get("code", ""),
+                "name": r.get("name", ""),
+                "opptState": _OPPT_STATE_MAP.get(oppt_state_val, str(oppt_state_val)),
+                "winLoseState": _OPPT_WIN_LOSE_MAP.get(win_lose_val, str(win_lose_val)),
+                "amount": r2(amount),
+                "customerName": r.get("customer_name", ""),
+                "salesman": r.get("ower_name", ""),
+                "stageName": r.get("opptStage_name", ""),
+            }
+        )
 
     return tool_result(
         data=f"商机查询结果（{len(parsed)} 条）",
-        records=parsed, note=result.note,
+        records=parsed,
+        note=result.note,
         summary={"recordCount": len(parsed)},
     )
 
@@ -601,22 +657,26 @@ def _handle_query_vouchers(args: dict) -> str:
         return tool_error("YonSuite 未配置")
 
     kwargs = {}
-    for key, kw in [("date_from", "voucher_date_start"), ("date_to", "voucher_date_end"),
-                    ("period_start", "period_start"), ("period_end", "period_end"),
-                    ("accbook_code", "accbook_code")]:
+    for key, kw in [
+        ("date_from", "voucher_date_start"),
+        ("date_to", "voucher_date_end"),
+        ("period_start", "period_start"),
+        ("period_end", "period_end"),
+        ("accbook_code", "accbook_code"),
+    ]:
         val = (args.get(key) or "").strip() or None
         if val:
             kwargs[kw] = val
 
     def fetch(pi, ps):
-        result = client.voucher.query_vouchers_parsed(
-            client.get_access_token(), page_size=ps, page_index=pi, **kwargs)
+        result = client.voucher.query_vouchers_parsed(client.get_access_token(), page_size=ps, page_index=pi, **kwargs)
         return result.get("records", [])
 
     result = _paginate(args, 500, fetch)
     return tool_result(
         data=f"凭证查询结果（{len(result.records)} 条）",
-        records=result.records, note=result.note,
+        records=result.records,
+        note=result.note,
         summary={"recordCount": len(result.records)},
     )
 
@@ -653,19 +713,24 @@ def _handle_query_user_todos(args: dict) -> str:
         rich_text = re.sub(r"<[^>]+>", "", item.get("richText", "") or "").strip()
         ts = item.get("commitTsLong", 0)
         commit_time = datetime.fromtimestamp(int(str(ts)[:10])).strftime("%Y-%m-%d %H:%M:%S") if ts else ""
-        parsed.append({
-            "title": item.get("title", ""),
-            "typeLabel": _classify(item),
-            "content": (item.get("content", "") or "").strip(),
-            "richText": rich_text,
-            "commitUserName": item.get("commitUserName", ""),
-            "commitTime": commit_time,
-            "taskName": item.get("businessData", {}).get("taskName") if isinstance(item.get("businessData"), dict) else "",
-        })
+        parsed.append(
+            {
+                "title": item.get("title", ""),
+                "typeLabel": _classify(item),
+                "content": (item.get("content", "") or "").strip(),
+                "richText": rich_text,
+                "commitUserName": item.get("commitUserName", ""),
+                "commitTime": commit_time,
+                "taskName": item.get("businessData", {}).get("taskName")
+                if isinstance(item.get("businessData"), dict)
+                else "",
+            }
+        )
 
     return tool_result(
         data=f"待办查询结果（{len(parsed)} 条）",
-        records=parsed, note=result.note,
+        records=parsed,
+        note=result.note,
         summary={"recordCount": len(parsed)},
     )
 

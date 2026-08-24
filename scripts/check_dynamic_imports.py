@@ -43,15 +43,71 @@ OPTIONAL_DEPENDENCIES: dict[str, str] = {}
 def _is_stdlib(module: str) -> bool:
     """判断是否是标准库模块。"""
     stdlib = {
-        "__future__", "abc", "argparse", "ast", "asyncio", "base64", "collections",
-        "colorsys", "concurrent", "contextlib", "copy", "csv", "dataclasses", "datetime",
-        "enum", "fcntl", "fnmatch", "functools", "glob", "hashlib", "hmac", "html", "http",
-        "importlib", "inspect", "io", "itertools", "json", "logging",
-        "math", "mimetypes", "multiprocessing", "os", "pathlib", "pickle", "platform",
-        "queue", "random", "re", "select", "shutil", "signal", "socket", "sqlite3",
-        "ssl", "stat", "statistics", "string", "subprocess", "sys", "tempfile", "textwrap",
-        "threading", "time", "tomllib", "traceback", "typing", "unittest", "urllib", "uuid",
-        "warnings", "weakref", "webbrowser", "xml", "zipfile",
+        "__future__",
+        "abc",
+        "argparse",
+        "ast",
+        "asyncio",
+        "base64",
+        "collections",
+        "colorsys",
+        "concurrent",
+        "contextlib",
+        "copy",
+        "csv",
+        "dataclasses",
+        "datetime",
+        "enum",
+        "fcntl",
+        "fnmatch",
+        "functools",
+        "glob",
+        "hashlib",
+        "hmac",
+        "html",
+        "http",
+        "importlib",
+        "inspect",
+        "io",
+        "itertools",
+        "json",
+        "logging",
+        "math",
+        "mimetypes",
+        "multiprocessing",
+        "os",
+        "pathlib",
+        "pickle",
+        "platform",
+        "queue",
+        "random",
+        "re",
+        "select",
+        "shutil",
+        "signal",
+        "socket",
+        "sqlite3",
+        "ssl",
+        "stat",
+        "statistics",
+        "string",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "textwrap",
+        "threading",
+        "time",
+        "tomllib",
+        "traceback",
+        "typing",
+        "unittest",
+        "urllib",
+        "uuid",
+        "warnings",
+        "weakref",
+        "webbrowser",
+        "xml",
+        "zipfile",
     }
     first = module.split(".")[0]
     return first in stdlib
@@ -116,8 +172,7 @@ class DynamicImportVisitor(ast.NodeVisitor):
     def visit_Try(self, node: ast.Try):
         # 检查 except 块是否捕获 ImportError
         has_import_error = any(
-            isinstance(handler.type, ast.Name) and handler.type.id == "ImportError"
-            for handler in node.handlers
+            isinstance(handler.type, ast.Name) and handler.type.id == "ImportError" for handler in node.handlers
         )
         if has_import_error:
             self._in_try_except += 1
@@ -190,10 +245,7 @@ def scan_file(path: Path) -> list[tuple[str, int, str]]:
     visitor = DynamicImportVisitor()
     visitor.visit(tree)
     # 过滤包内相对导入
-    return [
-        (m, lineno, ctx) for m, lineno, ctx in visitor.imports
-        if not _is_package_relative(m, path)
-    ]
+    return [(m, lineno, ctx) for m, lineno, ctx in visitor.imports if not _is_package_relative(m, path)]
 
 
 def scan_project() -> dict[str, list[tuple[str, int, str]]]:

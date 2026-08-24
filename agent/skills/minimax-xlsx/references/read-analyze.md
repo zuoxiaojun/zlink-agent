@@ -33,6 +33,7 @@ Load data and perform the analysis the user requests:
 
 ```python
 import pandas as pd
+
 df = pd.read_excel("input.xlsx", sheet_name=None)  # dict of all sheets
 # For CSV: pd.read_csv("input.csv")
 ```

@@ -113,6 +113,7 @@ def test_plain_text_event_sequence_and_return():
 def test_tool_call_then_text_orders_transcript():
     def echo(args: dict) -> str:
         return tool_result(data={"v": args.get("v")})
+
     registry.register(name="echo", toolset="test", schema={"type": "object"}, handler=echo)
     llm = _ScriptedLLM(
         _tool_response("echo", {"v": "x"}),

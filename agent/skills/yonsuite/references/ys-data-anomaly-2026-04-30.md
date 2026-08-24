@@ -11,8 +11,8 @@
 
 ### 判断方法
 ```python
-abnormal = {'2026-04-18','2026-04-19','2026-04-20','2026-04-21'}
-normal = [r for r in records if str(r.get('vouchdate',''))[:10] not in abnormal]
+abnormal = {"2026-04-18", "2026-04-19", "2026-04-20", "2026-04-21"}
+normal = [r for r in records if str(r.get("vouchdate", ""))[:10] not in abnormal]
 ```
 如果 `sum(payMoney)` 超过 100亿 且集中在某几天，基本可判定为异常。
 

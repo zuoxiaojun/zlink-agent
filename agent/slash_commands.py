@@ -210,10 +210,7 @@ def _cmd_skills(_args: str, _ctx: dict) -> str:
 def _cmd_skill(args: str, _ctx: dict) -> str:
     parts = args.strip().split(maxsplit=1)
     if not parts:
-        return (
-            "用法：`/skill <名称>` 查看技能详情\n\n"
-            "可用技能列表请用 `/skills` 查看。"
-        )
+        return "用法：`/skill <名称>` 查看技能详情\n\n可用技能列表请用 `/skills` 查看。"
 
     name = parts[0]
 

@@ -39,8 +39,8 @@ logger = logging.getLogger(__name__)
 # (and any markdown / HTML processors in the toolchain) does not interpret
 # them as tags and strip the contents. ``lengths only'' form is sufficient
 # because we always use them with str.startswith / str.find / slicing.
-_THINK_OPEN = "<" + "think" + ">"          # <think>  (7 chars)
-_THINK_CLOSE = "<" + "/" + "think" + ">"    #  (8 chars)
+_THINK_OPEN = "<" + "think" + ">"  # <think>  (7 chars)
+_THINK_CLOSE = "<" + "/" + "think" + ">"  #  (8 chars)
 
 
 def _extract_reasoning(msg: Any) -> str | None:
@@ -74,7 +74,7 @@ def _extract_inline_thinking(content: str) -> tuple[str, str | None]:
     stripped = content.lstrip("\n\r ")
     # ── Qwen-style: <think>...</think> ──
     if stripped.startswith(_THINK_OPEN):
-        rest = stripped[len(_THINK_OPEN):]
+        rest = stripped[len(_THINK_OPEN) :]
         # Skip optional newline after the opening marker
         if rest.startswith("\n"):
             rest = rest[1:]
@@ -83,7 +83,7 @@ def _extract_inline_thinking(content: str) -> tuple[str, str | None]:
             # Stream cut off mid-thinking → all content is reasoning
             return "", (rest.strip() or None)
         thinking_text = rest[:end_idx].strip()
-        actual_content = rest[end_idx + len(_THINK_CLOSE):].lstrip("\n\r ")
+        actual_content = rest[end_idx + len(_THINK_CLOSE) :].lstrip("\n\r ")
         return actual_content, thinking_text or None
     # ── DeepSeek-style: thinking\n...response\n... ──
     if not stripped.startswith("thinking"):
@@ -98,7 +98,7 @@ def _extract_inline_thinking(content: str) -> tuple[str, str | None]:
         # No response marker found — treat everything as thinking
         return "", rest.strip() or None
     thinking_text = rest[:response_idx].strip()
-    actual_content = rest[response_idx + 8:].lstrip("\n\r ")  # after "response"
+    actual_content = rest[response_idx + 8 :].lstrip("\n\r ")  # after "response"
     return actual_content, thinking_text or None
 
 
@@ -372,7 +372,7 @@ class OpenAICompatProvider(LLMProvider):
         # and route content to the appropriate callback / accumulator.
         _thinking_buf = ""
         _thinking_mode: bool | None = None  # None=undetected, True=in thinking, False=normal
-        _close_marker: str | None = None    # which close marker to look for when in thinking
+        _close_marker: str | None = None  # which close marker to look for when in thinking
 
         for line in self._request_stream(body):
             if stop_event and stop_event.is_set():
@@ -428,7 +428,7 @@ class OpenAICompatProvider(LLMProvider):
                             if before.strip():
                                 content += before
                                 stream_callback(before)
-                            after_marker = _thinking_buf[marker_idx + len(_THINK_OPEN):]
+                            after_marker = _thinking_buf[marker_idx + len(_THINK_OPEN) :]
                             # Skip optional newline immediately after the open marker
                             if after_marker.startswith("\n"):
                                 after_marker = after_marker[1:]
@@ -450,7 +450,7 @@ class OpenAICompatProvider(LLMProvider):
                             if before.strip():
                                 content += before
                                 stream_callback(before)
-                            after_marker = _thinking_buf[marker_idx + 8:]
+                            after_marker = _thinking_buf[marker_idx + 8 :]
                             if after_marker.startswith("\n"):
                                 after_marker = after_marker[1:]
                             if after_marker.strip():
@@ -480,7 +480,7 @@ class OpenAICompatProvider(LLMProvider):
                                     reasoning_callback(thinking_part)
                                 else:
                                     stream_callback(thinking_part)
-                            content_part = buf[idx + len(_close_marker or ""):]
+                            content_part = buf[idx + len(_close_marker or "") :]
                             if content_part.strip():
                                 content += content_part
                                 stream_callback(content_part)

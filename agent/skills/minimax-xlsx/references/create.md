@@ -564,6 +564,7 @@ def col_letter(n: int) -> str:
         result = chr(65 + rem) + result
     return result
 
+
 def col_number(s: str) -> int:
     """Convert Excel column letter to 1-based number."""
     n = 0

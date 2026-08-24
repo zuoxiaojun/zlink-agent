@@ -116,7 +116,9 @@ class YonSuiteClient:
         self.app_key = app_key or os.getenv("YONSUITE_APP_KEY", "")
         self.app_secret = app_secret or os.getenv("YONSUITE_APP_SECRET", "")
         self.tenant_id = tenant_id or os.getenv("YONSUITE_TENANT_ID", "")
-        self.gateway_url = gateway_url or os.getenv("YONSUITE_GATEWAY_URL", "https://c2.yonyoucloud.com/iuap-api-gateway")
+        self.gateway_url = gateway_url or os.getenv(
+            "YONSUITE_GATEWAY_URL", "https://c2.yonyoucloud.com/iuap-api-gateway"
+        )
         self.token_url = os.getenv("YONSUITE_TOKEN_URL", "https://c2.yonyoucloud.com/iuap-api-auth")
         self.default_token_url = os.getenv("YONSUITE_DEFAULT_TOKEN_URL", "https://c2.yonyoucloud.com/iuap-api-auth")
 

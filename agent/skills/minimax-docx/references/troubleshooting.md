@@ -167,7 +167,7 @@ var allElements = body.ChildElements.ToList();
 In Python with lxml:
 ```python
 # WRONG
-elements = body.findall('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p')
+elements = body.findall("{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p")
 
 # CORRECT
 elements = list(body)  # all direct children

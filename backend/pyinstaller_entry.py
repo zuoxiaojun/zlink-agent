@@ -3,6 +3,7 @@
 This script is only used when building the PyInstaller binary.
 It is NOT part of the normal source code import chain.
 """
+
 import os
 import sys
 import time

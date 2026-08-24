@@ -112,9 +112,9 @@ Templates contain EXAMPLE content that must be replaced. Here's how to find the 
   for i, el in enumerate(body_elements):
       text = get_text(el)
       style = get_style(el)
-      if style in ('1', 'Heading1') and ('第1章' in text or '绪论' in text):
+      if style in ("1", "Heading1") and ("第1章" in text or "绪论" in text):
           zone_b_start = i
-      if '参考文献' in text:
+      if "参考文献" in text:
           zone_b_end = i
   ```
 

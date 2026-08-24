@@ -109,18 +109,14 @@ def mcp_add_server(args: dict) -> str:
     if transport == "stdio":
         command = args.get("command") or ""
         if not command:
-            return json.dumps(
-                {"success": False, "error": "stdio 传输模式需要提供 command"}, ensure_ascii=False
-            )
+            return json.dumps({"success": False, "error": "stdio 传输模式需要提供 command"}, ensure_ascii=False)
         config["command"] = command
         config["args"] = args.get("args", [])
         config["env"] = args.get("env", {})
     else:
         url = args.get("url") or ""
         if not url:
-            return json.dumps(
-                {"success": False, "error": "HTTP 传输模式需要提供 url"}, ensure_ascii=False
-            )
+            return json.dumps({"success": False, "error": "HTTP 传输模式需要提供 url"}, ensure_ascii=False)
         config["url"] = url
         config["headers"] = args.get("headers", {})
 
@@ -134,9 +130,7 @@ def mcp_add_server(args: dict) -> str:
 
         # Check duplicate
         if name in cfg.mcp_servers:
-            return json.dumps(
-                {"success": False, "error": f"服务器「{name}」已存在"}, ensure_ascii=False
-            )
+            return json.dumps({"success": False, "error": f"服务器「{name}」已存在"}, ensure_ascii=False)
 
         # Build entry and save
         entry = MCPServerEntry(**config)
@@ -182,16 +176,12 @@ def mcp_delete_server(args: dict) -> str:
     try:
         cfg = config_manager.load()
         if name not in cfg.mcp_servers:
-            return json.dumps(
-                {"success": False, "error": f"服务器「{name}」不存在"}, ensure_ascii=False
-            )
+            return json.dumps({"success": False, "error": f"服务器「{name}」不存在"}, ensure_ascii=False)
 
         # Protect builtin servers
         entry = cfg.mcp_servers[name]
         if getattr(entry, "builtin", False):
-            return json.dumps(
-                {"success": False, "error": f"内置服务器「{name}」不允许删除"}, ensure_ascii=False
-            )
+            return json.dumps({"success": False, "error": f"内置服务器「{name}」不允许删除"}, ensure_ascii=False)
 
         # Disconnect and remove
         _run_async(disconnect_server(name), timeout=10)
@@ -219,9 +209,7 @@ def mcp_toggle_server(args: dict) -> str:
     try:
         cfg = config_manager.load()
         if name not in cfg.mcp_servers:
-            return json.dumps(
-                {"success": False, "error": f"服务器「{name}」不存在"}, ensure_ascii=False
-            )
+            return json.dumps({"success": False, "error": f"服务器「{name}」不存在"}, ensure_ascii=False)
 
         entry = cfg.mcp_servers[name]
         new_enabled = not entry.enabled
@@ -282,17 +270,13 @@ def mcp_test_server(args: dict) -> str:
         try:
             cfg = config_manager.load()
             if name not in cfg.mcp_servers:
-                return json.dumps(
-                    {"success": False, "error": f"服务器「{name}」不存在"}, ensure_ascii=False
-                )
+                return json.dumps({"success": False, "error": f"服务器「{name}」不存在"}, ensure_ascii=False)
             config = cfg.mcp_servers[name].model_dump()
         except Exception as e:
             return json.dumps({"success": False, "error": str(e)[:500]}, ensure_ascii=False)
 
     try:
-        result = _run_async(
-            test_server_connection(name, config), timeout=max(timeout + 5, 60)
-        )
+        result = _run_async(test_server_connection(name, config), timeout=max(timeout + 5, 60))
         if isinstance(result, dict):
             return json.dumps(
                 {

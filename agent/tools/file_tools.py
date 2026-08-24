@@ -341,11 +341,13 @@ def _handle_glob(args: dict) -> str:
         for fpath in root.rglob(pattern):
             try:
                 rel = str(fpath.relative_to(root))
-                results.append({
-                    "path": rel,
-                    "is_dir": fpath.is_dir(),
-                    "size": fpath.stat().st_size if fpath.is_file() else 0,
-                })
+                results.append(
+                    {
+                        "path": rel,
+                        "is_dir": fpath.is_dir(),
+                        "size": fpath.stat().st_size if fpath.is_file() else 0,
+                    }
+                )
             except OSError:
                 continue
             if len(results) >= limit:
@@ -517,7 +519,10 @@ GLOB_SCHEMA = {
     "parameters": {
         "type": "object",
         "properties": {
-            "pattern": {"type": "string", "description": "Glob pattern to match (e.g. '**/*.py', 'src/**/*.tsx', '*test*'). Supports ** for recursive matching, * for wildcard, ? for single char."},
+            "pattern": {
+                "type": "string",
+                "description": "Glob pattern to match (e.g. '**/*.py', 'src/**/*.tsx', '*test*'). Supports ** for recursive matching, * for wildcard, ? for single char.",
+            },
             "path": {"type": "string", "description": "Directory to search in", "default": "."},
             "limit": {"type": "integer", "description": "Max results to return", "default": 100},
             "sort": {

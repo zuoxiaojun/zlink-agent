@@ -609,9 +609,7 @@ class TestNewKernelPath:
                 return self.inner.chat(**kwargs)
 
         provider = _GatedProvider(
-            MockLLMProvider(
-                responses=[make_text_response("a"), make_text_response("b"), make_text_response("c")]
-            )
+            MockLLMProvider(responses=[make_text_response("a"), make_text_response("b"), make_text_response("c")])
         )
         agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=5)
         agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)

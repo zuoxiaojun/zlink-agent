@@ -73,14 +73,23 @@ def _unknown(**kwargs: object) -> str:
 
 
 registry.register(
-    name=TOOL_SEARCH_NAME, toolset="tool_search",
-    schema=_TOOL_SEARCH_STUB, handler=_unknown, emoji="🔍",
+    name=TOOL_SEARCH_NAME,
+    toolset="tool_search",
+    schema=_TOOL_SEARCH_STUB,
+    handler=_unknown,
+    emoji="🔍",
 )
 registry.register(
-    name=TOOL_DESCRIBE_NAME, toolset="tool_search",
-    schema=_TOOL_DESCRIBE_STUB, handler=_unknown, emoji="📖",
+    name=TOOL_DESCRIBE_NAME,
+    toolset="tool_search",
+    schema=_TOOL_DESCRIBE_STUB,
+    handler=_unknown,
+    emoji="📖",
 )
 registry.register(
-    name=TOOL_CALL_NAME, toolset="tool_search",
-    schema=_TOOL_CALL_STUB, handler=_unknown, emoji="📞",
+    name=TOOL_CALL_NAME,
+    toolset="tool_search",
+    schema=_TOOL_CALL_STUB,
+    handler=_unknown,
+    emoji="📞",
 )

@@ -252,9 +252,7 @@ def test_add_server_stdio_missing_command_returns_error(mgmt_env):
 def test_add_server_http_missing_url_returns_error(mgmt_env):
     from agent.tools.mcp_management_tool import mcp_add_server
 
-    result = json.loads(
-        mcp_add_server({"name": "no-url", "transport": "http"})
-    )
+    result = json.loads(mcp_add_server({"name": "no-url", "transport": "http"}))
     assert result["success"] is False
     assert "url" in result["error"]
 
@@ -264,9 +262,7 @@ def test_add_server_duplicate_returns_error(mgmt_env, isolated_config):
 
     _add_server_to_config(isolated_config, "dup-server", command="echo")
 
-    result = json.loads(
-        mcp_add_server({"name": "dup-server", "command": "echo", "args": []})
-    )
+    result = json.loads(mcp_add_server({"name": "dup-server", "command": "echo", "args": []}))
     assert result["success"] is False
     assert "已存在" in result["error"]
 

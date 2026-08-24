@@ -60,12 +60,14 @@ HHI 集中度：sum(产品占比²)，>0.4 为极高集中
 ```python
 # 正确方式
 upload = requests.post(
-    'https://open.feishu.cn/open-apis/im/v1/files?receive_id_type=open_id',
-    headers={'Authorization': f'Bearer {tat}'},
-    data={'file_name': fname, 'file_type': 'stream', 'receive_id': OPEN_ID},
-    files={'file': (fname, f.read(), 'application/octet-stream')}
+    "https://open.feishu.cn/open-apis/im/v1/files?receive_id_type=open_id",
+    headers={"Authorization": f"Bearer {tat}"},
+    data={"file_name": fname, "file_type": "stream", "receive_id": OPEN_ID},
+    files={"file": (fname, f.read(), "application/octet-stream")},
 )
-uk = upload.json()['data']['file_key']
-requests.post('.../messages?receive_id_type=open_id',
-    json={'receive_id': OPEN_ID, 'msg_type': 'file', 'content': json.dumps({'file_key': uk})})
+uk = upload.json()["data"]["file_key"]
+requests.post(
+    ".../messages?receive_id_type=open_id",
+    json={"receive_id": OPEN_ID, "msg_type": "file", "content": json.dumps({"file_key": uk})},
+)
 ```

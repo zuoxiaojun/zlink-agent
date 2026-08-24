@@ -21,6 +21,7 @@ def get_base_dir() -> Path:
     # agent/utils.py → agent/ → project root
     return Path(__file__).resolve().parent.parent
 
+
 # ── Data directory 解析 ─────────────────────────────────────────────────────
 # v1.5.2 规则 (破坏式清理, 老用户数据目录已物理 rename):
 # 1. ZLINK_DATA_DIR 环境变量

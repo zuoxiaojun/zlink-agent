@@ -117,9 +117,7 @@ def relocate_python_bundle(bundle_dir: str) -> None:
 
     framework_dylib = ver_dir / "Python"
     # The real interpreter is at Resources/Python.app/Contents/MacOS/Python
-    real_interp = (
-        ver_dir / "Resources" / "Python.app" / "Contents" / "MacOS" / "Python"
-    )
+    real_interp = ver_dir / "Resources" / "Python.app" / "Contents" / "MacOS" / "Python"
     stdlib_src = ver_dir / "lib" / "python3.14"
 
     if not framework_dylib.is_file():
@@ -157,9 +155,7 @@ def relocate_python_bundle(bundle_dir: str) -> None:
     # ── Step 3: fix dylib load paths ──
     dylib_rpath = "@executable_path/../lib/libpython3.14.dylib"
 
-    otool_out = subprocess.check_output(
-        ["otool", "-L", str(venv_python)], text=True
-    )
+    otool_out = subprocess.check_output(["otool", "-L", str(venv_python)], text=True)
     old_dylib_paths = []
     for line in otool_out.splitlines():
         line = line.strip()
@@ -170,25 +166,33 @@ def relocate_python_bundle(bundle_dir: str) -> None:
     for old in old_dylib_paths:
         subprocess.run(
             ["install_name_tool", "-change", old, dylib_rpath, str(venv_python)],
-            check=True, capture_output=True, text=True,
+            check=True,
+            capture_output=True,
+            text=True,
         )
         print(f"  ✅  Fixed interpreter: {old} -> {dylib_rpath}")
 
     # Fix the dylib's own install name
     subprocess.run(
         ["install_name_tool", "-id", dylib_rpath, str(dylib_dst)],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     print(f"  ✅  Fixed dylib install name -> {dylib_rpath}")
 
     # ── Step 4: ad-hoc re-sign ──
     subprocess.run(
         ["codesign", "--force", "--sign", "-", str(venv_python)],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     subprocess.run(
         ["codesign", "--force", "--sign", "-", str(dylib_dst)],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     print("  ✅  Ad-hoc re-signed binaries")
 
@@ -197,14 +201,17 @@ def relocate_python_bundle(bundle_dir: str) -> None:
 
     subprocess.run(
         [
-            "rsync", "-a",
+            "rsync",
+            "-a",
             "--exclude=__pycache__",
             "--exclude=*.pyc",
             "--exclude=/site-packages",  # preserve venv's site-packages
             f"{stdlib_src}/",
             f"{stdlib_dst}/",
         ],
-        check=True, capture_output=True, text=True,
+        check=True,
+        capture_output=True,
+        text=True,
     )
     print(f"  ✅  Copied stdlib ({dir_size_mb(str(stdlib_dst))})")
 
@@ -233,7 +240,9 @@ def relocate_python_bundle(bundle_dir: str) -> None:
     for mod_name in ("sys", "pydantic", "pydantic_core", "cryptography"):
         result = subprocess.run(
             [str(venv_python), "-c", f"import {mod_name}"],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True,
+            text=True,
+            timeout=30,
             cwd=str(bundle),
         )
         if result.returncode == 0:
@@ -259,9 +268,7 @@ def _relocate_homebrew_dylibs(bundle: Path) -> None:
     deps: dict[str, str] = {}  # old_path -> resolved real path
     for so in so_files:
         try:
-            out = subprocess.check_output(
-                ["otool", "-L", str(so)], text=True
-            ).splitlines()
+            out = subprocess.check_output(["otool", "-L", str(so)], text=True).splitlines()
         except subprocess.CalledProcessError:
             continue
         for line in out:
@@ -278,8 +285,8 @@ def _relocate_homebrew_dylibs(bundle: Path) -> None:
 
     # Iteratively resolve transitive dependencies: bundle dylibs, scan them
     # for remaining Homebrew refs, and repeat until clean.
-    name_map: dict[str, str] = {}      # old_path -> dylib filename
-    bundled_real: set[str] = set()     # real paths already copied
+    name_map: dict[str, str] = {}  # old_path -> dylib filename
+    bundled_real: set[str] = set()  # real paths already copied
 
     for old_path in deps:
         name_map[old_path] = os.path.basename(old_path)
@@ -296,9 +303,10 @@ def _relocate_homebrew_dylibs(bundle: Path) -> None:
                 shutil.copy2(real_path, local_path)
                 os.chmod(local_path, 0o755)
                 subprocess.run(
-                    ["install_name_tool", "-id",
-                     f"@executable_path/../lib/{dylib_name}", str(local_path)],
-                    check=False, capture_output=True, text=True,
+                    ["install_name_tool", "-id", f"@executable_path/../lib/{dylib_name}", str(local_path)],
+                    check=False,
+                    capture_output=True,
+                    text=True,
                 )
             bundled_real.add(real_path)
 
@@ -308,9 +316,7 @@ def _relocate_homebrew_dylibs(bundle: Path) -> None:
         if not local_path.is_file():
             continue
         try:
-            out = subprocess.check_output(
-                ["otool", "-L", str(local_path)], text=True
-            ).splitlines()
+            out = subprocess.check_output(["otool", "-L", str(local_path)], text=True).splitlines()
         except subprocess.CalledProcessError:
             continue
         for line in out:
@@ -340,7 +346,9 @@ def _relocate_homebrew_dylibs(bundle: Path) -> None:
             try:
                 subprocess.run(
                     ["install_name_tool", "-change", old_path, new_path, str(binary)],
-                    check=True, capture_output=True, text=True,
+                    check=True,
+                    capture_output=True,
+                    text=True,
                 )
             except subprocess.CalledProcessError:
                 pass  # reference not in this binary
@@ -350,7 +358,9 @@ def _relocate_homebrew_dylibs(bundle: Path) -> None:
         if f.is_file():
             subprocess.run(
                 ["codesign", "--force", "--sign", "-", str(f)],
-                check=False, capture_output=True, text=True,
+                check=False,
+                capture_output=True,
+                text=True,
             )
 
     # Create symlink aliases when the old_path basename differs from the
@@ -394,7 +404,9 @@ def _fix_rpath_self_references(bundle: Path) -> None:
             try:
                 subprocess.run(
                     ["install_name_tool", "-id", loader_path, str(so)],
-                    check=True, capture_output=True, text=True,
+                    check=True,
+                    capture_output=True,
+                    text=True,
                 )
                 print(f"  ✅  Fixed @rpath self-ref: {so.relative_to(bundle)} -> {loader_path}")
                 fixed += 1
@@ -409,7 +421,9 @@ def _fix_rpath_self_references(bundle: Path) -> None:
                 try:
                     subprocess.run(
                         ["install_name_tool", "-change", old, new, str(so)],
-                        check=True, capture_output=True, text=True,
+                        check=True,
+                        capture_output=True,
+                        text=True,
                     )
                     print(f"  ✅  Fixed @rpath dep: {so.relative_to(bundle)}: {old} -> {new}")
                     fixed += 1
@@ -430,7 +444,9 @@ def _fix_rpath_self_references(bundle: Path) -> None:
                 try:
                     subprocess.run(
                         ["install_name_tool", "-change", old, new, str(dylib)],
-                        check=True, capture_output=True, text=True,
+                        check=True,
+                        capture_output=True,
+                        text=True,
                     )
                     print(f"  ✅  Fixed @rpath dylib: {dylib.relative_to(bundle)}: {old} -> {new}")
                     fixed += 1
@@ -441,8 +457,8 @@ def _fix_rpath_self_references(bundle: Path) -> None:
         print(f"  ✅  Fixed {fixed} @rpath reference(s) in native extensions")
         # Re-sign after changes
         for so in so_files:
-            subprocess.run(["codesign", "--force", "--sign", "-", str(so)],
-                           check=False, capture_output=True, text=True)
+            subprocess.run(["codesign", "--force", "--sign", "-", str(so)], check=False, capture_output=True, text=True)
         for dylib in (bundle / "lib").glob("*.dylib"):
-            subprocess.run(["codesign", "--force", "--sign", "-", str(dylib)],
-                           check=False, capture_output=True, text=True)
+            subprocess.run(
+                ["codesign", "--force", "--sign", "-", str(dylib)], check=False, capture_output=True, text=True
+            )

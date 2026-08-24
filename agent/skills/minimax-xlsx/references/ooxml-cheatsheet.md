@@ -46,6 +46,7 @@ def col_letter(n):  # 1-based → letter
         r = chr(65 + rem) + r
     return r
 
+
 def col_number(s):  # letter → 1-based
     n = 0
     for c in s.upper():

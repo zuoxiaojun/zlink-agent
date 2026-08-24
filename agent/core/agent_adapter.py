@@ -25,9 +25,15 @@ from agent.core.kernel_types import (
     AgentEnd,
     AgentEvent,
     AgentLoopConfig,
+    AgentStart,
     CancelToken,
     LLMRetry,
+    MessageEnd,
     MessageUpdate,
+    ToolExecutionEnd,
+    ToolExecutionStart,
+    TurnEnd,
+    TurnStart,
     TurnUpdate,
 )
 from agent.core.llm_client import LLMClient, LLMResponse
@@ -60,6 +66,7 @@ logger = logging.getLogger(__name__)
 _ERP_LABELS: dict[str, str] = {
     "yonsuite": "YonSuite",
     "nc": "NC",
+    "u8": "U8",
 }
 
 
@@ -286,9 +293,9 @@ class AIAgent:
 
         self._agent = Agent()
         self._agent.subscribe(self._map_event_to_bus)
-        self._token: CancelToken | None = None
+        self._token: CancelToken = None  # type: ignore[assignment]
         self._token_watcher: asyncio.Task | None = None
-        self._llm_stop_event: threading.Event | None = None
+        self._llm_stop_event: threading.Event = None  # type: ignore[assignment]
         self._budget: IterationBudget | None = None
         self._session_id = ""
         self._history: list[dict] = []
@@ -469,6 +476,13 @@ class AIAgent:
                         from agent.tools import erp_nc_tools
 
                         lines.append(f"    已注册业务表：{erp_nc_tools.get_table_summary()}")
+                    except Exception:
+                        pass
+                if name == "u8":
+                    try:
+                        from agent.tools import erp_u8_tools  # type: ignore[import]
+
+                        lines.append(f"    已注册业务表：{erp_u8_tools.get_table_summary()}")
                     except Exception:
                         pass
                 enabled_count += 1
@@ -726,27 +740,24 @@ class AIAgent:
 
     def _map_event_to_bus(self, event: AgentEvent) -> None:
         """Map AgentEvents → EventBus 8 events (C3) + legacy WS callbacks."""
-        t = event.type
-        if t == "agent_start":
+        if isinstance(event, AgentStart):
             self._saw_agent_start = True
-        elif t == "turn_start":
+        elif isinstance(event, TurnStart):
             if self._saw_agent_start and not self._session_started:
                 self._session_started = True
                 event_bus.publish(SessionStartEvent(session_id=self._session_id, history=self._history))
-        elif t == "message_update":
+        elif isinstance(event, MessageUpdate):
             if event.delta and self._stream_cb:
                 self._stream_cb(event.delta)
             if event.reasoning_delta and self._reasoning_cb:
                 self._reasoning_cb(event.reasoning_delta)
-        elif t == "message_end":
+        elif isinstance(event, MessageEnd):
             m = event.message
             if m.get("role") == "assistant" and "tool_calls" not in m and not m.get("is_error"):
                 self._final_response = m.get("content", "")
             if m.get("is_error") and m.get("errorMessage"):
-                # Surface the real LLM failure (e.g. "HTTP 429 …额度已用完")
-                # instead of the generic "Max iterations reached" fallback.
                 self._error = m["errorMessage"]
-        elif t == "tool_execution_start":
+        elif isinstance(event, ToolExecutionStart):
             try:
                 args_str = json.dumps(event.args, ensure_ascii=False)[:200]
             except (TypeError, ValueError):
@@ -754,15 +765,15 @@ class AIAgent:
             if self.tool_call_callback:
                 self.tool_call_callback(event.tool_name, args_str)
             self._report(f"🔧 执行工具: {event.tool_name} | {args_str}")
-        elif t == "tool_execution_end":
+        elif isinstance(event, ToolExecutionEnd):
             if self.tool_result_callback:
                 self.tool_result_callback(event.tool_name, event.result)
-        elif t == "turn_end":
+        elif isinstance(event, TurnEnd):
             if event.tool_results:
                 self._report(f"✅ 工具执行完成 (第 {self._turn_count} 轮)")
                 if self._stream_cb:
                     self._stream_cb("\n\n---\n✅ **工具执行完成**\n")
-        elif t == "agent_end":
+        elif isinstance(event, AgentEnd):
             self._publish_session_end()
 
     async def _call_llm_hook(

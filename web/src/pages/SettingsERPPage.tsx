@@ -35,7 +35,12 @@ const ERP_REGISTRY: Record<string, ErpMeta> = {
     fields: [
       { key: "tenant_id", label: "Tenant ID", type: "text" },
       { key: "app_key", label: "App Key", type: "password", secret: true },
-      { key: "app_secret", label: "App Secret", type: "password", secret: true },
+      {
+        key: "app_secret",
+        label: "App Secret",
+        type: "password",
+        secret: true,
+      },
     ],
   },
   nc: {
@@ -45,10 +50,43 @@ const ERP_REGISTRY: Record<string, ErpMeta> = {
     fields: [
       { key: "host", label: "Host", type: "text" },
       { key: "port", label: "Port", type: "text", placeholder: "默认 1521" },
-      { key: "service", label: "Service", type: "text", placeholder: "默认 orcl" },
+      {
+        key: "service",
+        label: "Service",
+        type: "text",
+        placeholder: "默认 orcl",
+      },
       { key: "user", label: "User", type: "text" },
       { key: "password", label: "Password", type: "password", secret: true },
-      { key: "max_rows", label: "Max Rows", type: "number", placeholder: "默认 200" },
+      {
+        key: "max_rows",
+        label: "Max Rows",
+        type: "number",
+        placeholder: "默认 200",
+      },
+    ],
+  },
+  u8: {
+    label: "U8",
+    badge: "内置",
+    description: "用友 U8+（SQL Server 数据库）",
+    fields: [
+      { key: "host", label: "Host", type: "text" },
+      { key: "port", label: "Port", type: "text", placeholder: "默认 1433" },
+      {
+        key: "database",
+        label: "Database",
+        type: "text",
+        placeholder: "默认 UFDATA_001_2024",
+      },
+      { key: "user", label: "User", type: "text" },
+      { key: "password", label: "Password", type: "password", secret: true },
+      {
+        key: "max_rows",
+        label: "Max Rows",
+        type: "number",
+        placeholder: "默认 200",
+      },
     ],
   },
 };
@@ -70,24 +108,28 @@ export default function SettingsERPPage() {
   const [configs, setConfigs] = useState<Record<ErpName, ErpConfig | null>>({
     yonsuite: null,
     nc: null,
+    u8: null,
   });
 
   const [toast, setToast] = useState<Toast | null>(null);
   const [togglingName, setTogglingName] = useState<ErpName | null>(null);
   const [savingName, setSavingName] = useState<ErpName | null>(null);
   const [testingName, setTestingName] = useState<ErpName | null>(null);
-  const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string } | null>>({});
+  const [testResults, setTestResults] = useState<
+    Record<string, { ok: boolean; message: string } | null>
+  >({});
 
   useEffect(() => {
     void loadAll();
   }, []);
 
   const loadAll = async () => {
-    const [ys, ncData] = await Promise.all([
+    const [ys, ncData, u8Data] = await Promise.all([
       api.get<ErpConfig>("/config/erp-clients/yonsuite").catch(() => null),
       api.get<ErpConfig>("/config/erp-clients/nc").catch(() => null),
+      api.get<ErpConfig>("/config/erp-clients/u8").catch(() => null),
     ]);
-    setConfigs({ yonsuite: ys, nc: ncData });
+    setConfigs({ yonsuite: ys, nc: ncData, u8: u8Data });
   };
 
   const switchTab = (tab: ErpName) => {
@@ -120,12 +162,12 @@ export default function SettingsERPPage() {
       });
       setConfigs((prev) => ({ ...prev, [name]: updated }));
 
-      showToast(
-        "success",
-        `${meta.label} 已${newEnabled ? "启用" : "停用"}`,
-      );
+      showToast("success", `${meta.label} 已${newEnabled ? "启用" : "停用"}`);
     } catch (e: unknown) {
-      showToast("error", `更新 ${meta.label} 配置失败：${e instanceof Error ? e.message : String(e)}`);
+      showToast(
+        "error",
+        `更新 ${meta.label} 配置失败：${e instanceof Error ? e.message : String(e)}`,
+      );
     } finally {
       setTogglingName(null);
     }
@@ -137,11 +179,17 @@ export default function SettingsERPPage() {
     if (!cfg) return;
     setSavingName(name);
     try {
-      const updated = await api.put<ErpConfig>(`/config/erp-clients/${name}`, cfg);
+      const updated = await api.put<ErpConfig>(
+        `/config/erp-clients/${name}`,
+        cfg,
+      );
       setConfigs((prev) => ({ ...prev, [name]: updated }));
       showToast("success", `${meta.label} 连接信息已保存`);
     } catch (e: unknown) {
-      showToast("error", `保存失败：${e instanceof Error ? e.message : String(e)}`);
+      showToast(
+        "error",
+        `保存失败：${e instanceof Error ? e.message : String(e)}`,
+      );
     } finally {
       setSavingName(null);
     }
@@ -164,7 +212,10 @@ export default function SettingsERPPage() {
     } catch (e: unknown) {
       setTestResults((prev) => ({
         ...prev,
-        [name]: { ok: false, message: `测试失败：${e instanceof Error ? e.message : String(e)}` },
+        [name]: {
+          ok: false,
+          message: `测试失败：${e instanceof Error ? e.message : String(e)}`,
+        },
       }));
     } finally {
       setTestingName(null);
@@ -185,14 +236,18 @@ export default function SettingsERPPage() {
           className={`toast toast-${toast.kind === "warn" ? "error" : toast.kind}`}
           style={{ alignItems: "center" }}
         >
-          {toast.kind === "success" ? <IconCircleCheck size={14} /> : <IconAlertCircle size={14} />}
+          {toast.kind === "success" ? (
+            <IconCircleCheck size={14} />
+          ) : (
+            <IconAlertCircle size={14} />
+          )}
           {toast.msg}
         </div>
       )}
 
       <p className="page-intro">
-        ZLink Agent 通过 <strong>ERP 客户端</strong> 接入各业务系统。切换页签管理 YonSuite
-        与 NC 的连接信息。
+        ZLink Agent 通过 <strong>ERP 客户端</strong>{" "}
+        接入各业务系统。切换页签管理 YonSuite 与 NC 的连接信息。
       </p>
 
       <div className="erp-tabs">
@@ -223,7 +278,9 @@ export default function SettingsERPPage() {
                   fontSize: 11,
                   padding: "1px 6px",
                   borderRadius: 10,
-                  background: isActive ? "rgba(255,255,255,0.25)" : "var(--bg-hover)", // dynamic: isActive
+                  background: isActive
+                    ? "rgba(255,255,255,0.25)"
+                    : "var(--bg-hover)", // dynamic: isActive
                   color: isActive ? "#fff" : "var(--text-3)", // dynamic: isActive
                 }}
               >
@@ -293,7 +350,7 @@ function ErpTabPanel({
           <div className="skeleton skeleton-text" />
           <div className="skeleton skeleton-text" />
         </div>
-    </div>
+      </div>
     );
   }
 
@@ -304,9 +361,7 @@ function ErpTabPanel({
       <div className="card-header">
         <div>
           <h2 className="card-title">{meta.label}</h2>
-          <p className="card-subtitle-sm">
-            {meta.description}
-          </p>
+          <p className="card-subtitle-sm">{meta.description}</p>
         </div>
 
         <button
@@ -349,22 +404,37 @@ function ErpTabPanel({
               <div className="card-body field-value">
                 {field.secret && config[field.key]
                   ? "••••••••"
-                  : (config[field.key] == null ? "（未设置）" : String(config[field.key]))}
+                  : config[field.key] == null
+                    ? "（未设置）"
+                    : String(config[field.key])}
               </div>
             </div>
           ))}
           <div className="card-actions">
-            <button className="btn btn-primary" onClick={() => setEditing(true)}>
+            <button
+              className="btn btn-primary"
+              onClick={() => setEditing(true)}
+            >
               <IconPencil size={14} /> 编辑
             </button>
-            <button className="btn btn-secondary" onClick={onTest} disabled={isTesting}>
+            <button
+              className="btn btn-secondary"
+              onClick={onTest}
+              disabled={isTesting}
+            >
               {isTesting ? <IconLoader size={14} className="spin" /> : null}
               测试连接
             </button>
           </div>
           {testResult && (
-            <div className={testResult.ok ? "test-result-ok" : "test-result-error"}>
-              {testResult.ok ? <IconCircleCheck size={14} /> : <IconAlertCircle size={14} />}
+            <div
+              className={testResult.ok ? "test-result-ok" : "test-result-error"}
+            >
+              {testResult.ok ? (
+                <IconCircleCheck size={14} />
+              ) : (
+                <IconAlertCircle size={14} />
+              )}
               {testResult.message}
             </div>
           )}
@@ -377,26 +447,49 @@ function ErpTabPanel({
               <input
                 className="form-input"
                 type={field.type}
-                value={config[field.key] == null ? "" : String(config[field.key])}
+                value={
+                  config[field.key] == null ? "" : String(config[field.key])
+                }
                 placeholder={
                   field.placeholder ??
-                  (field.secret && config[field.key] ? "（已设置，留空保持原值）" : "")
+                  (field.secret && config[field.key]
+                    ? "（已设置，留空保持原值）"
+                    : "")
                 }
                 onChange={(e) =>
                   onUpdateField(
                     field.key,
-                    field.type === "number" ? Number(e.target.value) : e.target.value,
+                    field.type === "number"
+                      ? Number(e.target.value)
+                      : e.target.value,
                   )
                 }
               />
             </div>
           ))}
           <div className="card-actions">
-            <button className="btn btn-primary" onClick={async () => { await onSave(); setEditing(false); }} disabled={isSaving}>
-              {isSaving ? <IconLoader size={14} className="spin" /> : <IconDeviceFloppy size={14} />}
+            <button
+              className="btn btn-primary"
+              onClick={async () => {
+                await onSave();
+                setEditing(false);
+              }}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <IconLoader size={14} className="spin" />
+              ) : (
+                <IconDeviceFloppy size={14} />
+              )}
               保存
             </button>
-            <button className="btn btn-secondary" onClick={() => { setEditing(false); onCancelEdit(); }}>
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                setEditing(false);
+                onCancelEdit();
+              }}
+            >
               取消
             </button>
           </div>

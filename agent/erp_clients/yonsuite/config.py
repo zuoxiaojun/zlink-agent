@@ -72,9 +72,7 @@ class Config:
     def is_configured(cls) -> bool:
         """检查配置是否完整（实时读取环境变量，支持运行时注入）"""
         return bool(
-            os.getenv("YONSUITE_APP_KEY")
-            and os.getenv("YONSUITE_APP_SECRET")
-            and os.getenv("YONSUITE_TENANT_ID")
+            os.getenv("YONSUITE_APP_KEY") and os.getenv("YONSUITE_APP_SECRET") and os.getenv("YONSUITE_TENANT_ID")
         )
 
 

@@ -40,9 +40,10 @@ HHI: 0.7356（极度集中）
 ```python
 # 快速发现异常日期
 from collections import defaultdict
+
 daily = defaultdict(float)
 for r in records:
-    daily[str(r.get('vouchdate',''))[:10]] += float(r.get('payMoney') or 0)
+    daily[str(r.get("vouchdate", ""))[:10]] += float(r.get("payMoney") or 0)
 for k in sorted(daily, key=lambda x: -daily[x]):
-    print(f'{k}: {daily[k]/10000:.1f}万')
+    print(f"{k}: {daily[k] / 10000:.1f}万")
 ```

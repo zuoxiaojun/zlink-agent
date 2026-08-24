@@ -4,11 +4,11 @@
 
 ## 1. Project Overview
 
-ZLink Agent (智链 Agent) is an AI assistant with multi-ERP (YonSuite / NC / extensible) data retrieval, built-in MCP server management, a skill system, and long-term memory.
+ZLink Agent (智链 Agent) is an AI assistant with multi-ERP (YonSuite / NC / U8 / extensible) data retrieval, built-in MCP server management, a skill system, and long-term memory.
 
 **Stack:** Python 3.11+ / FastAPI (port 8089) / React + Vite (port 8088) / MCP JSON-RPC / SQLite FTS5 / pytest / ruff
 
-**Tests:** 371 tests, ~1.4s, zero network/LLM deps. Run: `.venv/bin/python -m pytest tests/ -v`
+**Tests:** 526 tests, ~8s, zero network/LLM deps. Run: `.venv/bin/python -m pytest tests/ -v`
 
 ## 2. Directory Structure
 
@@ -32,10 +32,11 @@ zlink-agent/
 │   │   ├── message_builder.py  # build_system_prompt(), build_turn_messages()
 │   │   ├── tool_dispatcher.py  # dispatch_tool_batch（并行/保序/sequential 降级）
 │   │   └── iteration_budget.py # IterationBudget — 纯计数器（消费点在 should_stop_after_turn 钩子）
-│   ├── tools/                  # 24 files, 57 tools — one file per toolset
+│   ├── tools/                  # 25 files, 61 tools — one file per toolset
 │   │   ├── registry.py         # ❌ ToolRegistry singleton — extend via register() only
 │   │   ├── erp_ys_tools.py     # ⚠️ YonSuite 内置取数工具 (11 个, 替代旧 MCP 子进程)
 │   │   ├── erp_nc_tools.py     # ⚠️ NC 内置取数工具 (4 个, 替代旧 MCP 子进程)
+│   │   ├── erp_u8_tools.py     # ⚠️ U8 内置取数工具 (4 个, pymssql 直连 SQL Server)
 │   │   ├── mcp_manager.py      # ⚠️ MCP connections, circuit breaker, JSON-RPC
 │   │   ├── security_hooks.py   # ❌ three-layer security enforcement
 │   │   └── ...                 # 18 个常驻 + 36 个延迟（tool_search 桥）+ 3 个桥工具
@@ -52,12 +53,12 @@ zlink-agent/
 │   ├── fact_memory.py          # autonomous memory (notes + user profile)
 │   ├── slash_commands.py       # /help /model /compact /clear /login /cost
 │   ├── utils.py                # DATA_DIR, atomic_json_write, _resolve_data_dir
-│   ├── erp_clients/            # ERP SDK clients (yonsuite, nc)
+│   ├── erp_clients/            # ERP SDK clients (yonsuite, nc; U8 直连 SQL Server 无需 SDK)
 │   └── skills/                 # ❌ built-in skills (read-only, not editable/deletable)
 ├── web/                        # React + Vite frontend (port 8088)
 │   ├── src/                    # App.tsx (10 routes ⚠️), pages/, api/, components/, styles/, hooks/
 │   └── vite.config.ts          # ⚠️ proxy /api + /ws → backend:8089
-├── tests/                      # 33 files, 395 tests; conftest.py = shared fixtures
+├── tests/                      # 33 files, 526 tests; conftest.py = shared fixtures
 ├── scripts/                    # build-electron.sh, zlink.sh, migrate.py
 └── data/                       # runtime data (~/.zlink-agent/data/):
                                 #   config.json (chmod 0600), active_skills.json, skills/,
@@ -97,8 +98,10 @@ frontend WS → backend/api/chat.py (_run_agent_new 直接 await)
 ### Flow C: ERP config save → env injection
 
 `PUT /api/config/erp-clients/{name}` → `erp_clients_api.py` merges + writes `config.json` → `_apply_erp_env(name, cfg)`:
+
 - `nc` → injects `ORACLE_HOST/PORT/SERVICE/USER/PASSWORD` into `os.environ`
 - `yonsuite` → injects `YONSUITE_APP_KEY/SECRET/TENANT_ID/GATEWAY_URL`
+- `u8` → injects `U8_HOST/PORT/DATABASE/USER/PASSWORD/MAX_ROWS` into `os.environ`
 
 Built-in tools (`agent/tools/erp_*_tools.py`) read these env vars and connect directly.
 
@@ -115,7 +118,7 @@ Built-in tools (`agent/tools/erp_*_tools.py`) read these env vars and connect di
 - **Pi 风格新内核**：`agent/core/loop.py` 零策略 async loop + `kernel_types.py` 类型契约；`chat.py` 直接 await（`_run_agent_new` → `run_conversation_async`），不再跑 `run_in_executor`。
 - **SSE parsing** in `openai_compat.py` handles both `data: {json}` (standard) and `data:{json}` (custom gateway) formats.
 - **Reasoning pipe** is a separate channel (`reasoning_callback`), not mixed with content — frontend renders it grey italic via `.reasoning-content`.
-- **ERP isolation**: only `enabled=true` ERP 的内置工具注册进 LLM 工具列表；禁用的系统对 LLM 不可见。
+- **ERP isolation**: only `enabled=true` ERP 的内置工具注册进 LLM 工具列表；禁用的系统对 LLM 不可见。每个 ERP 有独立 `check_fn` 门控，互不干扰。
 - **Version number** single source of truth: `pyproject.toml` (see §10).
 
 ## 4. Key Contracts (do not break)
@@ -157,7 +160,7 @@ Built-in tools (`agent/tools/erp_*_tools.py`) read these env vars and connect di
 ### ❌ Do-Not-Modify Zones
 
 | Path | Reason |
-|------|--------|
+| ------ | -------- |
 | `agent/skills/<name>/SKILL.md` | Built-in skills — API rejects DELETE/EDIT on builtin=True |
 | `agent/tools/registry.py` | Tool dispatch hub — extend via `register()`, never edit internals |
 | `agent/tools/security_hooks.py` | Three-layer security — modifying weakens the protection model |
@@ -166,7 +169,7 @@ Built-in tools (`agent/tools/erp_*_tools.py`) read these env vars and connect di
 ### ⚠️ Modify-With-Caution Zones
 
 | Path | Risk |
-|------|------|
+| ------ | ------ |
 | `agent/core/agent.py` | Constructor frozen; changing `run_conversation()` return keys breaks `chat.py` |
 | `agent/core/llm_providers/base.py` | LLMResponse field names consumed by `agent.py` and extensions |
 | `agent/events/types.py` | Event field names are contracts — extensions read them by name |
@@ -174,11 +177,11 @@ Built-in tools (`agent/tools/erp_*_tools.py`) read these env vars and connect di
 
 ### Naming Conventions
 
-- **ERP 工具名**：内置工具用业务名（`ys_api`、`nc_query`）；MCP 工具用 `mcp_<server_name>_<tool_name>`（如 `mcp_chart_chart_query`）
+- **ERP 工具名**：内置工具用业务名（`ys_*`、`nc_*`、`u8_*`）；MCP 工具用 `mcp_<server_name>_<tool_name>`（如 `mcp_chart_chart_query`）
 - **API routes**: all under `/api/*`, RESTful (`GET/POST /api/resources`), routers in `backend/api/`
 - **Test files**: `tests/test_<module_name>.py`
 - **Tool modules**: one file per toolset in `agent/tools/`
-- **ERP client modules**: named after ERP system (yonsuite, nc)
+- **ERP client modules**: named after ERP system (yonsuite, nc; U8 直连 SQL Server 无需 SDK client)
 
 ### Security Three-Layer Protection
 
@@ -209,24 +212,31 @@ To add a blocked pattern: edit `agent/tools/security_hooks.py` or `agent/extensi
 ## 7. Common Modification Patterns
 
 **A. Add a new ERP system:**
-1. ERP client class in `agent/erp_clients/<name>/` (if SDK needed)
+
+1. ERP client class in `agent/erp_clients/<name>/` (if SDK needed; U8 直连 SQL Server 无需 SDK)
 2. Entry in `ERP_REGISTRY` in `web/src/pages/SettingsERPPage.tsx` (label, badge, fields)
 3. Secret field names → `SECRET_FIELDS` in `backend/api/erp_clients_api.py` (drives read-time masking + write semantics)
-4. Built-in tools in `agent/tools/erp_<name>_tools.py` (or MCP server if required)
-5. `_apply_erp_env()` injection logic in `erp_clients_api.py`
-6. Toggle logic in `erp_clients_api.py` PUT handler
+4. `_apply_erp_env()` injection logic in `erp_clients_api.py`
+5. `_ERP_LABELS` in `agent/core/agent_adapter.py` (human label for system prompt)
+6. `_build_erp_context()` in `agent_adapter.py` (table summary injection for enabled U8)
+7. Built-in tools in `agent/tools/erp_<name>_tools.py` (4 tools: `u8_query`, `u8_list_tables`, `u8_describe_table`, `u8_raw_sql`)
+8. `backend/main.py` lifespan (env var injection via `os.environ.setdefault`)
+9. PyInstaller known_tools list in `registry.py` (for frozen mode)
 
 **B. Add a new tool:**
+
 1. New file `agent/tools/<new_tool>.py`
 2. Handler `(args: dict) → str` (JSON)
 3. `registry.register(name, toolset, schema, handler)` at module level → auto-registers via `discover_tools()`
 
 **C. Add a new MCP server:**
+
 1. MCP server implementing JSON-RPC over stdio or HTTP
 2. `MCPServerEntry` in config.json `mcp_servers`
 3. Builtin → add to `main.py` lifespan auto-registration; `builtin=True` forbids delete, non-builtin allows full CRUD
 
 **D. Add a new API route:**
+
 1. `backend/api/<name>_api.py` with `APIRouter` (+ Pydantic schemas in `backend/schemas/` if needed)
 2. Mount in `backend/main.py`: `app.include_router(router)` (WebSocket → `backend/api/chat.py`)
 3. Frontend (if consumed): API client in `web/src/api/`, page in `web/src/pages/`, route in `App.tsx`
@@ -250,7 +260,7 @@ pip install -r requirements.txt && cd web && npm ci && cd ..
 ruff check . && ruff format --check .     # check
 ruff check --fix . && ruff format .       # auto-fix
 
-# Verify tool registration (expect ~57 tools)
+# Verify tool registration (expect ~61 tools)
 .venv/bin/python -c "from agent.tools.registry import registry, discover_tools; discover_tools(); print(len(registry.get_all_tool_names()), 'tools')"
 
 # Build
@@ -259,16 +269,18 @@ bash scripts/build-electron.sh            # macOS .dmg; --win → .exe; --linux 
 
 ## 9. ERP Setup (UI)
 
-Settings → ERP → `yonsuite` / `nc` tab.
+Settings → ERP → `yonsuite` / `nc` / `u8` tab.
 
-- **YonSuite:** App Key / App Secret / Tenant ID → Save (written to `config.json`, 0600) → Test Connection → Enable → 11 tools (`ys_api`, `query_sale_orders`, …) become available.
-- **NC:** Host / Port (1521) / Service (Oracle SID) / User / Password, optional Max Rows (100) → Save (`_apply_erp_env()` injects Oracle env vars) → Test (via oracledb) → Enable → 4 tools (`nc_query`, `nc_list_tables`, …).
+- **YonSuite:** App Key / App Secret / Tenant ID → Save → Test → Enable → 11 tools (`ys_api`, `query_sale_orders`, …) become available.
+- **NC:** Host / Port (1521) / Service (Oracle SID) / User / Password, optional Max Rows (100) → Save → Test (via oracledb) → Enable → 4 tools (`nc_query`, `nc_list_tables`, …).
+- **U8:** Host / Port (1433) / Database / User / Password, optional Max Rows (200) → Save → Test (via pymssql) → Enable → 4 tools (`u8_query`, `u8_list_tables`, …).
 
 **Troubleshooting:** tools missing after enable → check `GET /api/config/mcp-servers`; connection errors → `~/.zlink-agent/data/logs/app.log`.
 
 ## 10. Build & Release
 
 Version bump (`pyproject.toml` = single source of truth):
+
 1. `pyproject.toml` version field
 2. 根目录 `package.json` version 字段（electron-builder 用它命名 DMG/App 版本，漏改会导致包名版本落后）
 3. `CHANGELOG.md` release notes
@@ -289,11 +301,13 @@ Build: `bash scripts/build-electron.sh` = frontend build → Python bundle → e
 当单个 Kimi Code 会话积累了大量工具调用和文件改动后，应在 `HANDOVER.md` 记录当前状态以便新会话快速接续。
 
 **何时写：** 以下任一条件满足时：
+
 - 会话涉及 5+ 个 commit 或 3+ 个文件改动
 - 有重要的架构决策、设计文档或用户明确的策略选择
 - 当前会话即将结束、或上下文已明显变大
 
 **HANDOVER.md 应包含：**
+
 - 当前分支、版本、测试状态、构建产物
 - 改动摘要（commit 列表 + 一句话说明）
 - 关键决策记录（为什么做了/没做什么）
@@ -309,6 +323,8 @@ Build: `bash scripts/build-electron.sh` = frontend build → Python bundle → e
 - **Git remote**: atomgit.com/gcw_cJbJuamU/zlink-agent.git (NOT GitHub)
 - **BROWSER_URL**: start.sh 的 `open` 不能用 `$HOST`（默认 0.0.0.0），设 `BROWSER_URL="http://127.0.0.1:$PORT"`
 - **NC65**: DBILLDATE 是 CHAR 类型，字符串比较；PO_ORDER 用 FORDERSTATUS（0=自由~5=输出）；SO_SALEORDER 用 FSTATUSFLAG
+- **U8 主子表关联键**: 销售订单 `SO_SOMain.ID = SO_SODetails.ID`；采购订单 `PO_Pomain.POID = PO_Podetails.POID`；生产订单 `mom_orderdetail.MoCode` 串联 `mom_moallocate.MoCode`
+- **U8 物料表**: `Inventory`（财务供应链用）与 `bas_part`（生产制造用）通过 `Inventory.cInvCode = bas_part.InvCode` 关联
 - **桌面端网络绑定（2026-07-18）**：PyInstaller 入口默认 bind `127.0.0.1`（可用 `ZLINK_AGENT_HOST` 覆盖）；后端无鉴权，绝不能绑 0.0.0.0 暴露给局域网。Electron 生产模式启动顺序：loading.html → `electron/port.js` 抢占 8089（只杀命令行含 `zlink-backend` 的残留进程，外来进程则弹窗报错）→ 启动后端 → `/api/health` 就绪后加载前端。
 - **`-webkit-app-region` 禁令（2026-07-18 事故）**：任何页面都不得设整页 `-webkit-app-region: drag`——拖拽区是窗口级状态，`loadURL` 换页后残留，整窗点击/悬停全被系统拿去拖窗口且 CDP 查不到（loading.html 曾因此导致打包版点击全灭）。标准做法：仅 `.electron .top-bar` 设 drag（`global.css`，顶栏纯文本无按钮）；hiddenInset 无原生拖动区，需要拖动必须靠此类小区域 CSS。
 - **Chart MCP 打包（2026-07-18）**：build-electron.sh 对 `node_modules/@antv/mcp-server-chart` 跑 `npm install --omit=dev --ignore-scripts` 把依赖装进包目录（extraResources 一并拷贝，约 +29MB）。运行时 node 来源：`ELECTRON_NODE_PATH`（electron/main.js 注入 = Electron 二进制，配 `ELECTRON_RUN_AS_NODE=1`）优先，回退系统 `node`；两个都没有则跳过。内置 chart 条目是**应用托管**的：每次启动强制刷新 command/args/env（只保留用户的 enabled），防止 app 移动位置后旧路径残留导致 chart 永久失效。
@@ -316,12 +332,14 @@ Build: `bash scripts/build-electron.sh` = frontend build → Python bundle → e
 ### ERP 数据源路由（2026-07-13）
 
 两个 Layer 确保 LLM 正确选择 ERP 取数，不再擅自猜测：
+
 - **Layer 1 — System prompt 动态注入**（`message_builder.py` + `agent.py`）：`build_system_prompt()` 的 `erp_context` 参数；`_build_erp_context()` 读 `cfg.erp_clients` 生成启用状态（✅/❌）。1 个启用 → 直接用对应工具；多个启用 → 用户未指明时先问查哪个。每轮重新读配置，开关即时生效。
 - **Layer 2 — 工具描述标注**（`mcp_manager.py`）：`_convert_mcp_tool_schema()` 自动追加 `【数据源：YonSuite/NC】`；仅已知 ERP（`erp_source_labels = {"yonsuite": "YonSuite", "mcp-nc": "NC"}`）加标签，chart 等不加。
 
 ### 缓存路径（2026-07-13 修复）
 
 所有运行时缓存必须写入 `~/.zlink-agent/data/`，而非源码目录（打包后不可写）：
+
 - YonSuite 账簿缓存：`DATA_DIR / "yonsuite_cache" / "cache_accbook.json"`（修复前在 `agent/erp_clients/yonsuite/cache/`）
 - YonSuite Token 缓存：`DATA_DIR / "yonsuite_cache"`（由 `main.py` 设置环境变量 `YONSUITE_CACHE_DIR`）
 

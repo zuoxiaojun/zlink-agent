@@ -272,7 +272,7 @@ class _DDGResultParser(html.parser.HTMLParser):
     def __init__(self) -> None:
         super().__init__()
         self.results: list[dict[str, str | None]] = []
-        self._pending: dict[str, str | None] | None = None
+        self._pending_result: dict[str, str | None] | None = None
         self._collecting: str | None = None  # "title" or "snippet"
         self._depth = 0  # track nested <a> tag depth
 
@@ -281,9 +281,9 @@ class _DDGResultParser(html.parser.HTMLParser):
         if tag == "a":
             cls = attrs_dict.get("class", "")
             if cls == "result__a":
-                if self._pending and self._pending["url"] and self._pending["title"]:
-                    self.results.append(self._pending)
-                self._pending = {"url": attrs_dict.get("href", ""), "title": "", "snippet": ""}
+                if self._pending_result and self._pending_result["url"] and self._pending_result["title"]:
+                    self.results.append(self._pending_result)
+                self._pending_result = {"url": attrs_dict.get("href", ""), "title": "", "snippet": ""}
                 self._collecting = "title"
                 self._depth = 1
             elif cls == "result__snippet":
@@ -291,9 +291,9 @@ class _DDGResultParser(html.parser.HTMLParser):
                 self._depth = 1
 
     def _save_pending(self):
-        if self._pending and self._pending["url"] and self._pending["title"]:
-            self.results.append(self._pending)
-        self._pending = None
+        if self._pending_result and self._pending_result["url"] and self._pending_result["title"]:
+            self.results.append(self._pending_result)
+        self._pending_result = None
         self._collecting = None
 
     def close(self):
@@ -316,10 +316,10 @@ class _DDGResultParser(html.parser.HTMLParser):
             self._collecting = None
 
     def handle_data(self, data: str) -> None:
-        if self._collecting == "title" and self._pending is not None:
-            self._pending["title"] = (self._pending["title"] or "") + data
-        elif self._collecting == "snippet" and self._pending is not None:
-            self._pending["snippet"] = (self._pending["snippet"] or "") + data
+        if self._collecting == "title" and self._pending_result is not None:
+            self._pending_result["title"] = (self._pending_result["title"] or "") + data
+        elif self._collecting == "snippet" and self._pending_result is not None:
+            self._pending_result["snippet"] = (self._pending_result["snippet"] or "") + data
 
 
 def _search_duckduckgo(query: str, limit: int) -> str:
@@ -399,7 +399,7 @@ registry.register(
     schema=WEB_SEARCH_SCHEMA,
     handler=lambda args: web_search_tool(
         query=args.get("query", ""),
-        limit=int(args.get("limit", 5)),
+        limit=int(args.get("limit", 5) or 5),
     ),
     check_fn=_check_web_search,
     emoji="🌐",

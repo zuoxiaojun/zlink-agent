@@ -94,6 +94,18 @@ async def lifespan(application: FastAPI):
             os.environ.setdefault("ORACLE_USER", str(nc_cfg_erp.get("user", "") or ""))
             os.environ.setdefault("ORACLE_PASSWORD", str(nc_cfg_erp.get("password", "") or ""))
             os.environ.setdefault("NC_MCP_MAX_ROWS", str(nc_cfg_erp.get("max_rows", 200) or 200))
+
+    # ── U8: 注入环境变量（内置工具 agent/tools/erp_u8_tools.py 读取） ──
+    u8_cfg_erp = cfg.erp_clients.get("u8", {})
+    if isinstance(u8_cfg_erp, dict):
+        u8_host = u8_cfg_erp.get("host", "") or ""
+        if u8_host:
+            os.environ.setdefault("U8_HOST", u8_host)
+            os.environ.setdefault("U8_PORT", str(u8_cfg_erp.get("port", "") or ""))
+            os.environ.setdefault("U8_DATABASE", str(u8_cfg_erp.get("database", "") or ""))
+            os.environ.setdefault("U8_USER", str(u8_cfg_erp.get("user", "") or ""))
+            os.environ.setdefault("U8_PASSWORD", str(u8_cfg_erp.get("password", "") or ""))
+            os.environ.setdefault("U8_MAX_ROWS", str(u8_cfg_erp.get("max_rows", 500) or 500))
     _lap("erp_env")
 
     # ── Chart MCP server（预置，打包在 Resources/mcp-chart/） ──
@@ -233,7 +245,7 @@ from backend.api.erp_clients_api import router as erp_clients_router
 
 app.include_router(erp_clients_router)
 
-    # ── Serve React frontend static files (for production builds) ──
+# ── Serve React frontend static files (for production builds) ──
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "web" / "dist"
 if _STATIC_DIR.is_dir():
     app.mount("/", StaticFiles(directory=str(_STATIC_DIR), html=True), name="frontend")
