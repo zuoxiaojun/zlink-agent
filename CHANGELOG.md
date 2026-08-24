@@ -1,5 +1,47 @@
 # Changelog
 
+## v1.10.0 — 2026-08-24 (U8 ERP 连接 + 内置查询工具)
+
+**范围**: 新增 U8+ ERP 连接配置和 4 个内置查询工具（pymssql 直连 SQL Server）。
+
+### 新功能
+
+- **U8 ERP 连接配置**: 设置 → ERP 新增 U8 页签（Host/Port/Database/User/Password/Max Rows）
+- **4 个内置工具**: `u8_query`（12 类预制查询）、`u8_list_tables`、`u8_describe_table`、`u8_raw_sql`
+- **U8 技能文档**: `agent/skills/u8/SKILL.md`
+- **数据字典**: 内建 16 张精选业务表中文字段对照（公用目录/总账/销售/采购/生产制造/库存）
+- **系统 prompt 注入**: U8 启用时自动注入精选表清单摘要
+
+### 预制查询（u8_query）
+
+| 查询类型 | 说明 |
+|----------|------|
+| `customer` | 客户档案 |
+| `vendor` | 供应商档案 |
+| `warehouse` | 仓库档案 |
+| `code` | 会计科目 |
+| `inventory` | 存货档案（供应链用） |
+| `bas_part` | 物料表（生产制造用） |
+| `sales_order` | 销售订单（含客户/存货关联） |
+| `purchase_order` | 采购订单（含供应商/存货关联） |
+| `gl_voucher` | 总账凭证（含科目解码） |
+| `current_stock` | 现存量 |
+| `mom_orderdetail` | 生产订单母件行（含单号关联） |
+| `mom_moallocate` | 生产订单子件用料（含物料名称关联） |
+
+### 依赖
+
+- 新增 `pymssql>=2.2.0`（SQL Server 驱动）
+
+### 修复
+
+- 修复 `_map_event_to_bus` 类型缩小假阳性（isinstance 替代字符串匹配）
+- 修复 `_token`/`_llm_stop_event` 类型标注假阳性
+- 修复 `test_resolves_bare_command_via_path`（文件缺执行权限）
+- 修复 `test_parse_empty_html`（_pending 属性名冲突 Python 3.14）
+- 修复 `web_tools.py` limit 参数无 try/except
+- 修复 `toggle_mcp_server` json.loads 无 try/except
+
 ## v1.9.4 — 2026-08-18 (品牌名中文化 + NC skill 更新)
 
 **范围**: 桌面端品牌名改为"智链 Agent"，NC skill 描述更新为内置工具模式。

@@ -67,8 +67,8 @@ zlink-agent/
 │   │   ├── base.py                 # ERPClient Protocol + 通用异常
 │   │   ├── __init__.py
 │   │   └── yonsuite/               # YonSuite SDK 客户端
-│   ├── tools/                      # 57 个内置工具 (file/web/skills/todo/clarify/cronjob/code_exec/project/vision/process/erp_ys/erp_nc)
-│   ├── skills/                     # 20 个内置技能 (yonsuite/nc/china-hotdata/anysearch/...)
+│   ├── tools/                      # 61 个内置工具 (file/web/skills/todo/clarify/cronjob/code_exec/project/vision/process/erp_ys/erp_nc/erp_u8)
+│   ├── skills/                     # 21 个内置技能 (yonsuite/nc/u8/china-hotdata/anysearch/...)
 │   ├── events/                     # EventBus + 9 个事件类型
 │   └── extensions/                 # log_everything/security_event/monitoring/audit_log
 ├── backend/
@@ -84,7 +84,7 @@ zlink-agent/
 
 ## 版本
 
-v1.9.4 — 2026-08-18
+v1.10.0 — 2026-08-24
 
 详见 [CHANGELOG.md](CHANGELOG.md)
 
