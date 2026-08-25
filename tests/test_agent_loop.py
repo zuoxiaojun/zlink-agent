@@ -235,8 +235,7 @@ def test_build_system_prompt_includes_erp_context_when_enabled(monkeypatch):
     assert sys_prompt is not None
     assert "可用数据源" in sys_prompt
     assert "YonSuite" in sys_prompt
-    assert "NC" in sys_prompt
-    assert "未启用" in sys_prompt
+    assert "NC" not in sys_prompt  # 禁用的系统不显示
     # 只有一个启用 → 规则说"使用已启用系统"
     assert "使用已启用" in sys_prompt
 

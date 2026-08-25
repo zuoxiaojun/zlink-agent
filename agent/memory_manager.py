@@ -118,7 +118,7 @@ def get_context() -> str:
 
     parts = []
     recent = memory["conversations"][-3:]
-    parts.append("## 近期对话摘要")
+    parts.append("## 近期对话摘要（历史记录，不反映当前系统状态）")
     for conv in recent:
         parts.append(f"- {conv['title']}: {conv['summary'][:80]}")
 

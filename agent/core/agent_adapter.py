@@ -164,16 +164,16 @@ class TurnSnapshot:
 
 
 _DEFAULT_SYSTEM_PROMPT = """你是 ZLink Agent（智链 Agent），一个智能 AI 助手，
-专为企业提供多 ERP 系统（YonSuite / NC / 可扩展）的 AI 取数、分析与自动化；内置 MCP 服务器管理、技能系统和长期记忆能力。
+专为企业提供多 ERP 系统的 AI 取数、分析与自动化；内置 MCP 服务器管理、技能系统和长期记忆能力。
 
 ## 核心能力
 - 你可以使用多种工具来帮助用户完成任务
 - 使用中文与用户交流
 - 保持回答简洁、准确、有帮助
-- 支持连接多个 ERP 系统（YonSuite、NC 等），AI 自动从已启用的系统取数
+- 支持连接多个 ERP 系统，AI 自动从已启用的系统取数
 - 通过 MCP 服务器发现和管理外部工具的注册与启停
 - 当多个 ERP 系统同时启用时，查询数据前先询问用户要查哪个系统
-- 如果用户在输入中已指定系统名称（如"查 NC 的销售订单"），则直接执行无需确认
+- 如果用户在输入中已指定系统名称，则直接执行无需确认
 
 ## 工具使用规则
 1. 每次思考后，如果需要使用工具，请使用 `tool_calls`
@@ -476,25 +476,24 @@ class AIAgent:
         for name, ecfg in erp_clients.items():
             enabled = bool(ecfg.get("enabled", False)) if isinstance(ecfg, dict) else False
             label = _ERP_LABELS.get(name, name)
-            if enabled:
-                lines.append(f"  • {label} ✅ — 可查询销售订单、客户等数据")
-                if name == "nc":
-                    try:
-                        from agent.tools import erp_nc_tools
+            if not enabled:
+                continue
+            lines.append(f"  • {label} ✅ — 可查询销售订单、客户等数据")
+            if name == "nc":
+                try:
+                    from agent.tools import erp_nc_tools
 
-                        lines.append(f"    已注册业务表：{erp_nc_tools.get_table_summary()}")
-                    except Exception:
-                        pass
-                if name == "u8":
-                    try:
-                        from agent.tools import erp_u8_tools  # type: ignore[import]
+                    lines.append(f"    已注册业务表：{erp_nc_tools.get_table_summary()}")
+                except Exception:
+                    pass
+            if name == "u8":
+                try:
+                    from agent.tools import erp_u8_tools  # type: ignore[import]
 
-                        lines.append(f"    已注册业务表：{erp_u8_tools.get_table_summary()}")
-                    except Exception:
-                        pass
-                enabled_count += 1
-            else:
-                lines.append(f"  • {label} ❌ — 未启用")
+                    lines.append(f"    已注册业务表：{erp_u8_tools.get_table_summary()}")
+                except Exception:
+                    pass
+            enabled_count += 1
 
         if enabled_count == 0:
             return ""
@@ -505,7 +504,7 @@ class AIAgent:
             lines.append("")
             lines.append("规则：")
             lines.append('- 如果用户未指明系统 → 必须先询问"查哪个系统的数据"')
-            lines.append('- 如果用户已指定系统名称（如"查 NC 的销售订单"）→ 直接执行')
+            lines.append('- 如果用户已指定系统名称（如"查 YonSuite 的销售订单"）→ 直接执行')
         elif enabled_count == 1:
             lines.append("")
             lines.append("规则：")

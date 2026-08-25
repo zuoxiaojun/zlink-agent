@@ -113,6 +113,8 @@ function reducer(state: AppState, action: AppAction): AppState {
         streamingText: "",
         reasoningText: "",
         agentRunning: false,
+        tokenUsage: null,
+        apiCalls: 0,
       };
     }
     case "NEW_SESSION":
@@ -124,6 +126,8 @@ function reducer(state: AppState, action: AppAction): AppState {
         streamingText: "",
         reasoningText: "",
         agentRunning: false,
+        tokenUsage: null,
+        apiCalls: 0,
       };
     case "SET_MESSAGES":
       return { ...state, messages: action.messages };

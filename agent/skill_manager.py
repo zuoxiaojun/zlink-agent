@@ -39,14 +39,37 @@ def get_skill_index_text() -> str:
 
     Returns all skill names + descriptions. The agent uses `skill_view`
     to load full instructions on demand.
+    ERP 技能（nc/u8/yonsuite-skill）仅在其对应 ERP 启用时显示。
     """
     index = _load_skill_index()
     if not index:
         return ""
 
+    # ERP 技能 → 配置键映射
+    _erp_skill_map = {
+        "nc": "nc",
+        "u8": "u8",
+        "yonsuite-skill": "yonsuite",
+    }
+
+    def _erp_enabled(skill_name: str) -> bool:
+        erp_key = _erp_skill_map.get(skill_name)
+        if erp_key is None:
+            return True  # 非 ERP 技能始终显示
+        try:
+            from agent import config_manager
+
+            cfg = config_manager.load()
+            ecfg = cfg.erp_clients.get(erp_key, {})
+            return bool(ecfg.get("enabled", False)) if isinstance(ecfg, dict) else False
+        except Exception:
+            return True  # 读取失败时保守显示
+
     lines = []
     for s in index:
         name = s["name"]
+        if not _erp_enabled(name):
+            continue
         desc = s.get("description", "")
         parts = [f"- **{name}**"]
         if desc:
