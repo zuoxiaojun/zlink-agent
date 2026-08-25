@@ -167,6 +167,14 @@ _PURCHASE_INWH_MAP = {1: "入库完成", 2: "未入库", 3: "部分入库", 4: "
 _PURCHASE_INVOICE_MAP = {1: "开票完成", 2: "未开票", 3: "部分开票", 4: "开票结束"}
 _PROD_STATUS_MAP = {0: "开立", 1: "已审核", 2: "已关闭", 3: "审核中", 4: "已锁定", 5: "已开工", 6: "生产完工"}
 _PROD_STOCK_MAP = {0: "未入库", 1: "部分入库", 2: "全部入库"}
+_PROD_FINISHED_WORK_APPLY_MAP = {0: "未申请", 1: "已申请", 2: "已审批"}
+_PROD_MATERIAL_STATUS_MAP = {0: "未领料", 1: "部分", 2: "已领料"}
+_SALE_PAY_STATUS_MAP = {
+    "NOTPAYMENT": "未收款",
+    "PARTPAYMENT": "部分收款",
+    "FINISHPAYMENT": "已收款",
+    "OVPAYMENT": "溢收款",
+}
 _OPPT_STATE_MAP = {0: "进行中", 1: "暂停", 2: "作废", 3: "关闭"}
 _OPPT_WIN_LOSE_MAP = {0: "赢单", 1: "丢单", 2: "未定", 3: "部分赢单"}
 _TODO_TYPE_MAP = {"SCMSA": "销售订单", "SACT": "销售合同", "RBSM": "报销单", "PGRM": "项目管理"}
@@ -269,6 +277,7 @@ def _handle_query_sale_orders(args: dict) -> str:
         grand_total += ori_sum
         grand_tax += calc_tax
         status_raw = r.get("nextStatus", "") or ""
+        pay_status_raw = r.get("payStatusCode", "") or ""
         parsed.append(
             {
                 "code": r.get("code", ""),
@@ -284,6 +293,17 @@ def _handle_query_sale_orders(args: dict) -> str:
                 "department": r.get("saleDepartmentId_name", ""),
                 "salesman": r.get("corpContactUserName", ""),
                 "warehouse": r.get("stockName", "") or None,
+                # 累计执行（明细模式）
+                "sendQty": r2(r.get("sendQty", 0)),
+                "totalOutStockOriMoney": r2(r.get("totalOutStockOriMoney", 0)),
+                "invoiceQty": r2(r.get("invoiceQty", 0)),
+                "invoiceOriSum": r2(r.get("invoiceOriSum", 0)),
+                "totalOutStockQuantity": r2(r.get("totalOutStockQuantity", 0)),
+                # 收款（汇总模式 isSum=True）
+                "payMoney": r2(r.get("payMoney", 0)),
+                "collectMoney": r2(r.get("collectMoney", 0)),
+                "payStatusCode": _SALE_PAY_STATUS_MAP.get(pay_status_raw, pay_status_raw),
+                "realMoney": r2(r.get("realMoney", 0)),
             }
         )
 
@@ -346,6 +366,13 @@ def _handle_query_purchase_orders(args: dict) -> str:
                 "arrivedStatus": _PURCHASE_ARRIVED_MAP.get(r.get("purchaseOrders_arrivedStatus", 0), ""),
                 "inWhStatus": _PURCHASE_INWH_MAP.get(r.get("purchaseOrders_inWHStatus", 0), ""),
                 "invoiceStatus": _PURCHASE_INVOICE_MAP.get(r.get("purchaseOrders_invoiceStatus", 0), ""),
+                # 累计执行数量
+                "totalConfirmInQty": r2(r.get("purchaseOrders_totalConfirmInQty", 0)),
+                "totalInSubqty": r2(r.get("purchaseOrders_totalInSubqty", 0)),
+                "totalInvoiceQty": r2(r.get("purchaseOrders_totalInvoiceQty", 0)),
+                "totalInvoiceMoney": r2(r.get("purchaseOrders_totalInvoiceMoney", 0)),
+                "listTotalPayAmount": r2(r.get("listTotalPayAmount", 0)),
+                "amountPayable": r2(r.get("amountPayable", 0)),
             }
         )
 
@@ -396,6 +423,13 @@ def _handle_query_production_orders(args: dict) -> str:
                 "completedQty": r2(r.get("OrderProduct_completedQuantity", 0)),
                 "incomingQty": r2(r.get("OrderProduct_incomingQuantity", 0) or r.get("cfmIncomingQty", 0)),
                 "stockStatus": _PROD_STOCK_MAP.get(r.get("OrderProduct_stockStatus", 0), ""),
+                "startDate": str(r.get("OrderProduct_startDate", "") or "")[:10] or None,
+                "finishDate": str(r.get("OrderProduct_finishDate", "") or "")[:10] or None,
+                "finishedWorkApplyStatus": _PROD_FINISHED_WORK_APPLY_MAP.get(
+                    r.get("OrderProduct_finishedWorkApplyStatus", 0), ""
+                ),
+                "materialStatus": _PROD_MATERIAL_STATUS_MAP.get(r.get("OrderProduct_materialStatus", 0), ""),
+                "isHold": r.get("OrderProduct_isHold", False),
             }
         )
 
@@ -766,7 +800,7 @@ registry.register(
     check_fn=_ys_enabled,
     schema={
         "name": "query_sale_orders",
-        "description": "查询 YonSuite 销售订单。返回已解析的字段记录，含税额自动计算、状态中文映射、币种嵌套解析。is_sum=False 返回逐行明细，is_sum=True 返回按订单汇总。",
+        "description": "查询 YonSuite 销售订单。返回已解析的字段记录，含税额自动计算、状态中文映射、币种嵌套解析、累计执行数据（发货/出库/开票/收款）。is_sum=False 返回逐行明细，is_sum=True 返回按订单汇总。",
         "parameters": {
             "type": "object",
             "properties": {
@@ -788,7 +822,7 @@ registry.register(
     check_fn=_ys_enabled,
     schema={
         "name": "query_purchase_orders",
-        "description": "查询 YonSuite 采购订单。返回已解析的记录，含状态中文映射（到货/入库/发票状态）。支持日期过滤。",
+        "description": "查询 YonSuite 采购订单。返回已解析的记录，含状态中文映射（到货/入库/发票状态）、累计执行数据（到货/入库/开票数量及金额）。支持日期过滤。",
         "parameters": {
             "type": "object",
             "properties": {
@@ -809,7 +843,7 @@ registry.register(
     check_fn=_ys_enabled,
     schema={
         "name": "query_production_orders",
-        "description": "查询 YonSuite 生产订单。返回已解析的记录，含状态中文映射。date_from/date_to 在客户端侧过滤。",
+        "description": "查询 YonSuite 生产订单。返回已解析的记录，含状态中文映射、完工/入库/领料/开工/完工日期等执行数据。date_from/date_to 在客户端侧过滤。",
         "parameters": {
             "type": "object",
             "properties": {

@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.11.0 — 2026-08-25 (YS 累计执行数据字段)
+
+**范围**: YonSuite 销售/采购/生产订单列表查询新增累计执行数据字段，提升业务执行跟踪能力。
+
+### 增强
+
+- **销售订单**: 新增 `sendQty`(累计发货)、`totalOutStockOriMoney`(累计出库金额)、`invoiceQty`(累计开票数量)、`invoiceOriSum`(累计开票含税金额)、`totalOutStockQuantity`(累计出库确认数量) 明细字段；汇总模式新增 `payMoney`(订单含税金额)、`collectMoney`(累计收款)、`payStatusCode`(收款状态)、`realMoney`(实收金额)
+- **采购订单**: 新增 `totalConfirmInQty`(累计到货)、`totalInSubqty`(累计入库)、`totalInvoiceQty`(累计开票数量)、`totalInvoiceMoney`(累计开票金额)、`listTotalPayAmount`(行级累计付款)、`amountPayable`(应付金额)
+- **生产订单**: 新增 `startDate`(开工日期)、`finishDate`(完工日期)、`finishedWorkApplyStatus`(完工申报状态)、`materialStatus`(领料状态)、`isHold`(挂起状态)
+
 ## v1.10.0 — 2026-08-24 (U8 ERP 连接 + 内置查询工具)
 
 **范围**: 新增 U8+ ERP 连接配置和 4 个内置查询工具（pymssql 直连 SQL Server）。
