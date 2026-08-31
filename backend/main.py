@@ -106,6 +106,17 @@ async def lifespan(application: FastAPI):
             os.environ.setdefault("U8_USER", str(u8_cfg_erp.get("user", "") or ""))
             os.environ.setdefault("U8_PASSWORD", str(u8_cfg_erp.get("password", "") or ""))
             os.environ.setdefault("U8_MAX_ROWS", str(u8_cfg_erp.get("max_rows", 500) or 500))
+    # ── U9C: 注入环境变量（内置工具 agent/tools/erp_u9c_tools.py 读取） ──
+    u9c_cfg_erp = cfg.erp_clients.get("u9c", {})
+    if isinstance(u9c_cfg_erp, dict):
+        u9c_host = u9c_cfg_erp.get("host", "") or ""
+        if u9c_host:
+            os.environ.setdefault("U9C_HOST", u9c_host)
+            os.environ.setdefault("U9C_PORT", str(u9c_cfg_erp.get("port", "") or ""))
+            os.environ.setdefault("U9C_DATABASE", str(u9c_cfg_erp.get("database", "") or ""))
+            os.environ.setdefault("U9C_USER", str(u9c_cfg_erp.get("user", "") or ""))
+            os.environ.setdefault("U9C_PASSWORD", str(u9c_cfg_erp.get("password", "") or ""))
+            os.environ.setdefault("U9C_MAX_ROWS", str(u9c_cfg_erp.get("max_rows", 500) or 500))
     _lap("erp_env")
 
     # ── Chart MCP server（预置，打包在 Resources/mcp-chart/） ──

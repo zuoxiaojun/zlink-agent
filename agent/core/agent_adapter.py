@@ -67,6 +67,7 @@ _ERP_LABELS: dict[str, str] = {
     "yonsuite": "YonSuite",
     "nc": "NC",
     "u8": "U8",
+    "u9c": "U9C",
 }
 
 
@@ -491,6 +492,13 @@ class AIAgent:
                     from agent.tools import erp_u8_tools  # type: ignore[import]
 
                     lines.append(f"    已注册业务表：{erp_u8_tools.get_table_summary()}")
+                except Exception:
+                    pass
+            if name == "u9c":
+                try:
+                    from agent.tools import erp_u9c_tools  # type: ignore[import]
+
+                    lines.append(f"    已注册业务表：{erp_u9c_tools.get_table_summary()}")
                 except Exception:
                     pass
             enabled_count += 1

@@ -49,6 +49,7 @@ def get_skill_index_text() -> str:
     _erp_skill_map = {
         "nc": "nc",
         "u8": "u8",
+        "u9c": "u9c",
         "yonsuite-skill": "yonsuite",
     }
 

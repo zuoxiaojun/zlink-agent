@@ -57,12 +57,23 @@ def _apply_erp_env(name: str, cfg: dict):
             os.environ["U8_PASSWORD"] = str(cfg.get("password", "") or "")
             os.environ["U8_MAX_ROWS"] = str(cfg.get("max_rows", 500) or 500)
 
+    elif name == "u9c":
+        host = cfg.get("host", "")
+        if host:
+            os.environ["U9C_HOST"] = host
+            os.environ["U9C_PORT"] = str(cfg.get("port", "") or "")
+            os.environ["U9C_DATABASE"] = str(cfg.get("database", "") or "")
+            os.environ["U9C_USER"] = str(cfg.get("user", "") or "")
+            os.environ["U9C_PASSWORD"] = str(cfg.get("password", "") or "")
+            os.environ["U9C_MAX_ROWS"] = str(cfg.get("max_rows", 500) or 500)
+
 
 # secret 字段在 PUT 时自动加密
 SECRET_FIELDS = {
     "yonsuite": ["app_key", "app_secret"],
     "nc": ["password"],
     "u8": ["password"],
+    "u9c": ["password"],
 }
 
 
@@ -188,7 +199,21 @@ async def get_erp_client(name: str) -> dict:
                 "max_rows": ecfg.get("max_rows", 200),
             },
         )
-    raise HTTPException(404, f"ERP client {name!r} not found")
+    if name == "u9c":
+        ecfg = cfg.erp_clients.get("u9c", {}) if isinstance(cfg.erp_clients.get("u9c"), dict) else {}
+        return _mask_secrets(
+            name,
+            {
+                "enabled": ecfg.get("enabled", False),
+                "host": ecfg.get("host", ""),
+                "port": ecfg.get("port", ""),
+                "database": ecfg.get("database", ""),
+                "user": ecfg.get("user", ""),
+                "password": ecfg.get("password", ""),
+                "max_rows": ecfg.get("max_rows", 200),
+            },
+        )
+        raise HTTPException(404, f"ERP client {name!r} not found")
 
 
 @router.put("/api/config/erp-clients/{name}")
@@ -289,7 +314,36 @@ async def test_erp_client(name: str) -> dict:
             return {"ok": True}
         except Exception as e:
             return {"ok": False, "error": str(e)}
-    raise HTTPException(404, f"Unknown ERP {name!r}")
+    elif name == "u9c":
+        try:
+            from agent.config_manager import get_erp_config
+
+            cfg = get_erp_config("u9c")
+            host = cfg.get("host", "")
+            port = cfg.get("port", "")
+            database = cfg.get("database", "")
+            user = cfg.get("user", "")
+            password = cfg.get("password", "")
+            if not all([host, port, database, user, password]):
+                return {"ok": False, "error": "U9C 配置不完整，请填写所有连接字段"}
+
+            import pymssql
+
+            conn = pymssql.connect(
+                server=host,
+                port=int(port),  # type: ignore[arg-type] — pymssql 存根标注 str 但实际接受 int
+                database=database,
+                user=user,
+                password=password,
+                timeout=10,
+            )
+            cursor = conn.cursor()
+            cursor.execute("SELECT 1")
+            conn.close()
+            return {"ok": True}
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+        raise HTTPException(404, f"Unknown ERP {name!r}")
 
 
 @router.get("/api/config/mcp-servers")

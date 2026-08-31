@@ -66,6 +66,29 @@ const ERP_REGISTRY: Record<string, ErpMeta> = {
       },
     ],
   },
+  u9c: {
+    label: "U9C",
+    badge: "内置",
+    description: "用友 U9 Cloud（SQL Server 数据库）",
+    fields: [
+      { key: "host", label: "Host", type: "text" },
+      { key: "port", label: "Port", type: "text", placeholder: "默认 1433" },
+      {
+        key: "database",
+        label: "Database",
+        type: "text",
+        placeholder: "默认 U9C 数据库名",
+      },
+      { key: "user", label: "User", type: "text" },
+      { key: "password", label: "Password", type: "password", secret: true },
+      {
+        key: "max_rows",
+        label: "Max Rows",
+        type: "number",
+        placeholder: "默认 200",
+      },
+    ],
+  },
   u8: {
     label: "U8",
     badge: "内置",
@@ -108,6 +131,7 @@ export default function SettingsERPPage() {
   const [configs, setConfigs] = useState<Record<ErpName, ErpConfig | null>>({
     yonsuite: null,
     nc: null,
+    u9c: null,
     u8: null,
   });
 
@@ -124,12 +148,13 @@ export default function SettingsERPPage() {
   }, []);
 
   const loadAll = async () => {
-    const [ys, ncData, u8Data] = await Promise.all([
+    const [ys, ncData, u9cData, u8Data] = await Promise.all([
       api.get<ErpConfig>("/config/erp-clients/yonsuite").catch(() => null),
       api.get<ErpConfig>("/config/erp-clients/nc").catch(() => null),
+      api.get<ErpConfig>("/config/erp-clients/u9c").catch(() => null),
       api.get<ErpConfig>("/config/erp-clients/u8").catch(() => null),
     ]);
-    setConfigs({ yonsuite: ys, nc: ncData, u8: u8Data });
+    setConfigs({ yonsuite: ys, nc: ncData, u9c: u9cData, u8: u8Data });
   };
 
   const switchTab = (tab: ErpName) => {
@@ -247,7 +272,7 @@ export default function SettingsERPPage() {
 
       <p className="page-intro">
         ZLink Agent 通过 <strong>ERP 客户端</strong>{" "}
-        接入各业务系统。切换页签管理 YonSuite 与 NC 的连接信息。
+        接入各业务系统。切换页签管理各 ERP 的连接信息。
       </p>
 
       <div className="erp-tabs">

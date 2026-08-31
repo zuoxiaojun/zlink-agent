@@ -52,6 +52,7 @@ def discover_tools(tools_dir: Path | None = None) -> list[str]:
             "erp_nc_tools",
             "erp_ys_tools",
             "erp_u8_tools",
+            "erp_u9c_tools",
             "file_mutation_queue",
             "file_tools",
             "mcp_management_tool",
