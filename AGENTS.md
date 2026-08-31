@@ -32,11 +32,12 @@ zlink-agent/
 │   │   ├── message_builder.py  # build_system_prompt(), build_turn_messages()
 │   │   ├── tool_dispatcher.py  # dispatch_tool_batch（并行/保序/sequential 降级）
 │   │   └── iteration_budget.py # IterationBudget — 纯计数器（消费点在 should_stop_after_turn 钩子）
-│   ├── tools/                  # 25 files, 61 tools — one file per toolset
+│   ├── tools/                  # 26 files, 65 tools — one file per toolset
 │   │   ├── registry.py         # ❌ ToolRegistry singleton — extend via register() only
 │   │   ├── erp_ys_tools.py     # ⚠️ YonSuite 内置取数工具 (11 个, 替代旧 MCP 子进程)
 │   │   ├── erp_nc_tools.py     # ⚠️ NC 内置取数工具 (4 个, 替代旧 MCP 子进程)
 │   │   ├── erp_u8_tools.py     # ⚠️ U8 内置取数工具 (4 个, pymssql 直连 SQL Server)
+│   │   ├── erp_u9c_tools.py    # ⚠️ U9C 内置取数工具 (4 个, pymssql 直连 SQL Server)
 │   │   ├── mcp_manager.py      # ⚠️ MCP connections, circuit breaker, JSON-RPC
 │   │   ├── security_hooks.py   # ❌ three-layer security enforcement
 │   │   └── ...                 # 18 个常驻 + 36 个延迟（tool_search 桥）+ 3 个桥工具
@@ -54,7 +55,7 @@ zlink-agent/
 │   ├── slash_commands.py       # /help /model /compact /clear /login /cost
 │   ├── utils.py                # DATA_DIR, atomic_json_write, _resolve_data_dir
 │   ├── erp_clients/            # ERP SDK clients (yonsuite, nc; U8 直连 SQL Server 无需 SDK)
-│   └── skills/                 # ❌ built-in skills (read-only, not editable/deletable)
+│   └── skills/                 # ❌ 24 built-in skills (read-only, not editable/deletable)
 ├── web/                        # React + Vite frontend (port 8088)
 │   ├── src/                    # App.tsx (10 routes ⚠️), pages/, api/, components/, styles/, hooks/
 │   └── vite.config.ts          # ⚠️ proxy /api + /ws → backend:8089
@@ -260,7 +261,7 @@ pip install -r requirements.txt && cd web && npm ci && cd ..
 ruff check . && ruff format --check .     # check
 ruff check --fix . && ruff format .       # auto-fix
 
-# Verify tool registration (expect ~61 tools)
+# Verify tool registration (expect ~65 tools)
 .venv/bin/python -c "from agent.tools.registry import registry, discover_tools; discover_tools(); print(len(registry.get_all_tool_names()), 'tools')"
 
 # Build
@@ -274,6 +275,7 @@ Settings → ERP → `yonsuite` / `nc` / `u8` tab.
 - **YonSuite:** App Key / App Secret / Tenant ID → Save → Test → Enable → 11 tools (`ys_api`, `query_sale_orders`, …) become available.
 - **NC:** Host / Port (1521) / Service (Oracle SID) / User / Password, optional Max Rows (100) → Save → Test (via oracledb) → Enable → 4 tools (`nc_query`, `nc_list_tables`, …).
 - **U8:** Host / Port (1433) / Database / User / Password, optional Max Rows (200) → Save → Test (via pymssql) → Enable → 4 tools (`u8_query`, `u8_list_tables`, …).
+- **U9C:** Host / Port (1433) / Database / User / Password, optional Max Rows (500) → Save → Test (via pymssql) → Enable → 4 tools (`u9c_query`, `u9c_list_tables`, …). 12 类预制业务查询（销售订单含行明细、采购订单含行明细、生产订单含产出明细等）。
 
 **Troubleshooting:** tools missing after enable → check `GET /api/config/mcp-servers`; connection errors → `~/.zlink-agent/data/logs/app.log`.
 
@@ -333,8 +335,8 @@ Build: `bash scripts/build-electron.sh` = frontend build → Python bundle → e
 
 两个 Layer 确保 LLM 正确选择 ERP 取数，不再擅自猜测：
 
-- **Layer 1 — System prompt 动态注入**（`message_builder.py` + `agent.py`）：`build_system_prompt()` 的 `erp_context` 参数；`_build_erp_context()` 读 `cfg.erp_clients` 生成启用状态（✅/❌）。1 个启用 → 直接用对应工具；多个启用 → 用户未指明时先问查哪个。每轮重新读配置，开关即时生效。
-- **Layer 2 — 工具描述标注**（`mcp_manager.py`）：`_convert_mcp_tool_schema()` 自动追加 `【数据源：YonSuite/NC】`；仅已知 ERP（`erp_source_labels = {"yonsuite": "YonSuite", "mcp-nc": "NC"}`）加标签，chart 等不加。
+- **Layer 1 — System prompt 动态注入**（`skill_manager.py` + `agent_adapter.py`）：`get_skill_index_text()` 和 `get_instructions_for_query()` 都过滤已禁用的 ERP 技能，确保未启用的 ERP 不会出现在技能列表或触发加载中。`build_system_prompt()` 的 `erp_context` 参数由 `_build_erp_context()` 生成启用状态（✅/❌）。1 个启用 → 直接用对应工具；多个启用 → 用户未指明时先问查哪个。每轮重新读配置，开关即时生效。
+- **Layer 2 — 工具描述标注**（`mcp_manager.py`）：`_convert_mcp_tool_schema()` 自动追加 `【数据源：YonSuite/NC】`；仅已知 ERP（`erp_source_labels = {"yonsuite": "YonSuite", "mcp-nc": "NC"}`）加标签，chart 等不加。U8/U9C 是内置工具直连，不走 MCP。
 
 ### 缓存路径（2026-07-13 修复）
 
