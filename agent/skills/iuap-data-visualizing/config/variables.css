@@ -1,0 +1,48 @@
+/**
+ * YonBI CSS 变量定义
+ *
+ * 【说明】
+ * 本文件定义 YonBI 平台所有技能共用的 CSS 变量。
+ * 颜色体系与 ECharts defaultTheme 同步。
+ *
+ * 【使用范围】
+ * - iuap-data-visualizing
+ * - iuap-data-reporting (委托引用)
+ * - iuap-data-summarizing (委托引用)
+ */
+
+:root {
+ /* ====== 主色调 ====== */
+ /* 与 ECharts defaultTheme 首色 #3293fb 同步 */
+ --yonbi-vis-color-primary: #3293fb;
+ --yonbi-vis-color-primary-dark: #1a73e8;
+ --yonbi-vis-color-primary-light: #e6f7ff;
+ --yonbi-vis-color-primary-rgb: 50, 147, 251;
+
+ /* ====== 辅助色 ====== */
+ /* 与 ECharts defaultTheme 色板同步 */
+ --yonbi-vis-color-secondary: #82df2b;
+ --yonbi-vis-color-accent: #fcb530;
+ --yonbi-vis-color-warning: #fb6832;
+ --yonbi-vis-color-danger: #ff4d4f;
+ --yonbi-vis-color-success: #52c41a;
+
+ /* ====== 背景色 ====== */
+ --yonbi-vis-bg-page: #f0f2f5;
+ --yonbi-vis-bg-content: #ffffff;
+ --yonbi-vis-bg-card: #fafafa;
+
+ /* ====== 文字色 ====== */
+ --yonbi-vis-text-primary: #333333;
+ --yonbi-vis-text-secondary: #666666;
+ --yonbi-vis-text-muted: #8c8c8c;
+
+ /* ====== 边框色 ====== */
+ --yonbi-vis-border-color: #f0f0f0;
+
+ /* ====== 阴影 ====== */
+ --yonbi-vis-shadow-card:
+  0 2px 8px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+ --yonbi-vis-shadow-card-hover:
+  0 4px 12px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.06);
+}

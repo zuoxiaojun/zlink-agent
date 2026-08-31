@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>示例：销售数据分析图表</title>
+    <script src="https://registry.npmmirror.com/echarts/5.5.1/files/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/liuqxuan/BI-DefaultTheme@v1.0.12/registe-theme.js"></script>
+    <style>
+      /* ====== Reset & Base ====== */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei",
+          sans-serif;
+        background: #f5f7fa;
+        padding: 24px;
+        min-height: 100vh;
+      }
+
+      /* ====== 主容器 ====== */
+      .yonbi-vis-container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      /* ====== 图表网格布局 ====== */
+      .yonbi-vis-charts-grid {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      }
+
+      /* ====== 图表卡片 ====== */
+      .yonbi-vis-chart-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+      }
+
+      /* ====== 图表容器 ====== */
+      .yonbi-vis-chart {
+        width: 100%;
+        height: 400px;
+      }
+
+      /* ====== 响应式 ====== */
+      @media (max-width: 768px) {
+        .yonbi-vis-charts-grid {
+          grid-template-columns: 1fr;
+        }
+        .yonbi-vis-chart {
+          height: 320px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="yonbi-vis-container" id="app">
+      <div class="yonbi-vis-charts-grid">
+        <div class="yonbi-vis-chart-card">
+          <div id="chart0" class="yonbi-vis-chart"></div>
+        </div>
+        <div class="yonbi-vis-chart-card">
+          <div id="chart1" class="yonbi-vis-chart"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      const themeData = window.getDefaultTheme();
+      echarts.registerTheme("defaultTheme", themeData);
+
+      // 图表1：销售额趋势
+      const chart0 = echarts.init(
+        document.getElementById("chart0"),
+        "defaultTheme",
+      );
+      chart0.setOption({
+        title: {
+          text: "月度销售额趋势",
+          left: 16,
+          top: 8,
+          textStyle: { fontSize: 14, fontWeight: 600, color: "#374151" },
+        },
+        tooltip: { trigger: "axis" },
+        toolbox: {
+          show: true,
+          right: 10,
+          top: 0,
+          feature: {
+            saveAsImage: { pixelRatio: 2 },
+            magicType: { type: ["line", "bar"] },
+          },
+        },
+        dataset: {
+          source: [
+            ["月份", "销售额"],
+            ["1月", 120],
+            ["2月", 200],
+            ["3月", 150],
+            ["4月", 80],
+            ["5月", 70],
+            ["6月", 110],
+          ],
+        },
+        grid: { top: 80, right: 70, left: 70, bottom: 40, containLabel: true },
+        xAxis: { type: "category" },
+        yAxis: { type: "value" },
+        series: [{ type: "bar" }],
+      });
+
+      // 图表2：品类占比
+      const chart1 = echarts.init(
+        document.getElementById("chart1"),
+        "defaultTheme",
+      );
+      chart1.setOption({
+        title: {
+          text: "品类销售占比",
+          left: 16,
+          top: 8,
+          textStyle: { fontSize: 14, fontWeight: 600, color: "#374151" },
+        },
+        tooltip: { trigger: "item" },
+        toolbox: {
+          show: true,
+          right: 10,
+          top: 0,
+          feature: { saveAsImage: { pixelRatio: 2 } },
+        },
+        dataset: {
+          source: [
+            ["品类", "销售金额"],
+            ["饮料", 1048],
+            ["日用品", 735],
+            ["食品", 580],
+            ["电器", 484],
+          ],
+        },
+        series: [
+          {
+            type: "pie",
+            radius: ["25%", "50%"],
+            center: ["50%", "45%"],
+            encode: { itemName: "品类", value: "销售金额" },
+          },
+        ],
+      });
+
+      window.addEventListener("resize", () => {
+        chart0.resize();
+        chart1.resize();
+      });
+    </script>
+  </body>
+</html>

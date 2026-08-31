@@ -1,0 +1,90 @@
+<!--
+  ============================================================
+  【内联脚本片段模板】
+  ============================================================
+  用于 streaming-fragment 模式，每个图表独立输出内联脚本。
+
+  使用方式：
+  1. 将 {{CONTAINER_ID}} 替换为实际的容器 ID
+  2. 将 {{OPTION_JSON}} 替换为 ECharts option 的 JSON 字符串
+  3. 输出到图表容器之后，立即执行
+
+  关键特性：
+  - IIFE 封装，避免变量污染
+  - 检查 echarts 是否加载
+  - 自动注册到 window.__charts 数组
+  - 立即执行，无需等待
+  ============================================================
+-->
+
+<!-- 图表容器（必须先输出） -->
+<div id="{{CONTAINER_ID}}" class="chart-container">
+  <div class="loading-placeholder">图表渲染中...</div>
+</div>
+
+<!-- 内联脚本（紧随容器输出） -->
+<script>
+  (function() {
+    // 检查 ECharts 是否加载
+    if (typeof echarts === 'undefined') {
+      console.warn('ECharts 未加载，图表无法渲染');
+      return;
+    }
+
+    // 获取容器 DOM
+    var container = document.getElementById('{{CONTAINER_ID}}');
+    if (!container) {
+      console.warn('找不到容器: {{CONTAINER_ID}}');
+      return;
+    }
+
+    // 初始化图表
+    var chart = echarts.init(container, 'defaultTheme');
+
+    // 设置配置
+    chart.setOption({{OPTION_JSON}});
+
+    // 注册到全局数组（用于 resize 等全局操作）
+    if (!window.__charts) {
+      window.__charts = [];
+    }
+    window.__charts.push(chart);
+  })();
+</script>
+
+<!--
+  ============================================================
+  【输出示例】
+  ============================================================
+  实际输出时，{{CONTAINER_ID}} 和 {{OPTION_JSON}} 被替换：
+
+  <div id="chart-trend" class="chart-container">
+    <div class="loading-placeholder">图表渲染中...</div>
+  </div>
+  <script>
+  (function() {
+    if (typeof echarts === 'undefined') return;
+    var container = document.getElementById('chart-trend');
+    if (!container) return;
+    var chart = echarts.init(container, 'defaultTheme');
+    chart.setOption({
+      title: { text: '月度销售趋势', left: 16, top: 8 },
+      tooltip: { trigger: 'axis' },
+      dataset: {
+        source: [
+          ['月份', '销售额'],
+          ['1月', 120],
+          ['2月', 200],
+          ['3月', 150]
+        ]
+      },
+      xAxis: { type: 'category' },
+      yAxis: { type: 'value' },
+      series: [{ type: 'line' }]
+    });
+    if (!window.__charts) window.__charts = [];
+    window.__charts.push(chart);
+  })();
+  </script>
+  ============================================================
+-->

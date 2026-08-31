@@ -1,0 +1,33 @@
+{
+  "style_source": {
+    "description": "样式真理源为本地文件，报告优先通过 CDN 加载，降级时内嵌本地样式",
+    "local_file": "config/report-styles.css",
+    "css_cdn": "https://cdn.jsdelivr.net/gh/liuqxuan/BI-DefaultTheme@v1.0.11/report-styles.css",
+    "echarts_theme_cdn": "https://cdn.jsdelivr.net/gh/liuqxuan/BI-DefaultTheme@v1.0.12/registe-theme.js",
+    "register_method": "window.getDefaultTheme()",
+    "fallback_strategy": "CDN不可用时，读取本地样式文件并内嵌到报告<style>标签"
+  },
+  "css_variables": {
+    "default": {
+      "--color-primary": "#3293fb",
+      "--color-primary-dark": "#1a73e8",
+      "--color-primary-light": "#e6f7ff",
+      "--color-secondary": "#82df2b",
+      "--color-accent": "#fcb530",
+      "--color-warning": "#fb6832",
+      "--color-danger": "#ff4d4f",
+      "--color-success": "#52c41a",
+      "--bg-page": "#f0f2f5",
+      "--bg-content": "#ffffff",
+      "--bg-card": "#fafafa",
+      "--text-primary": "#333333",
+      "--text-secondary": "#666666",
+      "--text-muted": "#8c8c8c"
+    }
+  },
+  "theme_rules": {
+    "user_specified": "用户明确指定配色/风格 → 报告和图表都遵循用户要求，系列色从用户指定颜色中选取",
+    "default": "用户无要求 → 使用默认主题，系列色使用 11 色系列",
+    "sync_principle": "CSS变量和ECharts图表主题必须使用同一套配色体系"
+  }
+}

@@ -1,0 +1,316 @@
+<!--
+  ============================================================
+  指标卡样式片段 - 底层定义
+  ============================================================
+
+  【委托说明】
+  本文件定义的样式被以下技能委托复用：
+  - iuap-data-reporting
+  - iuap-data-summarizing
+
+  【类名前缀】
+  yonbi-vis-
+
+  【类名约束】
+  | 必须使用 ✅ | 禁止使用 ❌ | 说明 |
+  |------------|------------|------|
+  | yonbi-vis-cards | data-cards | 容器类名 |
+  | yonbi-vis-card | indicator-card | 卡片类名 |
+  | yonbi-vis-card__title | label | 标题类名 |
+  | yonbi-vis-card__value | value | 数值类名 |
+  | yonbi-vis-card__unit | unit | 单位样式 |
+  | yonbi-vis-trend > yonbi-vis-trend__item | trend（单层） | 趋势结构 |
+
+  【类型映射】
+  amount=金额, volume=数量, profit=利润, cost=成本,
+  sales=销售, users=用户, rate=比率, time=时间,
+  growth=增长, inventory=库存, customer=客户
+
+  【图标映射】
+  amount=fa-coins, volume=fa-boxes, profit=fa-sack-dollar,
+  cost=fa-file-invoice-dollar, sales=fa-shopping-cart,
+  users=fa-users, rate=fa-percentage, time=fa-clock,
+  growth=fa-chart-line, inventory=fa-warehouse, customer=fa-user-tie
+  ============================================================
+-->
+<style>
+  /* ====== 指标卡容器 ====== */
+  .yonbi-vis-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+    gap: 16px;
+    width: 100%;
+    margin: 20px 0;
+  }
+
+  /* ====== 指标卡主体 ====== */
+  .yonbi-vis-card {
+    position: relative;
+    border-radius: 8px;
+    opacity: 1;
+    overflow: hidden;
+    min-height: 140px;
+    height: auto;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ====== 卡片头部行 ====== */
+  .yonbi-vis-card__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-shrink: 0;
+  }
+
+  /* ====== 卡片类型背景色 ====== */
+  .yonbi-vis-card--amount {
+    background: rgba(50, 147, 251, 0.1);
+  }
+  .yonbi-vis-card--volume {
+    background: rgba(50, 196, 250, 0.1);
+  }
+  .yonbi-vis-card--profit {
+    background: rgba(130, 223, 43, 0.1);
+  }
+  .yonbi-vis-card--cost {
+    background: rgba(252, 181, 48, 0.1);
+  }
+  .yonbi-vis-card--sales {
+    background: rgba(251, 104, 50, 0.1);
+  }
+  .yonbi-vis-card--users {
+    background: rgba(115, 124, 253, 0.1);
+  }
+  .yonbi-vis-card--rate {
+    background: rgba(28, 212, 107, 0.1);
+  }
+  .yonbi-vis-card--time {
+    background: rgba(185, 114, 252, 0.1);
+  }
+  .yonbi-vis-card--growth {
+    background: rgba(119, 216, 63, 0.1);
+  }
+  .yonbi-vis-card--inventory {
+    background: rgba(251, 163, 68, 0.1);
+  }
+  .yonbi-vis-card--customer {
+    background: rgba(246, 189, 76, 0.1);
+  }
+
+  /* ====== 图标背景 ====== */
+  .yonbi-vis-icon-bg {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  /* ====== 图标类型背景色 ====== */
+  .yonbi-vis-icon--amount {
+    background: #3293fb;
+  }
+  .yonbi-vis-icon--volume {
+    background: #32c4fa;
+  }
+  .yonbi-vis-icon--profit {
+    background: #82df2b;
+  }
+  .yonbi-vis-icon--cost {
+    background: #fcb530;
+  }
+  .yonbi-vis-icon--sales {
+    background: #fb6832;
+  }
+  .yonbi-vis-icon--users {
+    background: #737cfd;
+  }
+  .yonbi-vis-icon--rate {
+    background: #1cd46b;
+  }
+  .yonbi-vis-icon--time {
+    background: #b972fc;
+  }
+  .yonbi-vis-icon--growth {
+    background: #77d83f;
+  }
+  .yonbi-vis-icon--inventory {
+    background: #fba344;
+  }
+  .yonbi-vis-icon--customer {
+    background: #f6bd4c;
+  }
+
+  /* ====== 卡片图标 ====== */
+  .yonbi-vis-card__icon {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 20px;
+    height: 20px;
+    line-height: 20px !important;
+    text-align: center;
+    font-size: 10px;
+    color: #ffffff;
+    z-index: 1;
+  }
+
+  /* ====== 卡片标题 ====== */
+  .yonbi-vis-card__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* ====== 卡片数值 ====== */
+  .yonbi-vis-card__value {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: #111827;
+    margin-bottom: 8px;
+    word-break: break-all;
+    overflow-wrap: break-word;
+  }
+
+  /* ====== 数值单位 ====== */
+  .yonbi-vis-card__unit {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333333;
+    margin-left: 2px;
+  }
+
+  /* ====== 趋势组 ====== */
+  .yonbi-vis-trend {
+    display: flex;
+    gap: 32px;
+    margin-top: auto;
+  }
+
+  /* ====== 趋势项 ====== */
+  .yonbi-vis-trend__item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* ====== 趋势标签 ====== */
+  .yonbi-vis-trend__label {
+    font-size: 12px;
+    color: #4b5563;
+    font-weight: 500;
+  }
+
+  /* ====== 上升趋势 ====== */
+  .yonbi-vis-trend--up {
+    font-size: 13px;
+    color: #fb6832;
+    font-weight: 600;
+  }
+  .yonbi-vis-trend--up i {
+    margin-right: 2px;
+  }
+
+  /* ====== 下降趋势 ====== */
+  .yonbi-vis-trend--down {
+    font-size: 13px;
+    color: #1cd46b;
+    font-weight: 600;
+  }
+  .yonbi-vis-trend--down i {
+    margin-right: 2px;
+  }
+
+  /* ====== 中性趋势 ====== */
+  .yonbi-vis-trend--neutral {
+    font-size: 13px;
+    color: #8c8c8c;
+    font-weight: 600;
+  }
+  .yonbi-vis-trend--neutral i {
+    margin-right: 2px;
+  }
+
+  /* ====== 响应式 ====== */
+  @media (max-width: 768px) {
+    .yonbi-vis-card {
+      min-height: 130px;
+      padding: 16px 20px;
+    }
+    .yonbi-vis-card__value {
+      font-size: 22px;
+    }
+    .yonbi-vis-trend {
+      gap: 24px;
+    }
+  }
+</style>
+
+<!--
+  ============================================================
+  HTML 结构示例
+  ============================================================
+-->
+<div class="yonbi-vis-cards">
+  <div class="yonbi-vis-card yonbi-vis-card--amount">
+    <div class="yonbi-vis-card__header">
+      <div class="yonbi-vis-icon-bg yonbi-vis-icon--amount">
+        <i class="fa fa-coins yonbi-vis-card__icon"></i>
+      </div>
+      <div class="yonbi-vis-card__title">销售金额</div>
+    </div>
+    <div class="yonbi-vis-card__value">
+      ¥63.70<span class="yonbi-vis-card__unit">万</span>
+    </div>
+    <div class="yonbi-vis-trend">
+      <div class="yonbi-vis-trend__item">
+        <span class="yonbi-vis-trend__label">同比</span>
+        <span class="yonbi-vis-trend--up"
+          ><i class="fa fa-arrow-up"></i>23.68%</span
+        >
+      </div>
+      <div class="yonbi-vis-trend__item">
+        <span class="yonbi-vis-trend__label">环比</span>
+        <span class="yonbi-vis-trend--down"
+          ><i class="fa fa-arrow-down"></i>10%</span
+        >
+      </div>
+    </div>
+  </div>
+  <div class="yonbi-vis-card yonbi-vis-card--volume">
+    <div class="yonbi-vis-card__header">
+      <div class="yonbi-vis-icon-bg yonbi-vis-icon--volume">
+        <i class="fa fa-boxes yonbi-vis-card__icon"></i>
+      </div>
+      <div class="yonbi-vis-card__title">销售数量</div>
+    </div>
+    <div class="yonbi-vis-card__value">23,725</div>
+    <div class="yonbi-vis-trend">
+      <div class="yonbi-vis-trend__item">
+        <span class="yonbi-vis-trend__label">同比</span>
+        <span class="yonbi-vis-trend--up"
+          ><i class="fa fa-arrow-up"></i>15.2%</span
+        >
+      </div>
+    </div>
+  </div>
+  <div class="yonbi-vis-card yonbi-vis-card--profit">
+    <div class="yonbi-vis-card__header">
+      <div class="yonbi-vis-icon-bg yonbi-vis-icon--profit">
+        <i class="fa fa-sack-dollar yonbi-vis-card__icon"></i>
+      </div>
+      <div class="yonbi-vis-card__title">销售利润</div>
+    </div>
+    <div class="yonbi-vis-card__value">
+      ¥17.25<span class="yonbi-vis-card__unit">万</span>
+    </div>
+  </div>
+</div>

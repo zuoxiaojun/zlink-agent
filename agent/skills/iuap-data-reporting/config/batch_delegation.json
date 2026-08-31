@@ -1,0 +1,206 @@
+{
+  "version": "3.0.0",
+  "description": "报告技能委托配置 - 批量获取图表配置，流式输出报告内容",
+
+  "delegation": {
+    "description": "批量委托模式，一次性获取所有图表配置，减少调用次数",
+    "advantages": [
+      "委托次数：1次（无论多少图表）",
+      "文件读取：5次（SKILL.md + 4个配置文件）",
+      "性能提升：相比逐个委托减少 (N-1)×5 次文件读取"
+    ],
+    "request_template": {
+      "skill": "iuap-data-visualizing",
+      "requests": []
+    }
+  },
+
+  "output": {
+    "format": "streaming",
+    "description": "流式输出格式，每个图表容器与内联脚本紧邻，实现渐进式渲染",
+    "advantages": [
+      "首图渲染时间：等待第一个图表配置即可渲染",
+      "用户感知：渐进式显示，体验友好",
+      "流式兼容：完美支持 LLM 流式输出"
+    ],
+    "output_sequence": [
+      "报告头部（标题、摘要）",
+      "章节1：标题 → 分析文字 → 图表容器 → 内联脚本 → 立即渲染",
+      "章节2：标题 → 分析文字 → 图表容器 → 内联脚本 → 立即渲染",
+      "...",
+      "报告底部",
+      "全局脚本（resize监听）"
+    ]
+  },
+
+  "request_collection": {
+    "description": "图表需求收集规则",
+    "section_mapping": {
+      "section-1": {
+        "name": "核心指标总览",
+        "type": "indicator-card",
+        "required": true
+      },
+      "section-2": {
+        "name": "趋势分析",
+        "analysisPurpose": "趋势分析",
+        "required": false
+      },
+      "section-3": {
+        "name": "结构分析",
+        "analysisPurpose": "占比构成",
+        "required": false
+      },
+      "section-4": {
+        "name": "归因分析",
+        "analysisPurpose": "分类对比",
+        "required": false
+      },
+      "section-5": {
+        "name": "对比分析",
+        "analysisPurpose": "分类对比",
+        "required": false
+      },
+      "section-6": {
+        "name": "异常检测",
+        "analysisPurpose": "分布分析",
+        "required": false
+      }
+    },
+    "collection_steps": [
+      "1. 遍历报告章节规划",
+      "2. 识别需要图表的章节",
+      "3. 收集数据和上下文信息",
+      "4. 构建 requests 数组",
+      "5. 添加唯一 id 和 containerId"
+    ]
+  },
+
+  "response_handling": {
+    "description": "批量委托响应处理，按流式格式组装报告",
+    "steps": [
+      {
+        "step": 1,
+        "name": "接收批量结果",
+        "input": "result.charts + result.indicators"
+      },
+      {
+        "step": 2,
+        "name": "遍历图表配置",
+        "action": "按章节顺序遍历 result.charts"
+      },
+      {
+        "step": 3,
+        "name": "生成容器",
+        "template": "<div id=\"{{CONTAINER_ID}}\" class=\"chart-container\"><div class=\"loading-placeholder\">图表渲染中...</div></div>"
+      },
+      {
+        "step": 4,
+        "name": "生成内联脚本",
+        "template": "IIFE封装的 echarts.init + setOption"
+      },
+      {
+        "step": 5,
+        "name": "立即输出",
+        "action": "容器 + 内联脚本 → 立即渲染"
+      },
+      {
+        "step": 6,
+        "name": "输出全局脚本",
+        "placement": "页面底部",
+        "content": "resize监听"
+      }
+    ],
+    "inline_script_reference": {
+      "description": "内联脚本模板引用（由 iuap-data-visualizing 技能维护）",
+      "template_path": "../iuap-data-visualizing/templates/echarts/streaming_fragment.html",
+      "features": [
+        "IIFE封装，避免变量污染",
+        "检查echarts是否加载",
+        "自动注册到window.__charts数组",
+        "立即执行，无需等待"
+      ]
+    }
+  },
+
+  "error_handling": {
+    "description": "错误处理策略",
+    "delegation_failure": {
+      "condition": "批量委托失败",
+      "action": "降级为逐个委托"
+    },
+    "partial_failure": {
+      "condition": "部分图表生成失败",
+      "action": "跳过失败项，继续组装其他图表",
+      "output": "在报告中标注失败图表位置"
+    }
+  },
+
+  "performance": {
+    "delegation": {
+      "count": 1,
+      "file_reads": 5
+    },
+    "output": {
+      "first_chart_render": "等待第一个图表配置生成",
+      "user_experience": "渐进式渲染"
+    },
+    "estimated_improvement": {
+      "3_charts": "67%",
+      "8_charts": "87%",
+      "15_charts": "93%"
+    }
+  },
+
+  "usage_example": {
+    "description": "完整使用示例",
+    "request": {
+      "skill": "iuap-data-visualizing",
+      "requests": [
+        {
+          "id": "indicator-cards",
+          "type": "indicator-card",
+          "data": {
+            "cards": [
+              {
+                "cardClass": "yonbi-vis-card--amount",
+                "iconBgClass": "yonbi-vis-icon--amount",
+                "iconClass": "fa-coins",
+                "title": "销售金额",
+                "value": "¥63.70<span class=\"yonbi-vis-card__unit\">万</span>",
+                "hasTrend": true,
+                "yoy": {"label": "同比", "value": "23.68%", "trendUp": true}
+              }
+            ]
+          }
+        },
+        {
+          "id": "chart-trend",
+          "analysisPurpose": "趋势分析",
+          "data": {
+            "columns": ["月份", "销售额"],
+            "rows": [["2024-01", 12345], ["2024-02", 15678], ["2024-03", 18900]]
+          },
+          "context": {"title": "月度销售趋势", "containerId": "chart-trend"}
+        },
+        {
+          "id": "chart-composition",
+          "analysisPurpose": "占比构成",
+          "data": {
+            "columns": ["品类", "销售金额"],
+            "rows": [["电子产品", 320000], ["日用品", 180000], ["服装", 150000]]
+          },
+          "context": {"title": "品类销售占比", "containerId": "chart-composition"}
+        }
+      ]
+    },
+    "output_sequence": [
+      "1. 报告头部输出",
+      "2. 指标卡HTML输出 → 立即显示",
+      "3. 章节1：标题 → 分析文字 → 图表容器 → 内联脚本 → 立即渲染",
+      "4. 章节2：标题 → 分析文字 → 图表容器 → 内联脚本 → 立即渲染",
+      "5. 报告底部输出",
+      "6. 全局脚本输出（resize监听）"
+    ]
+  }
+}

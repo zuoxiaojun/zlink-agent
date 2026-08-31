@@ -1,0 +1,145 @@
+{
+  "report_types": {
+    "business_analysis": {
+      "name": "经营分析报告",
+      "description": "营收/利润/成本分析，周报月报季报",
+      "recommended_sections": [
+        {"name": "KPI总览", "purpose": "overview", "required": true},
+        {"name": "趋势分析", "purpose": "trend", "required": true},
+        {"name": "结构拆解", "purpose": "composition", "required": true},
+        {"name": "异常诊断", "purpose": "anomaly", "required": false},
+        {"name": "行动建议", "purpose": "action", "required": true}
+      ]
+    },
+    "thematic_analysis": {
+      "name": "专题分析报告",
+      "description": "针对特定问题深入分析",
+      "recommended_sections": [
+        {"name": "问题定义", "purpose": "definition", "required": true},
+        {"name": "数据探索", "purpose": "exploration", "required": true},
+        {"name": "原因分析", "purpose": "attribution", "required": true},
+        {"name": "结论与建议", "purpose": "conclusion", "required": true}
+      ]
+    },
+    "data_overview": {
+      "name": "数据概览报告",
+      "description": "快速了解数据全貌",
+      "recommended_sections": [
+        {"name": "核心指标", "purpose": "overview", "required": true},
+        {"name": "分布概况", "purpose": "distribution", "required": true},
+        {"name": "排名", "purpose": "ranking", "required": false},
+        {"name": "关键发现", "purpose": "findings", "required": true}
+      ]
+    },
+    "comparison_analysis": {
+      "name": "对比分析报告",
+      "description": "多维度/多时期/多群体对比",
+      "recommended_sections": [
+        {"name": "对比维度选择", "purpose": "definition", "required": true},
+        {"name": "差异量化", "purpose": "comparison", "required": true},
+        {"name": "原因分析", "purpose": "attribution", "required": true},
+        {"name": "改进建议", "purpose": "action", "required": true}
+      ]
+    },
+    "funnel_analysis": {
+      "name": "漏斗分析报告",
+      "description": "转化流程各环节分析",
+      "recommended_sections": [
+        {"name": "全景漏斗", "purpose": "funnel", "required": true},
+        {"name": "环节拆解", "purpose": "breakdown", "required": true},
+        {"name": "流失定位", "purpose": "attribution", "required": true},
+        {"name": "优化建议", "purpose": "action", "required": true}
+      ]
+    }
+  },
+  "analysis_purposes": {
+    "趋势分析": {
+      "description": "时间序列变化",
+      "data_requirements": ["时间字段", "数值指标"],
+      "visualization_delegation": "由 iuap-data-visualizing 根据数据连续性自动选择 line/area/bar"
+    },
+    "分类对比": {
+      "description": "不同类别的数值比较",
+      "data_requirements": ["分类字段", "数值指标"],
+      "visualization_delegation": "由 iuap-data-visualizing 自动选择 bar"
+    },
+    "占比构成": {
+      "description": "各部分占整体的比例",
+      "data_requirements": ["分类字段", "数值指标"],
+      "visualization_delegation": "由 iuap-data-visualizing 根据分类数量自动选择 pie/donut/treemap/sunburst"
+    },
+    "相关性分析": {
+      "description": "两个变量的关系",
+      "data_requirements": ["两个或多个数值指标"],
+      "visualization_delegation": "由 iuap-data-visualizing 自动选择 scatter/bubble"
+    },
+    "分布分析": {
+      "description": "数据的分布情况",
+      "data_requirements": ["数值字段"],
+      "visualization_delegation": "由 iuap-data-visualizing 自动选择 histogram/boxplot/violin"
+    },
+    "排名分析": {
+      "description": "各类别的排名",
+      "data_requirements": ["分类字段", "数值指标"],
+      "visualization_delegation": "由 iuap-data-visualizing 自动选择水平 bar"
+    },
+    "漏斗分析": {
+      "description": "转化流程",
+      "data_requirements": ["流程阶段", "数量指标"],
+      "visualization_delegation": "由 iuap-data-visualizing 自动选择 funnel/waterfall"
+    },
+    "关系分析": {
+      "description": "节点和流向",
+      "data_requirements": ["节点数据", "关系数据"],
+      "visualization_delegation": "由 iuap-data-visualizing 自动选择 sankey/graph"
+    },
+    "层级结构": {
+      "description": "树形或层级数据",
+      "data_requirements": ["层级数据"],
+      "visualization_delegation": "由 iuap-data-visualizing 自动选择 tree/treemap/sunburst"
+    },
+    "多维评估": {
+      "description": "多个维度的综合评估",
+      "data_requirements": ["多个维度指标"],
+      "visualization_delegation": "由 iuap-data-visualizing 自动选择 radar"
+    },
+    "指标卡": {
+      "description": "核心指标展示",
+      "data_requirements": ["核心指标"],
+      "visualization_delegation": "由 iuap-data-visualizing 使用 fragment 模式生成"
+    }
+  },
+  "execution_modes": {
+    "autonomous": {
+      "name": "自主模式",
+      "trigger": "用户无明确规划，仅提问题或需求",
+      "workflow": [
+        "问题分类",
+        "MECE假设树构建",
+        "假设优先级排序",
+        "六维探索框架",
+        "统计验证",
+        "洞察综合",
+        "预测与情景分析"
+      ]
+    },
+    "user_driven": {
+      "name": "用户驱动模式",
+      "trigger": "用户提供了分析框架/步骤/结构",
+      "workflow": [
+        "解析用户规划",
+        "按用户框架执行分析",
+        "按用户结构输出结论"
+      ]
+    }
+  },
+  "delegation_principles": {
+    "description": "可视化委托原则",
+    "rules": [
+      "报告技能只传递'分析目的'，不指定图表类型",
+      "图表类型由 iuap-data-visualizing 根据数据特征智能选择",
+      "主题和系列色必须使用可视化技能的配置，禁止自定义",
+      "指标卡样式必须使用 fragment.html 结构，禁止自定义"
+    ]
+  }
+}

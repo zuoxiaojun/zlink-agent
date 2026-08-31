@@ -1,0 +1,702 @@
+/**
+ * 报告样式文件
+ * 类名前缀：yonbi-rep-（报告独有）、yonbi-vis-（指标卡，与 visualizing 保持一致）
+ */
+
+/* ====== Reset & Base ====== */
+* {
+ margin: 0;
+ padding: 0;
+ box-sizing: border-box;
+}
+
+/* ====== CSS变量 ====== */
+:root {
+ /* 主色调：与 ECharts defaultTheme 首色 #3293fb 同步 */
+ --yonbi-vis-color-primary: #3293fb;
+ --yonbi-vis-color-primary-dark: #1a73e8;
+ --yonbi-vis-color-primary-light: #e6f7ff;
+ --yonbi-vis-color-primary-rgb: 50, 147, 251;
+ /* 辅助色 */
+ --yonbi-vis-color-secondary: #82df2b;
+ --yonbi-vis-color-accent: #fcb530;
+ --yonbi-vis-color-warning: #fb6832;
+ --yonbi-vis-color-danger: #ff4d4f;
+ --yonbi-vis-color-success: #52c41a;
+ /* 背景色 */
+ --yonbi-vis-bg-page: #f0f2f5;
+ --yonbi-vis-bg-content: #ffffff;
+ --yonbi-vis-bg-card: #fafafa;
+ /* 文字色 */
+ --yonbi-vis-text-primary: #333333;
+ --yonbi-vis-text-secondary: #666666;
+ --yonbi-vis-text-muted: #8c8c8c;
+ /* 边框色 */
+ --yonbi-vis-border-color: #f0f0f0;
+}
+
+/* ====== 页面容器 ====== */
+body {
+ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+ background: var(--yonbi-vis-bg-page);
+ color: var(--yonbi-vis-text-primary);
+ line-height: 1.6;
+}
+
+/* ====== 报告容器 ====== */
+.yonbi-rep-report {
+ max-width: 1200px;
+ margin: 0 auto;
+ background: var(--yonbi-vis-bg-content);
+ box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* ====== 报告头部 ====== */
+.yonbi-rep-header {
+ background: linear-gradient(
+  135deg,
+  var(--yonbi-vis-color-primary),
+  var(--yonbi-vis-color-primary-dark)
+ );
+ color: #fff;
+ padding: 32px 40px;
+}
+.yonbi-rep-header h1 {
+ font-size: 24px;
+ font-weight: 600;
+ margin-bottom: 8px;
+}
+.yonbi-rep-meta {
+ font-size: 13px;
+ opacity: 0.8;
+}
+.yonbi-rep-summary {
+ margin-top: 16px;
+ padding-top: 16px;
+ border-top: 1px solid rgba(255, 255, 255, 0.2);
+ font-size: 14px;
+ line-height: 1.8;
+}
+
+/* 简洁头部变体 */
+.yonbi-rep-header--simple {
+ background: var(--yonbi-vis-bg-content);
+ border-bottom: 3px solid var(--yonbi-vis-color-primary);
+ color: var(--yonbi-vis-text-primary);
+}
+.yonbi-rep-header--simple h1 {
+ color: var(--yonbi-vis-text-primary);
+}
+.yonbi-rep-header--simple .yonbi-rep-meta {
+ color: var(--yonbi-vis-text-muted);
+}
+.yonbi-rep-header--simple .yonbi-rep-summary {
+ color: var(--yonbi-vis-text-secondary);
+ border-top-color: var(--yonbi-vis-border-color);
+}
+
+/* ====== 报告正文区 ====== */
+.yonbi-rep-body {
+ padding: 32px 16px;
+}
+
+/* ====== 章节标题 ====== */
+.yonbi-rep-section {
+ margin-bottom: 36px;
+}
+.yonbi-rep-section__title {
+ font-size: 18px;
+ font-weight: 600;
+ color: var(--yonbi-vis-text-primary);
+ margin-bottom: 16px;
+ padding-left: 12px;
+ border-left: 3px solid var(--yonbi-vis-color-primary);
+}
+
+/* ====== 洞察文字 ====== */
+.yonbi-rep-insight {
+ font-size: 14px;
+ line-height: 1.8;
+ color: var(--yonbi-vis-text-secondary);
+ margin-bottom: 16px;
+}
+.yonbi-rep-insight strong {
+ color: var(--yonbi-vis-text-primary);
+}
+
+/* ====== 高亮样式 ====== */
+.yonbi-rep-header .yonbi-rep-summary .yonbi-rep-highlight {
+ color: #fff;
+ font-weight: 700;
+ text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.yonbi-rep-header .yonbi-rep-summary .yonbi-rep-trend--up {
+ color: #ffd666;
+ font-weight: 700;
+}
+.yonbi-rep-header .yonbi-rep-summary .yonbi-rep-trend--down {
+ color: #95de64;
+ font-weight: 700;
+}
+.yonbi-rep-insight .yonbi-rep-highlight {
+ color: var(--yonbi-vis-color-primary);
+ font-weight: 600;
+ display: inline;
+}
+.yonbi-rep-insight .yonbi-rep-trend--up {
+ color: #fb6832;
+ font-weight: 600;
+ display: inline;
+}
+.yonbi-rep-insight .yonbi-rep-trend--down {
+ color: #1cd46b;
+ font-weight: 600;
+ display: inline;
+}
+
+/* ====== 洞察标注 ====== */
+.yonbi-rep-tag {
+ display: inline-block;
+ font-size: 12px;
+ padding: 2px 8px;
+ border-radius: 4px;
+ margin-right: 6px;
+ font-weight: 500;
+}
+.yonbi-rep-tag--risk {
+ background: #fff1f0;
+ color: #cf1322;
+}
+.yonbi-rep-tag--opportunity {
+ background: #f6ffed;
+ color: #389e0d;
+}
+.yonbi-rep-tag--finding {
+ background: #fff7e6;
+ color: #d46b08;
+}
+.yonbi-rep-tag--info {
+ background: var(--yonbi-vis-color-primary-light);
+ color: var(--yonbi-vis-color-primary-dark);
+}
+
+/* ====== 置信度标注 ====== */
+.yonbi-rep-confidence {
+ display: inline-block;
+ font-size: 11px;
+ padding: 1px 6px;
+ border-radius: 3px;
+ margin-left: 6px;
+}
+.yonbi-rep-confidence--high {
+ background: #f6ffed;
+ color: #389e0d;
+}
+.yonbi-rep-confidence--medium {
+ background: #fffbe6;
+ color: #d48806;
+}
+.yonbi-rep-confidence--low {
+ background: #fff7e6;
+ color: #d46b08;
+}
+.yonbi-rep-confidence--hypothesis {
+ background: var(--yonbi-vis-color-primary-light);
+ color: var(--yonbi-vis-color-primary);
+}
+
+/* ====== 指标卡容器 ====== */
+.yonbi-vis-cards {
+ display: grid;
+ grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+ gap: 16px;
+ width: 100%;
+ margin: 20px 0;
+}
+
+/* ====== 指标卡主体 ====== */
+.yonbi-vis-card {
+ position: relative;
+ border-radius: 8px;
+ opacity: 1;
+ overflow: hidden;
+ min-height: 140px;
+ height: auto;
+ padding: 20px 24px;
+ display: flex;
+ flex-direction: column;
+}
+
+/* ====== 卡片头部行 ====== */
+.yonbi-vis-card__header {
+ display: flex;
+ align-items: center;
+ gap: 12px;
+ margin-bottom: 12px;
+ flex-shrink: 0;
+}
+
+/* ====== 卡片类型背景色 ====== */
+.yonbi-vis-card--amount {
+ background: rgba(50, 147, 251, 0.1);
+}
+.yonbi-vis-card--volume {
+ background: rgba(50, 196, 250, 0.1);
+}
+.yonbi-vis-card--profit {
+ background: rgba(130, 223, 43, 0.1);
+}
+.yonbi-vis-card--cost {
+ background: rgba(252, 181, 48, 0.1);
+}
+.yonbi-vis-card--sales {
+ background: rgba(251, 104, 50, 0.1);
+}
+.yonbi-vis-card--users {
+ background: rgba(115, 124, 253, 0.1);
+}
+.yonbi-vis-card--rate {
+ background: rgba(28, 212, 107, 0.1);
+}
+.yonbi-vis-card--time {
+ background: rgba(185, 114, 252, 0.1);
+}
+.yonbi-vis-card--growth {
+ background: rgba(119, 216, 63, 0.1);
+}
+.yonbi-vis-card--inventory {
+ background: rgba(251, 163, 68, 0.1);
+}
+.yonbi-vis-card--customer {
+ background: rgba(246, 189, 76, 0.1);
+}
+
+/* ====== 图标背景 ====== */
+.yonbi-vis-icon-bg {
+ position: relative;
+ width: 20px;
+ height: 20px;
+ border-radius: 6px;
+ flex-shrink: 0;
+}
+
+/* ====== 图标类型背景色 ====== */
+.yonbi-vis-icon--amount {
+ background: #3293fb;
+}
+.yonbi-vis-icon--volume {
+ background: #32c4fa;
+}
+.yonbi-vis-icon--profit {
+ background: #82df2b;
+}
+.yonbi-vis-icon--cost {
+ background: #fcb530;
+}
+.yonbi-vis-icon--sales {
+ background: #fb6832;
+}
+.yonbi-vis-icon--users {
+ background: #737cfd;
+}
+.yonbi-vis-icon--rate {
+ background: #1cd46b;
+}
+.yonbi-vis-icon--time {
+ background: #b972fc;
+}
+.yonbi-vis-icon--growth {
+ background: #77d83f;
+}
+.yonbi-vis-icon--inventory {
+ background: #fba344;
+}
+.yonbi-vis-icon--customer {
+ background: #f6bd4c;
+}
+
+/* ====== 卡片图标 ====== */
+.yonbi-vis-card__icon {
+ position: absolute;
+ left: 0;
+ top: 0;
+ width: 20px;
+ height: 20px;
+ line-height: 20px !important;
+ text-align: center;
+ font-size: 10px;
+ color: #ffffff;
+ z-index: 1;
+}
+
+/* ====== 卡片标题 ====== */
+.yonbi-vis-card__title {
+ font-size: 15px;
+ font-weight: 600;
+ color: #333333;
+ white-space: nowrap;
+ overflow: hidden;
+ text-overflow: ellipsis;
+}
+
+/* ====== 卡片数值 ====== */
+.yonbi-vis-card__value {
+ font-size: 24px;
+ font-weight: 700;
+ line-height: 1.3;
+ color: #111827;
+ margin-bottom: 8px;
+ word-break: break-all;
+ overflow-wrap: break-word;
+}
+
+/* ====== 数值单位 ====== */
+.yonbi-vis-card__unit {
+ font-size: 15px;
+ font-weight: 600;
+ color: #333333;
+ margin-left: 2px;
+}
+
+/* ====== 趋势组 ====== */
+.yonbi-vis-trend {
+ display: flex;
+ gap: 32px;
+ margin-top: auto;
+}
+
+/* ====== 趋势项 ====== */
+.yonbi-vis-trend__item {
+ display: flex;
+ flex-wrap: wrap;
+ align-items: center;
+ gap: 4px;
+}
+
+/* ====== 趋势标签 ====== */
+.yonbi-vis-trend__label {
+ font-size: 12px;
+ color: #4b5563;
+ font-weight: 500;
+}
+
+/* ====== 上升趋势 ====== */
+.yonbi-vis-trend--up {
+ font-size: 13px;
+ color: #fb6832;
+ font-weight: 600;
+}
+.yonbi-vis-trend--up i {
+ margin-right: 2px;
+}
+
+/* ====== 下降趋势 ====== */
+.yonbi-vis-trend--down {
+ font-size: 13px;
+ color: #1cd46b;
+ font-weight: 600;
+}
+.yonbi-vis-trend--down i {
+ margin-right: 2px;
+}
+
+/* ====== 中性趋势 ====== */
+.yonbi-vis-trend--neutral {
+ font-size: 13px;
+ color: #8c8c8c;
+ font-weight: 600;
+}
+.yonbi-vis-trend--neutral i {
+ margin-right: 2px;
+}
+
+/* ====== 图表容器 ====== */
+.yonbi-rep-chart {
+ width: 100%;
+ height: 400px;
+ background: var(--yonbi-vis-bg-content);
+ border-radius: 8px;
+ margin: 16px 0;
+ box-shadow:
+  0 2px 8px rgba(0, 0, 0, 0.08),
+  0 4px 16px rgba(0, 0, 0, 0.04);
+}
+.yonbi-rep-chart--sm {
+ height: 300px;
+}
+.yonbi-rep-chart--lg {
+ height: 500px;
+}
+
+.yonbi-rep-loading {
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ height: 100%;
+ color: #8c8c8c;
+ font-size: 14px;
+ background: #fafafa;
+ border-radius: 12px;
+ animation: yonbi-rep-loading-pulse 1.5s ease-in-out infinite;
+}
+@keyframes yonbi-rep-loading-pulse {
+ 0%,
+ 100% {
+  opacity: 0.4;
+ }
+ 50% {
+  opacity: 1;
+ }
+}
+
+/* ====== 双图网格 ====== */
+.yonbi-rep-chart-grid {
+ display: grid;
+ grid-template-columns: repeat(2, 1fr);
+ gap: 20px;
+ margin: 16px 0;
+}
+.yonbi-rep-chart-grid .yonbi-rep-chart {
+ margin: 0;
+ min-width: 0;
+ box-sizing: border-box;
+}
+
+/* ====== 行动建议卡片 ====== */
+.yonbi-rep-action {
+ background: var(--yonbi-vis-color-primary-light);
+ border-left: 3px solid var(--yonbi-vis-color-primary);
+ border-radius: 0 8px 8px 0;
+ padding: 16px 20px;
+ margin-bottom: 12px;
+}
+.yonbi-rep-action__title {
+ font-size: 14px;
+ font-weight: 600;
+ color: var(--yonbi-vis-text-primary);
+ margin-bottom: 4px;
+}
+.yonbi-rep-action__desc {
+ font-size: 13px;
+ color: var(--yonbi-vis-text-secondary);
+}
+.yonbi-rep-action__priority {
+ display: inline-block;
+ font-size: 11px;
+ padding: 1px 6px;
+ border-radius: 3px;
+ margin-right: 4px;
+}
+.yonbi-rep-action__priority--high {
+ background: var(--yonbi-vis-color-danger);
+ color: #fff;
+}
+.yonbi-rep-action__priority--medium {
+ background: var(--yonbi-vis-color-accent);
+ color: #fff;
+}
+.yonbi-rep-action__priority--low {
+ background: var(--yonbi-vis-color-success);
+ color: #fff;
+}
+
+/* ====== 风险提示 ====== */
+.yonbi-rep-risk {
+ background: #fff1f0;
+ border-left: 3px solid var(--yonbi-vis-color-danger);
+ border-radius: 0 8px 8px 0;
+ padding: 16px 20px;
+ margin: 16px 0;
+}
+.yonbi-rep-risk h3 {
+ font-size: 14px;
+ color: #cf1322;
+ margin-bottom: 8px;
+}
+.yonbi-rep-risk ul {
+ margin: 0;
+ padding-left: 20px;
+}
+.yonbi-rep-risk li {
+ font-size: 13px;
+ color: var(--yonbi-vis-text-secondary);
+ margin-bottom: 4px;
+}
+
+/* ====== 表格 ====== */
+.yonbi-rep-table {
+ width: 100%;
+ border-collapse: collapse;
+ font-size: 13px;
+ margin: 16px 0;
+}
+.yonbi-rep-table th {
+ background: var(--yonbi-vis-bg-card);
+ font-weight: 600;
+ text-align: left;
+ padding: 10px 12px;
+ border-bottom: 2px solid var(--yonbi-vis-border-color);
+}
+.yonbi-rep-table td {
+ padding: 8px 12px;
+ border-bottom: 1px solid var(--yonbi-vis-border-color);
+}
+.yonbi-rep-table tr:hover td {
+ background: var(--yonbi-vis-bg-card);
+}
+
+/* ====== 假设树样式 ====== */
+.yonbi-rep-hypothesis {
+ background: var(--yonbi-vis-bg-card);
+ border-radius: 8px;
+ padding: 20px 24px;
+ margin: 16px 0;
+ font-size: 13px;
+ line-height: 2;
+ border: 1px solid var(--yonbi-vis-border-color);
+}
+.yonbi-rep-hypothesis-item {
+ padding: 4px 0;
+}
+.yonbi-rep-hypothesis-tag {
+ display: inline-block;
+ font-size: 11px;
+ padding: 1px 6px;
+ border-radius: 3px;
+ margin-right: 4px;
+}
+.yonbi-rep-hypothesis-tag--p0 {
+ background: #fff1f0;
+ color: #cf1322;
+}
+.yonbi-rep-hypothesis-tag--p1 {
+ background: #fffbe6;
+ color: #d48806;
+}
+.yonbi-rep-hypothesis-tag--p2 {
+ background: var(--yonbi-vis-color-primary-light);
+ color: var(--yonbi-vis-color-primary);
+}
+
+/* ====== 数据健康度评分卡 ====== */
+.yonbi-rep-quality {
+ display: grid;
+ grid-template-columns: repeat(5, 1fr);
+ gap: 12px;
+ margin: 16px 0;
+}
+.yonbi-rep-quality__item {
+ background: var(--yonbi-vis-bg-card);
+ border-radius: 8px;
+ padding: 12px;
+ text-align: center;
+}
+.yonbi-rep-quality__label {
+ font-size: 12px;
+ color: var(--yonbi-vis-text-muted);
+}
+.yonbi-rep-quality__status {
+ font-size: 20px;
+ margin-top: 4px;
+}
+
+/* ====== 归因贡献度进度条 ====== */
+.yonbi-rep-progress {
+ position: relative;
+ background: rgba(255, 255, 255, 0.1);
+ border-radius: 12px;
+ height: 24px;
+ overflow: hidden;
+}
+.yonbi-rep-progress__fill--positive {
+ background: linear-gradient(90deg, #10b981, #34d399);
+ height: 100%;
+ border-radius: 12px;
+}
+.yonbi-rep-progress__fill--negative {
+ background: linear-gradient(90deg, #ef4444, #f87171);
+ height: 100%;
+ border-radius: 12px;
+}
+.yonbi-rep-progress span {
+ position: absolute;
+ left: 50%;
+ top: 50%;
+ transform: translate(-50%, -50%);
+ font-size: 12px;
+ font-weight: 500;
+}
+
+/* ====== 报告底部 ====== */
+.yonbi-rep-footer {
+ padding: 20px 40px;
+ border-top: 1px solid var(--yonbi-vis-border-color);
+ text-align: center;
+}
+.yonbi-rep-footer__text {
+ font-size: 12px;
+ color: var(--yonbi-vis-text-muted);
+ margin-bottom: 12px;
+}
+
+/* 底部标签样式 */
+.yonbi-rep-footer__tags {
+ display: flex;
+ flex-wrap: wrap;
+ justify-content: center;
+ gap: 12px;
+ margin-top: 12px;
+}
+.yonbi-rep-footer__tag {
+ display: inline-flex;
+ align-items: center;
+ gap: 6px;
+ padding: 6px 14px;
+ border-radius: 4px;
+ font-size: 12px;
+ font-weight: 500;
+}
+.yonbi-rep-footer__tag i {
+ font-size: 14px;
+}
+.yonbi-rep-footer__tag--source {
+ background: rgba(50, 147, 251, 0.1);
+ color: #3293fb;
+}
+.yonbi-rep-footer__tag--method {
+ background: rgba(130, 223, 43, 0.1);
+ color: #6bbd2e;
+}
+
+/* ====== 响应式 ====== */
+@media (max-width: 768px) {
+ .yonbi-rep-header,
+ .yonbi-rep-body {
+  padding-left: 20px;
+  padding-right: 20px;
+ }
+ .yonbi-rep-chart-grid {
+  grid-template-columns: 1fr;
+ }
+ .yonbi-rep-quality {
+  grid-template-columns: repeat(3, 1fr);
+ }
+ .yonbi-vis-card {
+  min-height: 130px;
+  padding: 16px 20px;
+ }
+ .yonbi-vis-card__value {
+  font-size: 22px;
+ }
+ .yonbi-vis-trend {
+  gap: 24px;
+ }
+}
+@media (max-width: 480px) {
+ .yonbi-rep-quality {
+  grid-template-columns: repeat(2, 1fr);
+ }
+ .yonbi-rep-header h1 {
+  font-size: 20px;
+ }
+}

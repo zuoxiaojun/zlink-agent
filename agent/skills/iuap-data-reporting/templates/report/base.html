@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{REPORT_TITLE}}</title>
+    <!--
+    ============================================================
+    【流式报告模板说明】
+    ============================================================
+    本模板用于流式输出模式，实现渐进式渲染。
+
+    核心原理：
+    - 每个图表的容器和内联脚本紧邻输出
+    - 图表生成后立即渲染，无需等待其他图表
+    - 全局脚本（resize监听）放在页面底部
+
+    输出顺序：
+    1. 报告头部
+    2. 章节1标题 → 章节1分析文字 → 图表1容器 → 图表1内联脚本 → 立即渲染
+    3. 章节2标题 → 章节2分析文字 → 图表2容器 → 图表2内联脚本 → 立即渲染
+    4. ...
+    5. 报告底部
+    6. 全局脚本（resize监听）
+    ============================================================
+  -->
+    <!--
+    ============================================================
+    【样式加载策略 - 二选一，禁止同时存在】
+    ============================================================
+    方案 A（默认）：使用 CDN link（当前使用）
+    方案 B（降级）：使用 <style> 标签内嵌完整样式
+
+    ⚠️  警告：只能选择一种方案，禁止同时存在！
+    如果选择方案 B，必须删除下面的 <link> 标签。
+    如果选择方案 A，必须删除下面的 <style> 标签。
+    ============================================================
+  -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/liuqxuan/BI-DefaultTheme@v1.0.11/report-styles.css"
+    />
+    <!-- ECharts & 主题注册 -->
+    <script src="https://registry.npmmirror.com/echarts/5.5.1/files/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/liuqxuan/BI-DefaultTheme@v1.0.12/registe-theme.js"></script>
+    <script>
+      // 主题注册（必须在 registe-theme.js 加载后立即执行，确保流式渲染时主题可用）
+      if (
+        typeof echarts !== "undefined" &&
+        typeof window.getDefaultTheme === "function"
+      ) {
+        echarts.registerTheme("defaultTheme", window.getDefaultTheme());
+      }
+    </script>
+    <!--
+    ============================================================
+    【图表脚本来源 - 单一职责原则】
+    ============================================================
+    所有图表脚本必须来自 iuap-data-visualizing 技能返回。
+
+    可视化技能返回的脚本已包含：
+    - formatUnified：统一数值格式化（万/亿单位）
+    - safeGetValue：dataset 模式安全取值
+    - calcAdaptiveGrid：四维自适应 grid 计算（处理 yAxis.name 溢出）
+    - measureTextWidth、shortenNumber：辅助函数
+    - 完整的 option 配置（含正确的 label.formatter、grid 等）
+
+    报告技能职责：
+    - 原样嵌入可视化技能返回的容器和脚本
+    - 禁止自行编写或修改图表配置
+    - 禁止搬运或简化可视化技能的公共函数
+
+    ============================================================
+  -->
+    <!-- Font Awesome 图标库 -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div class="yonbi-rep-report">
+      <!-- ====== 报告头部 ====== -->
+      <div class="yonbi-rep-header">
+        <h1>{{REPORT_TITLE}}</h1>
+        <div class="yonbi-rep-meta">{{META_INFO}}</div>
+        <div class="yonbi-rep-summary">
+          <span class="yonbi-rep-tag yonbi-rep-tag--opportunity">摘要</span>
+          {{EXECUTIVE_SUMMARY}}
+        </div>
+      </div>
+
+      <!-- ====== 报告正文 ====== -->
+      <div class="yonbi-rep-body">
+        <!--
+        ============================================================
+        【流式输出区域】
+        ============================================================
+        章节内容逐个输出，每个图表紧跟内联脚本：
+
+        示例输出结构：
+        <div class="yonbi-rep-section">
+          <h2 class="yonbi-rep-section__title">趋势分析</h2>
+          <div class="yonbi-rep-section__content">
+            <p class="yonbi-rep-insight">分析文字...</p>
+          </div>
+          <div class="yonbi-rep-chart-section">
+            <div id="chart-trend" class="yonbi-rep-chart">
+              <div class="yonbi-rep-loading">图表渲染中...</div>
+            </div>
+            <script>
+            (function() {
+              if (typeof echarts === 'undefined') return;
+              var chart = echarts.init(document.getElementById('chart-trend'), 'defaultTheme');
+              chart.setOption({...});
+              if (!window.__charts) window.__charts = [];
+              window.__charts.push(chart);
+            })();
+            </script>
+          </div>
+        </div>
+
+        技能执行时：
+        - 逐章节处理
+        - 每个章节输出后立即输出图表容器+脚本
+        - 无需等待其他章节
+        ============================================================
+      -->
+        {{STREAMING_SECTIONS}}
+      </div>
+
+      <!-- ====== 报告底部 ====== -->
+      <div class="yonbi-rep-footer">
+        <div class="yonbi-rep-footer__tags">
+          <span class="yonbi-rep-footer__tag yonbi-rep-footer__tag--source"
+            ><i class="fa fa-database"></i>数据来源：{{DATA_SOURCE}}</span
+          >
+          <span class="yonbi-rep-footer__tag yonbi-rep-footer__tag--method"
+            ><i class="fa fa-chart-line"></i
+            >分析方法：{{ANALYSIS_METHODS}}</span
+          >
+        </div>
+        <div
+          style="
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px dashed #f0f0f0;
+            font-size: 12px;
+            color: #8c8c8c;
+            text-align: center;
+          "
+        >
+          本内容由用友Data Master智能生成，数据未经审核，仅供参考。
+        </div>
+      </div>
+    </div>
+
+    <!-- 全局脚本：resize 监听 -->
+    <script>
+      // 全局 resize 监听
+      window.addEventListener("resize", function () {
+        (window.__charts || []).forEach(function (chart) {
+          chart && chart.resize();
+        });
+      });
+    </script>
+  </body>
+</html>

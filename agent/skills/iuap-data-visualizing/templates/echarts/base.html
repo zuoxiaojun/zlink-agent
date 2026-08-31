@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{CHART_TITLE}}</title>
+    <script src="https://registry.npmmirror.com/echarts/5.5.1/files/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/liuqxuan/BI-DefaultTheme@v1.0.12/registe-theme.js"></script>
+    {{#PLUGIN_SCRIPTS}}
+    <script src="{{.}}"></script>
+    {{/PLUGIN_SCRIPTS}}
+    <style>
+      /* ====== Reset & Base ====== */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+        background: {{BACKGROUND_COLOR}};
+        padding: 24px;
+        min-height: 100vh;
+      }
+
+      /* ====== 主容器 ====== */
+      .yonbi-vis-container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      /* ====== 单图表布局 ====== */
+      .yonbi-vis-single-chart {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .yonbi-vis-single-chart .yonbi-vis-chart-card {
+        max-width: 900px;
+        width: 100%;
+      }
+
+      /* ====== 图表网格布局 ====== */
+      .yonbi-vis-charts-grid {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      }
+
+      /* ====== 图表卡片 ====== */
+      .yonbi-vis-chart-card {
+        background: {{CARD_BACKGROUND}};
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow:
+          0 2px 8px rgba(0,0,0,0.08),
+          0 4px 16px rgba(0,0,0,0.04);
+        transition: box-shadow 0.2s;
+        min-width: 0;
+        box-sizing: border-box;
+      }
+      .yonbi-vis-chart-card:hover {
+        box-shadow:
+          0 4px 12px rgba(0,0,0,0.12),
+          0 8px 24px rgba(0,0,0,0.06);
+      }
+
+      /* ====== 图表容器 ====== */
+      .yonbi-vis-chart {
+        width: 100%;
+        height: 400px;
+      }
+
+      /* ====== 加载占位符 ====== */
+      .yonbi-vis-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #8c8c8c;
+        font-size: 14px;
+        background: #fafafa;
+        border-radius: 12px;
+        animation: yonbi-vis-loading-pulse 1.5s ease-in-out infinite;
+      }
+      @keyframes yonbi-vis-loading-pulse {
+        0%, 100% { opacity: 0.4; }
+        50% { opacity: 1; }
+      }
+
+      /* ====== 响应式 ====== */
+      @media (max-width: 768px) {
+        body { padding: 16px; }
+        .yonbi-vis-charts-grid { grid-template-columns: 1fr; }
+        .yonbi-vis-chart { height: 320px; }
+      }
+
+      /* ====== 打印 ====== */
+      @media print {
+        body { background: #fff; padding: 0; }
+        .yonbi-vis-chart-card { box-shadow: none; border: 1px solid #e5e7eb; break-inside: avoid; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="yonbi-vis-container" id="app">
+      <div class="yonbi-vis-loading" style="height: 200px">图表加载中...</div>
+    </div>
+    <script>
+      if (typeof echarts === 'undefined') {
+        document.getElementById('app').innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#8c8c8c;">图表库加载失败，请检查网络连接后刷新页面</div>';
+      } else {
+        try {
+          const themeData = {{THEME_JSON}};
+          echarts.registerTheme('{{THEME_NAME}}', themeData);
+        } catch (e) {
+          console.warn('主题注册失败，使用默认主题', e);
+        }
+
+        const chartsConfig = {{CHARTS_CONFIG}};
+        const isSingleChart = chartsConfig.length === 1;
+        const app = document.getElementById('app');
+
+        if (isSingleChart) {
+          app.innerHTML = `
+            <div class="yonbi-vis-single-chart">
+              <div class="yonbi-vis-chart-card">
+                <div id="chart0" class="yonbi-vis-chart"><div class="yonbi-vis-loading">图表渲染中...</div></div>
+              </div>
+            </div>
+          `;
+        } else {
+          const chartsHtml = chartsConfig.map((config, idx) => `
+            <div class="yonbi-vis-chart-card">
+              <div id="chart${idx}" class="yonbi-vis-chart"><div class="yonbi-vis-loading">图表渲染中...</div></div>
+            </div>
+          `).join('');
+          app.innerHTML = `<div class="yonbi-vis-charts-grid">${chartsHtml}</div>`;
+        }
+
+        const charts = [];
+        chartsConfig.forEach((config, idx) => {
+          const chartDom = document.getElementById(`chart${idx}`);
+          if (chartDom) {
+            const chart = echarts.init(chartDom, '{{THEME_NAME}}');
+            chart.setOption(config.option);
+            charts.push(chart);
+          }
+        });
+
+        function getResponsiveGrid(containerWidth) {
+          if (containerWidth < 500) {
+            return { top: 50, right: 50, left: 50, bottom: 50 };
+          } else if (containerWidth < 700) {
+            return { top: 55, right: 60, left: 60, bottom: 55 };
+          }
+          return { top: 60, right: 70, left: 70, bottom: 60 };
+        }
+
+        // 运行时 grid 安全网：自动检测 axis name 并补足 grid 空间
+        // 不依赖 LLM 是否正确调用了 calcAdaptiveGrid，渲染时刻自动修正
+        // 只增不减：永远不会缩小已有正确 grid 值
+        function ensureSafeGrid(currentOption) {
+          var xAxis = (currentOption.xAxis && currentOption.xAxis[0]) || {};
+          var yAxis = (currentOption.yAxis && currentOption.yAxis[0]) || {};
+          var safeTop = 0, safeBottom = 0;
+          if (yAxis.name) safeTop = 40;    // yAxis.name 从 grid 顶部往上生长
+          if (xAxis.name) safeBottom = 40; // xAxis.name 从 grid 底部往下生长
+          return { top: safeTop, bottom: safeBottom };
+        }
+
+        function updateResponsiveOptions() {
+          charts.forEach((chart, idx) => {
+            const container = document.getElementById(`chart${idx}`);
+            if (!container) return;
+            const currentOption = chart.getOption();
+            const currentGrid = currentOption.grid;
+            const responsive = getResponsiveGrid(container.offsetWidth);
+            const safety = ensureSafeGrid(currentOption);
+            if (Array.isArray(currentGrid) && currentGrid[0]) {
+              chart.setOption({
+                grid: {
+                  top: Math.max(responsive.top + safety.top, currentGrid[0].top || 50),
+                  bottom: Math.max(responsive.bottom + safety.bottom, currentGrid[0].bottom || 60),
+                  left: currentGrid[0].left,
+                  right: currentGrid[0].right,
+                  containLabel: currentGrid[0].containLabel !== false
+                }
+              });
+            } else {
+              chart.setOption({
+                grid: {
+                  top: responsive.top + safety.top,
+                  bottom: responsive.bottom + safety.bottom,
+                  left: responsive.left,
+                  right: responsive.right,
+                  containLabel: true
+                }
+              });
+            }
+          });
+        }
+
+        window.addEventListener('resize', () => {
+          charts.forEach(chart => chart.resize());
+          updateResponsiveOptions();
+        });
+
+        setTimeout(updateResponsiveOptions, 100);
+      }
+    </script>
+  </body>
+</html>

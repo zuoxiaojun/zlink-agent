@@ -513,10 +513,13 @@ class AIAgent:
             lines.append("规则：")
             lines.append('- 如果用户未指明系统 → 必须先询问"查哪个系统的数据"')
             lines.append('- 如果用户已指定系统名称（如"查 YonSuite 的销售订单"）→ 直接执行')
+            lines.append('- 只把已启用 ✅ 的系统列为可选项，不要提未启用的 ERP 系统')
         elif enabled_count == 1:
             lines.append("")
             lines.append("规则：")
             lines.append("- 使用已启用 ✅ 系统的对应工具取数")
+            lines.append("- 只列已启用的系统，不要提未启用的 ERP 系统，更不要把它们列为可选项供用户选择")
+            lines.append("- 直接默认使用已启用的系统取数，不需要问用户查哪个系统")
 
         return "\n".join(lines)
 

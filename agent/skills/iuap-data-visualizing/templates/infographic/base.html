@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{INFOGRAPHIC_TITLE}}</title>
+    <script src="https://cdn.jsdelivr.net/npm/@antv/infographic@0.2.16/dist/infographic.min.js"></script>
+    <style>
+      /* ====== Reset & Base ====== */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+        background: {{BACKGROUND_COLOR}};
+        padding: 24px;
+        min-height: 100vh;
+      }
+
+      /* ====== 信息图容器 ====== */
+      .yonbi-vis-infographic {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      /* ====== 信息图头部 ====== */
+      .yonbi-vis-infographic__header {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+
+      .yonbi-vis-header__title {
+        font-size: 28px;
+        font-weight: 700;
+        color: {{TITLE_COLOR}};
+        margin-bottom: 8px;
+      }
+
+      .yonbi-vis-header__subtitle {
+        font-size: 16px;
+        color: {{SUBTITLE_COLOR}};
+      }
+
+      /* ====== 信息图画布 ====== */
+      #yonbi-vis-infographic-canvas {
+        width: 100%;
+        min-height: 600px;
+        background: {{CANVAS_BACKGROUND}};
+        border-radius: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="yonbi-vis-infographic">
+      <div class="yonbi-vis-infographic__header">
+        <h1 class="yonbi-vis-header__title">{{TITLE}}</h1>
+        <p class="yonbi-vis-header__subtitle">{{SUBTITLE}}</p>
+      </div>
+      <div id="yonbi-vis-infographic-canvas"></div>
+    </div>
+    <script>
+      const chart = new Infographic({
+        container: 'yonbi-vis-infographic-canvas',
+        {{INFOGRAPHIC_CONFIG}}
+      });
+      chart.render();
+    </script>
+  </body>
+</html>

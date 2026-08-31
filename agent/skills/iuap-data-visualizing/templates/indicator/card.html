@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{CARD_TITLE}}</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      /* ====== Reset & Base ====== */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: "HarmonyOS Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+        background: {{BACKGROUND_COLOR}};
+        padding: 24px;
+        color: #333333;
+      }
+
+      /* ====== 指标卡容器 ====== */
+      .yonbi-vis-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+        gap: 16px;
+        width: 100%;
+        margin: 20px 0;
+      }
+
+      /* ====== 指标卡主体 ====== */
+      .yonbi-vis-card {
+        position: relative;
+        border-radius: 8px;
+        opacity: 1;
+        overflow: hidden;
+        min-height: 140px;
+        height: auto;
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ====== 卡片头部行 ====== */
+      .yonbi-vis-card__header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+        flex-shrink: 0;
+      }
+
+      /* ====== 卡片类型背景色 ====== */
+      .yonbi-vis-card--amount { background: rgba(50, 147, 251, 0.1); }
+      .yonbi-vis-card--volume { background: rgba(50, 196, 250, 0.1); }
+      .yonbi-vis-card--profit { background: rgba(130, 223, 43, 0.1); }
+      .yonbi-vis-card--cost { background: rgba(252, 181, 48, 0.1); }
+      .yonbi-vis-card--sales { background: rgba(251, 104, 50, 0.1); }
+      .yonbi-vis-card--users { background: rgba(115, 124, 253, 0.1); }
+      .yonbi-vis-card--rate { background: rgba(28, 212, 107, 0.1); }
+      .yonbi-vis-card--time { background: rgba(185, 114, 252, 0.1); }
+      .yonbi-vis-card--growth { background: rgba(119, 216, 63, 0.1); }
+      .yonbi-vis-card--inventory { background: rgba(251, 163, 68, 0.1); }
+      .yonbi-vis-card--customer { background: rgba(246, 189, 76, 0.1); }
+
+      /* ====== 图标背景 ====== */
+      .yonbi-vis-icon-bg {
+        position: relative;
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        flex-shrink: 0;
+      }
+
+      /* ====== 图标类型背景色 ====== */
+      .yonbi-vis-icon--amount { background: #3293fb; }
+      .yonbi-vis-icon--volume { background: #32c4fa; }
+      .yonbi-vis-icon--profit { background: #82df2b; }
+      .yonbi-vis-icon--cost { background: #fcb530; }
+      .yonbi-vis-icon--sales { background: #fb6832; }
+      .yonbi-vis-icon--users { background: #737cfd; }
+      .yonbi-vis-icon--rate { background: #1cd46b; }
+      .yonbi-vis-icon--time { background: #b972fc; }
+      .yonbi-vis-icon--growth { background: #77d83f; }
+      .yonbi-vis-icon--inventory { background: #fba344; }
+      .yonbi-vis-icon--customer { background: #f6bd4c; }
+
+      /* ====== 卡片图标 ====== */
+      .yonbi-vis-card__icon {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 20px;
+        height: 20px;
+        line-height: 20px !important;
+        text-align: center;
+        font-size: 10px;
+        color: #ffffff;
+        z-index: 1;
+      }
+
+      /* ====== 卡片标题 ====== */
+      .yonbi-vis-card__title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #333333;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* ====== 卡片数值 ====== */
+      .yonbi-vis-card__value {
+        font-size: 24px;
+        font-weight: 700;
+        line-height: 1.3;
+        color: #111827;
+        margin-bottom: 8px;
+        word-break: break-all;
+        overflow-wrap: break-word;
+      }
+
+      /* ====== 数值单位 ====== */
+      .yonbi-vis-card__unit {
+        font-size: 15px;
+        font-weight: 600;
+        color: #333333;
+        margin-left: 2px;
+      }
+
+      /* ====== 趋势组 ====== */
+      .yonbi-vis-trend {
+        display: flex;
+        gap: 32px;
+        margin-top: auto;
+      }
+
+      /* ====== 趋势项 ====== */
+      .yonbi-vis-trend__item {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px;
+      }
+
+      /* ====== 趋势标签 ====== */
+      .yonbi-vis-trend__label {
+        font-size: 12px;
+        color: #4B5563;
+        font-weight: 500;
+      }
+
+      /* ====== 上升趋势 ====== */
+      .yonbi-vis-trend--up {
+        font-size: 13px;
+        color: #fb6832;
+        font-weight: 600;
+      }
+      .yonbi-vis-trend--up i { margin-right: 2px; }
+
+      /* ====== 下降趋势 ====== */
+      .yonbi-vis-trend--down {
+        font-size: 13px;
+        color: #1cd46b;
+        font-weight: 600;
+      }
+      .yonbi-vis-trend--down i { margin-right: 2px; }
+
+      /* ====== 中性趋势 ====== */
+      .yonbi-vis-trend--neutral {
+        font-size: 13px;
+        color: #8c8c8c;
+        font-weight: 600;
+      }
+      .yonbi-vis-trend--neutral i { margin-right: 2px; }
+
+      /* ====== 响应式 ====== */
+      @media (max-width: 768px) {
+        body { padding: 16px; }
+        .yonbi-vis-card { min-height: 130px; padding: 16px 20px; }
+        .yonbi-vis-card__value { font-size: 22px; }
+        .yonbi-vis-trend { gap: 24px; }
+      }
+
+      /* ====== 打印 ====== */
+      @media print {
+        body { background: #fff; padding: 0; }
+        .yonbi-vis-card { break-inside: avoid; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="yonbi-vis-card-header">
+      <h1 class="yonbi-vis-card-title-main">{{CARD_TITLE}}</h1>
+    </div>
+
+    <div class="yonbi-vis-cards">
+      {{#CARD_LIST}}
+      <div class="yonbi-vis-card {{cardClass}}">
+        <div class="yonbi-vis-card__header">
+          <div class="yonbi-vis-icon-bg {{iconBgClass}}">
+            <i class="fa {{iconClass}} yonbi-vis-card__icon"></i>
+          </div>
+          <div class="yonbi-vis-card__title">{{title}}</div>
+        </div>
+        <div class="yonbi-vis-card__value">{{value}}</div>
+        {{#hasTrend}}
+        <div class="yonbi-vis-trend">
+          {{#yoy}}
+          <div class="yonbi-vis-trend__item">
+            <span class="yonbi-vis-trend__label">{{label}}</span>
+            {{#trendUp}}
+            <span class="yonbi-vis-trend--up"
+              ><i class="fa fa-arrow-up"></i>{{value}}</span
+            >
+            {{/trendUp}} {{#trendDown}}
+            <span class="yonbi-vis-trend--down"
+              ><i class="fa fa-arrow-down"></i>{{value}}</span
+            >
+            {{/trendDown}} {{#trendNeutral}}
+            <span class="yonbi-vis-trend--neutral">{{value}}</span>
+            {{/trendNeutral}}
+          </div>
+          {{/yoy}} {{#mom}}
+          <div class="yonbi-vis-trend__item">
+            <span class="yonbi-vis-trend__label">{{label}}</span>
+            {{#trendUp}}
+            <span class="yonbi-vis-trend--up"
+              ><i class="fa fa-arrow-up"></i>{{value}}</span
+            >
+            {{/trendUp}} {{#trendDown}}
+            <span class="yonbi-vis-trend--down"
+              ><i class="fa fa-arrow-down"></i>{{value}}</span
+            >
+            {{/trendDown}} {{#trendNeutral}}
+            <span class="yonbi-vis-trend--neutral">{{value}}</span>
+            {{/trendNeutral}}
+          </div>
+          {{/mom}}
+        </div>
+        {{/hasTrend}}
+      </div>
+      {{/CARD_LIST}}
+    </div>
+  </body>
+</html>

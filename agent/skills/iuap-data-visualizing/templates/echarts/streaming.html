@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{CHART_TITLE}}</title>
+    <script src="https://registry.npmmirror.com/echarts/5.5.1/files/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/liuqxuan/BI-DefaultTheme@v1.0.12/registe-theme.js"></script>
+    {{#PLUGIN_SCRIPTS}}
+    <script src="{{.}}"></script>
+    {{/PLUGIN_SCRIPTS}}
+    <style>
+      /* ====== Reset & Base ====== */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif;
+        background: {{BACKGROUND_COLOR}};
+        padding: 24px;
+        min-height: 100vh;
+      }
+
+      /* ====== 主容器 ====== */
+      .yonbi-vis-container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      /* ====== 流式图表布局 ====== */
+      .yonbi-vis-charts-streaming {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      /* ====== 图表卡片 ====== */
+      .yonbi-vis-chart-card {
+        background: {{CARD_BACKGROUND}};
+        border-radius: 12px;
+        padding: 16px;
+        box-shadow:
+          0 2px 8px rgba(0,0,0,0.08),
+          0 4px 16px rgba(0,0,0,0.04);
+        transition: box-shadow 0.2s;
+      }
+      .yonbi-vis-chart-card:hover {
+        box-shadow:
+          0 4px 12px rgba(0,0,0,0.12),
+          0 8px 24px rgba(0,0,0,0.06);
+      }
+
+      /* ====== 图表容器 ====== */
+      .yonbi-vis-chart {
+        width: 100%;
+        height: 400px;
+      }
+
+      /* ====== 加载占位符 ====== */
+      .yonbi-vis-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #8c8c8c;
+        font-size: 14px;
+        background: #fafafa;
+        border-radius: 12px;
+        animation: yonbi-vis-loading-pulse 1.5s ease-in-out infinite;
+      }
+      @keyframes yonbi-vis-loading-pulse {
+        0%, 100% { opacity: 0.4; }
+        50% { opacity: 1; }
+      }
+
+      /* ====== 响应式 ====== */
+      @media (max-width: 768px) {
+        body { padding: 16px; }
+        .yonbi-vis-chart { height: 320px; }
+      }
+
+      /* ====== 打印 ====== */
+      @media print {
+        body { background: #fff; padding: 0; }
+        .yonbi-vis-chart-card { box-shadow: none; border: 1px solid #e5e7eb; break-inside: avoid; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="yonbi-vis-container" id="app">
+      <div class="yonbi-vis-charts-streaming">
+        <!--
+        ============================================================
+        【流式输出说明】
+        ============================================================
+        每个图表由两部分组成，按顺序输出：
+        1. 图表容器（含 loading 占位符）
+        2. 内联脚本（IIFE 封装，立即执行）
+
+        输出顺序：
+        图表1容器 → 图表1脚本 → 立即渲染
+        图表2容器 → 图表2脚本 → 立即渲染
+        ...
+
+        技能执行时：
+        - 逐个处理请求
+        - 每个图表生成后立即输出容器+脚本
+        - 无需等待其他图表
+        ============================================================
+      -->
+        {{STREAMING_CHARTS}}
+      </div>
+    </div>
+
+    <!-- 全局脚本：resize 监听 -->
+    <script>
+      window.addEventListener("resize", function () {
+        (window.__charts || []).forEach(function (chart) {
+          chart && chart.resize();
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -115,9 +115,31 @@ def get_instructions_for_query(query: str) -> str:
 
     Uses n-gram keyword matching against skill name, description, and tags.
     Skills whose metadata overlaps with the query get their full body loaded.
+    ERP 技能（nc/u8/yonsuite-skill）仅在其对应 ERP 启用时加载。
     """
     if not query:
         return ""
+
+    # ERP 技能 → 配置键映射
+    _erp_skill_map = {
+        "nc": "nc",
+        "u8": "u8",
+        "u9c": "u9c",
+        "yonsuite-skill": "yonsuite",
+    }
+
+    def _erp_enabled(skill_name: str) -> bool:
+        erp_key = _erp_skill_map.get(skill_name)
+        if erp_key is None:
+            return True
+        try:
+            from agent import config_manager
+
+            cfg = config_manager.load()
+            ecfg = cfg.erp_clients.get(erp_key, {})
+            return bool(ecfg.get("enabled", False)) if isinstance(ecfg, dict) else False
+        except Exception:
+            return True
 
     query_ngrams = _chinese_keywords(query)
     index = _load_skill_index()
@@ -125,6 +147,8 @@ def get_instructions_for_query(query: str) -> str:
 
     for s in index:
         name = s["name"]
+        if not _erp_enabled(name):
+            continue
         text = f"{name} {s.get('description', '')} {' '.join(s.get('tags', []))}"
         skill_ngrams = _chinese_keywords(text)
         if not query_ngrams or query_ngrams & skill_ngrams:

@@ -256,20 +256,6 @@ export default function SettingsERPPage() {
         <h1 className="page-title">ERP 连接</h1>
       </div>
 
-      {toast && (
-        <div
-          className={`toast toast-${toast.kind === "warn" ? "error" : toast.kind}`}
-          style={{ alignItems: "center" }}
-        >
-          {toast.kind === "success" ? (
-            <IconCircleCheck size={14} />
-          ) : (
-            <IconAlertCircle size={14} />
-          )}
-          {toast.msg}
-        </div>
-      )}
-
       <p className="page-intro">
         ZLink Agent 通过 <strong>ERP 客户端</strong>{" "}
         接入各业务系统。切换页签管理各 ERP 的连接信息。
@@ -326,6 +312,7 @@ export default function SettingsERPPage() {
             isSaving={savingName === name}
             isTesting={testingName === name}
             testResult={testResults[name] ?? null}
+            toast={toast}
             onUpdateField={(k, v) => updateField(name, k, v)}
             onToggle={() => handleToggle(name)}
             onSave={() => handleSave(name)}
@@ -345,6 +332,7 @@ type TabProps = {
   isSaving: boolean;
   isTesting: boolean;
   testResult: { ok: boolean; message: string } | null;
+  toast: Toast | null;
   onUpdateField: (key: string, value: unknown) => void;
   onToggle: () => void;
   onSave: () => void | Promise<void>;
@@ -359,6 +347,7 @@ function ErpTabPanel({
   isSaving,
   isTesting,
   testResult,
+  toast,
   onUpdateField,
   onToggle,
   onSave,
@@ -400,9 +389,9 @@ function ErpTabPanel({
             background: "transparent",
             border: `1px solid ${
               enabled ? "var(--success, #00B42A)" : "var(--border)"
-            }`, // dynamic: enabled
+            }`,
             borderRadius: "var(--radius-sm)",
-            color: enabled ? "var(--success, #00B42A)" : "var(--text-2)", // dynamic: enabled
+            color: enabled ? "var(--success, #00B42A)" : "var(--text-2)",
             cursor: isToggling ? "wait" : "pointer",
             fontSize: 13,
             fontWeight: 500,
@@ -461,6 +450,19 @@ function ErpTabPanel({
                 <IconAlertCircle size={14} />
               )}
               {testResult.message}
+            </div>
+          )}
+          {toast && (
+            <div
+              className={`toast toast-${toast.kind === "warn" ? "error" : toast.kind}`}
+              style={{ alignItems: "center", marginTop: 12 }}
+            >
+              {toast.kind === "success" ? (
+                <IconCircleCheck size={14} />
+              ) : (
+                <IconAlertCircle size={14} />
+              )}
+              {toast.msg}
             </div>
           )}
         </>

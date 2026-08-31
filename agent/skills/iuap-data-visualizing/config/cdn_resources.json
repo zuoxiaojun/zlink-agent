@@ -1,0 +1,16 @@
+{
+  "primary": {
+    "echarts": "https://registry.npmmirror.com/echarts/5.5.1/files/dist/echarts.min.js",
+    "china_map": "https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json",
+    "world_map": "https://geo.datav.aliyun.com/areas_v3/bound/world/full.json",
+    "wordcloud": "https://registry.npmmirror.com/echarts-wordcloud/2.1.0/files/dist/echarts-wordcloud.min.js",
+    "liquidfill": "https://registry.npmmirror.com/echarts-liquidfill/3.1.0/files/dist/echarts-liquidfill.min.js",
+    "infographic": "https://cdn.jsdelivr.net/npm/@antv/infographic@0.2.16/dist/infographic.min.js",
+    "theme_registry": "https://cdn.jsdelivr.net/gh/liuqxuan/BI-DefaultTheme@v1.0.12/registe-theme.js"
+  },
+  "fallback": {
+    "echarts_1": "https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js",
+    "echarts_2": "https://cdn.bootcdn.net/ajax/libs/echarts/5.5.1/echarts.min.js",
+    "infographic_1": "https://registry.npmmirror.com/@antv/infographic/0.2.16/files/dist/infographic.min.js"
+  }
+}

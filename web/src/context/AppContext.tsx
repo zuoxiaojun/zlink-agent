@@ -13,7 +13,7 @@ export const WELCOME_MESSAGE: Message[] = [
     content:
       "你好！我是 **智链 Agent**，你的多 ERP AI 智能助手。\n\n" +
       "## 我能做什么\n\n" +
-      "- 🔌 **ERP 取数** — YonSuite / NC 业务数据查询（订单、库存、客户等）\n" +
+      "- 🔌 **ERP 取数** — YonSuite / NC / U8+ / U9 Cloud 业务数据查询（订单、库存、客户、物料等）\n" +
       "- 📊 **数据分析** — 报表洞察、KPI 分析、Python 计算、图片分析\n" +
       "- 📄 **文档生成** — Word/PPT/PDF/Excel/HTML 报告\n" +
       "- 🔥 **热点搜索** — 全网搜索 + 微博/抖音/B站热搜 + 金融行情\n" +
