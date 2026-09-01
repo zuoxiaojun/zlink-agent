@@ -400,6 +400,7 @@ def _execute_job_prompt(
         result = agent.run_conversation(
             user_message=prompt,
             system_message=system_with_memory,
+            session_id=session_id,
         )
 
         # Build message list for saving

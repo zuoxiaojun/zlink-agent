@@ -38,6 +38,7 @@ def build_system_prompt(
     skill_index: str = "",
     skill_detail: str = "",
     erp_context: str = "",
+    artifact_dir: str = "",
 ) -> str | None:
     """Concatenate system prompt fragments.
 
@@ -73,6 +74,10 @@ def build_system_prompt(
     # 6. ERP 数据源上下文（动态注入）
     if erp_context:
         parts.append("## 可用数据源\n" + erp_context)
+
+    # 7. 会话产物目录（每轮动态注入；无会话时为空，不注入）
+    if artifact_dir:
+        parts.append("## 会话产物\n" + artifact_dir)
 
     if len(parts) == 1:
         return None

@@ -49,6 +49,7 @@ from agent.events import (
     UserMessageEvent,
     event_bus,
 )
+from agent.session_context import set_current_session
 from agent.tools.registry import discover_tools, registry
 from agent.tools.tool_search import (
     TOOL_CALL_NAME,
@@ -452,6 +453,24 @@ class AIAgent:
             base=self.system_prompt,
             memory_store=self._memory_store,
             erp_context=erp_context,
+            artifact_dir=self._build_artifact_dir_text(),
+        )
+
+    @staticmethod
+    def _build_artifact_dir_text() -> str:
+        """会话产物目录说明。无会话上下文时返回空串（不注入，行为不变）。"""
+        from agent.session_context import ensure_current_artifacts_dir
+
+        d = ensure_current_artifacts_dir()
+        if d is None:
+            return ""
+        return (
+            f"本次会话的产物目录：`{d}`\n"
+            "- 写文件工具（write_file / patch）与终端的**相对路径默认落在此目录**，"
+            "生成的报告、图表、导出文件都直接用相对路径，例如 `write_file('report.html')`；"
+            "侧边栏会自动列出这些产物。\n"
+            "- **不要**把产物写到 `~/Desktop`、源码仓库目录或 `/tmp`，除非用户明确给了绝对路径。\n"
+            "- 技能自带脚本需要跑对目录时，请给技能的绝对路径作为 workdir。"
         )
 
     @staticmethod
@@ -573,6 +592,7 @@ class AIAgent:
         """
         effective_session_id = session_id or ""
         self._session_id = effective_session_id
+        set_current_session(effective_session_id)
         self._history = list(conversation_history or [])
         self._stream_cb = stream_callback
         self._reasoning_cb = reasoning_callback
