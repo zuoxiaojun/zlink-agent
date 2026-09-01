@@ -22,7 +22,7 @@ const PREF_KEY = "zlink.artifactsPanel";
 const WIDTH_KEY = `${PREF_KEY}.w`;
 const MIN_W = 260;
 const MAX_W = 560;
-const DEFAULT_W = 320;
+const DEFAULT_W = 380;
 
 export interface LayoutOutlet {
   bumpArtifacts: () => void;

@@ -2270,7 +2270,9 @@ textarea.form-input {
   display: flex; align-items: center; gap: 8px; padding: 6px 8px; flex: 0 0 auto;
   font-size: 12px; border-bottom: 1px solid var(--border);
 }
-.artifacts-preview-head .artifacts-row-name { flex: 1 1 auto; }
+.artifacts-preview-head .artifacts-row-name { flex: 1 1 auto; min-width: 0; }
+/* 标题行里的操作链接不可被压缩：否则长文件名会把“在浏览器打开”挤到折行 */
+.artifacts-preview-head .artifacts-link-btn { white-space: nowrap; flex-shrink: 0; }
 .artifacts-preview-body { flex: 1 1 auto; overflow: auto; min-height: 0; }
 .artifacts-frame { width: 100%; height: 100%; border: 0; background: #fff; }
 .artifacts-img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
