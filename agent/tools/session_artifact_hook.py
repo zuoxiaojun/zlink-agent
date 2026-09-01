@@ -15,11 +15,16 @@
 
 from __future__ import annotations
 
+import json
+import logging
 import os
+from datetime import datetime
 from pathlib import Path
 
-from agent.session_context import ensure_current_artifacts_dir
+from agent.session_context import ensure_current_artifacts_dir, get_current_session
 from agent.tools.registry import registry
+
+logger = logging.getLogger(__name__)
 
 #: 工具名 → 承载路径的参数名。terminal 用 workdir，其余用 path。
 PATH_ARGS: dict[str, str] = {
@@ -82,19 +87,112 @@ def artifact_before_hook(name: str, args: dict) -> dict:
 _installed = False
 
 
+EXTERNAL_FILENAME = "external.jsonl"
+
+
+def record_external_write(session_id: str, abs_path: str, tool: str) -> None:
+    """向 ``<sid>/external.jsonl`` 追加一行。
+
+    单行 ``open("a")`` 写（POSIX 短追加原子），不引入锁、不碰
+    ``session.json`` —— 避免与回合结束时 `chat.py` 的整份落盘抢写。
+    """
+    from agent import session_manager
+
+    target = session_manager.session_dir(session_id) / EXTERNAL_FILENAME
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        line = json.dumps(
+            {"path": abs_path, "tool": tool, "ts": datetime.now().isoformat()},
+            ensure_ascii=False,
+        )
+        with open(target, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except OSError as e:  # pragma: no cover - 磁盘异常只记日志
+        logger.warning("external.jsonl 写入失败 %s: %s", target, e)
+
+
+def read_external_entries(session_id: str) -> list[dict]:
+    """读 ``external.jsonl``：同 path 去重取最后一条，坏行跳过，按时间倒序。"""
+    from agent import session_manager
+
+    f = session_manager.session_dir(session_id) / EXTERNAL_FILENAME
+    if not f.is_file():
+        return []
+    try:
+        raw_lines = f.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    by_path: dict[str, dict] = {}
+    for line in raw_lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        path = obj.get("path")
+        if isinstance(path, str) and path:
+            by_path[path] = {
+                "path": path,
+                "tool": str(obj.get("tool", "")),
+                "ts": str(obj.get("ts", "")),
+            }
+    return sorted(by_path.values(), key=lambda e: e["ts"], reverse=True)
+
+
+def artifact_after_hook(name: str, args: dict, result: str) -> str:
+    """registry after-hook：写出落在会话目录外时登记一笔。
+
+    只观察不改 result；入参 *args* 是 before-hook 改写后的（因此这里的
+    path 已是绝对路径），与 ``security_hooks`` 的 before 链互不干扰。
+    """
+    if name not in MUTATING_TOOLS:
+        return result
+    sid = get_current_session()
+    if not sid:
+        return result
+    try:
+        payload = json.loads(result)
+    except (json.JSONDecodeError, TypeError):
+        return result
+    if not isinstance(payload, dict) or not payload.get("success"):
+        return result
+
+    raw = args.get(PATH_ARGS[name])
+    if not isinstance(raw, str) or not raw:
+        return result
+    base = ensure_current_artifacts_dir()
+    if base is None:
+        return result
+    expanded = os.path.expanduser(raw)
+    if is_within(expanded, base):
+        return result
+
+    record_external_write(sid, str(Path(expanded).resolve()), name)
+    return result
+
+
 def install_session_artifact_hooks() -> None:
-    """幂等安装 before-hook（T4 会补上 after-hook）。不读 registry 私有字段。"""
+    """幂等安装 before + after hook。不读 registry 私有字段。"""
     global _installed
     if _installed:
         return
     registry.add_before_hook(artifact_before_hook)
+    registry.add_after_hook(artifact_after_hook)
     _installed = True
 
 
 __all__ = [
+    "EXTERNAL_FILENAME",
     "MUTATING_TOOLS",
     "PATH_ARGS",
+    "artifact_after_hook",
     "artifact_before_hook",
     "install_session_artifact_hooks",
     "is_within",
+    "read_external_entries",
+    "record_external_write",
 ]

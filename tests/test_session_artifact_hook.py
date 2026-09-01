@@ -104,3 +104,88 @@ def test_is_within_helper(tmp_path):
     root.mkdir()
     assert sah.is_within(root / "a" / "b.html", root)
     assert not sah.is_within(tmp_path / "elsewhere.html", root)
+
+
+# ── T4: 会话外写出登记 external.jsonl ────────────────────────
+
+
+def _ok_result(path: str) -> str:
+    return json.dumps({"success": True, "data": f"Written 3 chars to {path}"})
+
+
+def test_outside_write_is_registered(sessions_root):
+    sid = sm.create_session()
+    ctx.set_current_session(sid)
+    outside = str(sessions_root.parent / "Desktop" / "U8_2026-09-01_销售订单.html")
+    sah.artifact_after_hook("write_file", {"path": outside}, _ok_result(outside))
+    entries = sah.read_external_entries(sid)
+    assert len(entries) == 1
+    assert entries[0]["path"] == outside
+    assert entries[0]["tool"] == "write_file"
+    assert "ts" in entries[0]
+
+
+def test_inside_write_is_not_registered(sessions_root):
+    sid = sm.create_session()
+    ctx.set_current_session(sid)
+    inside = str(sm.artifacts_dir(sid) / "r.html")
+    sah.artifact_after_hook("write_file", {"path": inside}, _ok_result(inside))
+    assert sah.read_external_entries(sid) == []
+
+
+def test_failed_write_is_not_registered(sessions_root):
+    sid = sm.create_session()
+    ctx.set_current_session(sid)
+    outside = str(sessions_root.parent / "x.html")
+    sah.artifact_after_hook("write_file", {"path": outside}, json.dumps({"success": False, "error": "boom"}))
+    assert sah.read_external_entries(sid) == []
+
+
+def test_read_tools_never_register(sessions_root):
+    sid = sm.create_session()
+    ctx.set_current_session(sid)
+    sah.artifact_after_hook("read_file", {"path": "/etc/hosts"}, json.dumps({"success": True}))
+    assert sah.read_external_entries(sid) == []
+
+
+def test_no_session_registers_nothing(sessions_root, tmp_path):
+    ctx.set_current_session(None)
+    sah.artifact_after_hook("write_file", {"path": str(tmp_path / "x.html")}, _ok_result("x"))
+    assert list(sessions_root.glob("*/external.jsonl")) == []
+
+
+def test_malformed_jsonl_lines_are_skipped(sessions_root):
+    sid = sm.create_session()
+    f = sm.session_dir(sid) / "external.jsonl"
+    f.write_text('{"path": "/a.html"}\nNOT JSON\n\n{"path": "/b.html", "tool": "patch"}\n', encoding="utf-8")
+    entries = sah.read_external_entries(sid)
+    assert sorted(e["path"] for e in entries) == ["/a.html", "/b.html"]
+
+
+def test_duplicates_deduped_latest_wins(sessions_root):
+    sid = sm.create_session()
+    ctx.set_current_session(sid)
+    p = str(sessions_root.parent / "same.html")
+    sah.artifact_after_hook("write_file", {"path": p}, _ok_result(p))
+    sah.artifact_after_hook("patch", {"path": p}, _ok_result(p))
+    entries = sah.read_external_entries(sid)
+    assert len(entries) == 1 and entries[0]["tool"] == "patch"
+
+
+def test_after_hook_does_not_mutate_result(sessions_root):
+    sid = sm.create_session()
+    ctx.set_current_session(sid)
+    payload = _ok_result("/tmp/whatever.html")
+    assert sah.artifact_after_hook("write_file", {"path": "/tmp/whatever.html"}, payload) == payload
+
+
+def test_install_registers_both_hooks(sessions_root):
+    from agent.tools.registry import registry
+
+    sah.install_session_artifact_hooks()
+    assert sah.artifact_before_hook in registry._before_hooks
+    assert sah.artifact_after_hook in registry._after_hooks
+    # 幂等：重复安装不叠加
+    n = registry._after_hooks.count(sah.artifact_after_hook)
+    sah.install_session_artifact_hooks()
+    assert registry._after_hooks.count(sah.artifact_after_hook) == n
