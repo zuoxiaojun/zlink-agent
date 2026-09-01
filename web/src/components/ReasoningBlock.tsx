@@ -1,9 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { IconBrain, IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 
+/**
+ * 思考过程折叠块。
+ *
+ * `defaultOpen` 只在挂载时读一次；需要从“展开”回到“收起”时（如流式结束），
+ * 由调用方用 key 重挂载来重置，而不是用 effect 把 prop 同步进 state
+ * （react-hooks/set-state-in-effect）。
+ */
 export default function ReasoningBlock({ text, defaultOpen = false }: { text: string; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
-  useEffect(() => { setOpen(defaultOpen); }, [defaultOpen]);
 
   return (
     <div className="reasoning-block">

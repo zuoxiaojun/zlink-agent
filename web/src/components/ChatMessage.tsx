@@ -82,7 +82,12 @@ function AssistantGroupContent({
       nodes.push(
         <div key={i}>
           {msg.reasoning_content && (
-            <ReasoningBlock text={msg.reasoning_content} defaultOpen={isStreaming} />
+            /* key 随 isStreaming 翻转→重挂载，从而把展开态重置为 defaultOpen */
+            <ReasoningBlock
+              key={isStreaming ? "open" : "closed"}
+              text={msg.reasoning_content}
+              defaultOpen={isStreaming}
+            />
           )}
           {hasContent ? (
             <div className={`msg-bubble${isStreaming ? " streaming-text" : ""}`}>
