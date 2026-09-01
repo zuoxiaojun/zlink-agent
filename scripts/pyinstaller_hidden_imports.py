@@ -48,6 +48,7 @@ LLM_PROVIDERS = [
 DATABASE = [
     "oracledb",
     "sqlparse",
+        "pymssql",
     # cryptography 完整子模块链 —— oracledb thin mode 连接时动态加载
     "cryptography",
     "cryptography.hazmat",
@@ -88,6 +89,7 @@ AGENT_TOOLS = [
     "agent.tools.code_execution_tool",
     "agent.tools.cronjob_tools",
     "agent.tools.erp_nc_tools",
+    "agent.tools.erp_u9c_tools",
     "agent.tools.erp_ys_tools",
     "agent.tools.file_mutation_queue",
     "agent.tools.file_tools",
