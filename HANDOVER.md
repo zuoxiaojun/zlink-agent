@@ -6,7 +6,7 @@
 
 - `main` @ `c0eb30e`，版本 **1.13.0**（`pyproject.toml` 单一来源 + 根 `package.json` 同步）
 - 已推送：`ca4f13b..c0eb30e main` + `* [new tag] v1.13.0` → `origin`（`git@gitcode.com:gcw_cJbJuamU/zlink-agent.git`，AtomGit 仓库现行域名；本地只有这一个远端，无 GitHub remote）
-- 安装包：`dist-electron/ZLink Agent-1.13.0-arm64.dmg`（174M，arm64），构建链全部通过（前端构建 → Chart MCP 依赖 → PyInstaller 15M 后端 → 冒烟测试 → electron-builder → 嵌入 install.command）
+- 安装包：`dist-electron/ZLink Agent-1.13.0-arm64.dmg`（174M，arm64，**ad-hoc 本地签名**），构建链全部通过（前端构建 → Chart MCP 依赖 → PyInstaller 15M 后端 → 冒烟测试 → electron-builder `--dir` → ad-hoc 签名 → `--prepackaged` 生成 DMG → 嵌入 install.command）
 - 分支 `feat/session-artifacts-sidebar` 已 fast-forward 合入并删除，本地只剩 `main`
 - 校验：`591 passed`（基线 526 + 新增 65）· `ruff check agent/ backend/ tests/` All checks passed · `cd web && npx tsc -b` 0 error · `npx eslint src/` 0 problem · `npm run build` 成功
 - 改动规模：38 文件 +2247 / −149
@@ -76,11 +76,16 @@
 - [x] `git tag -a v1.13.0` 并 `git push origin main v1.13.0`（origin = gitcode.com，AtomGit 仓库现行域名）
 - [x] `bash scripts/build-electron.sh` → `dist-electron/ZLink Agent-1.13.0-arm64.dmg`
 
-**发布相关遗留（本次未处理）**
+**发布相关遗留（本会话已处理）**
 
-- [ ] **DMG 未签名**：electron-builder 报 `cannot find valid "Developer ID Application" identity`，钥匙串里只有自签的 `"localhost"`（`CSSMERR_TP_NOT_TRUSTED`），0 个有效身份 —— 与 v1.12.0 同样状态，不是本次引入。用户首次打开需右键→打开，或 `xattr -d com.apple.quarantine`；要彻底解决得配 Apple Developer ID 证书
-- [ ] `dist-electron/` 里还留着 **v1.12.0 的 174M DMG**，而且本次构建脚本的「嵌入 install.command」步骤是 glob `*.dmg`，把旧包也重写了一遍（mtime 一起变 20:18）。按仓库习惯（上一轮就清理过 v1.9.4）可以删掉旧包，但它是已发布产物，删前问一句
-- [ ] 远端残留一个旧分支 `origin/codex/zlink-agent-v1.5.0`（v1.5.0 时期遗留，与本功能无关）
+- [x] **签名改为本地 ad-hoc**：`scripts/build-electron.sh` 的 macOS 打包改成两阶段 —— 先 `--dir` 出 `.app` → 在普通目录里 `codesign --force --deep --sign -` → 再 `--prepackaged` 从已签名的 `.app` 生成 DMG。成品实测：`codesign --verify --deep --strict` → valid on disk / satisfies its Designated Requirement；`Signature=adhoc`；`spctl -a` → **rejected（不是 damaged）** —— 这正是关键差别：rejected 可用包内 `install.command` 清 quarantine 绕过，damaged 则删属性也修不好
+  - 踩过的坑（已写进脚本注释）：先试过在 DMG 的 UDRW 挂载卷里原地签，codesign 报 `internal error in Code Signing subsystem` 并留下“签名指示器存在但资源缺失”的包 —— 比不签名更糟，故改为两阶段
+  - 仍无 Developer ID，所以是 ad-hoc 而非可信签名；要上 Gatekeeper 白名单需配 Apple 证书
+- [x] **历史包已删**：`ZLink Agent-1.12.0-arm64.dmg` 已移除。同时修了造成旧包被误改的 bug —— 步骤 3.5 原先 glob `dist-electron/*.dmg`，会把**所有**历史包重写一遗（mtime 与内容都被覆盖），现改为只取本次新构建的那个（`ls -t | head -1`）
+- [x] **远端残留分支已删**：`origin/codex/zlink-agent-v1.5.0` 已删除，远端现在只剩 `main`
+  - 但它**不是纯残留**：`git cherry` 显示 21 个提交里 20 个的等价补丁已在 main，剩 `c1b4a04`（v1.5.0 改名收尾，82 文件）；其涉及的 `.codex/config.toml`、`.agents/skills/README.md` 在 main 里是故意 gitignore 的，**只有 `CONTRIBUTING.md`（69 行）main 里没有**
+  - 删前已留档：本地 tag `archive/codex-v1.5.0` + `/tmp/zlink-codex-v1.5.0.bundle`（40M，未推远端）
+  - 待你定：要不要把 `CONTRIBUTING.md` 从留档里取回并入 main（它写的克隆地址是 `https://atomgit.com/gcw_cJbJuamU/zlink-agent.git`）
 
 **既有债（与本功能无关，未动）**
 
