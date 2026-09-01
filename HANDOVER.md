@@ -1,16 +1,14 @@
 # HANDOVER
 
-> 2026-09-01 会话交接。状态：**已发布 —— 已合入 `main`（fast-forward）、已打 `v1.13.0` 并推送 origin、已构建 macOS 安装包**。
+> 2026-09-01 会话交接（续）。状态：**已合入 `main`、v1.13.0 已重打 tag 并推送、已构建 macOS 安装包**。
 
 ## 当前状态
 
-- `main` @ `51e07e9`，版本 **1.13.0**（`pyproject.toml` 单一来源 + 根 `package.json` 同步）
-  - `v1.13.0` tag 已追到 `3a67593`（含签名修复与文档修复），后续提交 `51e07e9` 为 AGENTS.md 修正 + chat.py Pyright 修复 + 技能路径绝对化，**未重新打 tag**
-- 已推送：`3a67593..51e07e9 main` + `v1.13.0`（force-pushed）→ `origin`（`git@gitcode.com:gcw_cJbJuamU/zlink-agent.git`，AtomGit 仓库现行域名；本地只有这一个远端，无 GitHub remote）
-- 安装包：`dist-electron/ZLink Agent-1.13.0-arm64.dmg`（174M，arm64，**ad-hoc 本地签名**），构建链全部通过（前端构建 → Chart MCP 依赖 → PyInstaller 15M 后端 → 冒烟测试 → electron-builder `--dir` → ad-hoc 签名 → `--prepackaged` 生成 DMG → 嵌入 install.command）
-- 分支 `feat/session-artifacts-sidebar` 已 fast-forward 合入并删除，本地只剩 `main`
-- 校验：`591 passed`（基线 526 + 新增 65）· `ruff check agent/ backend/ tests/` All checks passed · `cd web && npx tsc -b` 0 error · `npx eslint src/` 0 problem · `npm run build` 成功
-- 改动规模：38 文件 +2247 / −149
+- `main` @ `8ce6744`，版本 **1.13.0**（`pyproject.toml` 单一来源 + 根 `package.json` 同步）
+- `v1.13.0` tag 已追到 `3a67593`（force push 改写已发布 tag），后续提交 `51e07e9`（AGENTS.md 修正 + Pyright 清零 + 技能路径绝对化）、`faa9ad2`（文档同步）、`e974116`（erp_u9c_tools 参数化查询）、`8ce6744`（全局 HEAD 中间件）**未重新打 tag**
+- 已推送：`3a67593..8ce6744 main` → `origin`（AtomGit）
+- 安装包：`dist-electron/ZLink Agent-1.13.0-arm64.dmg`（174M，arm64，**ad-hoc 本地签名**），构建链全部通过
+- 校验：`591 passed` · `ruff check` All checks passed · `cd web && npx tsc -b` 0 error · `npx eslint src/` 0 problem · `npm run build` 成功
 - 服务：**已停止**（8089 / 8088 端口已释放）
 
 ## ⚠️ 环境侧（机器级）改动 —— 不在仓库里，换机器/重装会丢
@@ -42,6 +40,10 @@
 | `02cf8f2` | 产物栏默认宽度 320→380 + 折行根因修复（`nowrap`/`shrink:0`/`min-width:0`） |
 | `3aa4040` `ead1512` | 关 pi-lens autofix + 动态内联样式的约定注释 |
 | `51e07e9` | AGENTS.md 13 处修正 + chat.py 157 个 Pyright 清零 + 四段技能路径绝对化 |
+| `faa9ad2` | HANDOVER 与设计文档同步更新 |
+| `e974116` | erp_u9c_tools.py 分页参数化查询，消除 SQL 注入 lint 误报 |
+| `8ce6744` | 全局 HEAD 中间件，所有路由支持 HEAD 请求 |
+| `8ce6744` (再构建) | macOS DMG 重新打包（含以上全部修复） |
 
 ## 关键决策记录
 
@@ -87,10 +89,14 @@
 - [x] **远端残留分支已删**：`origin/codex/zlink-agent-v1.5.0` 已删除，远端现在只剩 `main`
   - 但它**不是纯残留**：`git cherry` 显示 21 个提交里 20 个的等价补丁已在 main，剩 `c1b4a04`（v1.5.0 改名收尾，82 文件）；其涉及的 `.codex/config.toml`、`.agents/skills/README.md` 在 main 里是故意 gitignore 的，**只有 `CONTRIBUTING.md`（69 行）main 里没有**
   - 删前已留档：本地 tag `archive/codex-v1.5.0` + `/tmp/zlink-codex-v1.5.0.bundle`（40M，未推远端）
-**既有债（与本功能无关，未动）**
+**既有债（已清理）**
 
-- [ ] 5 个未格式化文档（`docs/superpowers/plans/2026-08-06-v1.9.0-maintenance-release-plan.md`、`docs/superpowers/plans/2026-08-06-pi-style-kernel.md`、`docs/superpowers/plans/2026-07-22-tool-card-live-status.md`、`docs/superpowers/specs/2026-08-06-v1.9.0-maintenance-release-design.md`、`docs/superpowers/specs/2026-08-06-pi-style-kernel-design.md`）——代码块内缩进不符 ruff 格式
-- [ ] 2 个未格式化源文件（`agent/tools/erp_u9c_tools.py`、`scripts/pyinstaller_hidden_imports.py`）
+- [x] chat.py 157 个 Pyright 报错 — 已修复（`isinstance` 代替 `event.type` 字符串比较）
+- [x] 四段 skill 相对路径命令 — 已修复（全部改为从仓库根出发的绝对路径）
+- [x] 5 个未格式化文档 — 已 ruff format
+- [x] 2 个未格式化源文件 — 已 ruff format
+- [x] erp_u9c_tools.py SQL 注入 lint 误报 — 已修复（分页参数走参数化绑定）
+- [x] 全局 HEAD 404 — 已修复（HEAD → GET 中间件）
 
 **v1.1 功能候选**
 
@@ -106,7 +112,7 @@
 
 ## 新会话入口
 
-1. `git log --oneline -3` 确认在 `main` @ `51e07e9`
-2. `git diff --stat v1.12.0..v1.13.0` 看本版本变更范围（38 文件 +2247/−149）
-3. 读 `docs/superpowers/specs/2026-09-01-session-artifacts-sidebar-design.md`（设计依据）+ 同名 plan（末尾两节记录了「与 spec 的 4 处已同步偏差」和「执行期修正 4 条」）
-4. 第一件事：处理上面「发布相关遗留」或「既有债」
+1. `git log --oneline -5` 确认在 `main` @ `8ce6744`
+2. `git diff --stat v1.13.0..HEAD` 看本会话附加变更
+3. 读 `docs/superpowers/specs/2026-09-01-session-artifacts-sidebar-design.md`（设计依据）+ 同名 plan
+4. 打包：`bash scripts/build-electron.sh`（macOS）或 `bash scripts/build-electron.sh --win`（Windows 开发机）
