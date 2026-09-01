@@ -19,20 +19,23 @@ zlink-agent/
 │   ├── api/                    # 14 routers: chat(WS ⚠️), config, erp_clients(⚠️ env injection),
 │   │                           #   mcp, skills, tools, slash_commands, cronjob, memory, metrics,
 │   │                           #   sessions, session_artifacts(⚠️ 产物只读端点), extensions, system
-│   └── schemas/                # ✅ Pydantic models (config, chat, mcp, slash_command)
+│   └── schemas/                # ✅ Pydantic models (config, mcp, session, session_artifact,
+│                               #    skill, slash_command, tool, extension)
 ├── agent/                      # Core logic (non-FastAPI, reusable)
 │   ├── core/
 │   │   ├── kernel_types.py     # ⚠️ AgentLoopConfig 钩子契约 / 10 种 AgentEvent / CancelToken / ToolResult
 │   │   ├── loop.py             # ⚠️ run_agent_loop — 零策略双层 async loop（AgentEnd 保证任何路径收尾）
 │   │   ├── agent.py            # ⚠️ 有状态 Agent 包装（subscribe/steer/follow_up/cancel/wait_idle）+ 兼容 re-export
-│   │   ├── agent_adapter.py    # ⚠️ AIAgent 兼容层（run_conversation_async + EventBus 8 事件映射 + Phase 机）
+│   │   ├── agent_adapter.py    # ⚠️ AIAgent 兼容层（run_conversation_async + EventBus 9 事件映射 + Phase 机）
 │   │   ├── llm_client.py       # ⚠️ LLMClient shim → LLMProvider
 │   │   ├── llm_providers/      # ⚠️ base (LLMProvider ABC / LLMResponse / ToolCallPayload),
 │   │   │                       #    openai_compat (httpx SSE, reasoning_content), anthropic, factory
 │   │   ├── message_builder.py  # build_system_prompt(), build_turn_messages()
 │   │   ├── tool_dispatcher.py  # dispatch_tool_batch（并行/保序/sequential 降级）
-│   │   └── iteration_budget.py # IterationBudget — 纯计数器（消费点在 should_stop_after_turn 钩子）
-│   ├── tools/                  # 29 files, 65 tools — one file per toolset
+│   │   ├── iteration_budget.py # IterationBudget — 纯计数器（消费点在 should_stop_after_turn 钩子）
+│   │   └── metrics.py          # ⚠️ Prometheus metrics counters
+│   ├── tools/                  # 28 tool files, 65 tools across 20 toolset modules +
+│   │                           #   helpers (mcp_manager, tool_search, security_hooks, ...)
 │   │   ├── registry.py         # ❌ ToolRegistry singleton — extend via register() only
 │   │   ├── session_artifact_hook.py # ⚠️ 相对路径→<sid>/artifacts/ 归一 + 会话外写出登记 external.jsonl
 │   │   ├── erp_ys_tools.py     # ⚠️ YonSuite 内置取数工具 (11 个, 替代旧 MCP 子进程)
@@ -41,10 +44,10 @@ zlink-agent/
 │   │   ├── erp_u9c_tools.py    # ⚠️ U9C 内置取数工具 (4 个, pymssql 直连 SQL Server)
 │   │   ├── mcp_manager.py      # ⚠️ MCP connections, circuit breaker, JSON-RPC
 │   │   ├── security_hooks.py   # ❌ three-layer security enforcement
-│   │   └── ...                 # 18 个常驻 + 36 个延迟（tool_search 桥）+ 3 个桥工具
-│   ├── events/                 # ⚠️ bus.py (EventBus singleton), types.py (8 event classes),
+│   │   └── ...                 # 核心工具集 18 常驻，其余动态延迟（tool_search 桥 3 个）
+│   ├── events/                 # ⚠️ bus.py (EventBus singleton), types.py (9 event classes),
 │   │                           #    extensions.py (Extension base + runner)
-│   ├── extensions/             # built-in: log_everything, security_event, monitoring
+│   ├── extensions/             # built-in: log_everything, security_event, monitoring, audit_log
 │   ├── config_manager.py       # ⚠️ load()/save() — chmod 0600 on config.json
 │   ├── config_model.py         # ⚠️ AppConfig + MCPServerEntry
 │   ├── context_compactor.py    # ⚠️ M6 three-level compaction (truncate → LLM summary → drop)
@@ -56,12 +59,12 @@ zlink-agent/
 │   ├── fact_memory.py          # autonomous memory (notes + user profile)
 │   ├── slash_commands.py       # /help /model /compact /clear /login /cost
 │   ├── utils.py                # DATA_DIR, atomic_json_write, _resolve_data_dir
-│   ├── erp_clients/            # ERP SDK clients (yonsuite, nc; U8 直连 SQL Server 无需 SDK)
+│   ├── erp_clients/            # ERP SDK clients (yonsuite; NC/U8/U9C 直连 oracledb/pymssql 无需 SDK)
 │   └── skills/                 # ❌ 24 built-in skills (read-only, not editable/deletable)
 ├── web/                        # React + Vite frontend (port 8088)
-│   ├── src/                    # App.tsx (10 routes ⚠️), pages/, api/, components/, styles/, hooks/
+│   ├── src/                    # App.tsx (11 routes ⚠️), pages/, api/, components/, styles/, hooks/
 │   └── vite.config.ts          # ⚠️ proxy /api + /ws → backend:8089
-├── tests/                      # 50 files, 591 tests; conftest.py = shared fixtures
+├── tests/                      # 51 files, 591 tests; conftest.py = shared fixtures
 ├── scripts/                    # build-electron.sh, zlink.sh, migrate.py
 └── data/                       # runtime data (~/.zlink-agent/data/):
                                 #   config.json (chmod 0600), active_skills.json, skills/,
@@ -105,16 +108,17 @@ frontend WS → backend/api/chat.py (_run_agent_new 直接 await)
 - `nc` → injects `ORACLE_HOST/PORT/SERVICE/USER/PASSWORD` into `os.environ`
 - `yonsuite` → injects `YONSUITE_APP_KEY/SECRET/TENANT_ID/GATEWAY_URL`
 - `u8` → injects `U8_HOST/PORT/DATABASE/USER/PASSWORD/MAX_ROWS` into `os.environ`
+- `u9c` → injects `U9C_HOST/PORT/DATABASE/USER/PASSWORD/MAX_ROWS` into `os.environ`
 
 Built-in tools (`agent/tools/erp_*_tools.py`) read these env vars and connect directly.
 
 ### Flow D: Skill injection into system prompt
 
-`skill_manager.get_active_instructions()` → reads `active_skills.json` → Level 0 (name+desc list, always in system prompt). `get_instructions_for_query(user_message)` → n-gram matches name/description/tags → Level 1 (full SKILL.md, on-demand). Both go into `build_system_prompt(skill_index=..., skill_detail=...)`. **Default:** on first run (file missing) all built-in skills are activated and persisted; afterwards the file is authoritative — an explicit `[]` (all off) is respected.
+`skill_manager.get_skill_index_text()` → reads `active_skills.json` → Level 0 (name+desc list, always in system prompt). `get_instructions_for_query(user_message)` → n-gram matches name/description/tags → Level 1 (full SKILL.md, on-demand). Both go into `build_system_prompt(skill_index=..., skill_detail=...)`. **Default:** on first run (file missing) all built-in skills are activated and persisted; afterwards the file is authoritative — an explicit `[]` (all off) is respected.
 
 ### Events (`agent/events/bus.py`, EventBus singleton)
 
-`SessionStart → UserMessage → BeforeLLMCall → AfterLLMCall → BeforeToolCall → AfterToolCall → SessionEnd` (+ `PhaseChange`, `SessionBeforeCompact`). All Session*/PhaseChange events carry `session_id` so extensions can scope work per chat session.
+9 event types: `SessionStart → UserMessage → BeforeLLMCall → AfterLLMCall → BeforeToolCall → AfterToolCall → SessionEnd` (+ `PhaseChange` during turn lifecycle, `SessionBeforeCompact` before compaction). All Session*/PhaseChange events carry `session_id` so extensions can scope work per chat session.
 
 ### Key design decisions
 
@@ -156,7 +160,7 @@ Built-in tools (`agent/tools/erp_*_tools.py`) read these env vars and connect di
 - `config_manager.load() → AppConfig`; `save(cfg)` = atomic write + chmod 0600 (data dir 0700, best-effort); `get_erp_config(name)`; `resolve_placeholders(env, config)` resolves `${path.to.value}` in MCP env.
 - `AppConfig` (`agent/config_model.py`): `llm_*`, `ys_*`, `max_iterations (5-50)`, `compaction_enabled`, `max_context_tokens (0=auto-detect)`, `reserve_tokens`, `keep_recent_tokens`, `mcp_servers`, `erp_clients`, `disabled_extensions`. Plain JSON — **no encryption layer** (no encrypt_secret/decrypt_secret).
 - `MCPServerEntry`: `transport (stdio|http)`, `enabled`, `timeout`, `command`, `args`, `url`, `headers`, `env`, `builtin` (builtin=True → cannot be deleted via API).
-- `build_system_prompt(base, memory_store, memory_context, skill_index, skill_detail, erp_context)` — concatenates fragments; returns None if empty.
+- `build_system_prompt(base, memory_store, memory_context, skill_index, skill_detail, erp_context, artifact_dir)` — concatenates fragments; returns None if empty.
 
 ## 5. Development Constraints
 
@@ -206,7 +210,7 @@ To add a blocked pattern: edit `agent/tools/security_hooks.py` or `agent/extensi
 
 ## 6. Test System
 
-- Run all: `.venv/bin/python -m pytest tests/ -v`; single file: append its path. 当前 371 tests。
+- Run all: `.venv/bin/python -m pytest tests/ -v`; single file: append its path. 591 tests.
 - Coverage target 70%+: `--cov=agent --cov=backend --cov-report=term-missing`.
 - **Zero-network policy:** all tests use `MockLLMProvider`, FastAPI `TestClient`, tmp-file config isolation. No real LLM/YonSuite/MCP calls.
 - Key fixtures (`tests/conftest.py`): `clean_extensions` (autouse, wipes event bus between tests), `isolated_config` (redirects config to tmp_path), `MockLLMProvider` (scripted LLMResponse).
@@ -221,7 +225,7 @@ To add a blocked pattern: edit `agent/tools/security_hooks.py` or `agent/extensi
 3. Secret field names → `SECRET_FIELDS` in `backend/api/erp_clients_api.py` (drives read-time masking + write semantics)
 4. `_apply_erp_env()` injection logic in `erp_clients_api.py`
 5. `_ERP_LABELS` in `agent/core/agent_adapter.py` (human label for system prompt)
-6. `_build_erp_context()` in `agent_adapter.py` (table summary injection for enabled U8)
+6. `_build_erp_context()` in `agent_adapter.py` (table summary injection for enabled NC/U8/U9C)
 7. Built-in tools in `agent/tools/erp_<name>_tools.py` (4 tools: `u8_query`, `u8_list_tables`, `u8_describe_table`, `u8_raw_sql`)
 8. `backend/main.py` lifespan (env var injection via `os.environ.setdefault`)
 9. PyInstaller known_tools list in `registry.py` (for frozen mode)
@@ -298,7 +302,7 @@ Build: `bash scripts/build-electron.sh` = frontend build → Python bundle → e
 - **Logs:** backend runtime + MCP subprocess stderr → `~/.zlink-agent/data/logs/app.log`; frontend → browser DevTools Console/Network.
 - **WebSocket frames:** DevTools → Network → WS → Messages at `ws://localhost:8089/ws/chat/{session_id}` (Envelope format — see `agent/core/agent_adapter.py` Envelope).
 - **Config direct edit:** `vim ~/.zlink-agent/data/config.json` then restart backend (or save from UI). Secrets are visible — file is owner-only.
-- **MCP debugging:** `GET /api/config/mcp-servers` for status; circuit breaker = 3 failures → 60s cooldown. `mcp_server/` was removed in v1.7.0 (YonSuite/NC are built-in tools now); Chart MCP is bundled in Electron builds only — for source dev use `mcp_add_server` or Settings → MCP.
+- **MCP debugging:** `GET /api/config/mcp-servers` for status; circuit breaker = 3 failures → 60s cooldown. `mcp_server/` API was removed in v1.7.0 (YonSuite/NC are built-in tools now); Chart MCP is bundled in Electron builds only — for source dev use `mcp_add_server` tool or Settings → MCP.
 
 ## 12. 会话交接（Session Handover）
 

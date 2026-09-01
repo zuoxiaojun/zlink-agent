@@ -19,7 +19,16 @@ from agent import fact_memory, memory_manager, session_manager, skill_manager
 from agent.agent import AIAgent
 from agent.context_compactor import CompactionSettings
 from agent.core.agent import ApprovalRequest
-from agent.core.kernel_types import AgentEvent
+from agent.core.kernel_types import (
+    AgentEvent,
+    LLMRetry,
+    MessageStart,
+    MessageUpdate,
+    ToolExecutionEnd,
+    ToolExecutionStart,
+    ToolExecutionUpdate,
+    TurnEnd,
+)
 from agent.core.message_builder import build_system_prompt
 from agent.slash_commands import execute, parse_command
 from agent.utils import DATA_DIR
@@ -373,22 +382,21 @@ async def _run_agent_new(
 
     def _on_event(event: AgentEvent) -> None:
         nonlocal turn_no, tool_no
-        t = event.type
-        if t == "message_start" and event.message.get("role") == "assistant":
+        if isinstance(event, MessageStart) and event.message.get("role") == "assistant":
             turn_no += 1
             send_tasks.append(
                 asyncio.create_task(
                     _send({"type": "progress", "message": f"🤔 思考中...（第 {turn_no}/{max_iterations} 轮）"})
                 )
             )
-        elif t == "message_update":
+        elif isinstance(event, MessageUpdate):
             if event.delta:
                 send_tasks.append(asyncio.create_task(_send({"type": "token", "content": event.delta})))
             if event.reasoning_delta:
                 send_tasks.append(
                     asyncio.create_task(_send({"type": "reasoning_token", "content": event.reasoning_delta}))
                 )
-        elif t == "tool_execution_start":
+        elif isinstance(event, ToolExecutionStart):
             try:
                 args_str = json.dumps(event.args, ensure_ascii=False)[:200]
             except (TypeError, ValueError):
@@ -401,7 +409,7 @@ async def _run_agent_new(
                     _send({"type": "progress", "message": f"🔧 执行工具: {event.tool_name} | {args_str}"})
                 )
             )
-        elif t == "tool_execution_update":
+        elif isinstance(event, ToolExecutionUpdate):
             send_tasks.append(
                 asyncio.create_task(
                     _send(
@@ -412,12 +420,12 @@ async def _run_agent_new(
                     )
                 )
             )
-        elif t == "tool_execution_end":
+        elif isinstance(event, ToolExecutionEnd):
             payload: dict = {"type": "tool_result", "name": event.tool_name, "result": event.result}
             if event.denied:
                 payload["denied"] = True
             send_tasks.append(asyncio.create_task(_send(payload)))
-        elif t == "llm_retry":
+        elif isinstance(event, LLMRetry):
             send_tasks.append(
                 asyncio.create_task(
                     _send(
@@ -428,7 +436,7 @@ async def _run_agent_new(
                     )
                 )
             )
-        elif t == "turn_end" and event.tool_results:
+        elif isinstance(event, TurnEnd) and event.tool_results:
             tool_no += 1
             send_tasks.append(
                 asyncio.create_task(_send({"type": "progress", "message": f"✅ 工具执行完成 (第 {tool_no} 轮)"}))

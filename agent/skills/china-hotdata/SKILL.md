@@ -43,51 +43,51 @@ description: "中国实时热点数据采集工具。当用户询问热搜、热
 
 | 用户想了解的内容 | 运行命令 |
 |----------------|---------|
-| 某平台热搜 | `node scripts/crawl-hot.js --platform=平台名` |
-| 所有平台热搜 | `node scripts/crawl-hot.js` |
-| 某平台音乐榜 | `node scripts/crawl-music.js --platform=平台名 --type=hot或rising` |
-| 所有音乐榜 | `node scripts/crawl-music.js` |
-| 电影票房/电视剧/综艺/游戏等 | `node scripts/crawl-entertainment.js --type=类型` |
-| 所有影视游戏数据 | `node scripts/crawl-entertainment.js` |
-| 今日/指定日期报纸 | `node scripts/crawl-paper.js --date=日期` |
+| 某平台热搜 | `node agent/skills/china-hotdata/scripts/crawl-hot.js --platform=平台名` |
+| 所有平台热搜 | `node agent/skills/china-hotdata/scripts/crawl-hot.js` |
+| 某平台音乐榜 | `node agent/skills/china-hotdata/scripts/crawl-music.js --platform=平台名 --type=hot或rising` |
+| 所有音乐榜 | `node agent/skills/china-hotdata/scripts/crawl-music.js` |
+| 电影票房/电视剧/综艺/游戏等 | `node agent/skills/china-hotdata/scripts/crawl-entertainment.js --type=类型` |
+| 所有影视游戏数据 | `node agent/skills/china-hotdata/scripts/crawl-entertainment.js` |
+| 今日/指定日期报纸 | `node agent/skills/china-hotdata/scripts/crawl-paper.js --date=日期` |
 
 ### 🔥 获取热搜数据
 
 采集抖音、微博、百度、B站、快手五大平台的实时热搜榜单。
 
 ```bash
-node scripts/crawl-hot.js --platform=douyin
-node scripts/crawl-hot.js --platform=weibo
-node scripts/crawl-hot.js --platform=baidu
-node scripts/crawl-hot.js --platform=bilibili
-node scripts/crawl-hot.js --platform=kuaishou
-node scripts/crawl-hot.js
+node agent/skills/china-hotdata/scripts/crawl-hot.js --platform=douyin
+node agent/skills/china-hotdata/scripts/crawl-hot.js --platform=weibo
+node agent/skills/china-hotdata/scripts/crawl-hot.js --platform=baidu
+node agent/skills/china-hotdata/scripts/crawl-hot.js --platform=bilibili
+node agent/skills/china-hotdata/scripts/crawl-hot.js --platform=kuaishou
+node agent/skills/china-hotdata/scripts/crawl-hot.js
 ```
 
 ### 🎵 获取音乐排行榜
 
 ```bash
-node scripts/crawl-music.js --platform=qq --type=hot
-node scripts/crawl-music.js --platform=wangyi --type=rising
-node scripts/crawl-music.js
+node agent/skills/china-hotdata/scripts/crawl-music.js --platform=qq --type=hot
+node agent/skills/china-hotdata/scripts/crawl-music.js --platform=wangyi --type=rising
+node agent/skills/china-hotdata/scripts/crawl-music.js
 ```
 
 ### 🎬 获取影视/游戏数据
 
 ```bash
-node scripts/crawl-entertainment.js --type=movie
-node scripts/crawl-entertainment.js --type=tv
-node scripts/crawl-entertainment.js --type=variety
-node scripts/crawl-entertainment.js --type=game_free
-node scripts/crawl-entertainment.js
+node agent/skills/china-hotdata/scripts/crawl-entertainment.js --type=movie
+node agent/skills/china-hotdata/scripts/crawl-entertainment.js --type=tv
+node agent/skills/china-hotdata/scripts/crawl-entertainment.js --type=variety
+node agent/skills/china-hotdata/scripts/crawl-entertainment.js --type=game_free
+node agent/skills/china-hotdata/scripts/crawl-entertainment.js
 ```
 
 ### 📰 获取人民日报电子版
 
 ```bash
-node scripts/crawl-paper.js
-node scripts/crawl-paper.js --date=yesterday
-node scripts/crawl-paper.js --date=2026-03-10
+node agent/skills/china-hotdata/scripts/crawl-paper.js
+node agent/skills/china-hotdata/scripts/crawl-paper.js --date=yesterday
+node agent/skills/china-hotdata/scripts/crawl-paper.js --date=2026-03-10
 ```
 
 ## 输出格式
