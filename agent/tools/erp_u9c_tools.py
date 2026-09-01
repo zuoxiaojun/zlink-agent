@@ -98,11 +98,14 @@ def _validate_select(sql: str) -> str:
     return stripped
 
 
-def _paginate_sql(sql: str, page: int, page_size: int) -> str:
-    """SQL Server 分页（OFFSET/FETCH NEXT）。"""
+def _paginate_sql(sql: str, page: int, page_size: int, params: dict | None = None) -> tuple[str, dict]:
+    """SQL Server 分页（OFFSET/FETCH NEXT），页码走参数化查询。"""
     stripped = sql.strip().rstrip(";").strip()
-    offset = (page - 1) * page_size
-    return f"{stripped} OFFSET {offset} ROWS FETCH NEXT {page_size} ROWS ONLY"
+    if params is None:
+        params = {}
+    params["_offset"] = (page - 1) * page_size
+    params["_pagesize"] = page_size
+    return f"{stripped} OFFSET %(_offset)s ROWS FETCH NEXT %(_pagesize)s ROWS ONLY", params
 
 
 def _execute_query(sql: str, page: int, page_size: int, params: dict | None = None) -> dict:
@@ -125,9 +128,9 @@ def _execute_query(sql: str, page: int, page_size: int, params: dict | None = No
 
     conn = pymssql.connect(**db_config)
     try:
-        paginated_sql = _paginate_sql(sql, page=page, page_size=page_size + 1)
+        paginated_sql, query_params = _paginate_sql(sql, page=page, page_size=page_size + 1, params=params)
         with conn.cursor(as_dict=False) as cur:
-            cur.execute(paginated_sql, params)
+            cur.execute(paginated_sql, query_params)  # nosec: SQL 已过 _validate_select 只读校验, 所有变量值走参数化绑定
             desc = cur.description
             if desc is None:
                 return {"rows": [], "cols": [], "has_more": False, "total_count": 0}
