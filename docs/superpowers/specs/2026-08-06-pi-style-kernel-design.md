@@ -137,14 +137,16 @@ agent/core/
 ```python
 """内核类型契约 —— loop 与策略之间的唯一接口。"""
 
+
 @dataclass(frozen=True)
 class AgentLoopConfig:
     """一次 run 的配置 + 全部策略钩子（均可选）。"""
+
     model: str
     temperature: float = 0.7
     max_tokens: int | None = None
     system_prompt: str = ""
-    tool_defs: list[dict] = field(default_factory=list)      # OpenAI 格式工具定义
+    tool_defs: list[dict] = field(default_factory=list)  # OpenAI 格式工具定义
     max_tool_result_length: int = sys.maxsize
     # ── 策略钩子（可选，缺省走默认行为；签名见下方注释块）──
     transform_context: Callable[[list[dict], CancelToken], list[dict] | Awaitable[list[dict]]] | None = None
@@ -155,6 +157,7 @@ class AgentLoopConfig:
     get_steering_messages: Callable[[CancelToken], list[dict]] | None = None
     get_follow_up_messages: Callable[[CancelToken], list[dict]] | None = None
 
+
 # ── 钩子签名（全部可选；同步或 async 均可，loop 统一 await）──
 # before_tool_call: (tool_name: str, args: dict, token: CancelToken) -> dict
 #   返回修改后的 args；返回 {"__block__": True, "__reason__": <原因>} 则阻塞该工具
@@ -164,78 +167,106 @@ class AgentLoopConfig:
 # should_stop_after_turn: (ctx: dict, token: CancelToken) -> bool
 #   ctx = {"message": dict, "tool_results": list[ToolResult], "messages": list[dict], "api_calls": int}
 
+
 @dataclass(frozen=True)
 class TurnUpdate:
     """prepare_next_turn 的返回值：对下一轮的覆盖。"""
+
     model: str | None = None
     temperature: float | None = None
     max_tokens: int | None = None
+
 
 @dataclass
 class ToolResult:
     tool_call_id: str
     tool_name: str
-    result: str            # JSON 字符串（与现有 tool 消息 content 一致）
+    result: str  # JSON 字符串（与现有 tool 消息 content 一致）
     is_error: bool = False
     terminate: bool = False  # 未来扩展：全批次 terminate 时提前停止
 
+
 class CancelToken:
     """取消令牌：等价于 Pi 的 AbortSignal。全链路传递。"""
+
     def __init__(self) -> None:
         self._event = asyncio.Event()
+
     def cancel(self) -> None:
         self._event.set()
+
     @property
     def cancelled(self) -> bool:
         return self._event.is_set()
+
     async def wait(self) -> None:
-        await self._event.wait()          # 挂起直到被取消
+        await self._event.wait()  # 挂起直到被取消
+
     def check(self) -> None:
         if self._event.is_set():
             raise asyncio.CancelledError  # 已取消则中断当前步骤
+
 
 # ── AgentEvent 联合类型：用 dataclass 区分（type 字段为判别式，置于字段末尾以符合 dataclass 规则）──
 @dataclass(frozen=True)
 class AgentStart:
     type: str = "agent_start"
+
+
 @dataclass(frozen=True)
 class AgentEnd:
     messages: list[dict]
     type: str = "agent_end"
+
+
 @dataclass(frozen=True)
 class TurnStart:
     type: str = "turn_start"
+
+
 @dataclass(frozen=True)
 class TurnEnd:
     message: dict
     tool_results: list[ToolResult]
     type: str = "turn_end"
+
+
 @dataclass(frozen=True)
 class MessageStart:
     message: dict
     type: str = "message_start"
+
+
 @dataclass(frozen=True)
 class MessageUpdate:
     message: dict
     delta: str
     reasoning_delta: str | None = None
     type: str = "message_update"
+
+
 @dataclass(frozen=True)
 class MessageEnd:
     message: dict
     type: str = "message_end"
+
+
 @dataclass(frozen=True)
 class ToolExecutionStart:
     tool_call_id: str
     tool_name: str
     args: dict
     type: str = "tool_execution_start"
+
+
 @dataclass(frozen=True)
 class ToolExecutionUpdate:
     tool_call_id: str
     tool_name: str
     partial_result: str
     type: str = "tool_execution_update"
+
+
 @dataclass(frozen=True)
 class ToolExecutionEnd:
     tool_call_id: str
@@ -244,9 +275,18 @@ class ToolExecutionEnd:
     is_error: bool = False
     type: str = "tool_execution_end"
 
+
 AgentEvent = (
-    AgentStart | AgentEnd | TurnStart | TurnEnd | MessageStart | MessageUpdate
-    | MessageEnd | ToolExecutionStart | ToolExecutionUpdate | ToolExecutionEnd
+    AgentStart
+    | AgentEnd
+    | TurnStart
+    | TurnEnd
+    | MessageStart
+    | MessageUpdate
+    | MessageEnd
+    | ToolExecutionStart
+    | ToolExecutionUpdate
+    | ToolExecutionEnd
 )
 ```
 
@@ -254,6 +294,7 @@ AgentEvent = (
 
 ```python
 """极简 async loop —— 不含任何业务策略，只编排事件流。"""
+
 
 async def run_agent_loop(
     prompts: list[dict],
@@ -268,9 +309,11 @@ async def run_agent_loop(
     await emit(AgentStart())
     await emit(TurnStart())
     for p in prompts:
-        await emit(MessageStart(p)); await emit(MessageEnd(p))
+        await emit(MessageStart(p))
+        await emit(MessageEnd(p))
     await _run_loop(context, new_messages, config, emit, token)
     return new_messages
+
 
 async def run_agent_loop_continue(
     context: AgentContext,
@@ -287,22 +330,27 @@ async def run_agent_loop_continue(
     await _run_loop(context, new_messages, config, emit, token)
     return new_messages
 
+
 async def _run_loop(context, new_messages, config, emit, token) -> None:
     """双层循环：内层 = tool_calls/steering，外层 = follow-up。"""
+
     async def _no_messages(token) -> list[dict]:
         return []
+
     get_steering = config.get_steering_messages or _no_messages
     get_followup = config.get_follow_up_messages or _no_messages
     pending = await get_steering(token)
-    while True:                                    # ── 外层循环 ──
+    while True:  # ── 外层循环 ──
         has_more_tool_calls = True
-        while has_more_tool_calls or pending:      # ── 内层循环 ──
+        while has_more_tool_calls or pending:  # ── 内层循环 ──
             token.check()
             await emit(TurnStart())
-            if pending:                            # steering 消息注入
+            if pending:  # steering 消息注入
                 for msg in pending:
-                    await emit(MessageStart(msg)); await emit(MessageEnd(msg))
-                    context.messages.append(msg); new_messages.append(msg)
+                    await emit(MessageStart(msg))
+                    await emit(MessageEnd(msg))
+                    context.messages.append(msg)
+                    new_messages.append(msg)
                 pending = []
             # 1) 上下文变换（compaction 钩子）
             if config.transform_context:
@@ -312,30 +360,39 @@ async def _run_loop(context, new_messages, config, emit, token) -> None:
             new_messages.append(message)
             if message.failed or message.stop_reason in ("error", "aborted"):
                 await emit(TurnEnd(message, []))
-                await emit(AgentEnd(new_messages)); return
+                await emit(AgentEnd(new_messages))
+                return
             # 3) 工具批次执行
             tool_calls = message.get("tool_calls") or []
             tool_results: list[ToolResult] = []
             has_more_tool_calls = False
             if tool_calls:
-                executed = (await _fail_truncated_batch(tool_calls, emit)        # stop_reason=="length"
-                            if message.stop_reason == "length"
-                            else await _execute_tool_batch(context, message, config, emit, token))
+                executed = (
+                    await _fail_truncated_batch(tool_calls, emit)  # stop_reason=="length"
+                    if message.stop_reason == "length"
+                    else await _execute_tool_batch(context, message, config, emit, token)
+                )
                 tool_results = executed.messages
                 has_more_tool_calls = not executed.terminate
                 for r in tool_results:
-                    context.messages.append(_to_tool_message(r)); new_messages.append(_to_tool_message(r))
+                    context.messages.append(_to_tool_message(r))
+                    new_messages.append(_to_tool_message(r))
             await emit(TurnEnd(message, tool_results))
             # 4) 下一轮覆盖（model/temperature/max_tokens）
             if config.prepare_next_turn:
-                ctx = {"message": message, "tool_results": tool_results,
-                       "messages": new_messages, "api_calls": api_calls}
+                ctx = {
+                    "message": message,
+                    "tool_results": tool_results,
+                    "messages": new_messages,
+                    "api_calls": api_calls,
+                }
                 update = await config.prepare_next_turn(ctx, token)
                 if update:
                     config = _apply_update(config, update)
             # 5) 停止判定（IterationBudget 消费点）
             if config.should_stop_after_turn and await config.should_stop_after_turn(ctx, token):
-                await emit(AgentEnd(new_messages)); return
+                await emit(AgentEnd(new_messages))
+                return
             # 6) steering 再取（one-at-a-time 由 Agent 队列 drain 语义保证）
             pending = await get_steering(token)
         # ── 外层：follow-up 消息 ──

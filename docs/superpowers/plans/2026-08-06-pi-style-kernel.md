@@ -195,7 +195,9 @@ class TestAgentEvents:
         assert MessageUpdate(message={}, delta="", reasoning_delta="think").reasoning_delta == "think"
         assert MessageEnd(message={}).type == "message_end"
         assert ToolExecutionStart(tool_call_id="c1", tool_name="ls", args={}).type == "tool_execution_start"
-        assert ToolExecutionUpdate(tool_call_id="c1", tool_name="ls", partial_result="x").type == "tool_execution_update"
+        assert (
+            ToolExecutionUpdate(tool_call_id="c1", tool_name="ls", partial_result="x").type == "tool_execution_update"
+        )
         assert ToolExecutionEnd(tool_call_id="c1", tool_name="ls", result="[]").type == "tool_execution_end"
         assert ToolExecutionEnd(tool_call_id="c1", tool_name="ls", result="err", is_error=True).is_error is True
 
@@ -431,8 +433,16 @@ class ToolExecutionEnd:
 
 
 AgentEvent = (
-    AgentStart | AgentEnd | TurnStart | TurnEnd | MessageStart | MessageUpdate
-    | MessageEnd | ToolExecutionStart | ToolExecutionUpdate | ToolExecutionEnd
+    AgentStart
+    | AgentEnd
+    | TurnStart
+    | TurnEnd
+    | MessageStart
+    | MessageUpdate
+    | MessageEnd
+    | ToolExecutionStart
+    | ToolExecutionUpdate
+    | ToolExecutionEnd
 )
 
 __all__ = [
@@ -755,6 +765,7 @@ def test_approval_blocked_denied_returns_denial():
     registry.add_before_hook(_raise_hook)
     decisions: list[str] = []
     try:
+
         async def _on_blocked(name: str, reason: str) -> str:
             decisions.append(name)
             return "denied"
@@ -792,6 +803,7 @@ def test_approval_blocked_approved_runs_handler_directly():
 
     registry.add_before_hook(_raise_hook)
     try:
+
         async def _on_blocked(name: str, reason: str) -> str:
             return "approved"
 
@@ -822,8 +834,10 @@ def test_sequential_batch_sleeps_are_serial():
     start = time.monotonic()
     batch = _run(
         dispatch_tool_batch(
-            [ToolCallPayload(id="c1", name="t_sleep", arguments="{}"),
-             ToolCallPayload(id="c2", name="t_sleep", arguments="{}")],
+            [
+                ToolCallPayload(id="c1", name="t_sleep", arguments="{}"),
+                ToolCallPayload(id="c2", name="t_sleep", arguments="{}"),
+            ],
             max_result_length=sys.maxsize,
             token=CancelToken(),
             emit=_EventRecorder(),
@@ -1186,9 +1200,11 @@ def test_plain_text_event_sequence_and_return():
     assert types[-1] == "agent_end"
     assert types == [
         "agent_start",
-        "message_start", "message_end",          # user prompt
+        "message_start",
+        "message_end",  # user prompt
         "turn_start",
-        "message_start", "message_end",          # assistant reply
+        "message_start",
+        "message_end",  # assistant reply
         "turn_end",
         "agent_end",
     ]
@@ -1297,7 +1313,9 @@ def test_should_stop_after_turn_ends_with_agent_end():
 def test_llm_error_encodes_in_message_and_ends():
     llm = _ScriptedLLM(LLMResponse(error="API down", stop_reason="error"))
     rec = _Recorder()
-    result = _run(run_agent_loop([{"role": "user", "content": "go"}], AgentContext(), _cfg(call_llm=llm), rec, CancelToken()))
+    result = _run(
+        run_agent_loop([{"role": "user", "content": "go"}], AgentContext(), _cfg(call_llm=llm), rec, CancelToken())
+    )
 
     assert result[-1]["is_error"] is True
     assert result[-1]["errorMessage"] == "API down"
@@ -1316,11 +1334,15 @@ def test_length_stop_reason_fails_truncated_tool_batch():
 
     registry.register(name="spy", toolset="test", schema={"type": "object"}, handler=spy)
     llm = _ScriptedLLM(
-        LLMResponse(content="", tool_calls=[ToolCallPayload(id="c1", name="spy", arguments="{}")], stop_reason="length"),
+        LLMResponse(
+            content="", tool_calls=[ToolCallPayload(id="c1", name="spy", arguments="{}")], stop_reason="length"
+        ),
         LLMResponse(content="please re-issue"),
     )
     rec = _Recorder()
-    result = _run(run_agent_loop([{"role": "user", "content": "go"}], AgentContext(), _cfg(call_llm=llm), rec, CancelToken()))
+    result = _run(
+        run_agent_loop([{"role": "user", "content": "go"}], AgentContext(), _cfg(call_llm=llm), rec, CancelToken())
+    )
 
     assert ran == [], "truncated batch must never execute handlers"
     tool_msgs = [m for m in result if m.get("role") == "tool"]
@@ -2375,8 +2397,15 @@ class TestNewKernelPath:
         result = agent.run_conversation("test")
         assert result["completed"] is True
         assert seen.count("phase_change") >= 2
-        for expected in ("session_start", "user_message", "before_llm_call", "after_llm_call",
-                         "before_tool_call", "after_tool_call", "session_end"):
+        for expected in (
+            "session_start",
+            "user_message",
+            "before_llm_call",
+            "after_llm_call",
+            "before_tool_call",
+            "after_tool_call",
+            "session_end",
+        ):
             assert expected in seen, expected
         assert seen.index("session_start") < seen.index("user_message")
         assert seen.index("user_message") < seen.index("before_llm_call")
@@ -2558,9 +2587,7 @@ class TestNewKernelPath:
                 self.messages.append(list(kwargs.get("messages", [])))
                 return self.inner.chat(**kwargs)
 
-        inner = MockLLMProvider(
-            responses=[make_text_response("summary"), make_text_response("ok")]
-        )
+        inner = MockLLMProvider(responses=[make_text_response("summary"), make_text_response("ok")])
         spy = _SpyProvider(inner)
         agent = AIAgent(
             api_key="sk-fake",
@@ -3352,9 +3379,7 @@ def test_ws_streams_flat_messages_in_order(monkeypatch):
     assert types[-1] == "done"
     # token deltas arrive in stream order
     token_contents = [
-        msg["content"]
-        for msg in _collect_ws_messages(client, fake, "sess-tokens")
-        if msg["type"] == "token"
+        msg["content"] for msg in _collect_ws_messages(client, fake, "sess-tokens") if msg["type"] == "token"
     ]
     assert token_contents == ["你", "好"]
 
@@ -3780,11 +3805,23 @@ class TestC1RunConversationContract:
         sig = inspect.signature(AIAgent.__init__)
         params = list(sig.parameters)
         for expected in (
-            "api_key", "base_url", "model", "max_iterations", "max_tokens",
-            "max_tool_result_length", "system_prompt", "enabled_tools",
-            "disabled_tools", "temperature", "progress_callback",
-            "tool_call_callback", "tool_result_callback", "compaction_settings",
-            "max_retries", "max_retry_delay", "approval_callback",
+            "api_key",
+            "base_url",
+            "model",
+            "max_iterations",
+            "max_tokens",
+            "max_tool_result_length",
+            "system_prompt",
+            "enabled_tools",
+            "disabled_tools",
+            "temperature",
+            "progress_callback",
+            "tool_call_callback",
+            "tool_result_callback",
+            "compaction_settings",
+            "max_retries",
+            "max_retry_delay",
+            "approval_callback",
         ):
             assert expected in params, expected
 
@@ -3792,8 +3829,13 @@ class TestC1RunConversationContract:
         sig = inspect.signature(AIAgent.run_conversation)
         params = list(sig.parameters)
         for expected in (
-            "user_message", "system_message", "conversation_history",
-            "stream_callback", "reasoning_callback", "stop_event", "session_id",
+            "user_message",
+            "system_message",
+            "conversation_history",
+            "stream_callback",
+            "reasoning_callback",
+            "stop_event",
+            "session_id",
         ):
             assert expected in params, expected
 
@@ -3803,7 +3845,12 @@ class TestC1RunConversationContract:
         agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
         result = agent.run_conversation("hello")
         assert set(result.keys()) == {
-            "final_response", "messages", "api_calls", "token_usage", "completed", "error",
+            "final_response",
+            "messages",
+            "api_calls",
+            "token_usage",
+            "completed",
+            "error",
         }
 
 
@@ -3819,6 +3866,7 @@ class TestC3EventBusContract:
             SessionStartEvent,
             UserMessageEvent,
         )
+
         assert SessionStartEvent.type == "session_start"
         assert SessionEndEvent.type == "session_end"
         assert UserMessageEvent.type == "user_message"
@@ -5447,48 +5495,47 @@ git commit -m "feat: close event stream with AgentEnd on cancel and run failure"
 Append to `tests/test_agent_adapter.py`（`TestNewKernelPath` 类内）：
 
 ```python
-    def test_steer_injected_next_turn(self, monkeypatch):
-        _force_kernel(monkeypatch, "new")
-        provider = MockLLMProvider(responses=[make_text_response("first"), make_text_response("second")])
-        agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
-        agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+def test_steer_injected_next_turn(self, monkeypatch):
+    _force_kernel(monkeypatch, "new")
+    provider = MockLLMProvider(responses=[make_text_response("first"), make_text_response("second")])
+    agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=3)
+    agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
 
-        async def _scenario() -> dict:
-            task = asyncio.create_task(
-                agent.run_conversation_async(user_message="go", conversation_history=[], session_id="s1")
-            )
-            await asyncio.sleep(0.05)
-            agent.steer({"role": "user", "content": "interrupt"})
-            return await task
-
-        result = asyncio.run(_scenario())
-        contents = [m.get("content") for m in result["messages"]]
-        assert "interrupt" in contents
-        idx_steer = contents.index("interrupt")
-        idx_second = contents.index("second")
-        assert idx_steer < idx_second
-        assert result["final_response"] == "second"
-
-    def test_steer_one_at_a_time_oldest_first(self, monkeypatch):
-        _force_kernel(monkeypatch, "new")
-        provider = MockLLMProvider(
-            responses=[make_text_response("a"), make_text_response("b"), make_text_response("c")]
+    async def _scenario() -> dict:
+        task = asyncio.create_task(
+            agent.run_conversation_async(user_message="go", conversation_history=[], session_id="s1")
         )
-        agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=5)
-        agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+        await asyncio.sleep(0.05)
+        agent.steer({"role": "user", "content": "interrupt"})
+        return await task
 
-        async def _scenario() -> dict:
-            task = asyncio.create_task(
-                agent.run_conversation_async(user_message="go", conversation_history=[], session_id="s1")
-            )
-            await asyncio.sleep(0.05)
-            agent.steer({"role": "user", "content": "steer-1"})
-            agent.steer({"role": "user", "content": "steer-2"})
-            return await task
+    result = asyncio.run(_scenario())
+    contents = [m.get("content") for m in result["messages"]]
+    assert "interrupt" in contents
+    idx_steer = contents.index("interrupt")
+    idx_second = contents.index("second")
+    assert idx_steer < idx_second
+    assert result["final_response"] == "second"
 
-        result = asyncio.run(_scenario())
-        contents = [m.get("content") for m in result["messages"]]
-        assert contents.index("steer-1") < contents.index("steer-2") < contents.index("c")
+
+def test_steer_one_at_a_time_oldest_first(self, monkeypatch):
+    _force_kernel(monkeypatch, "new")
+    provider = MockLLMProvider(responses=[make_text_response("a"), make_text_response("b"), make_text_response("c")])
+    agent = AIAgent(api_key="sk-fake", base_url="x", model="gpt-4o", max_iterations=5)
+    agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
+
+    async def _scenario() -> dict:
+        task = asyncio.create_task(
+            agent.run_conversation_async(user_message="go", conversation_history=[], session_id="s1")
+        )
+        await asyncio.sleep(0.05)
+        agent.steer({"role": "user", "content": "steer-1"})
+        agent.steer({"role": "user", "content": "steer-2"})
+        return await task
+
+    result = asyncio.run(_scenario())
+    contents = [m.get("content") for m in result["messages"]]
+    assert contents.index("steer-1") < contents.index("steer-2") < contents.index("c")
 ```
 
 Append to `tests/test_chat_async.py`：
@@ -5696,7 +5743,12 @@ class TestPostKernelCleanup:
         agent._llm = LLMClient(api_key="sk-fake", base_url="x", provider=provider)
         result = agent.run_conversation("hello")
         assert set(result.keys()) == {
-            "final_response", "messages", "api_calls", "token_usage", "completed", "error",
+            "final_response",
+            "messages",
+            "api_calls",
+            "token_usage",
+            "completed",
+            "error",
         }
         assert result["final_response"] == "hi"
 ```

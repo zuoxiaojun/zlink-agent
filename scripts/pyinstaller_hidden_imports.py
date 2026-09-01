@@ -48,7 +48,7 @@ LLM_PROVIDERS = [
 DATABASE = [
     "oracledb",
     "sqlparse",
-        "pymssql",
+    "pymssql",
     # cryptography 完整子模块链 —— oracledb thin mode 连接时动态加载
     "cryptography",
     "cryptography.hazmat",

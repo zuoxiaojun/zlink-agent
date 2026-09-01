@@ -2811,7 +2811,7 @@ git commit -m "chore: bump version to 1.13.0 and document session artifacts"
 
 - [ ] **Step 7: 按 `AGENTS.md` §12 写 `HANDOVER.md`**
 
-包含：分支 `main`、版本 1.13.0、11 个 commit 列表、关键决策（A 档范围 / 会话目录化 / B+B2 / 方案 1「目录为真相」/ 不用 StaticFiles 的原因）、遗留（`sidebar_open` 工具、"本轮文件"分组、skill 相对路径命令改绝对、MCP 工具写出文件不归一）、新会话入口（`Read docs/superpowers/specs/2026-09-01-session-artifacts-sidebar-design.md`）。
+包含：分支 `main`、版本 1.13.0、12 个 commit 列表、关键决策（A 档范围 / 会话目录化 / B+B2 / 方案 1「目录为真相」/ 不用 StaticFiles 的原因）、遗留（`sidebar_open` 工具、"本轮文件"分组、MCP 工具写出文件不归一）、新会话入口（`Read docs/superpowers/specs/2026-09-01-session-artifacts-sidebar-design.md`）。
 
 ---
 

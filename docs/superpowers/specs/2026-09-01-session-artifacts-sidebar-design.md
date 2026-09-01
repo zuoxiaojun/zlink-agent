@@ -183,7 +183,7 @@ before-hook 只改写 `args`，永不返回 `__block__`；注册顺序在 `secur
 - **`tests/test_session_artifact_hook.py`**：ContextVar set 时 `write_file("a.html")` 落 `artifacts/`；未 set 时落 cwd（回归保护）；绝对路径不改写；`terminal` 缺省 `workdir` = 产物目录；仅写出且落在会话外才追加 external；坏行跳过。
 - **`tests/test_cronjob_artifact_session.py`**：`MockLLMProvider` 脚本化一次 `write_file`，断言产物落在该 job 的会话目录内（守住 §3 那句补漏）。
 - **`tests/test_contract_freeze.py`**：加断言 —— `run_conversation` 签名与 6 个返回键零改动。
-- **存量**：526 个测试全绿 + `ruff check . && ruff format --check .`。
+- **存量**：591 个测试全绿 + `ruff check . && ruff format --check .`。
 - **前端**：仓库无 vitest（已核实 `web/package.json`），A 档不为它引测试框架。验证 = `tsc -b` + `npm run build` + 手工 5 条验收：生成报告 → 面板自动弹出 → iframe 预览可交互 → 浏览器打开全屏正常 → 切会话列表随之变化 → 删除会话后目录消失。
 
 ## 8. 改动文件清单
@@ -197,6 +197,6 @@ before-hook 只改写 `args`，永不返回 `__block__`；注册顺序在 `secur
 ## 9. 已知限制与 v1.1 候选
 
 - `read_file` 等只读工具的相对路径也归一到产物目录 —— 模型想看仓库里某文件时必须给绝对路径。这是"会话工作目录"语义的必然代价。
-- **已核实的非回归风险**：`agent/skills/china-hotdata/SKILL.md:38`（要求 cwd 在技能根）、`minimax-docx`（`bash scripts/setup.sh`）、`minimax-pdf`、`pptx-generator`（`cd slides && node compile.js`）等内置 skill 文案里用了**相对路径命令**。它们今天也不对（终端缺省 cwd 是仓库根，不是技能目录），改后缺省变产物目录 —— 两者同样不对，不是新增回归；绝对 `workdir` 仍原样尊重。后续应把这四段 skill 文案改成绝对路径（本次不扰，归入 v1.1）。
+- **已修复**：`agent/skills/{china-hotdata,minimax-docx,minimax-pdf,pptx-generator}` 四段 skill 文案的相对路径命令已改为从仓库根出发的绝对路径（`commit 51e07e9`）。
 - MCP 工具（如 chart server）写出的文件不归一，也不登记；`external.jsonl` 是给它们的接口位。
 - v1.1 候选：`sidebar_open` 工具（模型主动把产物推到本会话侧边栏，复用 `external.jsonl` + 一个 WS 推送通道）、"本轮文件"分组（面板上标第几轮生成）、会话导出（单 sid 的自包含 zip 已在 v1）。

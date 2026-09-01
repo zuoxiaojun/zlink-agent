@@ -713,7 +713,6 @@ _CURATED_TABLES: dict[str, dict] = {
             "PreCompleteDate": "预计完成日期",
         },
     },
-
     "PM_PurchaseOrder": {
         "name": "采购订单主表（含行明细）",
         "module": "采购管理",

@@ -109,30 +109,33 @@
 
 **当前代码（第 314-319 行）:**
 ```python
-    def tool_call_callback(name: str, args: str):
-        loop.call_soon_threadsafe(
-            queue.put_nowait,
-            {"type": "tool_call", "name": name, "arguments": args},
-        )
+def tool_call_callback(name: str, args: str):
+    loop.call_soon_threadsafe(
+        queue.put_nowait,
+        {"type": "tool_call", "name": name, "arguments": args},
+    )
 
-    # Approval callback — called from agent thread when ApprovalBlockedError is caught
+
+# Approval callback — called from agent thread when ApprovalBlockedError is caught
 ```
 
 **修改后:**
 ```python
-    def tool_call_callback(name: str, args: str):
-        loop.call_soon_threadsafe(
-            queue.put_nowait,
-            {"type": "tool_call", "name": name, "arguments": args},
-        )
+def tool_call_callback(name: str, args: str):
+    loop.call_soon_threadsafe(
+        queue.put_nowait,
+        {"type": "tool_call", "name": name, "arguments": args},
+    )
 
-    def tool_result_callback(name: str, result: str):
-        loop.call_soon_threadsafe(
-            queue.put_nowait,
-            {"type": "tool_result", "name": name, "result": result},
-        )
 
-    # Approval callback — called from agent thread when ApprovalBlockedError is caught
+def tool_result_callback(name: str, result: str):
+    loop.call_soon_threadsafe(
+        queue.put_nowait,
+        {"type": "tool_result", "name": name, "result": result},
+    )
+
+
+# Approval callback — called from agent thread when ApprovalBlockedError is caught
 ```
 
 ---
