@@ -10,12 +10,16 @@ from __future__ import annotations
 import logging
 import mimetypes
 import os
+import subprocess
+import sys
+import zipfile
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from agent import session_manager
 from agent.tools.session_artifact_hook import read_external_entries
@@ -23,6 +27,7 @@ from backend.schemas.session_artifact import (
     ArtifactItem,
     ArtifactListResponse,
     ExternalArtifact,
+    RevealRequest,
 )
 
 logger = logging.getLogger(__name__)
@@ -215,3 +220,70 @@ def get_artifact_file(sid: str, rel: str, download: bool = Query(False)) -> File
     # filename=None 是有意为之：传 filename 会让 Starlette 自生成 Content-Disposition，
     # 覆盖上面要控制的 inline/attachment 语义。
     return FileResponse(path=str(target), media_type=media_type, headers=headers, filename=None)
+
+
+@router.get("/api/sessions/{sid}/artifacts/zip")
+def download_artifacts_zip(sid: str) -> Response:
+    """把整个 artifacts/ 打包（保留相对目录结构、跳过软链接）。"""
+    _require_session(sid)
+    root = session_manager.ensure_artifacts_dir(sid)
+    files = list(_iter_artifact_files(root))
+    total = 0
+    for p in files:
+        try:
+            total += p.stat().st_size
+        except OSError:
+            continue
+    if total > MAX_ZIP_BYTES:
+        raise HTTPException(status_code=413, detail="产物总体积超过打包上限")
+
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for p in files:
+            try:
+                zf.write(p, arcname=p.relative_to(root).as_posix())
+            except OSError:
+                logger.warning("zip 跳过不可读产物: %s", p)
+    name = f"session-{sid}-artifacts.zip"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+    )
+
+
+def _reveal_in_file_manager(target: Path) -> None:
+    """跨平台在文件管理器中定位（不 wait，失败只记日志）。"""
+    if sys.platform == "darwin":
+        cmd: list[str] = ["open", "-R", str(target)]
+    elif os.name == "nt":  # pragma: no cover - 非 macOS/Linux
+        cmd = ["explorer", f"/select,{target}"]
+    else:  # pragma: no cover
+        cmd = ["xdg-open", str(target.parent)]
+    try:
+        subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError as e:  # pragma: no cover
+        logger.warning("reveal 失败 %s: %s", target, e)
+
+
+@router.post("/api/sessions/{sid}/artifacts/reveal")
+def reveal_artifact(sid: str, body: RevealRequest) -> dict:
+    """在系统文件管理器里定位产物。入参只能是会话内 rel 或已登记的 abs_path。"""
+    _require_session(sid)
+    if body.rel:
+        target = _resolve_in_artifacts(sid, body.rel)
+        if target is None:
+            raise HTTPException(status_code=404, detail="artifact not found")
+    elif body.abs_path:
+        registered = {e["path"] for e in read_external_entries(sid)}
+        candidate = os.path.realpath(os.path.expanduser(body.abs_path))
+        if candidate not in {os.path.realpath(p) for p in registered}:
+            raise HTTPException(status_code=403, detail="未登记的绝对路径不允许 reveal")
+        if not os.path.isfile(candidate):
+            raise HTTPException(status_code=404, detail="文件已不存在")
+        target = Path(candidate)
+    else:
+        raise HTTPException(status_code=422, detail="需要 rel 或 abs_path")
+
+    _reveal_in_file_manager(target)
+    return {"success": True}

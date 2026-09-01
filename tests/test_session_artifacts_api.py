@@ -1,6 +1,8 @@
 """产物 API：列表分类/截断，文件端点的路径穿越防护，zip，reveal。"""
 
 import shutil
+import zipfile
+from io import BytesIO
 
 import pytest
 from fastapi import FastAPI
@@ -175,3 +177,90 @@ def test_symlink_escape_is_404(client, sid_with_artifacts, tmp_path):
 def test_illegal_sid_is_404(client):
     # 百分号编码的 .. 才能原样抵达路由参数（字面 /../ 会被 httpx 在客户端归一）
     assert client.get("/api/session-files/%2e%2e%2fdeadbeef/report.html").status_code == 404
+
+
+# ── T7: zip 打包 + 在 Finder 显示 ─────────────────────
+
+
+def test_zip_contains_relative_entries(client, sid_with_artifacts):
+    sid = sid_with_artifacts
+    r = client.get(f"/api/sessions/{sid}/artifacts/zip")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("application/zip")
+    assert sid in r.headers["content-disposition"]
+    zf = zipfile.ZipFile(BytesIO(r.content))
+    names = set(zf.namelist())
+    assert {"report.html", "notes.md", "sub/deep.pdf"} <= names
+    assert zf.read("report.html").decode() == "<h1>r</h1>"
+
+
+def test_zip_skips_symlinks(client, sid_with_artifacts, tmp_path):
+    sid = sid_with_artifacts
+    outside = tmp_path / "evil.txt"
+    outside.write_text("nope", encoding="utf-8")
+    try:
+        (sm.artifacts_dir(sid) / "link.txt").symlink_to(outside)
+    except OSError:  # pragma: no cover
+        pytest.skip("文件系统不支持软链接")
+    zf = zipfile.ZipFile(BytesIO(client.get(f"/api/sessions/{sid}/artifacts/zip").content))
+    assert "link.txt" not in zf.namelist()
+
+
+def test_zip_empty_dir_ok(client, sid_with_artifacts):
+    sid = sid_with_artifacts
+    for p in sm.artifacts_dir(sid).rglob("*"):
+        if p.is_file():
+            p.unlink()
+    r = client.get(f"/api/sessions/{sid}/artifacts/zip")
+    assert r.status_code == 200
+    assert zipfile.ZipFile(BytesIO(r.content)).namelist() == []
+
+
+def test_zip_oversized_returns_413(client, sid_with_artifacts, monkeypatch):
+    monkeypatch.setattr(sa_mod, "MAX_ZIP_BYTES", 10)
+    r = client.get(f"/api/sessions/{sid_with_artifacts}/artifacts/zip")
+    assert r.status_code == 413
+
+
+def test_reveal_rejects_unlisted_abs_path(client, sid_with_artifacts):
+    r = client.post(f"/api/sessions/{sid_with_artifacts}/artifacts/reveal", json={"abs_path": "/etc/hosts"})
+    assert r.status_code == 403
+
+
+def test_reveal_requires_a_target(client, sid_with_artifacts):
+    assert client.post(f"/api/sessions/{sid_with_artifacts}/artifacts/reveal", json={}).status_code == 422
+
+
+def test_reveal_accepts_internal_rel(client, sid_with_artifacts, monkeypatch):
+    sid = sid_with_artifacts
+    seen: list[str] = []
+    monkeypatch.setattr(sa_mod, "_reveal_in_file_manager", lambda p: seen.append(str(p)))
+    r = client.post(f"/api/sessions/{sid}/artifacts/reveal", json={"rel": "report.html"})
+    assert r.status_code == 200
+    assert seen and seen[0].endswith("report.html")
+
+
+def test_reveal_rejects_rel_traversal(client, sid_with_artifacts):
+    r = client.post(f"/api/sessions/{sid_with_artifacts}/artifacts/reveal", json={"rel": "../session.json"})
+    assert r.status_code == 404
+
+
+def test_reveal_accepts_registered_abs_path(client, sid_with_artifacts, tmp_path, monkeypatch):
+    from agent.tools import session_artifact_hook as sah
+
+    sid = sid_with_artifacts
+    p = tmp_path / "out.html"
+    p.write_text("x", encoding="utf-8")
+    sah.record_external_write(sid, str(p), "write_file")
+    monkeypatch.setattr(sa_mod, "_reveal_in_file_manager", lambda target: None)
+    assert client.post(f"/api/sessions/{sid}/artifacts/reveal", json={"abs_path": str(p)}).status_code == 200
+
+
+def test_reveal_registered_but_gone_is_404(client, sid_with_artifacts, tmp_path, monkeypatch):
+    from agent.tools import session_artifact_hook as sah
+
+    sid = sid_with_artifacts
+    gone = tmp_path / "gone.html"
+    sah.record_external_write(sid, str(gone), "write_file")
+    monkeypatch.setattr(sa_mod, "_reveal_in_file_manager", lambda target: None)
+    assert client.post(f"/api/sessions/{sid}/artifacts/reveal", json={"abs_path": str(gone)}).status_code == 404
