@@ -8,11 +8,14 @@
 from __future__ import annotations
 
 import logging
+import mimetypes
 import os
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import quote
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import FileResponse
 
 from agent import session_manager
 from agent.tools.session_artifact_hook import read_external_entries
@@ -180,3 +183,35 @@ def list_artifacts(sid: str) -> ArtifactListResponse:
         truncated=truncated,
         root=f"/api/session-files/{sid}/",
     )
+
+
+def _quote_filename(name: str) -> str:
+    return quote(name, safe="")
+
+
+@router.get("/api/session-files/{sid}/{rel:path}")
+def get_artifact_file(sid: str, rel: str, download: bool = Query(False)) -> FileResponse:
+    """产物内容的唯一出口：iframe 预览与前端 fetch 文本共用。
+
+    同源是这套设计成立的前提 —— 报告里的 ``src="chart.js"`` 顺同一前缀
+    命中本端点。
+    """
+    _safe_sid(sid)
+    target = _resolve_in_artifacts(sid, rel)
+    if target is None:
+        raise HTTPException(status_code=404, detail="artifact not found")
+
+    media_type, _ = mimetypes.guess_type(target.name)
+    media_type = media_type or "application/octet-stream"
+    disposition = "attachment" if download else "inline"
+    headers = {
+        "Content-Disposition": f"{disposition}; filename*=UTF-8''{_quote_filename(target.name)}",
+        "X-Content-Type-Options": "nosniff",
+    }
+    if media_type == "text/html":
+        # 「在浏览器打开」时产物 JS 必须以独立源运行，否则它能 fetch /api/sessions
+        # 拖走全部会话内容（后端无鉴权）。iframe 侧再叠一个 sandbox 属性。
+        headers["Content-Security-Policy"] = "sandbox allow-scripts;"
+    # filename=None 是有意为之：传 filename 会让 Starlette 自生成 Content-Disposition，
+    # 覆盖上面要控制的 inline/attachment 语义。
+    return FileResponse(path=str(target), media_type=media_type, headers=headers, filename=None)

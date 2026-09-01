@@ -101,3 +101,77 @@ def test_illegal_sid_in_url_is_404(client):
 def test_list_rejects_illegal_sid_shape(client, sid_with_artifacts):
     # 含点的名字不是合法 sid（正是迁移用例里被跳过的那一类），必须 404 而不是 500
     assert client.get("/api/sessions/notes.backup/artifacts").status_code == 404
+
+
+# ── T6: 文件端点（内容出口 + CSP + 下载）──────────────────
+
+
+def _get_file(client, sid, rel, **params):
+    return client.get(f"/api/session-files/{sid}/{rel}", params=params)
+
+
+def test_file_endpoint_serves_html_with_csp(client, sid_with_artifacts):
+    r = _get_file(client, sid_with_artifacts, "report.html")
+    assert r.status_code == 200
+    assert r.text == "<h1>r</h1>"
+    assert "sandbox allow-scripts" in r.headers.get("content-security-policy", "")
+    assert r.headers.get("x-content-type-options") == "nosniff"
+    assert r.headers.get("content-disposition", "").startswith("inline")
+
+
+def test_file_endpoint_text_body(client, sid_with_artifacts):
+    r = _get_file(client, sid_with_artifacts, "notes.md")
+    assert r.status_code == 200
+    assert r.text == "# t"
+
+
+def test_file_endpoint_nested_rel(client, sid_with_artifacts):
+    r = _get_file(client, sid_with_artifacts, "sub/deep.pdf")
+    assert r.status_code == 200
+    assert r.content.startswith(b"%PDF")
+
+
+def test_file_endpoint_download_disposition(client, sid_with_artifacts):
+    r = _get_file(client, sid_with_artifacts, "report.html", download=1)
+    cd = r.headers.get("content-disposition", "")
+    assert cd.startswith("attachment")
+    assert "report.html" in cd
+
+
+ATTACKS = [
+    "../session.json",
+    "..%2Fsession.json",
+    "sub/../../session.json",
+    "./../session.json",
+    "/etc/hosts",
+    "C:\\Windows\\win.ini",
+    "Session.json",
+    "nope.html",
+]
+
+
+@pytest.mark.parametrize("target", ATTACKS)
+def test_path_traversal_is_404(client, sid_with_artifacts, target):
+    assert _get_file(client, sid_with_artifacts, target).status_code == 404
+
+
+def test_empty_rel_is_rejected():
+    # 空 rel 不走 HTTP：Starlette 对末尾斜杠会 307，不适合做 404 断言
+    assert sa_mod._resolve_in_artifacts("aaaa1111", "") is None
+
+
+def test_symlink_escape_is_404(client, sid_with_artifacts, tmp_path):
+    sid = sid_with_artifacts
+    outside = tmp_path / "secret.txt"
+    outside.write_text("secret", encoding="utf-8")
+    link = sm.artifacts_dir(sid) / "link.txt"
+    try:
+        link.symlink_to(outside)
+    except OSError:  # pragma: no cover - 文件系统不支持软链接
+        pytest.skip("文件系统不支持软链接")
+    assert _get_file(client, sid, "link.txt").status_code == 404
+
+
+def test_illegal_sid_is_404(client):
+    # 百分号编码的 .. 才能原样抵达路由参数（字面 /../ 会被 httpx 在客户端归一）
+    assert client.get("/api/session-files/%2e%2e%2fdeadbeef/report.html").status_code == 404
