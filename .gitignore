@@ -48,3 +48,6 @@ zlink_agent.egg-info/
 .coverage
 
 .pi-glla/
+
+# 会话产物（AI 生成的报告等，不进源代码，请保存到用户文档文件夹）
+/*.html
