@@ -1,6 +1,51 @@
+## v1.13.0 — 2026-09-01 (会话产物侧边栏 + 会话目录化布局)
+
+### 新增
+
+- **会话产物侧边栏**（对话页第三列）：
+  - `web/src/components/ArtifactsPanel.tsx` —— 列表为主 + 尽力而为的内嵌预览（html/pdf 走 `sandbox="allow-scripts"` 的 iframe，image/md/text 分别用 `img` / `Markdown` / `CodeBlock`），每条产物三个操作：在浏览器打开 / 下载 / 在 Finder 显示
+  - 「会话外文件」灰显折叠组（只给在 Finder 显示 / 复制路径，已失效条目置灰）；底部「打包下载全部产物 (zip)」
+  - 手动展开/收起：顶栏按钮（带产物数角标）+ `⌘B`；可拖 260–560px；偏好存 localStorage，用户未手动操作过时默认“有产物才展开”
+  - `web/src/hooks/useSessionArtifacts.ts` —— 按 `payload.sid` 派生数据与加载态，切会话不串数据；effect 内无同步 setState
+  - 刷新链路零新 WS 事件类型：`useChat` 新增 `onToolActivity`（`tool_result` + `done`）→ `ChatPage` 递增 version → 防抖 300ms 重拉
+- **会话目录化布局**：`data/sessions/<sid>/` 下放 `session.json` + `artifacts/` + `external.jsonl`（取代扁平 `<sid>.json`）
+  - `session_manager` 新增 `session_dir()` / `session_file()` / `artifacts_dir()` / `ensure_artifacts_dir()` 访问器；`delete_session` 改用 `rmtree` 连带清理产物
+  - `migrate_session_layout()` 在 lifespan 幂等迁移（单会话失败只记日志不阶塞启动），`load_session` 保留旧扁平路径只读回退
+- **会话工作目录归一**：`agent/tools/session_artifact_hook.py`
+  - before-hook 把 `write_file`/`patch`/`read_file`/`ls`/`glob`/`search_files` 的 `path` 与 `terminal` 的 `workdir` 的**相对路径**归到 `<sid>/artifacts/`（绝对路径与 `~` 开头没有）
+  - after-hook 仅在写出落在会话目录外时追加 `external.jsonl`（同 path 去重取最新、坏行跳过）；永不返回 `__block__`，不参与三层安全模型
+  - ContextVar 未设（单测/直接调工具/CLI）时 args 逐字不动，行为与改前一致
+- `agent/session_context.py` —— 当前会话 ContextVar（已实测 `asyncio.to_thread` 会 `copy_context()`，故 hook/handler 线程内可见）
+- **4 个产物端点**（`backend/api/session_artifacts.py` + `backend/schemas/session_artifact.py`）：
+  - `GET /api/sessions/{sid}/artifacts` 列表（递归深度≤6、上限 300 项、kind 分类、external 带 exists、目录被删懒重建）
+  - `GET /api/session-files/{sid}/{rel}` 内容出口（同源，报告里的相对资源可用；`?download=1` 切换 attachment）
+  - `GET /api/sessions/{sid}/artifacts/zip` 打包（跳软链接、超 200MB 返回 413）
+  - `POST /api/sessions/{sid}/artifacts/reveal` 在文件管理器定位（rel 走同一目录校验；abs_path 必须是已登记填，否则 403）
+- system prompt 新增 `## 会话产物` 片段（`build_system_prompt(artifact_dir=...)`，每轮动态注入）
+
+### 变更
+
+- `agent/skills/{u8,nc,yonsuite}/SKILL.md`：三处“默认保存到桌面 `~/Desktop/…`”改为写入会话产物目录（仅用户明确要绝对路径时才写桌面）
+- 产物不再落入后端进程 cwd —— 消除 `/*.html` 污染源码仓库的老问题（`ca4f13b` 的根因）
+- `.gitignore` 反排除 `docs/superpowers/`，设计文档/计划不再需要 `git add -f`
+- 前端零新依赖（复用 react-markdown / highlight.js / tabler icons）
+
+### 修复
+
+- **路径穿越（既有安全洞）**：`session_id` 来自客户端可控的 `/ws/chat/{session_id}`，旧版直接拼路径，用 `%2e%2e%2f` 可把会话文件写到 `sessions/` 外；现统一过 `is_valid_session_id()`（`^[A-Za-z0-9_-]{1,64}$`）
+- **定时任务产物无归属**：`cronjob_tools` 已 `create_session()` 拿到 sid，却没传给 `run_conversation`（参数存在但未赋值），现补上并加回归用例
+- 产物预览不用 HEAD 探测：本后端所有路由对 HEAD 一律 404，原探测会把每个产物误判为“已失效”
+- 两条 `main` 上的既有 lint 债：`skill_manager.py` 缺文件尾换行（W292）、`ReasoningBlock` 用 effect 同步 prop 进 state（react-hooks v7）
+
+### 测试
+
+- 591 passed（新增 65：`test_session_layout` / `test_session_context` / `test_session_artifact_hook` / `test_session_artifacts_api` / `test_cronjob_artifact_session`），零网络零 LLM
+- 真机验收：全新环境下用真模型跑通“相对路径写入 → 落 `<sid>/artifacts/` → 侧边栏自动刷新 → iframe 预览可交互 → 绝对路径写出被登记为会话外文件”，仓库根无产物污染
+
 ## v1.12.0 — 2026-08-31 (U9C ERP 支持 + 分析技能 + 门控加固)
 
 ### 新增
+
 - **U9 Cloud（U9C）ERP 支持**：
   - 新增 `erp_u9c_tools.py`（4 个工具：`u9c_query` / `u9c_list_tables` / `u9c_describe_table` / `u9c_raw_sql`）
   - 前端设置页新增 U9C 配置页签（Host/Port/Database/User/Password/Max Rows）
@@ -15,10 +60,12 @@
   - `_build_erp_context()` 规则强化：单系统时直接默认使用，不需要问用户；禁止提未启用的系统
 
 ### 优化
+
 - **ERP 设置页**：启用/停用 toast 提示信息从页面顶部移至配置字段下方
 - **前端构建**：新增缓存清除 meta 标签
 
 ### 变更
+
 - `agent/skill_manager.py` — `get_instructions_for_query()` 增加 ERP 门控过滤
 - `agent/core/agent_adapter.py` — `_build_erp_context()` 规则文案强化
 - `web/src/context/AppContext.tsx` — 招呼消息更新

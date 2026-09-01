@@ -8,7 +8,7 @@ ZLink Agent (智链 Agent) is an AI assistant with multi-ERP (YonSuite / NC / U8
 
 **Stack:** Python 3.11+ / FastAPI (port 8089) / React + Vite (port 8088) / MCP JSON-RPC / SQLite FTS5 / pytest / ruff
 
-**Tests:** 526 tests, ~8s, zero network/LLM deps. Run: `.venv/bin/python -m pytest tests/ -v`
+**Tests:** 591 tests, ~9s, zero network/LLM deps. Run: `.venv/bin/python -m pytest tests/ -v`
 
 ## 2. Directory Structure
 
@@ -16,9 +16,9 @@ ZLink Agent (智链 Agent) is an AI assistant with multi-ERP (YonSuite / NC / U8
 zlink-agent/
 ├── backend/                    # FastAPI backend (port 8089)
 │   ├── main.py                 # ⚠️ app, CORS, lifespan (init search_index, connect MCP), router mounts
-│   ├── api/                    # 13 routers: chat(WS ⚠️), config, erp_clients(⚠️ env injection),
+│   ├── api/                    # 14 routers: chat(WS ⚠️), config, erp_clients(⚠️ env injection),
 │   │                           #   mcp, skills, tools, slash_commands, cronjob, memory, metrics,
-│   │                           #   sessions, extensions, system
+│   │                           #   sessions, session_artifacts(⚠️ 产物只读端点), extensions, system
 │   └── schemas/                # ✅ Pydantic models (config, chat, mcp, slash_command)
 ├── agent/                      # Core logic (non-FastAPI, reusable)
 │   ├── core/
@@ -32,8 +32,9 @@ zlink-agent/
 │   │   ├── message_builder.py  # build_system_prompt(), build_turn_messages()
 │   │   ├── tool_dispatcher.py  # dispatch_tool_batch（并行/保序/sequential 降级）
 │   │   └── iteration_budget.py # IterationBudget — 纯计数器（消费点在 should_stop_after_turn 钩子）
-│   ├── tools/                  # 26 files, 65 tools — one file per toolset
+│   ├── tools/                  # 29 files, 65 tools — one file per toolset
 │   │   ├── registry.py         # ❌ ToolRegistry singleton — extend via register() only
+│   │   ├── session_artifact_hook.py # ⚠️ 相对路径→<sid>/artifacts/ 归一 + 会话外写出登记 external.jsonl
 │   │   ├── erp_ys_tools.py     # ⚠️ YonSuite 内置取数工具 (11 个, 替代旧 MCP 子进程)
 │   │   ├── erp_nc_tools.py     # ⚠️ NC 内置取数工具 (4 个, 替代旧 MCP 子进程)
 │   │   ├── erp_u8_tools.py     # ⚠️ U8 内置取数工具 (4 个, pymssql 直连 SQL Server)
@@ -48,7 +49,8 @@ zlink-agent/
 │   ├── config_model.py         # ⚠️ AppConfig + MCPServerEntry
 │   ├── context_compactor.py    # ⚠️ M6 three-level compaction (truncate → LLM summary → drop)
 │   ├── skill_manager.py        # ⚠️ skill CRUD, activation, prompt injection
-│   ├── session_manager.py      # session persistence (data/sessions/)
+│   ├── session_manager.py      # ⚠️ 会话持久化 —— data/sessions/<sid>/{session.json,artifacts/,external.jsonl}
+│   ├── session_context.py      # ⚠️ 当前会话 ContextVar；工具层据此解析产物目录（未设=回退进程 cwd）
 │   ├── search_index.py         # SQLite FTS5 session search
 │   ├── memory_manager.py       # conversation summary memory (data/memory/)
 │   ├── fact_memory.py          # autonomous memory (notes + user profile)
@@ -59,7 +61,7 @@ zlink-agent/
 ├── web/                        # React + Vite frontend (port 8088)
 │   ├── src/                    # App.tsx (10 routes ⚠️), pages/, api/, components/, styles/, hooks/
 │   └── vite.config.ts          # ⚠️ proxy /api + /ws → backend:8089
-├── tests/                      # 33 files, 526 tests; conftest.py = shared fixtures
+├── tests/                      # 50 files, 591 tests; conftest.py = shared fixtures
 ├── scripts/                    # build-electron.sh, zlink.sh, migrate.py
 └── data/                       # runtime data (~/.zlink-agent/data/):
                                 #   config.json (chmod 0600), active_skills.json, skills/,
@@ -321,6 +323,8 @@ Build: `bash scripts/build-electron.sh` = frontend build → Python bundle → e
 ## 13. Project-Specific Notes
 
 - **不做暗色主题（2026-08-07 用户拍板）**：永远不投入暗色主题/主题切换，相关提议直接拒绝。
+
+- **会话产物目录（2026-09-01）**：产物统一落 `~/.zlink-agent/data/sessions/<sid>/artifacts/`。文件/终端工具的相对路径由 `session_artifact_hook` 的 before-hook 归一（ContextVar 未设时退回进程 cwd，行为与改前逐字一致）；写到目录外的绝对路径被 after-hook 登记进同会话的 `external.jsonl`，侧边栏「会话外文件」组只给「在 Finder 显示 / 复制路径」。禁止再把产物写 `~/Desktop` 或仓库根目录（u8/nc/yonsuite 三个技能已改）。读端点 `backend/api/session_artifacts.py` 只允许 `<sid>/artifacts/` 子树（不用 StaticFiles 挂载，避免 `session.json` 被本机任意页面读到），html 响应带 `Content-Security-Policy: sandbox allow-scripts`。会话 id 统一过 `session_manager.is_valid_session_id()`（`^[A-Za-z0-9_-]{1,64}$`）—— 它来自客户端可控的 `/ws/chat/{session_id}`，不过滤就是路径穿越。
 
 - **Git remote**: atomgit.com/gcw_cJbJuamU/zlink-agent.git (NOT GitHub)
 - **BROWSER_URL**: start.sh 的 `open` 不能用 `$HOST`（默认 0.0.0.0），设 `BROWSER_URL="http://127.0.0.1:$PORT"`

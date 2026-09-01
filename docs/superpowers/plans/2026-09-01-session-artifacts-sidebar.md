@@ -29,7 +29,7 @@
 ## 文件结构
 
 | 文件 | 责任 | 任务 |
-|---|---|---|
+| --- | --- | --- |
 | `agent/session_manager.py` | 会话布局唯一权威：目录访问器、CRUD、`sid` 校验、一次性迁移 | T1 |
 | `agent/session_context.py` | 把"当前会话"送进工具层（ContextVar + 产物目录解析） | T2 |
 | `agent/core/agent_adapter.py` | 回合入口 set ContextVar；产物目录注入 system prompt | T2 |
@@ -55,10 +55,12 @@
 ## Task 1: 会话目录化 + sid 校验 + 幂等迁移
 
 **Files:**
+
 - Modify: `agent/session_manager.py`（全文 125 行，路径逻辑集中在 `SESSIONS_DIR`/`INDEX_FILE` 与 4 个函数）
 - Test: `tests/test_session_layout.py`（新建）
 
 **Interfaces:**
+
 - Consumes: 无（第一个任务）
 - Produces: `session_manager.session_dir(sid) -> Path`、`session_manager.session_file(sid) -> Path`、`session_manager.artifacts_dir(sid) -> Path`、`session_manager.ensure_artifacts_dir(sid) -> Path`、`session_manager.migrate_session_layout() -> int`、`session_manager.is_valid_session_id(sid) -> bool`、常量 `SESSIONS_DIR`、`_SAFE_ID_RE`
 
@@ -117,14 +119,17 @@ def test_delete_session_removes_dir_with_artifacts(sessions_root):
 
 def test_load_falls_back_to_legacy_flat_file(sessions_root):
     legacy = sessions_root / "abcd1234.json"
-    legacy.write_text(json.dumps({"id": "abcd1234", "title": "旧", "messages": [{"role": "user", "content": "hi"}]}), encoding="utf-8")
+    legacy.write_text(
+        json.dumps({"id": "abcd1234", "title": "旧", "messages": [{"role": "user", "content": "hi"}]}), encoding="utf-8"
+    )
     assert sm.load_session("abcd1234") == [{"role": "user", "content": "hi"}]
 
 
 def test_migrate_moves_flat_files_once(sessions_root):
     for sid in ("aaaa1111", "bbbb2222"):
         (sessions_root / f"{sid}.json").write_text(
-            json.dumps({"id": sid, "title": sid, "messages": []}), encoding="utf-8")
+            json.dumps({"id": sid, "title": sid, "messages": []}), encoding="utf-8"
+        )
     (sessions_root / "index.json").write_text("[]", encoding="utf-8")
 
     assert sm.migrate_session_layout() == 2
@@ -137,9 +142,10 @@ def test_migrate_moves_flat_files_once(sessions_root):
 
 
 def test_migrate_skips_illegal_names_but_keeps_sibling(sessions_root):
-    (sessions_root / "evil.json").write_text("{}", encoding="utf-8")   # 非 8 位 hex 风格名 → 跳过
+    (sessions_root / "evil.json").write_text("{}", encoding="utf-8")  # 非 8 位 hex 风格名 → 跳过
     (sessions_root / "cccc3333.json").write_text(
-        json.dumps({"id": "cccc3333", "title": "", "messages": []}), encoding="utf-8")
+        json.dumps({"id": "cccc3333", "title": "", "messages": []}), encoding="utf-8"
+    )
     sm.migrate_session_layout()
     assert (sessions_root / "evil.json").is_file()
     assert (sessions_root / "cccc3333" / "session.json").is_file()
@@ -369,6 +375,7 @@ git commit -m "feat: store sessions as per-session directories with artifacts di
 ## Task 2: 会话上下文 + system prompt 注入 + cronjob 归属
 
 **Files:**
+
 - Create: `agent/session_context.py`
 - Modify: `agent/core/agent_adapter.py`（`run_conversation_async` 开头 `effective_session_id` 处、`_build_system_prompt()`）
 - Modify: `agent/core/message_builder.py`（`build_system_prompt` 新增 `artifact_dir` 形参）
@@ -376,6 +383,7 @@ git commit -m "feat: store sessions as per-session directories with artifacts di
 - Test: `tests/test_session_context.py`（新建）
 
 **Interfaces:**
+
 - Consumes: `session_manager.artifacts_dir(sid)`、`ensure_artifacts_dir(sid)`（T1）
 - Produces: `session_context.current_session_id: ContextVar[str | None]`、`set_current_session(sid)`、`get_current_session() -> str | None`、`current_artifacts_dir() -> Path | None`、`ensure_current_artifacts_dir() -> Path | None`；`build_system_prompt(..., artifact_dir: str = "")`
 
@@ -519,31 +527,32 @@ from agent.session_context import set_current_session
 `_build_system_prompt()` 改成：
 
 ```python
-    def _build_system_prompt(self) -> str | None:
-        erp_context = self._build_erp_context()
-        return build_system_prompt(
-            base=self.system_prompt,
-            memory_store=self._memory_store,
-            erp_context=erp_context,
-            artifact_dir=self._build_artifact_dir_text(),
-        )
+def _build_system_prompt(self) -> str | None:
+    erp_context = self._build_erp_context()
+    return build_system_prompt(
+        base=self.system_prompt,
+        memory_store=self._memory_store,
+        erp_context=erp_context,
+        artifact_dir=self._build_artifact_dir_text(),
+    )
 
-    @staticmethod
-    def _build_artifact_dir_text() -> str:
-        """会话产物目录说明。无会话上下文时返回空串（不注入）。"""
-        from agent.session_context import ensure_current_artifacts_dir
 
-        d = ensure_current_artifacts_dir()
-        if d is None:
-            return ""
-        return (
-            f"本次会话的产物目录：`{d}`\n"
-            "- 写文件工具（write_file / patch）与终端的**相对路径默认落在此目录**，"
-            "生成的报告、图表、导出文件都用相对路径，例如 `write_file('report_2026-09-01.html')`；"
-            "用户界面会在侧边栏直接列出这些产物。\n"
-            "- **不要**把产物写到 `~/Desktop`、仓库目录或 `/tmp`，除非用户明确要求绝对路径。\n"
-            "- 只有用户给了绝对路径时才用绝对路径；技能自带脚本请用技能的绝对路径。"
-        )
+@staticmethod
+def _build_artifact_dir_text() -> str:
+    """会话产物目录说明。无会话上下文时返回空串（不注入）。"""
+    from agent.session_context import ensure_current_artifacts_dir
+
+    d = ensure_current_artifacts_dir()
+    if d is None:
+        return ""
+    return (
+        f"本次会话的产物目录：`{d}`\n"
+        "- 写文件工具（write_file / patch）与终端的**相对路径默认落在此目录**，"
+        "生成的报告、图表、导出文件都用相对路径，例如 `write_file('report_2026-09-01.html')`；"
+        "用户界面会在侧边栏直接列出这些产物。\n"
+        "- **不要**把产物写到 `~/Desktop`、仓库目录或 `/tmp`，除非用户明确要求绝对路径。\n"
+        "- 只有用户给了绝对路径时才用绝对路径；技能自带脚本请用技能的绝对路径。"
+    )
 ```
 
 `agent/core/message_builder.py`：`build_system_prompt` 形参表在 `erp_context: str = "",` 后加一行 `artifact_dir: str = "",`；在 `# 6. ERP 数据源上下文` 段之后、`if len(parts) == 1:` 之前插入：
@@ -602,8 +611,14 @@ def test_run_conversation_signature_frozen():
 
     params = list(inspect.signature(AIAgent.run_conversation).parameters)
     assert params == [
-        "self", "user_message", "system_message", "conversation_history",
-        "stream_callback", "reasoning_callback", "stop_event", "session_id",
+        "self",
+        "user_message",
+        "system_message",
+        "conversation_history",
+        "stream_callback",
+        "reasoning_callback",
+        "stop_event",
+        "session_id",
     ]
 ```
 
@@ -643,8 +658,12 @@ def test_job_prompt_passes_session_id(tmp_path, monkeypatch):
         def run_conversation(self, **kw):
             seen.update(kw)
             return {
-                "final_response": "ok", "messages": [], "api_calls": 1,
-                "token_usage": None, "completed": True, "error": None,
+                "final_response": "ok",
+                "messages": [],
+                "api_calls": 1,
+                "token_usage": None,
+                "completed": True,
+                "error": None,
             }
 
     import agent.agent as agent_mod
@@ -677,11 +696,13 @@ git commit -m "feat: bind tool execution to the current session via ContextVar"
 ## Task 3: 相对路径归一到会话产物目录（before-hook）
 
 **Files:**
+
 - Create: `agent/tools/session_artifact_hook.py`
 - Modify: `backend/main.py`（lifespan 内安装 hook，紧接 T1 的迁移调用之后）
 - Test: `tests/test_session_artifact_hook.py`（新建）
 
 **Interfaces:**
+
 - Consumes: `session_context.current_artifacts_dir()` / `ensure_current_artifacts_dir()`（T2）
 - Produces: `session_artifact_hook.PATH_ARGS`、`MUTATING_TOOLS`、`artifact_before_hook(name, args) -> dict`、`install_session_artifact_hooks() -> None`、`is_within(path, root) -> bool`
 
@@ -786,7 +807,7 @@ def test_real_write_lands_in_session_artifacts(sessions_root, cwd_isolated):
     res = json.loads(_handle_write_file(args))
     assert res["success"] is True
     assert (sessions_root / sid / "artifacts" / "r.html").read_text(encoding="utf-8") == "<h1>hi</h1>"
-    assert list(cwd_isolated.glob("*.html")) == []   # 仓库/cwd 不再被污染
+    assert list(cwd_isolated.glob("*.html")) == []  # 仓库/cwd 不再被污染
 
 
 def test_is_within_helper(tmp_path):
@@ -854,10 +875,10 @@ def is_within(path: Path | str, root: Path | str) -> bool:
 
 def _should_skip(raw: object) -> bool:
     if not isinstance(raw, str):
-        return True                                  # 非字符串 → 交给 handler 报错
+        return True  # 非字符串 → 交给 handler 报错
     expanded = os.path.expanduser(raw)
     if raw.startswith("~") or os.path.isabs(expanded):
-        return True                                  # 绝对 / 家目录展开：尊重
+        return True  # 绝对 / 家目录展开：尊重
     return False
 
 
@@ -868,7 +889,7 @@ def artifact_before_hook(name: str, args: dict) -> dict:
         return args
     base = ensure_current_artifacts_dir()
     if base is None:
-        return args                                  # 无会话上下文 → 行为不变
+        return args  # 无会话上下文 → 行为不变
 
     raw = args.get(key)
     if raw is None or (isinstance(raw, str) and raw.strip() in ("", ".")):
@@ -876,7 +897,7 @@ def artifact_before_hook(name: str, args: dict) -> dict:
             new = dict(args)
             new[key] = str(base)
             return new
-        return args                                  # write_file/patch 空 path：让 handler 报错
+        return args  # write_file/patch 空 path：让 handler 报错
     if _should_skip(raw):
         return args
 
@@ -934,11 +955,13 @@ git commit -m "feat: resolve relative tool paths against the session artifacts d
 ## Task 4: 会话外写出登记（after-hook + external.jsonl）
 
 **Files:**
+
 - Modify: `agent/tools/session_artifact_hook.py`（追加 after-hook 与读取函数）
 - Modify: `backend/main.py`（安装函数已含 after-hook，无需再改）
 - Test: `tests/test_session_artifact_hook.py`（追加）
 
 **Interfaces:**
+
 - Consumes: T3 的 `MUTATING_TOOLS` / `is_within`、`session_context` / `session_manager.session_dir`
 - Produces: `session_artifact_hook.EXTERNAL_FILENAME = "external.jsonl"`、`artifact_after_hook(name, args, result) -> str`、`read_external_entries(sid) -> list[dict]`、`record_external_write(abs_path, tool) -> None`
 
@@ -1149,12 +1172,14 @@ git commit -m "feat: register out-of-session writes in per-session external.json
 ## Task 5: 产物列表端点 + Pydantic 模型
 
 **Files:**
+
 - Create: `backend/schemas/session_artifact.py`
 - Create: `backend/api/session_artifacts.py`
 - Modify: `backend/main.py`（import + `app.include_router(...)`，紧跟 `sessions_router` 之后）
 - Test: `tests/test_session_artifacts_api.py`（新建）
 
 **Interfaces:**
+
 - Consumes: `session_manager.session_dir/artifacts_dir/is_valid_session_id`（T1）、`session_artifact_hook.read_external_entries`（T4）
 - Produces: `session_artifacts.router`、`session_artifacts._resolve_in_artifacts(sid, rel) -> Path | None`（T6 复用）、`session_artifacts._scan_artifacts(sid) -> tuple[list[ArtifactItem], bool]` 与 `_iter_artifact_files(root)`（T6/T7 复用）、`KIND_BY_EXT`、`MAX_LIST_ITEMS = 300`、`MAX_INLINE_BYTES = 5_000_000`、`MAX_ZIP_BYTES = 200_000_000`
 
@@ -1347,14 +1372,30 @@ MAX_ZIP_BYTES = 200_000_000
 _DENY_NAMES = frozenset({"session.json", "external.jsonl"})
 
 KIND_BY_EXT: dict[str, str] = {
-    ".html": "html", ".htm": "html",
-    ".md": "md", ".markdown": "md",
-    ".png": "image", ".jpg": "image", ".jpeg": "image", ".gif": "image",
-    ".webp": "image", ".bmp": "image", ".svg": "image",
+    ".html": "html",
+    ".htm": "html",
+    ".md": "md",
+    ".markdown": "md",
+    ".png": "image",
+    ".jpg": "image",
+    ".jpeg": "image",
+    ".gif": "image",
+    ".webp": "image",
+    ".bmp": "image",
+    ".svg": "image",
     ".pdf": "pdf",
-    ".txt": "text", ".log": "text", ".json": "text", ".csv": "text",
-    ".js": "text", ".ts": "text", ".py": "text", ".css": "text",
-    ".xml": "text", ".yml": "text", ".yaml": "text", ".sql": "text",
+    ".txt": "text",
+    ".log": "text",
+    ".json": "text",
+    ".csv": "text",
+    ".js": "text",
+    ".ts": "text",
+    ".py": "text",
+    ".css": "text",
+    ".xml": "text",
+    ".yml": "text",
+    ".yaml": "text",
+    ".sql": "text",
 }
 
 
@@ -1404,7 +1445,7 @@ def _resolve_in_artifacts(sid: str, rel: str) -> Path | None:
     try:
         resolved.relative_to(root.resolve())
     except ValueError:
-        return None                                    # 软链接逃逸
+        return None  # 软链接逃逸
     if not resolved.is_file():
         return None
     return resolved
@@ -1506,10 +1547,12 @@ git commit -m "feat: add session artifacts listing endpoint"
 ## Task 6: 文件端点（内容出口 + CSP + 下载）
 
 **Files:**
+
 - Modify: `backend/api/session_artifacts.py`（追加 `get_artifact_file`）
 - Modify: `tests/test_session_artifacts_api.py`（追加攻击集与响应头断言）
 
 **Interfaces:**
+
 - Consumes: T5 的 `_resolve_in_artifacts`、`MAX_INLINE_BYTES`
 - Produces: `GET /api/session-files/{sid}/{rel:path}`（T7 的 zip/reveal 与前端 iframe/下载都依赖它）
 
@@ -1659,6 +1702,7 @@ Expected: 全部 PASS（含 parametrize 9 个攻击用例）
 # 对话里让模型生成一个 ECharts 报告 → 浏览器打开
 curl -sI "http://127.0.0.1:8089/api/session-files/<sid>/report.html" | head
 ```
+
 Expected: 响应头里出现 `content-security-policy: sandbox allow-scripts;`
 
 - [ ] **Step 6: Commit**
@@ -1673,10 +1717,12 @@ git commit -m "feat: serve session artifacts through a scoped file endpoint"
 ## Task 7: zip 打包 + 在 Finder 显示
 
 **Files:**
+
 - Modify: `backend/api/session_artifacts.py`（追加 2 个端点）
 - Modify: `tests/test_session_artifacts_api.py`（追加用例）
 
 **Interfaces:**
+
 - Consumes: T5 的 `_iter_artifact_files`、`_require_session`、`_safe_sid`、`MAX_ZIP_BYTES`；`session_manager.artifacts_dir`
 - Produces: `GET /api/sessions/{sid}/artifacts/zip`、`POST /api/sessions/{sid}/artifacts/reveal`
 
@@ -1850,11 +1896,13 @@ git commit -m "feat: add artifact zip export and reveal-in-finder endpoints"
 ## Task 8: ERP skill 产物落点文案（3 处）
 
 **Files:**
+
 - Modify: `agent/skills/u8/SKILL.md:136`
 - Modify: `agent/skills/nc/SKILL.md:128`
 - Modify: `agent/skills/yonsuite/SKILL.md:104`
 
 **Interfaces:**
+
 - Consumes: T2 注入的 `## 会话产物` system prompt 片段
 - Produces: 无代码接口（纯文案，与 prompt 指令一致化）
 
@@ -1899,12 +1947,14 @@ git commit -m "docs: point ERP report skills at the session artifacts dir"
 ## Task 9: 前端数据层（apiUrl / onToolActivity / useSessionArtifacts / 类型）
 
 **Files:**
+
 - Modify: `web/src/api/http.ts`（导出 `apiUrl`）
 - Modify: `web/src/types/index.ts`（`ArtifactItem` / `ExternalArtifact` / `ArtifactListResponse`）
 - Modify: `web/src/hooks/useChat.ts:6-9`（`UseChatOptions` 加 `onToolActivity`）、`:89-100`（`tool_result` 分支）、`:101`（`done` 分支）
 - Create: `web/src/hooks/useSessionArtifacts.ts`
 
 **Interfaces:**
+
 - Consumes: `GET /api/sessions/{sid}/artifacts`（T5）
 - Produces: `apiUrl(path): string`；`UseChatOptions.onToolActivity?: (name: string) => void`（`done` 帧回调名固定为 `"__turn_end__"`）；`useSessionArtifacts(sid: string | null, version: number): { data, loading, error, refresh }`
 
@@ -2065,12 +2115,14 @@ git commit -m "feat: add frontend data layer for session artifacts"
 ## Task 10: ArtifactsPanel 组件 + 布局接入
 
 **Files:**
+
 - Create: `web/src/components/ArtifactsPanel.tsx`
 - Modify: `web/src/components/Layout.tsx`（全文 57 行 → 第三列 + 顶栏开关 + `⌘B` + Outlet context）
 - Modify: `web/src/pages/ChatPage.tsx`（取 outlet context、`useChat` 传 `onToolActivity`）
 - Modify: `web/src/styles/global.css`（末尾追加 `.artifacts-*` 样式段）
 
 **Interfaces:**
+
 - Consumes: T9 的 `useSessionArtifacts` / `apiUrl` / `ArtifactItem` / `ArtifactListResponse`；T5–T7 的四个端点；`MessageContent.tsx` 的具名导出 `Markdown`（`export const Markdown = memo(function Markdown({ text }: { text: string })`）、`CodeBlock.tsx` 的默认导出 `CodeBlock({ children }: { children?: React.ReactNode })`
 - Produces: `Layout` 向子路由暴露 `{ bumpArtifacts: () => void }`（类型 `LayoutOutlet`）；`artifactFileUrl(sid, rel)` / `artifactDownloadUrl(sid, rel)`
 
@@ -2378,8 +2430,8 @@ export default function ArtifactsPanel({ sid, data, loading, error, width, refre
 }
 ```
 
-
 > 预览是**尽力而为**：`state === "missing"` 覆盖"文件被外部删除/读不到"，`idle` 覆盖 other 类不支持内嵌，两者都退化成卡片（大字文件名 + 在浏览器打开 + 下载）。iframe **内部**渲染失败（如 CDN 不可达导致图表空白）无法从父页面探测，靠「在浏览器打开」兜底 —— 这是 spec §5.4 已接受的边界。
+
 - [ ] **Step 2: `Layout.tsx` 接入第三列与开关**
 
 整个文件替换为（拖拽条是 `.app-layout` 的 flex 子元素、宽度状态由 Layout 持有，面板本身不管拖宽）：
@@ -2663,6 +2715,7 @@ Expected: 全绿
 ```bash
 ./start.sh --dev
 ```
+
 1. 问一句"生成一个销售订单图表报告" → 回合中出现 `write_file` 后，右侧栏自动展开并列出该 html；
 2. 点条目 → 下半区 iframe 里图表可交互（tooltip 有响应）；
 3. 点「在浏览器打开」→ 新标签页全屏正常渲染；在该页 DevTools Console 执行 `fetch('/api/sessions').then(r=>r.json()).then(console.log)` 应因 CSP sandbox 独立源而被拒（拿不到会话数据）；
@@ -2679,15 +2732,16 @@ git commit -m "feat: add collapsible session artifacts sidebar to the chat page"
 
 ---
 
-
 ## Task 11: 收口 —— 文档、版本号、发布校验
 
 **Files:**
+
 - Modify: `AGENTS.md`（目录结构 §2、会话交接 §12 不动，新增产物约定；§13 补一条）
 - Modify: `pyproject.toml`（version → `1.13.0`）、根 `package.json`（同）
 - Modify: `CHANGELOG.md`、`README.md`
 
 **Interfaces:**
+
 - Consumes: 前述全部
 - Produces: 可发布状态
 
@@ -2745,6 +2799,7 @@ print('目录布局:', sorted(p.name for p in sm.SESSIONS_DIR.iterdir())[:3])
 print('空会话(可能本来就为空):', missing)
 "
 ```
+
 Expected: `migrated: 33`（或已迁过则为 0）；`list_sessions()` 数量与迁移前一致
 
 - [ ] **Step 6: Commit**
@@ -2768,3 +2823,14 @@ git commit -m "chore: bump version to 1.13.0 and document session artifacts"
 2. **面板拖宽条上移到 Layout**（spec §5.1 已注），面板组件不再持有 `onResize` prop。
 3. **预览区固定 55% 比例**，不做可拖分隔条（spec §5.2 已改，理由：YAGNI）。
 4. **§8 文件清单补齐**：`web/src/types/index.ts`、`.gitignore`、`web/src/api/http.ts` 的实际职责（导出 `apiUrl`）已写入 spec。
+
+## 执行期修正（TDD 红相不拓获、只有真机/真 lint 才暴露的 4 处）
+
+上面的任务正文是**写计划时的方案**；实际执行中以下 4 处已修正，以代码为准（spec/计划不回改，保留决策轨迹）：
+
+1. **Task 10 的图标名不存在**：`IconImage` / `IconSidebar` 在 `@tabler/icons-react` v3.44 里没有（已用 `grep "declare const X:" node_modules/@tabler/icons-react/dist/tabler-icons-react.d.ts` 逐个核实），改用 `IconPhoto` / `IconLayoutSidebarRight`。
+2. **Task 10 的 HEAD 探测必须去掉**：本后端所有路由对 HEAD 一律 404（只有 GET 可用，已对 `/api/health` 等既有路由交叉验证），原探测会把每个产物误判为“已失效”、预览永远退化成卡片。现在 frame 类直接渲染，`missing` 只留给取文本失败。
+3. **Task 9/10 的 effect 写法违反 eslint-plugin-react-hooks v7**：`react-hooks/set-state-in-effect` 禁止在 effect 体里同步 setState。`useSessionArtifacts` 改为按 `payload.sid` 派生 `data`/`loading`；`ArtifactsPanel` 的选中项改为 `selRel` + 派生 `active`，切会话由 Layout 的 `key={sid}` 重挂载来清空。
+4. **URL helper 不能与组件同文件导出**：`react-refresh/only-export-components` 要求组件文件只导出组件，所以 `artifactFileUrl` / `artifactDownloadUrl` 拆到 `web/src/utils/artifactUrl.ts`。
+
+另外两个属于计划本身的代码缺陷，已在执行时改掉：`Path.lstrip("./")` 会把 `.hidden.html` 吃成 `hidden.html`（改为直接 `base / raw`）；下载链接误用 `&download=1`（无前序 `?`）。
