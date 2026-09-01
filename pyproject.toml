@@ -33,7 +33,7 @@ all = ["zlink-agent[browser]"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["agent*", "backend*", "mcp_server*"]
+include = ["agent*", "backend*"]
 
 [tool.ruff]
 target-version = "py311"
@@ -46,15 +46,7 @@ select = ["E", "F", "I", "N", "W", "UP", "B"]
 "backend/main.py" = ["E402"]
 "tests/*" = ["E501", "N802", "N803", "N806"]
 "agent/skills/*" = ["E501", "F841", "N806", "E402"]
-"mcp_server/*" = ["E501", "E402", "N806", "F401"]
-"mcp_server/nc_mcp_server/**/*" = [
-  "E501",
-  "E402",
-  "N806",
-  "F401",
-  "N802",
-  "B905",
-]
+
 "agent/erp_clients/yonsuite/*" = [
   "E501",
   "N802",

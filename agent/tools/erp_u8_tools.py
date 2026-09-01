@@ -108,8 +108,14 @@ def _paginate_sql(sql: str, page: int, page_size: int) -> str:
     return f"{stripped} OFFSET {offset} ROWS FETCH NEXT {page_size} ROWS ONLY"
 
 
-def _execute_query(sql: str, page: int, page_size: int) -> dict:
+def _execute_query(sql: str, page: int, page_size: int, params: dict | None = None) -> dict:
     """执行 SQL 查询，返回格式化的结果。
+
+    Args:
+        sql: SELECT 语句（可含 %(name)s 占位符）
+        page: 页码（从 1 开始）
+        page_size: 每页行数
+        params: pymssql 参数化查询参数字典
 
     Returns:
         {"rows": [...], "cols": [...], "has_more": bool, "total_count": int}
@@ -127,7 +133,7 @@ def _execute_query(sql: str, page: int, page_size: int) -> dict:
     try:
         paginated_sql = _paginate_sql(sql, page=page, page_size=page_size + 1)
         with conn.cursor(as_dict=False) as cur:
-            cur.execute(paginated_sql)
+            cur.execute(paginated_sql, params)
             desc = cur.description
             if desc is None:
                 return {"rows": [], "cols": [], "has_more": False, "total_count": 0}
@@ -158,15 +164,21 @@ def _execute_query(sql: str, page: int, page_size: int) -> dict:
 # ═══════════════════════════════════════════════════════════════
 
 
-def _run_query(sql: str, args: dict) -> dict:
-    """执行 SQL 并返回分页结果。"""
+def _run_query(sql: str, args: dict, params: dict | None = None) -> dict:
+    """执行 SQL 并返回分页结果。
+
+    Args:
+        sql: SELECT 语句
+        args: 工具参数字典（含 page/page_size）
+        params: pymssql 参数化查询参数字典
+    """
     try:
         page = int(args.get("page", 1))
         page_size = min(int(args.get("page_size", _get_max_rows())), _get_max_rows())
     except (ValueError, TypeError):
         page = 1
         page_size = _get_max_rows()
-    return _execute_query(sql, page=page, page_size=page_size)
+    return _execute_query(sql, page=page, page_size=page_size, params=params)
 
 
 def _format_table_result(result: dict) -> str:
@@ -765,7 +777,7 @@ def _handle_u8_query(args: dict) -> str:
             filtered[param_name] = args.get("year")
     sql, params = sql_fn(**filtered)
 
-    result = _run_query(sql, args)
+    result = _run_query(sql, args, params=params)
     if isinstance(result, str):
         return result
 

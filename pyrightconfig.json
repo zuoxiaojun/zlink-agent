@@ -1,5 +1,5 @@
 {
-  "include": ["agent", "backend", "mcp_server"],
+  "include": ["agent", "backend"],
   "exclude": ["**/node_modules", "**/__pycache__", "**/.venv"],
   "typeCheckingMode": "standard",
   "reportMissingImports": "warning",
