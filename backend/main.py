@@ -69,6 +69,12 @@ async def lifespan(application: FastAPI):
         _logger.info("会话布局迁移完成: %d 个会话 → 目录布局", n_moved)
     _lap("session_layout")
 
+    # 会话工作目录：相对路径 → <sid>/artifacts/，会话外写出 → external.jsonl
+    from agent.tools.session_artifact_hook import install_session_artifact_hooks
+
+    install_session_artifact_hooks()
+    _lap("artifact_hooks")
+
     search_index.init_db()
     if search_index.count_indexed() == 0:
         n = search_index.migrate_from_json()
