@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useOutletContext } from "react-router-dom";
 import { IconBolt, IconChartBar, IconArrowDown } from "@tabler/icons-react";
 import { useAppState } from "../context/AppContext";
 import { useChat } from "../hooks/useChat";
@@ -7,17 +7,25 @@ import { api } from "../api/http";
 import ChatMessage from "../components/ChatMessage";
 import ChatInput from "../components/ChatInput";
 import ApprovalCard from "../components/ApprovalCard";
+import type { LayoutOutlet } from "../components/Layout";
 import type { Message, SessionDetail, ApprovalState } from "../types";
 import StopButton from "../components/StopButton";
 import AgentStatusBar from "../components/AgentStatusBar";
 
+// 会改变会话产物的工具；__turn_end__ 是回合结束兜底（terminal 里的 shell 也能写文件）
+const MUTATING_TOOLS = new Set(["write_file", "patch", "terminal", "__turn_end__"]);
+
 export default function ChatPage() {
   const { state, dispatch } = useAppState();
+  const { bumpArtifacts } = useOutletContext<LayoutOutlet>();
   const [approval, setApproval] = useState<ApprovalState | null>(null);
   const autoSentRef = useRef(false);
   const { sendMessage, stopAgent, sendApproval, steerMessage } = useChat({
     onApprovalRequest: (payload) => {
       setApproval({ ...payload, resolved: false });
+    },
+    onToolActivity: (name) => {
+      if (MUTATING_TOOLS.has(name)) bumpArtifacts();
     },
   });
   const scrollRef = useRef<HTMLDivElement>(null);
