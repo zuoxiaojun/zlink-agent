@@ -4,7 +4,8 @@
 
 ## 当前状态
 
-- `main` @ `c0eb30e`，版本 **1.13.0**（`pyproject.toml` 单一来源 + 根 `package.json` 同步）
+- `main` @ `4de98d4`，版本 **1.13.0**（`pyproject.toml` 单一来源 + 根 `package.json` 同步）
+  - ⚠ 但 `v1.13.0` tag 指向 `c0eb30e`，**落后 main 两个提交**（`1cc5ec8` 文档、`4de98d4` 打包 ad-hoc 签名）—— 即 tag 里的构建脚本还没有本地签名，而当前 DMG 成品是含签名之后构建的。要么把 tag 追到 `4de98d4`（需 `git push -f` 改写已发布 tag），要么签名修复归入 v1.13.1
 - 已推送：`ca4f13b..c0eb30e main` + `* [new tag] v1.13.0` → `origin`（`git@gitcode.com:gcw_cJbJuamU/zlink-agent.git`，AtomGit 仓库现行域名；本地只有这一个远端，无 GitHub remote）
 - 安装包：`dist-electron/ZLink Agent-1.13.0-arm64.dmg`（174M，arm64，**ad-hoc 本地签名**），构建链全部通过（前端构建 → Chart MCP 依赖 → PyInstaller 15M 后端 → 冒烟测试 → electron-builder `--dir` → ad-hoc 签名 → `--prepackaged` 生成 DMG → 嵌入 install.command）
 - 分支 `feat/session-artifacts-sidebar` 已 fast-forward 合入并删除，本地只剩 `main`
@@ -107,7 +108,7 @@
 
 ## 新会话入口
 
-1. `git log --oneline -3` 确认在 `main` @ `c0eb30e` / v1.13.0（已推送）
+1. `git log --oneline -3` 确认在 `main` @ `4de98d4`（已推送）；注意 `v1.13.0` tag 目前停在 `c0eb30e`，见上方 ⚠ 说明
 2. `git diff --stat v1.12.0..v1.13.0` 看本版本变更范围（38 文件 +2247/−149）
 3. 读 `docs/superpowers/specs/2026-09-01-session-artifacts-sidebar-design.md`（设计依据）+ 同名 plan（末尾两节记录了「与 spec 的 4 处已同步偏差」和「执行期修正 4 条」）
 4. 第一件事：处理上面「发布相关遗留」（签名 / 旧 DMG 清理），或先动「既有债」
