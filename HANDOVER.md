@@ -1,14 +1,16 @@
 # HANDOVER
 
-> 2026-09-01 会话交接。状态：**功能已完成并合并进 `main`（fast-forward），v1.13.0 未打 tag、未推送远端、未构建安装包**。
+> 2026-09-01 会话交接。状态：**已发布 —— 已合入 `main`（fast-forward）、已打 `v1.13.0` 并推送 origin、已构建 macOS 安装包**。
 
 ## 当前状态
 
-- `main` @ `ead1512`，版本 **1.13.0**（`pyproject.toml` 单一来源 + 根 `package.json` 同步）
-- 分支 `feat/session-artifacts-sidebar` 已 fast-forward 合入 main，未删除（17 个 commit，可 `git branch -d` 收掉）
+- `main` @ `c0eb30e`，版本 **1.13.0**（`pyproject.toml` 单一来源 + 根 `package.json` 同步）
+- 已推送：`ca4f13b..c0eb30e main` + `* [new tag] v1.13.0` → `origin`（`git@gitcode.com:gcw_cJbJuamU/zlink-agent.git`，AtomGit 仓库现行域名；本地只有这一个远端，无 GitHub remote）
+- 安装包：`dist-electron/ZLink Agent-1.13.0-arm64.dmg`（174M，arm64），构建链全部通过（前端构建 → Chart MCP 依赖 → PyInstaller 15M 后端 → 冒烟测试 → electron-builder → 嵌入 install.command）
+- 分支 `feat/session-artifacts-sidebar` 已 fast-forward 合入并删除，本地只剩 `main`
 - 校验：`591 passed`（基线 526 + 新增 65）· `ruff check agent/ backend/ tests/` All checks passed · `cd web && npx tsc -b` 0 error · `npx eslint src/` 0 problem · `npm run build` 成功
 - 改动规模：38 文件 +2247 / −149
-- 服务：**dev 仍在跑**（8089 后端 / 8088 Vite），停服务 `./start.sh stop`
+- 服务：**已停止**（8089 / 8088 端口已释放）
 
 ## ⚠️ 环境侧（机器级）改动 —— 不在仓库里，换机器/重装会丢
 
@@ -68,10 +70,17 @@
 
 ## 遗留待办
 
-**发布（本会话未做）**
+**发布（已完成）**
 
-- [ ] `git tag v1.13.0 && git push origin main v1.13.0`（远端是 atomgit.com/gcw_cJbJuamU/zlink-agent.git，**不是 GitHub**）
-- [ ] `bash scripts/build-electron.sh` 出安装包（本会话只跑过 `npm run build` 前端构建）
+- [x] fast-forward 合入 `main`
+- [x] `git tag -a v1.13.0` 并 `git push origin main v1.13.0`（origin = gitcode.com，AtomGit 仓库现行域名）
+- [x] `bash scripts/build-electron.sh` → `dist-electron/ZLink Agent-1.13.0-arm64.dmg`
+
+**发布相关遗留（本次未处理）**
+
+- [ ] **DMG 未签名**：electron-builder 报 `cannot find valid "Developer ID Application" identity`，钥匙串里只有自签的 `"localhost"`（`CSSMERR_TP_NOT_TRUSTED`），0 个有效身份 —— 与 v1.12.0 同样状态，不是本次引入。用户首次打开需右键→打开，或 `xattr -d com.apple.quarantine`；要彻底解决得配 Apple Developer ID 证书
+- [ ] `dist-electron/` 里还留着 **v1.12.0 的 174M DMG**，而且本次构建脚本的「嵌入 install.command」步骤是 glob `*.dmg`，把旧包也重写了一遍（mtime 一起变 20:18）。按仓库习惯（上一轮就清理过 v1.9.4）可以删掉旧包，但它是已发布产物，删前问一句
+- [ ] 远端残留一个旧分支 `origin/codex/zlink-agent-v1.5.0`（v1.5.0 时期遗留，与本功能无关）
 
 **既有债（与本功能无关，未动）**
 
@@ -93,7 +102,7 @@
 
 ## 新会话入口
 
-1. `git log --oneline -6` 确认在 `main` @ `ead1512` / v1.13.0
-2. `git diff --stat v1.12.0..HEAD`（若已打 tag）看变更范围；未打 tag 就 `git diff --stat ca4f13b..HEAD`
+1. `git log --oneline -3` 确认在 `main` @ `c0eb30e` / v1.13.0（已推送）
+2. `git diff --stat v1.12.0..v1.13.0` 看本版本变更范围（38 文件 +2247/−149）
 3. 读 `docs/superpowers/specs/2026-09-01-session-artifacts-sidebar-design.md`（设计依据）+ 同名 plan（末尾两节记录了「与 spec 的 4 处已同步偏差」和「执行期修正 4 条」）
-4. 第一件事：打 tag + 推远端 + 构建，或先处理上面「既有债」
+4. 第一件事：处理上面「发布相关遗留」（签名 / 旧 DMG 清理），或先动「既有债」
