@@ -2295,6 +2295,7 @@ textarea.form-input {
   position: relative; margin-left: 10px; border: none; background: transparent;
   cursor: pointer; color: inherit; display: inline-flex; align-items: center;
   padding: 4px 6px; border-radius: var(--radius-sm);
+  -webkit-app-region: no-drag;
 }
 .top-bar-artifacts-btn:hover { background: var(--sidebar-hover); }
 .top-bar-artifacts-btn.active { background: var(--sidebar-active); }
