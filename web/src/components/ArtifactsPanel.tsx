@@ -56,11 +56,6 @@ interface Props {
   onCollapse: () => void;
 }
 
-interface Probe {
-  key: string;
-  missing: boolean;
-}
-
 interface Doc {
   key: string;
   text: string | null;
@@ -69,13 +64,15 @@ interface Doc {
 /**
  * 会话产物栏：列表为主 + 尽力而为的内嵌预览。
  *
- * 预览可用性/文本内容都是异步结果，只在 promise 回调里 setState；
- * "加载/缺失/过大"一律由选中项派生，effect 内不做同步 setState。
- * 切会话由 Layout 的 key={sid} 重挂载来清空选中，无需额外 effect。
+ * 只对 md/text 取文本（取不到才退化卡片）；html/pdf/image 直接交给
+ * iframe/img 渲染 —— 本后端所有路由对 HEAD 一律 404（只有 GET 可用），
+ * 因此不用 HEAD 探测可用性，列表本身就是刚扫过磁盘的结果。
+ * 选中项与加载态全部由 selRel 派生，effect 内不做同步 setState
+ * （react-hooks v7 的 set-state-in-effect）；切会话由 Layout 的
+ * key={sid} 重挂载来清空选中。
  */
 export default function ArtifactsPanel({ sid, data, loading, error, width, refresh, onCollapse }: Props) {
   const [selRel, setSelRel] = useState<string | null>(null);
-  const [probe, setProbe] = useState<Probe | null>(null);
   const [doc, setDoc] = useState<Doc | null>(null);
 
   const items = data?.items ?? [];
@@ -85,38 +82,27 @@ export default function ArtifactsPanel({ sid, data, loading, error, width, refre
 
   const tooBig = !!active && active.size > MAX_INLINE_BYTES;
   const needsDoc = !!active && !tooBig && (active.kind === "md" || active.kind === "text");
-  const needsFrame = !!active && (active.kind === "html" || active.kind === "pdf" || active.kind === "image");
+  const isFrame = !!active && (active.kind === "html" || active.kind === "pdf" || active.kind === "image");
   const docReady = key != null && doc?.key === key;
-  const frameReady = key != null && probe?.key === key;
-  const ready = !active || (needsDoc ? docReady : needsFrame ? frameReady : true);
-  const missing = (needsFrame && frameReady && probe?.missing) || (needsDoc && docReady && doc?.text == null);
+  const ready = !active || !needsDoc || docReady;
+  const missing = needsDoc && docReady && doc?.text == null;
 
   useEffect(() => {
-    if (!sid || !active || !key) return;
+    if (!sid || !active || !key || !needsDoc || docReady) return;
     const url = artifactFileUrl(sid, active.rel);
     let alive = true;
-    if (needsFrame && !frameReady) {
-      fetch(url, { method: "HEAD" })
-        .then((r) => {
-          if (alive) setProbe({ key, missing: !r.ok });
-        })
-        .catch(() => {
-          if (alive) setProbe({ key, missing: true });
-        });
-    } else if (needsDoc && !docReady) {
-      fetch(url)
-        .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
-        .then((t) => {
-          if (alive) setDoc({ key, text: t });
-        })
-        .catch(() => {
-          if (alive) setDoc({ key, text: null });
-        });
-    }
+    fetch(url)
+      .then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))
+      .then((t) => {
+        if (alive) setDoc({ key, text: t });
+      })
+      .catch(() => {
+        if (alive) setDoc({ key, text: null });
+      });
     return () => {
       alive = false;
     };
-  }, [sid, active, key, needsFrame, needsDoc, frameReady, docReady]);
+  }, [sid, active, key, needsDoc, docReady]);
 
   const revealRel = (rel: string) => {
     if (!sid) return;
@@ -156,7 +142,9 @@ export default function ArtifactsPanel({ sid, data, loading, error, width, refre
 
       <div className="artifacts-list">
         {!sid && <div className="artifacts-empty">还没有会话，发出一条消息后产物会归集到这里。</div>}
-        {sid && items.length === 0 && !loading && <div className="artifacts-empty">开始对话后，这次会话的产物会出现在这里。</div>}
+        {sid && items.length === 0 && !loading && (
+          <div className="artifacts-empty">开始对话后，这次会话的产物会出现在这里。</div>
+        )}
         {items.map((it) => (
           <div
             key={it.rel}
@@ -247,15 +235,21 @@ export default function ArtifactsPanel({ sid, data, loading, error, width, refre
           <div className="artifacts-preview-body">
             {!ready ? (
               <div className="artifacts-empty">加载中…</div>
-            ) : missing || (!needsDoc && !needsFrame) ? (
+            ) : missing || (!needsDoc && !isFrame) ? (
               <FallbackCard
                 sid={sid}
                 sel={active}
-                reason={missing ? "文件已不可读或已被删除。" : tooBig ? "文件较大（>5MB），不提供内嵌预览。" : "该类型不支持内嵌预览。"}
+                reason={
+                  missing
+                    ? "文件已不可读或已被删除。"
+                    : tooBig
+                      ? "文件较大（>5MB），不提供内嵌预览。"
+                      : "该类型不支持内嵌预览。"
+                }
               />
-            ) : needsFrame && active.kind === "image" ? (
+            ) : isFrame && active.kind === "image" ? (
               <img className="artifacts-img" src={artifactFileUrl(sid, active.rel)} alt={active.name} />
-            ) : needsFrame ? (
+            ) : isFrame ? (
               <iframe
                 className="artifacts-frame"
                 sandbox="allow-scripts"
