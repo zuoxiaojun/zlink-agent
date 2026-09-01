@@ -224,3 +224,29 @@ export interface SlashCommandInfo {
 export interface SlashCommandsResponse {
   commands: SlashCommandInfo[];
 }
+
+// ── 会话产物（与 backend/schemas/session_artifact.py 字段逐字对齐）──
+export type ArtifactKind = "html" | "md" | "image" | "pdf" | "text" | "other";
+
+export interface ArtifactItem {
+  name: string;
+  rel: string;
+  size: number;
+  mtime: string;
+  kind: ArtifactKind;
+}
+
+export interface ExternalArtifact {
+  abs_path: string;
+  tool: string;
+  ts: string;
+  exists: boolean;
+}
+
+export interface ArtifactListResponse {
+  items: ArtifactItem[];
+  external: ExternalArtifact[];
+  count: number;
+  truncated: boolean;
+  root: string;
+}

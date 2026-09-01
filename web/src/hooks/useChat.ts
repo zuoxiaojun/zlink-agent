@@ -5,6 +5,8 @@ import type { WsServerMessage } from "../types";
 
 interface UseChatOptions {
   onApprovalRequest?: (payload: { tool_name: string; reason: string }) => void;
+  /** 工具执行完成 / 回合结束（name === "__turn_end__"）—— 供产物面板刷新 */
+  onToolActivity?: (name: string) => void;
 }
 
 export function useChat(options?: UseChatOptions) {
@@ -17,6 +19,10 @@ export function useChat(options?: UseChatOptions) {
   useEffect(() => {
     onApprovalRequestRef.current = options?.onApprovalRequest;
   }, [options?.onApprovalRequest]);
+  const onToolActivityRef = useRef(options?.onToolActivity);
+  useEffect(() => {
+    onToolActivityRef.current = options?.onToolActivity;
+  }, [options?.onToolActivity]);
 
   const sendMessage = useCallback(
     (content: string | import("../types").ContentPart[], sessionOverride?: string) => {
@@ -96,6 +102,7 @@ export function useChat(options?: UseChatOptions) {
               denied: msg.denied,
               ...(startedAt != null ? { durationMs: Date.now() - startedAt } : {}),
             });
+            onToolActivityRef.current?.(msg.name);
             break;
           }
           case "done": {
@@ -122,6 +129,7 @@ export function useChat(options?: UseChatOptions) {
             if (msg.session_id && msg.session_id !== "_new") {
               sessionStorage.setItem("zlink_agent_last_session", msg.session_id);
             }
+            onToolActivityRef.current?.("__turn_end__");
             ws.close();
             wsRef.current = null;
             break;
