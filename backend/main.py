@@ -15,8 +15,9 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
 from agent.config_model import MCPServerEntry
@@ -239,6 +240,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def _head_to_get(request: Request, call_next):
+    """APIRouter 不自动生成 HEAD handler，转为 GET 请求并丢弃 body。"""
+    if request.method == "HEAD":
+        scope = request.scope
+        scope["method"] = "GET"
+        response = await call_next(request)
+        return Response(
+            status_code=response.status_code,
+            headers=dict(response.headers),
+            media_type=response.media_type,
+        )
+    return await call_next(request)
 
 
 # Register routers
