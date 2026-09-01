@@ -116,6 +116,7 @@ export default function ArtifactsPanel({ sid, data, loading, error, width, refre
     void navigator.clipboard.writeText(p).catch(() => undefined);
   };
 
+  // width 是用户拖拽得到的动态值，按仓库约定保留内联样式（见 CHANGELOG v1.9.0 C-2）
   return (
     <aside className="artifacts-panel" style={{ width }}>
       <div className="artifacts-head">
