@@ -60,7 +60,7 @@ data/sessions/
 **迁移**：`backend/main.py` lifespan 里调用一次 `migrate_session_layout()`，幂等：
 
 1. 遍历 `SESSIONS_DIR/*.json`（排除 `index.json`）；
-2. `sid` 不在 `^[0-9a-f]{8}$` 内 → 跳过并 warn；
+2. `sid` 不在 `^[A-Za-z0-9_-]{1,64}$` 内 → 跳过并 warn；
 3. `<sid>/` 已存在 → 跳过（幂等）；
 4. `mkdir <sid>/` + `rename <sid>.json → <sid>/session.json` + `mkdir <sid>/artifacts/`。
 
@@ -112,7 +112,7 @@ before-hook 只改写 `args`，永不返回 `__block__`；注册顺序在 `secur
 
 ### 4.5 路径校验（两个读端点共用 `_resolve_in_artifacts(sid, rel)`）
 
-1. `sid` 必须匹配 `^[0-9a-f]{8}$`，否则 404（不 500）；
+1. `sid` 必须匹配 `^[A-Za-z0-9_-]{1,64}$`，否则 404（不 500）。这个校验同时是补一个既有洞：`session_id` 来自客户端可控的 `/ws/chat/{session_id}`（`backend/api/chat.py:96`），而 `session_manager` 直接拿它拼路径 —— 改前 `/ws/chat/../../../../tmp/pwn` 就能把会话文件写到仓库外；目录化 + reveal 端点让这个面变得更有吸引力，所以校验收在 `session_manager.is_valid_session_id()` 单一入口，存与读共用。不取更严的 `^[0-9a-f]{8}$` 是因为历史/测试数据里存在 `sess-stream` 这类合法 id，会误拒（两者都同样挡住 `../`）。
 2. `rel` 拒绝绝对路径；反斜杠归一为正斜杠后重判（Windows 打包版）；拒绝任意 `..` 分段；
 3. `resolve()` 后断言 `is_relative_to(artifacts_dir(sid).resolve())`，挡住软链接逃逸；
 4. 名字黑名单 `session.json` / `external.jsonl` 双保险（它们本不在 `artifacts/` 下）。
@@ -125,14 +125,14 @@ before-hook 只改写 `args`，永不返回 `__block__`；注册顺序在 `secur
 
 `.app-layout` 是 flex row（`global.css:70`），右侧栏就是它的第三个 flex 子元素，**只在对话页**（`Layout.tsx` 的 `location.pathname === "/"`）渲染，切到历史/设置页自动消失。
 
-- 默认宽 320px，可拖 260–560px；
+- 默认宽 320px，可拖 260–560px（拖拽条是 `.app-layout` 的 flex 子元素，宽度状态由 `Layout` 持有，面板不管拖宽）；
 - **两态手动切换**：`«` 或顶栏按钮即完全收起（对话区回全宽），收起态不留图标条；
 - 顶栏 `.top-bar` 右侧新增常驻按钮（`IconPackage` + 产物数量角标），快捷键 `⌘B`（已核实全局 keydown 仅 `Drawer.tsx` 的 Esc，无冲突）；
 - 折叠偏好存 `localStorage["zlink.artifactsPanel"]`；**用户从未手动操作过时**默认值取 `count > 0`（首次生成报告会自动弹出来）。
 
 ### 5.2 组件与 hook
 
-- `web/src/components/ArtifactsPanel.tsx`（新，~220 行）：头部（标题 + 计数 + 刷新 + 收起）/ 列表区 / 预览区（约占面板 55%，可拖分隔条）/ 底部操作（打包下载 zip、在 Finder 打开会话目录）。
+- `web/src/components/ArtifactsPanel.tsx`（新，~230 行）：头部（标题 + 计数 + 刷新 + 收起）/ 列表区 / 预览区（固定占面板 55%，不做可拖分隔条 —— YAGNI）/ 底部操作（打包下载 zip）。
 - `web/src/hooks/useSessionArtifacts.ts`（新，~50 行）：`fetch /api/sessions/{sid}/artifacts`，参数 `(sid, version)`，`sid` 变化立即拉，`version` 变化 300ms 防抖重拉；请求失败保留上次数据并显示重试条。
 - 无新依赖：Markdown 复用 `StreamingMarkdown.tsx`（react-markdown + gfm），代码复用 `CodeBlock.tsx`（highlight.js）。
 
@@ -192,7 +192,7 @@ before-hook 只改写 `args`，永不返回 `__block__`；注册顺序在 `secur
 `agent/session_context.py`、`agent/tools/session_artifact_hook.py`、`backend/api/session_artifacts.py`、`backend/schemas/session_artifact.py`、`tests/{test_session_layout,test_session_artifacts_api,test_session_artifact_hook,test_cronjob_artifact_session}.py`、`web/src/components/ArtifactsPanel.tsx`、`web/src/hooks/useSessionArtifacts.ts`
 
 **修改**
-`agent/session_manager.py`（目录化 + 访问器 + 迁移）、`backend/main.py`（lifespan 迁移 + 挂 router）、`agent/core/agent_adapter.py`（set ContextVar + `artifact_dir` 注入）、`agent/core/message_builder.py`（`artifact_dir` 片段）、`agent/tools/cronjob_tools.py`（传 `session_id`）、`agent/skills/{u8,nc,yonsuite}/SKILL.md`（产物目录文案）、`web/src/components/Layout.tsx`（第三列 + 顶栏按钮）、`web/src/pages/ChatPage.tsx`（`artifactsVersion` + 挂载面板）、`web/src/hooks/useChat.ts`（`onToolResult`）、`web/src/api/http.ts`（如需 blob/下载辅助）、`web/src/styles/global.css`（面板样式）、`pyproject.toml` + `package.json`（1.13.0）、`CHANGELOG.md`、`README.md`、`AGENTS.md`（会话目录结构 + 产物约定 + 记忆同步）
+`agent/session_manager.py`（目录化 + 访问器 + sid 校验 + 迁移）、`backend/main.py`（lifespan 迁移 + hook 安装 + 挂 router）、`agent/core/agent_adapter.py`（set ContextVar + `artifact_dir` 注入）、`agent/core/message_builder.py`（`artifact_dir` 片段）、`agent/tools/cronjob_tools.py`（传 `session_id`）、`agent/skills/{u8,nc,yonsuite}/SKILL.md`（产物目录文案）、`web/src/components/Layout.tsx`（第三列 + 顶栏按钮 + `⌘B` + Outlet context）、`web/src/pages/ChatPage.tsx`（`bumpArtifacts`）、`web/src/hooks/useChat.ts`（`onToolActivity`）、`web/src/api/http.ts`（导出 `apiUrl`）、`web/src/types/index.ts`（产物类型）、`web/src/styles/global.css`（面板样式）、`.gitignore`（`!docs/superpowers/`）、`pyproject.toml` + `package.json`（1.13.0）、`CHANGELOG.md`、`README.md`、`AGENTS.md`（会话目录结构 + 产物约定 + 记忆同步）
 
 ## 9. 已知限制与 v1.1 候选
 
