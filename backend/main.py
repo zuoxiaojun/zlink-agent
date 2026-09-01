@@ -60,6 +60,15 @@ async def lifespan(application: FastAPI):
     from agent.tools.mcp_manager import connect_all_servers
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+    # 会话布局：扁平 <sid>.json → <sid>/session.json + artifacts/（幂等，失败不阻塞启动）
+    from agent import session_manager
+
+    n_moved = session_manager.migrate_session_layout()
+    if n_moved:
+        _logger.info("会话布局迁移完成: %d 个会话 → 目录布局", n_moved)
+    _lap("session_layout")
+
     search_index.init_db()
     if search_index.count_indexed() == 0:
         n = search_index.migrate_from_json()
