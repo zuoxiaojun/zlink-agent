@@ -1,0 +1,5 @@
+{
+  "$comment": "pi-lens 项目级配置：关掉它的两处「会改文件」的能力。autofix 会把 ruff / markdownlint / eslint 的自动修复直接写进文件（曾把 CHANGELOG.md 的 v1.12.0 标题吞掉、把新写的 plan 重排 76 行），format 会把 web/src 的 2 空格风格重排成 4 空格（ChatMessage.tsx / ReasoningBlock.tsx 各被无端重排 200 行，且仓库既无 prettier 配置、eslint 对两个版本都退出码 0 —— 说明重排不是仓库要求）。诊断与告警照常上报，只是不再自动落盘，改与不改由人决定。",
+  "autofix": { "enabled": false },
+  "format": { "enabled": false }
+}
