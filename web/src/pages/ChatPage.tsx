@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useMemo } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useSearchParams, useOutletContext } from "react-router-dom";
 import { IconBolt, IconChartBar, IconArrowDown } from "@tabler/icons-react";
 import { useAppState } from "../context/AppContext";
@@ -8,7 +8,7 @@ import ChatMessage from "../components/ChatMessage";
 import ChatInput from "../components/ChatInput";
 import ApprovalCard from "../components/ApprovalCard";
 import type { LayoutOutlet } from "../components/Layout";
-import type { Message, SessionDetail, ApprovalState } from "../types";
+import type { Message, SessionDetail } from "../types";
 import StopButton from "../components/StopButton";
 import AgentStatusBar from "../components/AgentStatusBar";
 
@@ -18,26 +18,30 @@ const MUTATING_TOOLS = new Set(["write_file", "patch", "terminal", "__turn_end__
 export default function ChatPage() {
   const { state, dispatch } = useAppState();
   const { bumpArtifacts } = useOutletContext<LayoutOutlet>();
-  const [approval, setApproval] = useState<ApprovalState | null>(null);
   const autoSentRef = useRef(false);
-  const { sendMessage, stopAgent, sendApproval, steerMessage } = useChat({
-    onApprovalRequest: (payload) => {
-      setApproval({ ...payload, resolved: false });
-    },
+  const {
+    sendMessage,
+    stopAgent,
+    sendApproval,
+    steerMessage,
+    dismissApproval,
+    pendingApproval,
+  } = useChat({
     onToolActivity: (name) => {
       if (MUTATING_TOOLS.has(name)) bumpArtifacts();
     },
   });
+
+  // 审批卡片按 sid 归属：后台 run 在等审批时不在别的会话脸上弹卡片，
+  // 但请求留着 —— 切回那条会话就重新出现，批准走它自己的连接。
+  const activeApproval =
+    pendingApproval && pendingApproval.sid === (state.currentSessionId ?? "_new")
+      ? pendingApproval.payload
+      : null;
   const scrollRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
   const [showBackToBottom, setShowBackToBottom] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-
-  // Derive active approval from state — no setState in effects
-  const activeApproval: ApprovalState | null = useMemo(
-    () => (state.agentRunning ? approval : null),
-    [approval, state.agentRunning],
-  );
 
   // Restore session from URL param ?s=
   useEffect(() => {
@@ -136,7 +140,7 @@ export default function ChatPage() {
               msgs={g}
               streaming={state.agentRunning && i === groups.length - 1}
               onChoiceSelect={(text) => {
-                setApproval(null);
+                dismissApproval();
                 userScrolledUp.current = false;
                 sendMessage(text);
               }}
@@ -165,14 +169,8 @@ export default function ChatPage() {
       {activeApproval && (
         <ApprovalCard
           approval={activeApproval}
-          onApprove={() => {
-            setApproval(null);
-            sendApproval(true);
-          }}
-          onDeny={() => {
-            setApproval(null);
-            sendApproval(false);
-          }}
+          onApprove={() => sendApproval(true)}
+          onDeny={() => sendApproval(false)}
         />
       )}
 
@@ -196,7 +194,7 @@ export default function ChatPage() {
 
       <ChatInput
         onSubmit={(c) => {
-          setApproval(null);
+          dismissApproval();
           userScrolledUp.current = false;
           if (state.agentRunning && typeof c === "string") {
             steerMessage(c);

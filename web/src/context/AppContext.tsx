@@ -89,10 +89,21 @@ export type AppAction =
     }
   | { type: "SET_ERROR"; error: string }
   | { type: "CLEAR_STREAMING" }
-  | { type: "SET_CONFIG"; config: ConfigResponse };
+  | { type: "SET_CONFIG"; config: ConfigResponse }
+  /**
+   * 串台防护：内层 action 只有 `sid` 正是当前显示的会话时才生效。
+   * 后台 run 的 WS 帧因此不会写进别的会话的视图（见 useChat 的 scoped()）。
+   */
+  | { type: "SCOPED"; sid: string; action: AppAction };
 
 function reducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    case "SCOPED": {
+      // 还没采纳真实 id 的新会话，在 reducer 眼里就是 "_new"
+      // （真实 sid 由内层 SET_RESULT 采纳），所以这里也要认这个占位。
+      if ((state.currentSessionId ?? "_new") !== action.sid) return state;
+      return action.action.type === "SCOPED" ? state : reducer(state, action.action);
+    }
     case "SET_SESSION": {
       const sessionMsgs = action.messages ?? state.messages;
       // 如果消息来自后端（没有 WELCOME），自动在最前面加上 WELCOME
