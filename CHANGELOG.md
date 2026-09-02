@@ -1,3 +1,24 @@
+## v1.13.1 — 2026-09-02 (会话视图按 session id 绑定 + 单会话执行约束)
+
+### 新增
+
+- **单会话执行约束**：会话正在执行时侧边栏「新建对话」置灰（`disabled={state.agentRunning}` + tooltip「当前会话执行中，请先停止」）。`.sidebar-new-btn` 的 hover / active 选择器补 `:not(:disabled)`，免得 hover 把灰态重新点亮。
+- `AppAction` 新增 `SCOPED`（`{ type: "SCOPED"; sid: string; action: AppAction }`）：内层 action 只有 `sid` 正是当前显示的会话时才生效，**串台裁决收在 reducer 里**（那里有权威的 `currentSessionId`），不靠闭包猜、没有竞态窗口。
+- `AppAction` 新增 `ADD_MESSAGE`：追加一条消息的**相对**动作（与 `SET_MESSAGES` 的整体替换相对），reducer 里只做 `[...state.messages, msg]`。
+- `useChat` 导出 `PendingApproval`（`{ sid, payload }`）：审批请求连同所属会话一起登记。
+
+### 修复
+
+- **后台 run 不再串写当前会话视图**：改前 `useChat` 的每个 WS 回调都无条件 dispatch，从历史页切进另一个会话后，后台那条 run 后续的 `tool_call` 会把工具卡插进正在显示的会话，`done` 还会追加旧会话的终答并把 `currentSessionId` 改回去（URL 跟着弹回）。现在 `web/src/hooks/useChat.ts` 整体重写：每条 run 绑死自己的 sid，视图写入一律包成 `scoped(sid, action)`；`_new` 采纳真实 sid 的那次 `SET_RESULT` 按**改绑前**的归属送审，占位符会话照常落地。
+- **切回正在执行的会话时视图接得回来**：每条 run 用 `LiveRun` 记账（`recorded` 只放改 messages 的相对动作 `ADD_MESSAGE` / `ADD_PENDING_TOOL` / `REPLACE_PENDING_TOOL`，加 `tokenAll` / `reasoningAll` / `progress` / `toolName`），切回该会话时 `attach()` 在刚从磁盘读回的历史上重放 —— 进度条、停止按钮、本轮气泡、新建置灰一起回来，不必等跑完或刷新；工具耗时因 `durationMs` 存在 action 里而原样保留。
+- **控制帧回到正确的连接**：连接按 sid 存进 `runsRef`（`Map<sid, LiveRun>`），`stopAgent` / `sendApproval` / `steerMessage` 因此不会再打到"最后新建的那条 socket"上。后台 run 的审批按自己的 sid 回原连接；不在当前会话时不弹卡片，切回来才出现。
+- `ChatPage` 的审批卡片不再挂 `state.agentRunning`，改为按 sid 归属裁决；组件内自持的 `approval` useState 与派生 useMemo 删除，状态收进 `useChat`。
+- `sendApproval` 不再在 `setState` updater 里发网络帧（StrictMode 会重复调用 updater，审批响应就会发两次），改读 `pendingRef` 同步镜像。
+
+### 实测
+
+真 LLM + 真浏览器端到端：A 跑 `terminal sleep 60` 时切到 B，B 全程零泄漏、URL 不被改回 A；切回 A 时本轮气泡 / 工具卡 / 停止按钮 / 置灰全部接回；「切走→切回→跑完」的实时视图与刷新后读磁盘的内容逐字一致（1522 字符）；`_new` 首条消息采纳真实 sid 正常。后端零改动（591 测试通过），`tsc -b` / `eslint .` / `vite build` 全清。
+
 ## v1.13.0 — 2026-09-01 (会话产物侧边栏 + 会话目录化布局)
 
 ### 新增
