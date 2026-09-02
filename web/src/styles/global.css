@@ -143,13 +143,20 @@ body {
   transition: background 0.2s;
 }
 
-.sidebar-new-btn:hover {
+.sidebar-new-btn:hover:not(:disabled) {
   background: var(--primary-hover);
 }
 
-.sidebar-new-btn:active {
+.sidebar-new-btn:active:not(:disabled) {
   background: var(--primary-active);
   transform: scale(0.98);
+}
+
+/* 会话执行中禁止新建（单会话管理）：置灰 + 不响应指针 */
+.sidebar-new-btn:disabled {
+  background: var(--border-light);
+  color: var(--text-3);
+  cursor: not-allowed;
 }
 
 .sidebar-section-label {

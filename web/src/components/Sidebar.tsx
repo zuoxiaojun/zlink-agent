@@ -85,7 +85,12 @@ export default function Sidebar() {
                 </div>
             </div>
 
-            <button className="sidebar-new-btn" onClick={handleNewChat}>
+            <button
+                className="sidebar-new-btn"
+                onClick={handleNewChat}
+                disabled={state.agentRunning}
+                title={state.agentRunning ? "当前会话执行中，请先停止" : undefined}
+            >
                 <IconPlus size={16} /> 新建对话
             </button>
 
