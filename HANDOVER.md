@@ -1,118 +1,95 @@
 # HANDOVER
 
-> 2026-09-01 会话交接（续）。状态：**已合入 `main`、v1.13.0 已重打 tag 并推送、已构建 macOS 安装包**。
+> 2026-09-02 会话交接。状态：**v1.13.2 已提交、已推 origin、已打 tag、macOS 安装包已构建并按偏好只留当前版本**。
+> 本轮三件事：单会话执行约束、会话视图串台修复（含切回重放）、打包版 node 可达性。
 
 ## 当前状态
 
-- `main` @ `8ce6744`，版本 **1.13.0**（`pyproject.toml` 单一来源 + 根 `package.json` 同步）
-- `v1.13.0` tag 已追到 `3a67593`（force push 改写已发布 tag），后续提交 `51e07e9`（AGENTS.md 修正 + Pyright 清零 + 技能路径绝对化）、`faa9ad2`（文档同步）、`e974116`（erp_u9c_tools 参数化查询）、`8ce6744`（全局 HEAD 中间件）**未重新打 tag**
-- 已推送：`3a67593..8ce6744 main` → `origin`（AtomGit）
-- 安装包：`dist-electron/ZLink Agent-1.13.0-arm64.dmg`（174M，arm64，**ad-hoc 本地签名**），构建链全部通过
-- 校验：`591 passed` · `ruff check` All checks passed · `cd web && npx tsc -b` 0 error · `npx eslint src/` 0 problem · `npm run build` 成功
-- 服务：**已停止**（8089 / 8088 端口已释放）
+- `main` @ `3df8845`，版本 **1.13.2**（`pyproject.toml` 单一来源 + 根 `package.json` 同步，`_get_version()` 实测读到 1.13.2）
+- tag `v1.13.2` 已推（peel 到 `3df8845`）；本轮推送区间 `1be7a6d..3df8845`，远端 hooks 两批 `[PASSED]`；origin = `gitcode.com:gcw_cJbJuamU/zlink-agent.git`（AtomGit 现行域名）
+- 安装包：`dist-electron/ZLink Agent-1.13.2-arm64.dmg`（174M，arm64，ad-hoc 本地签名）。挂载卷上 `codesign --verify --deep --strict` **exit 0**；`spctl` 预期 rejected（不是 damaged，用包内 `install.command` 清 quarantine 绕过）
+- **历史包已按常设偏好清掉**（1.13.0 / 1.13.1 均不在，目录 352M → 176M），无 `.dmg.zip` 压缩副本残留
+- ⚠️ `/Applications` 里装的那份是 **1.13.1，不含本轮 node 修复** —— 要验证 node 相关行为必须先覆盖安装 1.13.2
+- 校验：`602 passed`（本轮 +11）· `ruff check` 干净 · `ruff format --check` 383 files 全清 · 前端 `tsc -b` / `eslint` / `vite build` 全绿（1.13.1 那轮验的，1.13.2 前端零改动）
+- 服务：**全部停止**（8088 / 8089 无监听，无 vite / uvicorn 残留，DMG 卷已弹）
 
-## ⚠️ 环境侧（机器级）改动 —— 不在仓库里，换机器/重装会丢
-
-这三项是本会话为了修工具链做的，代码库里看不全，必须记录：
-
-1. **`~/.pi/agent/bin/python`（新增文件）** —— pi-lens 的 pytest runner 硬编码 `command:"python"`（`pi-lens dist/index.js:30397`），而本机只有 `python3` 和各项目 `.venv/bin/python`，导致每轮报 `Could not run tests: spawn python ENOENT`。pi-lens **没有** python 路径配置项（tests 只有全局 `tests.enabled`；`~/.pi-lens/bin` 只在 Windows 分支被加进 PATH），所以补了一个项目感知包装：当前目录向上找 `.venv/bin/python` → `$VIRTUAL_ENV` → `python3`。
-   - 纯新增，不遮蔽任何东西（原本 PATH 上没有 `python`）
-   - 副作用：`~/.pi/agent/bin` 也在登录 shell 的 PATH（第 15 位），所以终端里现在也有 `python`
-   - 还原：`rm ~/.pi/agent/bin/python`
-2. **刷新 editable 安装元数据** —— `pip install -e . --no-deps --no-build-isolation`。原先 site-packages 里停在 `zlink_agent-1.9.2`，其自定义 finder 让 Pyright 无法枚举 `agent/` 下新建模块，凭空产生 17 条 "unknown import symbol" 报错；刷新到 1.13.0 后 `lsp_diagnostics` 归零。
-   - **以后每次新增 `agent/` 顶层模块，若 Pyright 报"未知导入"，先重跑这条命令**
-3. **`.pi-lens.json`（已提交，仓库根）** —— 关掉 pi-lens 的 `autofix.enabled` 与 `format.enabled`。它此前反复自动改文件：吞掉过 CHANGELOG 的 v1.12.0 标题、把新写的 plan 重排 76 行、把 `web/src` 的 2 空格重排成 4 空格（单文件 200–3351 行噪音）。仓库无 prettier 配置、eslint 对两个版本都退出码 0，说明重排不是仓库要求。
-   - 注意：项目级配置看起来在会话启动时读取，**当轮不生效，下个会话起效**
-
-## 本会话产出（按主题）
+## 本会话产出
 
 | commit | 内容 |
 |---|---|
-| `aaba434` `71a9dae` | spec + 11 任务实施计划（`docs/superpowers/{specs,plans}/2026-09-01-session-artifacts-sidebar*`） |
-| `447f5e0` | T1 会话目录化 `<sid>/{session.json,artifacts/,external.jsonl}` + 幂等迁移 + `is_valid_session_id` |
-| `6fd72f7` | T2 `session_context.py` ContextVar + system prompt 注入产物目录 + cronjob 传 sid |
-| `d53d51d` `56e3380` | T3/T4 before-hook 相对路径归一 + after-hook 登记会话外写出 |
-| `eea1bda` `f21e853` `0d34344` | T5/T6/T7 产物四端点：列表 / 文件（CSP+下载）/ zip / reveal |
-| `e7b6bc4` | T8 u8/nc/yonsuite 三处"保存到桌面"文案改为产物目录 |
-| `3842187` `11f1405` `e652dc9` | T9/T10 前端数据层 + 侧边栏面板 + 折行/图标修复 |
-| `f041ebe` | T11 文档与版本号收口（含补回被误删的 CHANGELOG v1.12.0 标题） |
-| `973072e` | 清两条 main 上的既有 lint 债（`skill_manager.py` W292、`ReasoningBlock` set-state-in-effect） |
-| `02cf8f2` | 产物栏默认宽度 320→380 + 折行根因修复（`nowrap`/`shrink:0`/`min-width:0`） |
-| `3aa4040` `ead1512` | 关 pi-lens autofix + 动态内联样式的约定注释 |
-| `51e07e9` | AGENTS.md 13 处修正 + chat.py 157 个 Pyright 清零 + 四段技能路径绝对化 |
-| `faa9ad2` | HANDOVER 与设计文档同步更新 |
-| `e974116` | erp_u9c_tools.py 分页参数化查询，消除 SQL 注入 lint 误报 |
-| `8ce6744` | 全局 HEAD 中间件，所有路由支持 HEAD 请求 |
-| `8ce6744` (再构建) | macOS DMG 重新打包（含以上全部修复） |
+| `f5a0e56` | 会话执行中置灰「新建对话」（`disabled={state.agentRunning}` + tooltip），`.sidebar-new-btn` 的 hover/active 补 `:not(:disabled)` 防灰态被点亮 |
+| `28e4cce` | **WS 帧按 session id 归属**：`AppAction` 新增 `SCOPED`（串台裁决收在 reducer，那里有权威的 `currentSessionId`）与 `ADD_MESSAGE`（相对动作）；`web/src/hooks/useChat.ts` 整体重写，连接按 sid 存进 `runsRef`，`stopAgent` / `sendApproval` / `steerMessage` 回到正确连接；`ChatPage` 审批卡片改按 sid 归属 |
+| `632592c` | **切回正在执行的会话时重放本轮视图**：每条 run 用 `LiveRun` 记账（`recorded` 只放改 messages 的相对动作 + `tokenAll` / `reasoningAll` / `progress` / `toolName`），切回时 `attach()` 在刚从磁盘读回的历史上重放，进度条 / 停止按钮 / 本轮气泡 / 新建置灰一起接回，工具耗时原样保留 |
+| `1be7a6d` | 版本 1.13.1 + CHANGELOG |
+| `a7a12d0` | **打包版 node 可达性**：新增 `agent/node_env.py`（本机 node 优先探测 → 探不到落 Electron-as-node shim）+ `backend/main.py` lifespan 早期挂载 + `tests/test_node_env.py` 11 例 + AGENTS.md 同步 |
+| `3df8845` | 版本 1.13.2 + CHANGELOG |
+
+## 本轮最值钱的知识：打包版 node 为什么 127
+
+根因链条：从 Finder / Dock 启动的 GUI 进程**不读 `~/.zshrc`、不读 `/etc/paths.d`** → 后端环境 `PATH=/usr/bin:/bin:/usr/sbin:/sbin`（实测 8089 上的打包后端进程 env）→ 本机 brew 的 `/opt/homebrew/bin/node` 不可见 → `terminal_tool.py:181` 是 `"env": os.environ`，原样继承 → 技能里 `node *.js` 一律 exit 127 → **模型把 127 误读成「本机没有安装 Node.js」**（会话 `aef60f42` 就是这么错的，84 条消息）。
+
+- 预置的 node **没坏**：`ELECTRON_RUN_AS_NODE=1` + `ELECTRON_NODE_PATH`（Electron 二进制）实测可当 node 用（v24.18.1），此前只喂给了 chart MCP（`backend/main.py:167-176`），terminal 一点没继承
+- 用户本机其实装着 node（brew v26.7.0；另有 pi-node v22.23.2）—— 所以修法必须**两条都要**：既补本机探测，也留包内兜底
+- 受影响技能四个：`china-hotdata`（4 个脚本）/ `anysearch` CLI / `minimax-pdf` 的 `render_cover.js` / `pptx-generator`
+- dev 模式从登录 shell 起，PATH 正常 → **这个洞只有打包版会撞**，所以长期没人发现
+- 修复实证（不是静态检查）：`env -i` + 最小 PATH 直接跑 **DMG 里的冻结后端** → `/api/health` 返回 `version 1.13.2`，app.log 打出 `zlink.node_env: node 可达性：用本机 node /opt/homebrew/bin/node（目录已前置进 PATH）`，chart MCP 仍 `connected, 27 tools`（无回归）。注意 `_internal/` 里没有散装 `.py` 是正常的（模块进 PYZ，散装只有 datas）
 
 ## 关键决策记录
 
-1. **范围 A 档最小实现**：只做会话产物栏。参考源码 `DSH-better-sidebar`（VSCode 风格工作台插件）只借鉴 3 点：会话隔离、"本轮写出文件"的收集思路、产物可被主动打开（后者降级为 v1.1）。编辑器/终端/Git/内置浏览器/tab 拆分全部排除。
-2. **②会话目录化**：会话从扁平 `<sid>.json` 变成目录，产物是真实文件而非内联进 JSON —— ECharts 类报告必须是真实文件才能 iframe 正常跑，内联还会让会话文件膨胀。
-3. **B + B2 写入约束**：提示注入 + 相对路径归一；写到目录外的绝对路径登记 `external.jsonl` 并在侧栏灰显。理由：否则"写到我桌面"的报告在栏里凭空消失，用户会以为侧边栏坏了。
-4. **①目录为真相**：列表 = 实时扫盘，不做登记表。登记表与磁盘必然漂移（终端 `mv`、用户手放文件、外部删除）。
-5. **不用 `StaticFiles` 挂载**：会把含 ERP 数据的 `session.json` 暴露给本机任意页面（后端无鉴权）。改显式路由 + 单一校验入口 `_resolve_in_artifacts`。
-6. **归一放 before-hook 而非改 `file_tools._expand_path`**：规则需要工具名与参数名，`_expand_path` 读写共用且看不到工具名；hook 方案让 `file_tools.py` 零改动。
-7. **sid 正则 `^[A-Za-z0-9_-]{1,64}$`**（不用严格 8 位 hex）：历史与测试里存在 `sess-stream` 这类合法 id，严格版会误拒；两者同样挡住 `../`。
-8. **HTML 用 iframe 预览，不是内置浏览器**：iframe 只是嵌一个同源 URL 的渲染窗口，零新依赖；DSH 那种可导航多 tab webview 是独立子系统，被排除。
+1. **放弃多会话并发改造，只支持单会话**（用户拍板「算了，回退吧，不折腾多会话了」）。执行中只堵「新建对话」按钮；从「历史对话」页点进另一个会话这条路径**没堵**，靠上面的 sid 归属保证不串台。
+2. **串台裁决放 reducer 不放 hook**：`scoped(sid, action)` 包一层，由 reducer 用权威的 `state.currentSessionId` 决定生效与否 —— 不靠闭包猜、没有竞态窗口。附带原因：`react-hooks/refs` 禁止渲染期写 ref，所以 ref 只能影响 token flush 时机，正确性必须在 reducer。
+3. **重放只录相对动作**（`ADD_MESSAGE` / `ADD_PENDING_TOOL` / `REPLACE_PENDING_TOOL`）：切回时消息列表是刚从磁盘读的全新历史，绝对式的 `SET_MESSAGES` 会把磁盘历史覆盖掉。
+4. **node 可达性放后端启动统一补 PATH**，而不是往 terminal 塞特判 —— 一处生效给 terminal 与所有 MCP 子进程。顺序：PATH 已有 node 就完全不动 → 探本机真实 node（brew / `/usr/local/bin` / nvm·fnm 解析到最高版本 / volta / asdf / mise / pnpm / pi-node，Windows 加 `Program Files\nodejs`）→ 才落包内 shim。shim 每次启动重写（理由同 chart：app 被移动后旧路径会永久失效）。`ELECTRON_RUN_AS_NODE=1` **只活在 shim 脚本内部**，泄进本进程环境会让被 spawn 的 Electron 应用不开界面。
+5. **明确不做：把技能目录绝对路径注入 prompt**（用户 2026-09-02 拍板「这个不用做」）。现状留着：`SKILL.md` 里写的是 `node agent/skills/<name>/scripts/x.js` 这种仓库相对路径，而终端 cwd 是会话产物目录，模型得自己找绝对路径（`aef60f42` 为此花了 60+ 条消息）。node 已可达，所以这条现在只是「绕路」不再是「卡死」。**若以后要重启此事**：改点在 `agent/skill_manager.py:162` 的拼装处（`"## {name}"` 标题下加一行技能目录），配套要在 `agent/tools/skills_tool.py` 暴露一个 `get_skill_dir(name)`（别改 `_get_skill_content` 签名，它有别的调用方）。
+6. **打完包只留当前版本 dmg**（含 `.dmg.zip` 副本）—— 常设偏好，自动执行，不再征求确认。
 
-## 顺手修掉的既有缺陷（非本次引入）
+## ⚠️ 环境侧（机器级）改动 —— 不在仓库里，换机器/重装会丢
 
-- **路径穿越**：`session_id` 来自客户端可控的 `/ws/chat/{session_id}`，旧版直接拼路径 → `%2e%2e%2f` 可把会话文件写到 `sessions/` 外（清理前的真实数据上实测旧代码确实会往目录外写）。现统一过 `is_valid_session_id()`，`tests/test_session_layout.py::test_illegal_session_id_never_writes_outside` 守着。
-- **定时任务产物无归属**：`cronjob_tools` 已 `create_session()` 拿到 sid，却没传给 `run_conversation`（参数存在但未赋值）。
-- **相对路径污染源码仓库**：产物曾落在后端进程 cwd（仓库根），是 `ca4f13b` 那条 `/*.html` gitignore 的根因。现归一到会话目录，真机验证仓库根无 html。
-- **`.gitignore` 的 `docs/`**：导致 10 份历史 spec/plan 都是 `git add -f` 进去的，已加 `!docs/` 反排除。
+1. **`~/.pi/agent/bin/python`（新增文件）** —— pi-lens 的 pytest runner 硬编码 `command:"python"`，本机只有 `python3` 和各项目 `.venv/bin/python`，每轮报 `spawn python ENOENT`。pi-lens 没有 python 路径配置项，所以补了项目感知包装（向上找 `.venv/bin/python` → `$VIRTUAL_ENV` → `python3`）。还原：`rm ~/.pi/agent/bin/python`
+2. **刷新 editable 安装元数据** —— 本轮已重跑 `pip install -e . --no-deps --no-build-isolation`（新增顶层模块 `agent/node_env.py` 后必须做；此前元数据停在 1.13.0，会让 Pyright 对新建模块凭空报 unknown import）。现在元数据 = 1.13.2，从任意 cwd 都能 import。**以后每次新增 `agent/` 顶层模块，若 Pyright 报未知导入，先重跑这条**
+3. **`.pi-lens.json`（已提交，仓库根）** —— 关掉 pi-lens 的 `autofix.enabled` 与 `format.enabled`（它此前反复自动改文件：吞过 CHANGELOG 标题、把 plan 重排 76 行、把 `web/src` 2 空格改成 4 空格）。项目级配置在会话启动时读取，**当轮不生效，下个会话起效**
 
-## 真机验收结论（全新环境 + 真模型 deepseek-v4-flash）
+## 遗留待办 & 已知问题
 
-- 模型传相对路径 `report.html` → 落 `sessions/<sid>/artifacts/`（审计日志留原始参数）
-- 侧边栏无人工干预自动刷新（`tool_result → bumpArtifacts → 防抖重拉`），顶栏角标计数正确
-- iframe 渲染出模型写的页面，`sandbox="allow-scripts"` 下产物 JS 真的能跑（点"点我加一"数字变化）
-- 绝对路径 `/tmp/xxx.html` 未被改写，登记进 `external.jsonl`，侧栏「会话外文件」显示；文件被外部删除后条目置灰为"已失效"、Finder 按钮禁用
-- `⌘B` 收起/展开 + localStorage 偏好跨服务重启生效；380px 下长文件名标题行走省略号、操作链接不折行
-- 未登记的 `abs_path` 调 reveal 返回 403；路径穿越全 404；html 带 `CSP: sandbox allow-scripts` + `nosniff`，非 html 不带
+**本轮新发现，未修**
 
-## 遗留待办
+- [ ] **`./start.sh stop` 按端口杀进程，会瞄上已安装的客户端**：本轮实测它打印「端口 8089 已被占用，停止进程 PID 85863 85869」，那两个 PID 正是 `/Applications/ZLink Agent.app` 的 Electron helper 与打包 backend；之后那个客户端就不在了。建议护栏：只杀命令行含 `uvicorn` / `backend.main` 的 dev 进程，碰到 Electron 打包进程跳过并提示。（Electron 侧 `electron/port.js` 早就有这个意识 —— 它只杀命令行含 `zlink-backend` 的残留，外来进程弹窗报错；`start.sh` 没有）
+- [ ] 打包版端到端还差一步：在**装了 1.13.2 的客户端里**真跑一次热搜技能（node 可达性已在冻结二进制上验证，但整条 agent 回合还没在客户端里走过）
 
-**发布（已完成）**
+**1.13.1 那轮自审如实保留的三条**
 
-- [x] fast-forward 合入 `main`
-- [x] `git tag -a v1.13.0` 并 `git push origin main v1.13.0`（origin = gitcode.com，AtomGit 仓库现行域名）
-- [x] `bash scripts/build-electron.sh` → `dist-electron/ZLink Agent-1.13.0-arm64.dmg`
+- `save_session` 到 `done` 帧之间有亚秒窗口，正好那一刻切回来会重复渲染一轮，刷新自愈；根治需后端在落盘前发 `done`（后端未动）
+- 审批的 sid 归属代码写好了但**没实测**（那几轮没触发审批）
+- 后台 run 继续跑时，当前空闲会话的「新建对话」不置灰 —— 不串台，但「只允许一条」没强制
 
-**发布相关遗留（本会话已处理）**
+**其它既有债（本轮读到、未动）**
 
-- [x] **签名改为本地 ad-hoc**：`scripts/build-electron.sh` 的 macOS 打包改成两阶段 —— 先 `--dir` 出 `.app` → 在普通目录里 `codesign --force --deep --sign -` → 再 `--prepackaged` 从已签名的 `.app` 生成 DMG。成品实测：`codesign --verify --deep --strict` → valid on disk / satisfies its Designated Requirement；`Signature=adhoc`；`spctl -a` → **rejected（不是 damaged）** —— 这正是关键差别：rejected 可用包内 `install.command` 清 quarantine 绕过，damaged 则删属性也修不好
-  - 踩过的坑（已写进脚本注释）：先试过在 DMG 的 UDRW 挂载卷里原地签，codesign 报 `internal error in Code Signing subsystem` 并留下“签名指示器存在但资源缺失”的包 —— 比不签名更糟，故改为两阶段
-  - 仍无 Developer ID，所以是 ad-hoc 而非可信签名；要上 Gatekeeper 白名单需配 Apple 证书
-- [x] **历史包已删**：`ZLink Agent-1.12.0-arm64.dmg` 已移除。同时修了造成旧包被误改的 bug —— 步骤 3.5 原先 glob `dist-electron/*.dmg`，会把**所有**历史包重写一遗（mtime 与内容都被覆盖），现改为只取本次新构建的那个（`ls -t | head -1`）
-- [x] **远端残留分支已删**：`origin/codex/zlink-agent-v1.5.0` 已删除，远端现在只剩 `main`
-  - 但它**不是纯残留**：`git cherry` 显示 21 个提交里 20 个的等价补丁已在 main，剩 `c1b4a04`（v1.5.0 改名收尾，82 文件）；其涉及的 `.codex/config.toml`、`.agents/skills/README.md` 在 main 里是故意 gitignore 的，**只有 `CONTRIBUTING.md`（69 行）main 里没有**
-  - 删前已留档：本地 tag `archive/codex-v1.5.0` + `/tmp/zlink-codex-v1.5.0.bundle`（40M，未推远端）
-**既有债（已清理）**
+- `session_manager` 保存索引是整表读改写，并发新建会话有丢更新窗口
+- `agent_adapter.py` 里 `_session_usage` 赋值后没人读（`/cost` 恒空）
+- `terminal_tool` 的后台进程表是模块级全局，跨会话可见
+- 后端无鉴权，只靠绑 `127.0.0.1`（`ZLINK_AGENT_HOST` 可覆盖，绝不能放 0.0.0.0）
+- 冻结模式 `GET /` 返回 404：`backend/main.py:294` 只在 `web/dist` 存在时挂 `StaticFiles`，而 Electron 走 `file://` 加载 `app.asar.unpacked/web/dist/index.html` —— 无害，非回归
 
-- [x] chat.py 157 个 Pyright 报错 — 已修复（`isinstance` 代替 `event.type` 字符串比较）
-- [x] 四段 skill 相对路径命令 — 已修复（全部改为从仓库根出发的绝对路径）
-- [x] 5 个未格式化文档 — 已 ruff format
-- [x] 2 个未格式化源文件 — 已 ruff format
-- [x] erp_u9c_tools.py SQL 注入 lint 误报 — 已修复（分页参数走参数化绑定）
-- [x] 全局 HEAD 404 — 已修复（HEAD → GET 中间件）
-
-**v1.1 功能候选**
+**v1.1 功能候选（上一轮遗留，仍有效）**
 
 - [ ] `sidebar_open` 工具：模型主动把产物推到本会话侧边栏（`external.jsonl` 已留接口位）
-- [ ] "本轮文件"分组：条目标注第几轮/哪个工具生成（前端按消息流里的 `args.path` 匹配即可，不落盘）
-- [ ] MCP 工具写出的文件目前既不归一也不登记（第三方 server 自管子进程 cwd，超出可控范围）
+- [ ] 「本轮文件」分组：按消息流里的 `args.path` 匹配生成轮次，不落盘
+- [ ] MCP 工具写出的文件目前既不归一也不登记（第三方 server 自管子进程 cwd）
 
 **已知限制（设计时已接受）**
 
 - `read_file` 等只读工具的相对路径也归一到产物目录，模型想看仓库里某文件必须给绝对路径
-- 离线/CDN 不可达时报告图表空白，靠「在浏览器打开」兜底；iframe 内部渲染失败无法从父页面探测
-- 产物 >5MB 不提供内嵌文本预览；列表 >300 项截断；zip >200MB 返回 413
+- 离线 / CDN 不可达时报告图表空白，靠「在浏览器打开」兜底；iframe 内部渲染失败无法从父页面探测
+- 产物 >5MB 不内嵌文本预览；列表 >300 项截断；zip >200MB 返回 413
+
+## 上一轮留档（v1.13.0 会话产物侧边栏）
+
+细节不再复述，看 `docs/superpowers/specs/2026-09-01-session-artifacts-sidebar-design.md` + 同名 plan。仍然成立的结论：会话目录化 `<sid>/{session.json,artifacts/,external.jsonl}`；列表以**目录为真相**（实时扫盘，不用登记表）；**不用 `StaticFiles`**（会把含 ERP 数据的 `session.json` 暴露给本机任意页面）；路径归一在 before-hook、登记在 after-hook（`file_tools.py` 零改动）；sid 过 `is_valid_session_id()`（`^[A-Za-z0-9_-]{1,64}$`）挡住 `%2e%2e%2f` 穿越。更早一版的本文件全文见 `git show 3466a8f:HANDOVER.md`。
 
 ## 新会话入口
 
-1. `git log --oneline -5` 确认在 `main` @ `8ce6744`
-2. `git diff --stat v1.13.0..HEAD` 看本会话附加变更
-3. 读 `docs/superpowers/specs/2026-09-01-session-artifacts-sidebar-design.md`（设计依据）+ 同名 plan
-4. 打包：`bash scripts/build-electron.sh`（macOS）或 `bash scripts/build-electron.sh --win`（Windows 开发机）
+1. `git log --oneline -5` 确认在 `main` @ `3df8845`（v1.13.2）
+2. 会话视图规则：`web/src/hooks/useChat.ts`（顶部有 `LiveRun` / `scoped` 说明）+ `web/src/context/AppContext.tsx` 的 `SCOPED` case
+3. node 可达性：`agent/node_env.py` 的模块 docstring + `AGENTS.md` §13「打包版 node 可达性」
+4. 打包：`bash scripts/build-electron.sh`（两阶段 ad-hoc 签名；打完按偏好清历史包）
+5. 提醒：`/Applications` 那份还是 1.13.1，要验 node 修复先覆盖安装 1.13.2
