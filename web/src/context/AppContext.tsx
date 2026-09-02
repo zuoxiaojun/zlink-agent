@@ -63,6 +63,8 @@ export type AppAction =
     }
   | { type: "NEW_SESSION" }
   | { type: "SET_MESSAGES"; messages: Message[] }
+  /** 追加一条消息（相对动作，可重放 —— 供切回正在跑的会话时补回本轮气泡） */
+  | { type: "ADD_MESSAGE"; message: Message }
   | { type: "SET_RUNNING"; running: boolean }
   | { type: "APPEND_TOKEN"; token: string }
   | { type: "APPEND_REASONING"; token: string }
@@ -142,6 +144,8 @@ function reducer(state: AppState, action: AppAction): AppState {
       };
     case "SET_MESSAGES":
       return { ...state, messages: action.messages };
+    case "ADD_MESSAGE":
+      return { ...state, messages: [...state.messages, action.message] };
     case "SET_RUNNING":
       return {
         ...state,
