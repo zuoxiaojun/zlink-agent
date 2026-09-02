@@ -8,7 +8,7 @@ ZLink Agent (智链 Agent) is an AI assistant with multi-ERP (YonSuite / NC / U8
 
 **Stack:** Python 3.11+ / FastAPI (port 8089) / React + Vite (port 8088) / MCP JSON-RPC / SQLite FTS5 / pytest / ruff
 
-**Tests:** 591 tests, ~9s, zero network/LLM deps. Run: `.venv/bin/python -m pytest tests/ -v`
+**Tests:** 602 tests, ~10s, zero network/LLM deps. Run: `.venv/bin/python -m pytest tests/ -v`
 
 ## 2. Directory Structure
 
@@ -54,6 +54,7 @@ zlink-agent/
 │   ├── skill_manager.py        # ⚠️ skill CRUD, activation, prompt injection
 │   ├── session_manager.py      # ⚠️ 会话持久化 —— data/sessions/<sid>/{session.json,artifacts/,external.jsonl}
 │   ├── session_context.py      # ⚠️ 当前会话 ContextVar；工具层据此解析产物目录（未设=回退进程 cwd）
+│   ├── node_env.py             # ⚠️ 打包版 node 可达性：启动时补 PATH（本机 node 优先 → Electron-as-node shim）
 │   ├── search_index.py         # SQLite FTS5 session search
 │   ├── memory_manager.py       # conversation summary memory (data/memory/)
 │   ├── fact_memory.py          # autonomous memory (notes + user profile)
@@ -64,7 +65,7 @@ zlink-agent/
 ├── web/                        # React + Vite frontend (port 8088)
 │   ├── src/                    # App.tsx (11 routes ⚠️), pages/, api/, components/, styles/, hooks/
 │   └── vite.config.ts          # ⚠️ proxy /api + /ws → backend:8089
-├── tests/                      # 51 files, 591 tests; conftest.py = shared fixtures
+├── tests/                      # 52 files, 602 tests; conftest.py = shared fixtures
 ├── scripts/                    # build-electron.sh, zlink.sh, migrate.py
 └── data/                       # runtime data (~/.zlink-agent/data/):
                                 #   config.json (chmod 0600), active_skills.json, skills/,
@@ -210,7 +211,7 @@ To add a blocked pattern: edit `agent/tools/security_hooks.py` or `agent/extensi
 
 ## 6. Test System
 
-- Run all: `.venv/bin/python -m pytest tests/ -v`; single file: append its path. 591 tests.
+- Run all: `.venv/bin/python -m pytest tests/ -v`; single file: append its path. 602 tests.
 - Coverage target 70%+: `--cov=agent --cov=backend --cov-report=term-missing`.
 - **Zero-network policy:** all tests use `MockLLMProvider`, FastAPI `TestClient`, tmp-file config isolation. No real LLM/YonSuite/MCP calls.
 - Key fixtures (`tests/conftest.py`): `clean_extensions` (autouse, wipes event bus between tests), `isolated_config` (redirects config to tmp_path), `MockLLMProvider` (scripted LLMResponse).
@@ -337,6 +338,7 @@ Build: `bash scripts/build-electron.sh` = frontend build → Python bundle → e
 - **U8 物料表**: `Inventory`（财务供应链用）与 `bas_part`（生产制造用）通过 `Inventory.cInvCode = bas_part.InvCode` 关联
 - **桌面端网络绑定（2026-07-18）**：PyInstaller 入口默认 bind `127.0.0.1`（可用 `ZLINK_AGENT_HOST` 覆盖）；后端无鉴权，绝不能绑 0.0.0.0 暴露给局域网。Electron 生产模式启动顺序：loading.html → `electron/port.js` 抢占 8089（只杀命令行含 `zlink-backend` 的残留进程，外来进程则弹窗报错）→ 启动后端 → `/api/health` 就绪后加载前端。
 - **`-webkit-app-region` 禁令（2026-07-18 事故）**：任何页面都不得设整页 `-webkit-app-region: drag`——拖拽区是窗口级状态，`loadURL` 换页后残留，整窗点击/悬停全被系统拿去拖窗口且 CDP 查不到（loading.html 曾因此导致打包版点击全灭）。标准做法：仅 `.electron .top-bar` 设 drag（`global.css`，顶栏纯文本无按钮）；hiddenInset 无原生拖动区，需要拖动必须靠此类小区域 CSS。
+- **打包版 node 可达性（2026-09-02）**：从 Finder / Dock 启动的 GUI 进程不读 `~/.zshrc`、不读 `/etc/paths.d`，实测后端环境 `PATH=/usr/bin:/bin:/usr/sbin:/sbin` —— 本机 brew 装的 node 因此不可见，依赖 `node *.js` 的内置技能（china-hotdata / anysearch / minimax-pdf / pptx-generator）在客户端里一律 exit 127；dev 模式从登录 shell 起所以撞不到，只有打包版会出。`agent/node_env.py` 在 lifespan 早期（chart 的 node 解析与 `connect_all_servers` **之前**）补一次 PATH：本机真实 node 优先（brew / `/usr/local/bin` / nvm / volta / asdf / mise / pnpm / pi-node，Windows 加 `Program Files\nodejs`），探不到才用 `ELECTRON_NODE_PATH` 在 `<DATA_DIR>/bin/node` 生成 shim（每次启动重写，理由同 chart）。`ELECTRON_RUN_AS_NODE=1` **只能活在 shim 里** —— 泄进本进程环境会让被 spawn 的 Electron 应用以为自己是纯 node 而不开界面。
 - **Chart MCP 打包（2026-07-18）**：build-electron.sh 对 `node_modules/@antv/mcp-server-chart` 跑 `npm install --omit=dev --ignore-scripts` 把依赖装进包目录（extraResources 一并拷贝，约 +29MB）。运行时 node 来源：`ELECTRON_NODE_PATH`（electron/main.js 注入 = Electron 二进制，配 `ELECTRON_RUN_AS_NODE=1`）优先，回退系统 `node`；两个都没有则跳过。内置 chart 条目是**应用托管**的：每次启动强制刷新 command/args/env（只保留用户的 enabled），防止 app 移动位置后旧路径残留导致 chart 永久失效。
 
 ### ERP 数据源路由（2026-07-13）

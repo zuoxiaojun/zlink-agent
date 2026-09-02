@@ -70,6 +70,15 @@ async def lifespan(application: FastAPI):
         _logger.info("会话布局迁移完成: %d 个会话 → 目录布局", n_moved)
     _lap("session_layout")
 
+    # node 可达性：GUI（Finder / Dock）启动的进程 PATH 只有 /usr/bin:/bin:/usr/sbin:/sbin，
+    # 本机 brew 的 node 看不见，包内的 Electron 运行时又只喂给了 chart MCP —— 依赖 node
+    # 脚本的内置技能在打包版里一律 exit 127。启动时补一次 PATH，terminal 与所有 MCP 子
+    # 进程一起受益；必须在 chart 的 node 解析和 connect_all_servers 之前。
+    from agent.node_env import ensure_node_on_path
+
+    _logger.info("node 可达性: %s", ensure_node_on_path())
+    _lap("node_path")
+
     # 会话工作目录：相对路径 → <sid>/artifacts/，会话外写出 → external.jsonl
     from agent.tools.session_artifact_hook import install_session_artifact_hooks
 
