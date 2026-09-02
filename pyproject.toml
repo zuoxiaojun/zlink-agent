@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "zlink-agent"
-version = "1.13.1"
+version = "1.13.2"
 description = "Smart Link to Your Business Systems - AI Agent for Multi-ERP Analysis"
 requires-python = ">=3.11"
 dependencies = [

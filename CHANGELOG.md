@@ -1,3 +1,19 @@
+## v1.13.2 — 2026-09-02 (打包版 node 可达性)
+
+### 新增
+
+- `agent/node_env.py`：启动时补一次 PATH，让打包版所有子进程（terminal 与 MCP）都找得到 node。本机真实 node 优先 —— 按候选目录探测 brew / `/usr/local/bin` / nvm·fnm（解析到最高版本）/ volta / asdf / mise / pnpm / pi-node，Windows 加 `Program Files\\nodejs`，命中就把**那个目录**前置进 PATH，npm/npx 连带可用；一个都没探到才用 `ELECTRON_NODE_PATH` 在 `<DATA_DIR>/bin/node` 生成 shim（每次启动重写，理由同 chart —— 防 app 被移动后旧路径残留）。
+- 启动报告 `node 可达性: {...}` 写进 `app.log`，排查不用再猜是哪条路径生效。
+
+### 修复
+
+- **打包版里依赖 node 的内置技能一律 exit 127**：从 Finder / Dock 启动的 GUI 进程不读 `~/.zshrc`、不读 `/etc/paths.d`，后端环境实测 `PATH=/usr/bin:/bin:/usr/sbin:/sbin` —— 本机 brew 装的 node 因此不可见。包内的 Electron 运行时（`ELECTRON_RUN_AS_NODE=1` + `ELECTRON_NODE_PATH`，实测可当 node 用，v24.18.1）此前只喂给了 chart MCP，`terminal_tool` 用的是 `"env": os.environ`，什么也没继承。于是 china-hotdata / anysearch / minimax-pdf / pptx-generator 四个技能的 `node *.js` 全部 127，会话 `aef60f42` 里 agent 还被 127 误导成「本机没有安装 Node.js」。dev 模式从登录 shell 起，PATH 正常，所以只有打包版会撞。
+- 挂载点在 `backend/main.py` lifespan 早期 —— chart 的 node 解析与 `connect_all_servers` **之前**，所以 MCP 子进程也从补好的 PATH 继承。`ELECTRON_RUN_AS_NODE=1` 只写在 shim 脚本内部，绝不进本进程环境（否则被 spawn 的 Electron 应用会以为自己是纯 node 而不开界面）。
+
+### 实测
+
+模拟 GUI 最小环境（`env -u PATH PATH=/usr/bin:/bin:/usr/sbin:/sbin`）：修复前 `which node → None`，修复后 `→ /opt/homebrew/bin/node`，`PATH` 头部为 `/opt/homebrew/bin`。新增 11 个用例，含真跑一次 shim 断言 `as=1 args=-e 1 --x=1`（参数原样透传 + 环境变量确实设上）、`ELECTRON_RUN_AS_NODE` 不泄漏到本进程、shim 每次重写、Electron 路径带空格也成立、探不到 node 又没有 Electron 时不写任何文件。`tests/test_node_env.py`；全量 602 测试通过，`ruff check` / `ruff format --check` 干净，前端零改动。
+
 ## v1.13.1 — 2026-09-02 (会话视图按 session id 绑定 + 单会话执行约束)
 
 ### 新增
