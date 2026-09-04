@@ -25,14 +25,16 @@ echo "╚═══════════════════════�
 
 # 使用项目自带的虚拟环境（干净 venv，不含 torch/pandas 等无关大包）
 # Windows venv 结构是 .venv/Scripts/python.exe，macOS/Linux 是 .venv/bin/python3
-if [ -f "$(pwd)/.venv/Scripts/python.exe" ]; then
-	VENV_PYTHON="$(pwd)/.venv/Scripts/python.exe"
-elif [ -f "$(pwd)/.venv/bin/python3" ]; then
-	VENV_PYTHON="$(pwd)/.venv/bin/python3"
+# 可通过 ZLINK_BUILD_VENV 指定另一个 venv（如跨架构构建 x64 时指向 .venv-x64）
+VENV_DIR="${ZLINK_BUILD_VENV:-$(pwd)/.venv}"
+if [ -f "$VENV_DIR/Scripts/python.exe" ]; then
+	VENV_PYTHON="$VENV_DIR/Scripts/python.exe"
+elif [ -f "$VENV_DIR/bin/python3" ]; then
+	VENV_PYTHON="$VENV_DIR/bin/python3"
 else
-	echo "❌ 未找到项目虚拟环境"
-	echo "   Windows: $(pwd)/.venv/Scripts/python.exe"
-	echo "   macOS/Linux: $(pwd)/.venv/bin/python3"
+	echo "❌ 未找到项目虚拟环境: $VENV_DIR"
+	echo "   Windows: $VENV_DIR/Scripts/python.exe"
+	echo "   macOS/Linux: $VENV_DIR/bin/python3"
 	echo "   请先运行: python3 -m venv .venv && source .venv/bin/activate && pip install -e ."
 	exit 1
 fi

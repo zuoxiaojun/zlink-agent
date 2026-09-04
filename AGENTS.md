@@ -272,7 +272,9 @@ ruff check --fix . && ruff format .       # auto-fix
 .venv/bin/python -c "from agent.tools.registry import registry, discover_tools; discover_tools(); print(len(registry.get_all_tool_names()), 'tools')"
 
 # Build
-bash scripts/build-electron.sh            # macOS .dmg; --win → .exe; --linux → .AppImage
+bash scripts/build-electron.sh                # macOS arm64 .dmg (Apple Silicon) — 默认
+bash scripts/build-electron.sh --mac --x64    # macOS x64 .dmg (Intel 芯片)
+bash scripts/build-electron.sh --win          # Windows .exe
 ```
 
 ## 9. ERP Setup (UI)
@@ -296,7 +298,7 @@ Version bump (`pyproject.toml` = single source of truth):
 4. `README.md` version + feature list + structure
 5. `git tag vX.Y.Z && git push origin vX.Y.Z`
 
-Build: `bash scripts/build-electron.sh` = frontend build → Python bundle → electron-builder → .dmg/.exe/.AppImage.
+Build: `bash scripts/build-electron.sh [--mac|--win] [--arm64|--x64]` = 前端 build → Chart MCP 依赖 → PyInstaller 后端 → electron-builder 两阶段签名 → DMG/.exe。macOS 默认 arm64；`--mac --x64` 出 Intel 包（详见 §13 与脚本头部注释）。
 
 ## 11. Debugging
 
@@ -340,6 +342,8 @@ Build: `bash scripts/build-electron.sh` = frontend build → Python bundle → e
 - **`-webkit-app-region` 禁令（2026-07-18 事故）**：任何页面都不得设整页 `-webkit-app-region: drag`——拖拽区是窗口级状态，`loadURL` 换页后残留，整窗点击/悬停全被系统拿去拖窗口且 CDP 查不到（loading.html 曾因此导致打包版点击全灭）。标准做法：仅 `.electron .top-bar` 设 drag（`global.css`，顶栏纯文本无按钮）；hiddenInset 无原生拖动区，需要拖动必须靠此类小区域 CSS。
 - **打包版 node 可达性（2026-09-02）**：从 Finder / Dock 启动的 GUI 进程不读 `~/.zshrc`、不读 `/etc/paths.d`，实测后端环境 `PATH=/usr/bin:/bin:/usr/sbin:/sbin` —— 本机 brew 装的 node 因此不可见，依赖 `node *.js` 的内置技能（china-hotdata / anysearch / minimax-pdf / pptx-generator）在客户端里一律 exit 127；dev 模式从登录 shell 起所以撞不到，只有打包版会出。`agent/node_env.py` 在 lifespan 早期（chart 的 node 解析与 `connect_all_servers` **之前**）补一次 PATH：本机真实 node 优先（brew / `/usr/local/bin` / nvm / volta / asdf / mise / pnpm / pi-node，Windows 加 `Program Files\nodejs`），探不到才用 `ELECTRON_NODE_PATH` 在 `<DATA_DIR>/bin/node` 生成 shim（每次启动重写，理由同 chart）。`ELECTRON_RUN_AS_NODE=1` **只能活在 shim 里** —— 泄进本进程环境会让被 spawn 的 Electron 应用以为自己是纯 node 而不开界面。
 - **Chart MCP 打包（2026-07-18）**：build-electron.sh 对 `node_modules/@antv/mcp-server-chart` 跑 `npm install --omit=dev --ignore-scripts` 把依赖装进包目录（extraResources 一并拷贝，约 +29MB）。运行时 node 来源：`ELECTRON_NODE_PATH`（electron/main.js 注入 = Electron 二进制，配 `ELECTRON_RUN_AS_NODE=1`）优先，回退系统 `node`；两个都没有则跳过。内置 chart 条目是**应用托管**的：每次启动强制刷新 command/args/env（只保留用户的 enabled），防止 app 移动位置后旧路径残留导致 chart 永久失效。
+
+- **macOS Intel（x86_64）打包（2026-09-04）**：`build-electron.sh` 现支持 `--mac --x64` 出 Intel 包，不传架构即默认 `--mac --arm64`（产物名分别带 `-x64.dmg` / `-arm64.dmg`，由 `mac.artifactName` 里的 arch 宏决定）。要点：① PyInstaller **不能跨架构**，后端必须用 x86_64 解释器跑——本机 Apple Silicon 靠 Rosetta + python.org **框架版** Python 的 `-intel64` 切片（`/usr/local/bin/python3.x-intel64`），首次 `--x64` 自动建 `.venv-x64`。② 框架版 Python 的 `sysconfig.get_platform()` 报 `macosx-10.15-universal2`，会把 `macosx_11_0+` 的 x86_64 wheel 判为不兼容而回退 sdist（cryptography 最新版会触发 Rust 源码编译）。解法：装依赖时加 `MACOSX_DEPLOYMENT_TARGET=14.0` 且 `--only-binary=:all:`（在 `arch -x86_64` 下），cryptography 自动落到有 x86_64 wheel 的 48.x（与 arm64 的 50.x 版本不同、功能等价）。③ `build-pyinstaller.sh` 新增 `ZLINK_BUILD_VENV` 环境变量选 venv；整脚本 `arch -x86_64 bash` 跑在 Rosetta 下，PyInstaller 即出 x86_64。④ electron-builder 架构由 **CLI `--x64`/`--arm64` 决定**，`electron-builder.yml` 的 mac.target **不要再写 arch 列表**（否则 `--prepackaged` 阶段会按 config 把两个架构 DMG 都发出来，把 arm64 包覆盖成装了 x64 后端的假包）。⑤ arm64 与 x64 **各跑一次**，后端每次随架构重建。
 
 ### ERP 数据源路由（2026-07-13）
 

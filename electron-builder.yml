@@ -34,9 +34,12 @@ extraResources:
 
 mac:
   category: public.app-category.business
+  # 架构不在这里固定：由 scripts/build-electron.sh 传入的 --arm64 / --x64 CLI 参数决定，
+  # 每次只构建一个架构（后端 PyInstaller 产物按架构构建，不能与外壳混用）。
+  # artifactName 显式带 arch，产出 ZLink Agent-<ver>-arm64.dmg / -x64.dmg。
   target:
-    - target: dmg
-      arch: [arm64]
+    - dmg
+  artifactName: "${productName}-${version}-${arch}.${ext}"
   icon: packaging/app.icns
   hardenedRuntime: true
   gatekeeperAssess: false
