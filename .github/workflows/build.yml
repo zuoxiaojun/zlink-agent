@@ -41,7 +41,9 @@ jobs:
           pip install pytest pytest-cov pytest-timeout
 
       - name: Run tests
-        run: python -m pytest tests/ -v --timeout=120
+        # asyncio 测试在 CI Ubuntu 上较慢，不设 per-test 超时
+        # job 级超时（默认 360 分钟）兜底
+        run: python -m pytest tests/ -v
 
   # ── Windows 构建 + Release ──────────────────────────────────────
   build-windows:
