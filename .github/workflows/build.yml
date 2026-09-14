@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -e .
-          pip install pytest pytest-cov
+          pip install pytest pytest-cov pytest-timeout
 
       - name: Run tests
         run: python -m pytest tests/ -v --timeout=60
