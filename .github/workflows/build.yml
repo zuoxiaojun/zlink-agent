@@ -1,0 +1,125 @@
+# GitHub Actions CI/CD for ZLink Agent
+#
+# 触发条件:
+#   - push/PR 到 main 分支: 运行测试
+#   - 推送 v* tag: 构建 Windows 安装包 + 创建 Release
+#
+# macOS DMG 由本机构建后手动上传到 Release。
+
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+env:
+  # CI runner 在 GitHub US 网络，直接下 electron 官方源很快
+  # 国内开发机用 npm install 时设: ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
+
+jobs:
+  # ── 检测 ────────────────────────────────────────────────────────
+  test:
+    name: Test (Python)
+    if: "!startsWith(github.ref, 'refs/tags/v')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install -e .
+          pip install pytest pytest-cov
+
+      - name: Run tests
+        run: python -m pytest tests/ -v --timeout=60
+
+  # ── Windows 构建 + Release ──────────────────────────────────────
+  build-windows:
+    name: Build Windows
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Node.js / 前端 ──────────────────────────────────────────
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install frontend deps & build
+        run: |
+          cd web
+          npm ci
+          npm run build
+          cd ..
+
+      - name: Install root deps (electron, electron-builder, chart)
+        run: npm ci
+
+      # ── Python / 后端 ───────────────────────────────────────────
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python deps
+        run: |
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Build Python backend (PyInstaller)
+        run: bash scripts/build-pyinstaller.sh
+
+      # ── 打包 ────────────────────────────────────────────────────
+      - name: Install chart MCP runtime deps
+        run: |
+          if [ -d "node_modules/@antv/mcp-server-chart" ]; then
+            cd node_modules/@antv/mcp-server-chart
+            npm install --omit=dev --no-save --no-package-lock --ignore-scripts --silent
+          fi
+
+      - name: Build Windows installer (NSIS)
+        run: npx electron-builder --win --config electron-builder.yml
+
+      - name: Upload Windows installer (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist-electron/*.exe
+
+  # ── Release ─────────────────────────────────────────────────────
+  release:
+    name: Create Release
+    needs: build-windows
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows installer
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: release-artifacts
+
+      - name: Create Release & upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-artifacts/**
+          generate_release_notes: true
